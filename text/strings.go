@@ -1,0 +1,274 @@
+package text
+
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+func LowerFirst(s string) string {
+	r := []rune(s)
+
+	return strings.ToLower(string(r[0])) + string(r[1:])
+}
+
+func LowerIfFirstWordIn(s string, words ...string) string {
+	for _, w := range words {
+		if strings.HasPrefix(s, w+" ") {
+			return LowerFirst(s)
+		}
+	}
+	return s
+}
+
+func UpperFirst(s string) string {
+	s = strings.TrimFunc(s, unicode.IsSpace)
+	if len(s) == 0 {
+		return ""
+	} else if len(s) == 1 {
+		return strings.ToUpper(s)
+	}
+
+	r := []rune(s)
+	return strings.ToUpper(string(r[0])) + string(r[1:])
+}
+
+func CardinalNoun(n int) string {
+	noun := CardinalNounUnderTwenty(n)
+	if noun != "" {
+		return noun
+	}
+	if n > 199 {
+		return fmt.Sprintf("%d", n)
+	}
+
+	if n == 100 {
+		return "one hundred"
+	}
+	if n > 99 {
+		noun = "one hundred and "
+		n -= 100
+	}
+	if n < 20 {
+		return noun + CardinalNounUnderTwenty(n)
+	}
+
+	switch n / 10 {
+	case 2:
+		noun += "twenty"
+	case 3:
+		noun += "thirty"
+	case 4:
+		noun += "forty"
+	case 5:
+		noun += "fifty"
+	case 6:
+		noun += "sixty"
+	case 7:
+		noun += "seventy"
+	case 8:
+		noun += "eighty"
+	case 9:
+		noun += "ninety"
+	}
+
+	switch n % 10 {
+	case 1:
+		noun += "-one"
+	case 2:
+		noun += "-two"
+	case 3:
+		noun += "-three"
+	case 4:
+		noun += "-four"
+	case 5:
+		noun += "-five"
+	case 6:
+		noun += "-six"
+	case 7:
+		noun += "-seven"
+	case 8:
+		noun += "-eight"
+	case 9:
+		noun += "-nine"
+
+	}
+
+	return noun
+}
+
+func CardinalNounUnderTwenty(n int) string {
+	switch n {
+	case 0:
+		return "no"
+	case 1:
+		return "one"
+	case 2:
+		return "two"
+	case 3:
+		return "three"
+	case 4:
+		return "four"
+	case 5:
+		return "five"
+	case 6:
+		return "six"
+	case 7:
+		return "seven"
+	case 8:
+		return "eight"
+	case 9:
+		return "nine"
+	case 10:
+		return "ten"
+	case 11:
+		return "eleven"
+	case 12:
+		return "twelve"
+	case 13:
+		return "thirteen"
+	case 14:
+		return "fourteen"
+	case 15:
+		return "fifteen"
+	case 16:
+		return "sixteen"
+	case 17:
+		return "seventeen"
+	case 18:
+		return "eighteen"
+	case 19:
+		return "nineteen"
+	}
+	return ""
+}
+
+func MultiplicativeAdverb(n int) string {
+	switch n {
+	case 0:
+		return "no"
+	case 1:
+		return "once"
+	case 2:
+		return "twice"
+	default:
+		return fmt.Sprintf("%s times", CardinalNoun(n))
+	}
+}
+
+func JoinList(strs []string) string {
+	var ret string
+	for i, s := range strs {
+		if i != 0 {
+			if i == len(strs)-1 {
+				ret += " and "
+			} else {
+				ret += ", "
+			}
+		}
+		ret += s
+	}
+	return ret
+}
+
+func JoinSentence(parts ...string) string {
+	var ret string
+	for _, s := range parts {
+		s = strings.TrimSpace(s)
+		if len(s) == 0 {
+			continue
+		}
+		if ret != "" {
+			ret += " "
+		}
+		ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
+	}
+	return ret
+}
+
+func CardinalWithUnit(n int, singular string, plural string) string {
+	if n == 1 {
+		return "one " + singular
+	}
+	return CardinalNoun(n) + " " + plural
+}
+
+func CardinalSuffix(n int) string {
+	switch n % 10 {
+	case 1:
+		return "st"
+	case 2:
+		return "nd"
+	case 3:
+		return "rd"
+	default:
+		return "th"
+	}
+}
+
+func FinishSentence(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimRight(s, ",:;")
+	if !strings.HasSuffix(s, ".") && !strings.HasSuffix(s, "!") && !strings.HasSuffix(s, "?") {
+		return s + "."
+	}
+	return s
+}
+
+func FormatSentence(s string) string {
+	return UpperFirst(FinishSentence(s))
+}
+
+func AppendClause(s, clause string) string {
+	if s == "" {
+		return clause
+	}
+	if clause == "" {
+		return s
+	}
+	s = strings.TrimSpace(s)
+	if !strings.HasSuffix(s, ",") {
+		s += ","
+	}
+	return s + " " + LowerIfFirstWordIn(clause, CommonSentenceStarts...)
+}
+
+func AppendAside(s, clause string) string {
+	return AppendClause(s, clause) + ","
+}
+
+var startsWithVowel = regexp.MustCompile(`^[aeiouAEIOU]`)
+
+func MaybeAn(s string) string {
+	if startsWithVowel.MatchString(s) {
+		return "n " + s
+	}
+	return " " + s
+}
+
+func MaybePluralise(s string, quantity int) string {
+	if quantity != 1 {
+		return s + "s"
+	}
+	return s
+}
+
+var containsIsolatedNumber = regexp.MustCompile(`^(.*)\b([0-9]+)\b(.*)$`)
+
+func ReplaceFirstNumberWithCardinalNoun(s string) string {
+	matches := containsIsolatedNumber.FindStringSubmatch(s)
+	if len(matches) < 4 {
+		return s
+	}
+
+	n, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return s
+	}
+
+	return JoinSentence(matches[1], CardinalNoun(n), matches[3])
+}
+
+var CommonSentenceStarts = []string{"He", "She", "They", "His", "Her", "Their", "The", "It"}
