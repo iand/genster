@@ -2,24 +2,26 @@ package site
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"github.com/iand/werr"
+	"golang.org/x/exp/slog"
 )
 
 func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
 	d := s.NewDocument()
-	d.Layout(md.PageLayoutPerson)
+	d.Section(md.PageLayoutPerson)
 	d.ID(p.ID)
 	d.Title(p.PreferredUniqueName)
+	d.SetFrontMatterField("gender", p.Gender.Noun())
 
 	if p.Redacted {
 		d.Summary("information withheld to preserve privacy")
@@ -31,82 +33,36 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	}
 	d.AddTags(CleanTags(p.Tags))
 
+	b := d.Body()
+
 	// Render narrative
 	n := &Narrative{
 		Statements: make([]Statement, 0),
 	}
 
 	// Everyone has an intro
-	n.Statements = append(n.Statements, &IntroStatement{
+	intro := &IntroStatement{
 		Principal: p,
-	})
-	// If death is known, add it
-	if p.BestDeathlikeEvent != nil {
-		n.Statements = append(n.Statements, &DeathStatement{
-			Principal: p,
-		})
 	}
-
-	eventsInNarrative := make(map[model.TimelineEvent]bool)
-
-	baptisms := []*model.BaptismEvent{}
 	for _, ev := range p.Timeline {
 		switch tev := ev.(type) {
 		case *model.BaptismEvent:
 			if tev != p.BestBirthlikeEvent {
-				baptisms = append(baptisms, tev)
-				eventsInNarrative[ev] = true
+				intro.Baptisms = append(intro.Baptisms, tev)
 			}
-		case *model.ProbateEvent:
-			if tev != p.BestDeathlikeEvent {
-				eventsInNarrative[ev] = true
-				n.Statements = append(n.Statements, &WillAndProbateStatement{
-					Principal: p,
-					Event:     ev,
-				})
-			}
-		case *model.CensusEvent:
-			eventsInNarrative[ev] = true
-			n.Statements = append(n.Statements, &CensusStatement{
-				Principal: p,
-				Event:     tev,
-			})
-			// TODO: wills
-			// case *model.WillEvent:
-			// 	if tev != p.BestDeathlikeEvent {
-			// 		willsAndProbate = append(willsAndProbate, tev)
-			// 	}
-		case *model.IndividualNarrativeEvent:
-			eventsInNarrative[ev] = true
-			n.Statements = append(n.Statements, &VerbatimStatement{
-				Principal: p,
-				Detail:    ev.GetDetail(),
-				Date:      ev.GetDate(),
-				Citations: ev.GetCitations(),
-			})
-		case *model.ArrivalEvent:
-			eventsInNarrative[ev] = true
-			n.Statements = append(n.Statements, &ArrivalDepartureStatement{
-				Principal: p,
-				Event:     ev,
-			})
-
-		case *model.DepartureEvent:
-			eventsInNarrative[ev] = true
-			n.Statements = append(n.Statements, &ArrivalDepartureStatement{
-				Principal: p,
-				Event:     ev,
-			})
-
 		}
 	}
-	if len(baptisms) > 0 {
-		sort.Slice(baptisms, func(i, j int) bool {
-			return gdate.SortsBefore(baptisms[i].GetDate(), baptisms[j].GetDate())
+	if len(intro.Baptisms) > 0 {
+		sort.Slice(intro.Baptisms, func(i, j int) bool {
+			return gdate.SortsBefore(intro.Baptisms[i].GetDate(), intro.Baptisms[j].GetDate())
 		})
-		n.Statements = append(n.Statements, &BaptismsStatement{
+	}
+	n.Statements = append(n.Statements, intro)
+
+	// If death is known, add it
+	if p.BestDeathlikeEvent != nil {
+		n.Statements = append(n.Statements, &DeathStatement{
 			Principal: p,
-			Events:    baptisms,
 		})
 	}
 
@@ -117,10 +73,11 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		})
 	}
 
-	n.Render(pov, d)
+	n.Render(pov, b)
 
 	if p.EditLink != nil {
-		d.Para(d.EncodeLink(p.EditLink.Title, p.EditLink.URL, false))
+		d.SetFrontMatterField("editlink", p.EditLink.URL)
+		d.SetFrontMatterField("editlinktitle", p.EditLink.Title)
 	}
 
 	t := &model.Timeline{
@@ -138,30 +95,31 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	}
 
 	if len(p.Timeline) > 0 {
-		d.EmptyPara()
-		d.Heading2("Timeline")
+		b.EmptyPara()
+		b.Heading2("Timeline")
 
-		if err := RenderTimeline(t, pov, eventsInNarrative, d); err != nil {
-			return nil, werr.Wrap(err)
+		b.ResetSeenLinks()
+		if err := RenderTimeline(t, pov, b); err != nil {
+			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}
 
 	if len(p.MiscFacts) > 0 {
-		d.EmptyPara()
-		d.Heading2("Other Information")
-		if err := RenderFacts(p.MiscFacts, pov, d); err != nil {
+		b.EmptyPara()
+		b.Heading2("Other Information")
+		if err := RenderFacts(p.MiscFacts, pov, b); err != nil {
 			return nil, werr.Wrap(err)
 		}
 	}
 
 	links := make([]string, 0, len(p.Links))
 	for _, l := range p.Links {
-		links = append(links, d.EncodeLink(l.Title, l.URL, false))
+		links = append(links, b.EncodeLink(l.Title, l.URL))
 	}
 
 	if len(links) > 0 {
-		d.Heading2("Links")
-		d.UnorderedList(links)
+		b.Heading2("Links")
+		b.UnorderedList(links)
 	}
 
 	return d, nil
@@ -171,7 +129,7 @@ func RenderSourcePage(s *Site, sr *model.Source) (*md.Document, error) {
 	d := s.NewDocument()
 
 	d.Title(sr.Title)
-	d.Layout(md.PageLayoutSource)
+	d.Section(md.PageLayoutSource)
 	d.ID(sr.ID)
 	d.AddTags(CleanTags(sr.Tags))
 
@@ -182,367 +140,42 @@ func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 	pov := &model.POV{Place: p}
 
 	d := s.NewDocument()
+	b := d.Body()
 
 	d.Title(p.PreferredName)
-	d.Layout(md.PageLayoutPlace)
+	d.Section(md.PageLayoutPlace)
 	d.ID(p.ID)
 	d.AddTags(CleanTags(p.Tags))
 
 	desc := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
 
 	if !p.Parent.IsUnknown() {
-		desc += " in " + d.EncodeModelLink(p.Parent.PreferredUniqueName, p.Parent, false)
+		desc += " in " + b.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
 	}
 
-	d.Para(text.FinishSentence(desc))
+	b.Para(text.FinishSentence(desc))
 
 	t := &model.Timeline{
 		Events: p.Timeline,
 	}
 
 	if len(p.Timeline) > 0 {
-		d.EmptyPara()
-		d.Heading2("Timeline")
+		b.EmptyPara()
+		b.Heading2("Timeline")
 
-		if err := RenderTimeline(t, pov, nil, d); err != nil {
-			return nil, werr.Wrap(err)
+		if err := RenderTimeline(t, pov, b); err != nil {
+			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}
 
 	if len(p.Links) > 0 {
-		d.Heading2("Links")
+		b.Heading2("Links")
 		for _, l := range p.Links {
-			d.Para(d.EncodeLink(l.Title, l.URL, false))
+			b.Para(b.EncodeLink(l.Title, l.URL))
 		}
 	}
 
 	return d, nil
-}
-
-func RenderInferencesPage(s *Site) (*md.Document, error) {
-	d := s.NewDocument()
-	d.Layout(md.PageLayoutInferences)
-	d.Title("Inferences Made")
-
-	d.Heading2("Inferences Made")
-
-	wroteInferences := false
-	for _, p := range s.Tree.People {
-		items := make([]string, 0)
-		for _, inf := range p.Inferences {
-			items = append(items, inf.Type+" "+inf.Value)
-		}
-
-		if len(items) > 0 {
-			d.Heading3(d.EncodeModelLink(p.PreferredUniqueName, p, true))
-			d.UnorderedList(items)
-			wroteInferences = true
-		}
-
-	}
-
-	if !wroteInferences {
-		d.Para("None made")
-	}
-
-	return d, nil
-}
-
-func RenderAnomaliesPage(s *Site) (*md.Document, error) {
-	d := s.NewDocument()
-	d.Layout(md.PageLayoutInferences)
-	d.Title("Anomalies Found")
-
-	d.Heading2("People")
-
-	wroteAnomalies := false
-	for _, p := range s.Tree.People {
-
-		categories := make([]string, 0)
-		anomaliesByCategory := make(map[string][]*model.Anomaly)
-
-		for _, a := range p.Anomalies {
-			a := a // avoid shadowing
-			al, ok := anomaliesByCategory[a.Category]
-			if ok {
-				al = append(al, a)
-				anomaliesByCategory[a.Category] = al
-				continue
-			}
-
-			categories = append(categories, a.Category)
-			anomaliesByCategory[a.Category] = []*model.Anomaly{a}
-		}
-		sort.Strings(categories)
-
-		if len(anomaliesByCategory) > 0 {
-			d.Heading4(p.PreferredUniqueName)
-			if p.EditLink != nil {
-				d.Para(d.EncodeModelLink("View "+p.PreferredFullName, p, false) + " or " + d.EncodeLink(p.EditLink.Title, p.EditLink.URL, false))
-			} else {
-				d.Para(d.EncodeModelLink("View "+p.PreferredFullName, p, false))
-			}
-			for _, cat := range categories {
-				d.Heading4(cat + " anomalies")
-				al := anomaliesByCategory[cat]
-				items := make([][2]string, 0, len(al))
-
-				for _, a := range al {
-					items = append(items, [2]string{
-						a.Context,
-						a.Text,
-					})
-				}
-				d.DefinitionList(items)
-			}
-			wroteAnomalies = true
-		}
-
-	}
-
-	if !wroteAnomalies {
-		d.Para("None found")
-	}
-
-	return d, nil
-}
-
-func EventTitle(ev model.TimelineEvent, enc BlockEncoder, obs *model.POV) string {
-	// if gev, ok := ev.(*model.GeneralEvent); ok && obs != nil && obs.Person != nil {
-	// 	fmt.Printf(" - [%s](%s) - General (%s)\n", obs.Person.PreferredFullName, obs.Person.Page, gev.Title)
-	// }
-	// if _, ok := ev.(*model.CensusEvent); ok && obs != nil && obs.Person != nil {
-	// 	fmt.Printf(" - [%s](%s) - Census\n", obs.Person.PreferredFullName, obs.Person.Page)
-	// }
-	titleTemplate := ""
-
-	simpleIndividualEventTemplate := `
-{{- if .Name -}}
-	{{- if .Relation -}}
-		{{- .Relation }}, {{ .Name }}, {{ if .Uncertain }}probably {{ end }}{{ .Event }}
-	{{- else -}}
-		{{ .Name }} {{ if .Uncertain }}probably {{ end }}{{ .Event }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Relation -}}
-		{{- .Relation }} {{ if .Uncertain }}probably {{ end }}{{ .Event }}
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}{{ .Event }}
-	{{- end -}}
-{{- end -}}`
-
-	simplePartyEventTemplate := `
-{{- if .Party1 -}}
-	{{- if .Party2 -}}
-		{{ .Party2 }} {{ if .Uncertain }}probably {{ end }}{{ .Event }} {{ .Party1 }}
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}{{ .Event }} {{ .Party1 }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Party2 -}}
-		{{ if .Uncertain }}probably {{ end }}{{ .Event }} {{ .Party2 }}
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}{{ .Event }}
-	{{- end -}}
-{{- end -}}`
-
-	inAtFrom := ""
-	if !ev.GetPlace().IsUnknown() {
-		inAtFrom = ev.GetPlace().PlaceType.InAt()
-	}
-
-	switch ev.(type) {
-
-	case *model.BirthEvent:
-		titleTemplate = simpleIndividualEventTemplate
-
-	case *model.BaptismEvent:
-		titleTemplate = simpleIndividualEventTemplate
-
-	case *model.DeathEvent:
-		titleTemplate = simpleIndividualEventTemplate
-
-	case *model.BurialEvent:
-		titleTemplate = simpleIndividualEventTemplate
-
-	case *model.CremationEvent:
-		titleTemplate = simpleIndividualEventTemplate
-
-	case *model.ProbateEvent:
-		titleTemplate = `
-{{- if .Name -}}
-	{{- if .Relation -}}
-		probate {{ if .Uncertain }}probably {{ end }}granted for {{ .Relation }}, {{ .Name }}
-	{{- else -}}
-		probate {{ if .Uncertain }}probably {{ end }}granted for {{ .Name }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Relation -}}
-		probate {{ if .Uncertain }}probably {{ end }}granted for {{ .Relation }}
-	{{- else -}}
-		probate {{ if .Uncertain }}probably {{ end }}granted
-	{{- end -}}
-{{- end -}}`
-
-	case *model.CensusEvent:
-		titleTemplate = `
-{{- if .Name -}}
-	{{- if .Relation -}}
-		{{ .Relation }}, {{ .Name }} {{ if .Uncertain }}probably {{ end }}recorded in the census
-	{{- else -}}
-		{{ .Name }} {{ if .Uncertain }}probably {{ end }}recorded in the census
-	{{- end -}}
-{{- else -}}
-	{{- if .Relation -}}
-		{{ .Relation }} {{ if .Uncertain }}probably {{ end }}recorded in the census
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}recorded in the census
-	{{- end -}}
-{{- end -}}`
-
-	case *model.MarriageEvent:
-		titleTemplate = simplePartyEventTemplate
-
-	case *model.MarriageLicenseEvent:
-		titleTemplate = `
-{{- if .Party1 -}}
-	{{- if .Party2 -}}
-		{{ .Party1 }} and {{ .Party2 }}{{ if .Uncertain }}probably {{ end }}obtained a license to marry
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}obtained a license to marry {{ .Party1 }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Party2 -}}
-		{{ if .Uncertain }}probably {{ end }}obtained a license to marry {{ .Party2 }}
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}obtained a license to marry
-	{{- end -}}
-{{- end -}}`
-
-	case *model.MarriageBannsEvent:
-		titleTemplate = `
-{{- if .Party1 -}}
-	{{- if .Party2 -}}
-		banns were {{ if .Uncertain }}probably {{ end }}read to announce the marriage of {{ .Party1 }} and {{ .Party2 }}
-	{{- else -}}
-		banns were {{ if .Uncertain }}probably {{ end }}read to announce marriage to {{ .Party1 }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Party2 -}}
-		banns were {{ if .Uncertain }}probably {{ end }}read to announce marriage to {{ .Party2 }}
-	{{- else -}}
-		banns were {{ if .Uncertain }}probably {{ end }}read
-	{{- end -}}
-{{- end -}}`
-
-	case *model.DivorceEvent:
-		titleTemplate = `
-{{- if .Party1 -}}
-	{{- if .Party2 -}}
-		{{ .Party1 }} and {{ .Party2 }} {{ if .Uncertain }}probably {{ end }}divorced
-	{{- else -}}
-		was {{ if .Uncertain }}probably {{ end }}divorced from {{ .Party1 }}
-	{{- end -}}
-{{- else -}}
-	{{- if .Party2 -}}
-		was {{ if .Uncertain }}probably {{ end }}divorced from {{ .Party2 }}
-	{{- else -}}
-		{{ if .Uncertain }}probably {{ end }}divorced
-	{{- end -}}
-{{- end -}}`
-
-	case *model.DepartureEvent:
-		titleTemplate = simpleIndividualEventTemplate
-		inAtFrom = "from"
-
-	case *model.ArrivalEvent:
-		titleTemplate = simpleIndividualEventTemplate
-		inAtFrom = "at"
-
-	case *model.IndividualNarrativeEvent:
-		titleTemplate = ""
-	case *model.PlaceholderIndividualEvent:
-		titleTemplate = ""
-	case *model.PlaceholderPartyEvent:
-		titleTemplate = ""
-	case *model.ResidenceRecordedEvent:
-		titleTemplate = `
-{{- if .Name -}}
-	{{- if .Relation -}}
-		{{ .Relation }}, {{ .Name }} {{ if .Uncertain }}probable {{ end }}residence
-	{{- else -}}
-		{{ .Name }} {{ if .Uncertain }}probable {{ end }}residence
-	{{- end -}}
-{{- else -}}
-	{{- if .Relation -}}
-		{{ .Relation }} {{ if .Uncertain }}probable {{ end }}residence
-	{{- else -}}
-		{{ if .Uncertain }}probable {{ end }}residence
-	{{- end -}}
-{{- end -}}`
-
-	// case *model.FamilyStartEvent:
-	// 	eventName = "began a family"
-	// 	onePartyTemplate = "began a family with {name}"
-	// 	twoPartyTemplate = "{name1} and {name2} began a family"
-	// case *model.FamilyEndEvent:
-	// 	eventName = "ended a family"
-	// 	onePartyTemplate = "ended a family with {name}"
-	// 	twoPartyTemplate = "{name1} and {name2} ended a family"
-	default:
-		panic(fmt.Sprintf("unhandled event type: %T", ev))
-	}
-
-	title := ev.GetTitle()
-	if titleTemplate != "" {
-		data := map[string]any{
-			"Event":     ev.Action(),
-			"Uncertain": ev.IsInferred(),
-		}
-		if iev, ok := ev.(model.IndividualTimelineEvent); ok {
-			principal := iev.GetPrincipal()
-			if !principal.IsUnknown() {
-				if !principal.SameAs(obs.Person) {
-					data["Name"] = enc.EncodeModelLink(principal.PreferredFullName, principal, true)
-					if !obs.Person.IsUnknown() {
-						data["Relation"] = principal.RelationTo(obs.Person, ev.GetDate())
-					}
-				}
-			}
-
-		} else if pev, ok := ev.(model.PartyTimelineEvent); ok {
-			p1 := pev.GetParty1()
-			p2 := pev.GetParty2()
-			if !p1.IsUnknown() && !obs.Person.SameAs(p1) {
-				data["Party1"] = enc.EncodeModelLink(p1.PreferredFullName, p1, true)
-			}
-			if !p2.IsUnknown() && !obs.Person.SameAs(p2) {
-				data["Party2"] = enc.EncodeModelLink(p2.PreferredFullName, p2, true)
-			}
-		}
-
-		tmpl, err := template.New("title").Parse(titleTemplate)
-		if err != nil {
-			panic(err.Error())
-		}
-		b := new(strings.Builder)
-		err = tmpl.Execute(b, data)
-		if err != nil {
-			panic(err.Error())
-		}
-		title = b.String()
-	}
-
-	if ev.GetDateType() == model.EventDateTypeRecorded {
-		title += " recorded"
-	}
-	title += " " + ev.GetDate().Occurrence()
-
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() && !pl.SameAs(obs.Place) {
-		title += " " + inAtFrom + " " + enc.EncodeModelLink(pl.PreferredName, pl, true)
-	}
-	return EncodeWithCitations(text.UpperFirst(title), ev.GetCitations(), enc)
 }
 
 // cleanCitationDetail removes some redundant information that isn't necessary when a source is included
@@ -554,30 +187,7 @@ func cleanCitationDetail(page string) string {
 	return page
 }
 
-func RenderTimeline(t *model.Timeline, pov *model.POV, eventsInNarrative map[model.TimelineEvent]bool, enc StructuredMarkdownEncoder) error {
-	enc.EmptyPara()
-	if len(t.Events) == 0 {
-		return nil
-	}
-	model.SortTimelineEvents(t.Events)
-
-	events := make([][2]string, 0, len(t.Events))
-	for i := range t.Events {
-		var detail string
-		if !eventsInNarrative[t.Events[i]] {
-			detail = t.Events[i].GetDetail()
-		}
-		events = append(events, [2]string{
-			EventTitle(t.Events[i], enc, pov),
-			detail,
-		})
-	}
-
-	enc.DefinitionList(events)
-	return nil // werr.Wrap(fmt.Errorf("RenderTimeline error test (REMOVEME)"))
-}
-
-func RenderFacts(facts []model.Fact, pov *model.POV, enc StructuredMarkdownEncoder) error {
+func RenderFacts(facts []model.Fact, pov *model.POV, enc ExtendedMarkdownBuilder) error {
 	enc.EmptyPara()
 
 	categories := make([]string, 0)
@@ -627,7 +237,7 @@ func CleanTags(ss []string) []string {
 	tags := make([]string, 0, len(ss))
 	for _, s := range ss {
 		tag := Tagify(s)
-		if seen[s] {
+		if seen[tag] {
 			continue
 		}
 		tags = append(tags, tag)
@@ -642,4 +252,114 @@ func Tagify(s string) string {
 	parts := strings.Fields(s)
 	s = strings.Join(parts, "-")
 	return s
+}
+
+type Paginator struct {
+	Index      string
+	DirPattern string
+
+	Entries []PaginatorEntry
+}
+
+func NewPaginator() *Paginator {
+	return &Paginator{
+		Index:      "index.md",
+		DirPattern: "%02d",
+	}
+}
+
+type PaginatorEntry struct {
+	Key     string
+	Content string
+}
+
+func (p *Paginator) AddEntry(key string, content string) {
+	p.Entries = append(p.Entries, PaginatorEntry{
+		Key:     key,
+		Content: content,
+	})
+}
+
+func (p *Paginator) WritePages(s *Site, baseDir string, section string, title string) error {
+	sort.Slice(p.Entries, func(i, j int) bool {
+		return p.Entries[i].Key < p.Entries[j].Key
+	})
+
+	type Page struct {
+		FirstKey string
+		LastKey  string
+		Content  string
+		Dir      string
+	}
+
+	var pages []*Page
+
+	maxSize := 4096
+	pg := &Page{
+		Dir: fmt.Sprintf(p.DirPattern, 1),
+	}
+	for _, e := range p.Entries {
+		if len(pg.Content)+len(e.Content) > maxSize {
+			if len(pg.Content) == 0 {
+				slog.Warn("skipping item since it is larger than maximum allowed for a single page")
+				continue
+			}
+			pages = append(pages, pg)
+			pg = &Page{
+				Dir: fmt.Sprintf(p.DirPattern, len(pages)+1),
+			}
+		}
+		if len(pg.Content) == 0 {
+			pg.FirstKey = e.Key
+		}
+		pg.Content += e.Content
+		pg.LastKey = e.Key
+	}
+	pages = append(pages, pg)
+
+	for i, pg := range pages {
+		idx := i + 1
+		d := s.NewDocument()
+		d.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
+		d.Section(section)
+
+		d.SetFrontMatterField(md.MarkdownTagIndexPage, section)
+		if idx > 1 {
+			d.SetFrontMatterField(md.MarkdownTagFirstPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, 1)))
+			if idx > 2 {
+				d.SetFrontMatterField(md.MarkdownTagPrevPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx-1)))
+			}
+		}
+		if idx < len(pages) {
+			d.SetFrontMatterField(md.MarkdownTagLastPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, len(pages))))
+			if idx < len(pages)-1 {
+				d.SetFrontMatterField(md.MarkdownTagNextPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx+1)))
+			}
+		}
+
+		d.Body().Set(pg.Content)
+
+		if err := writePage(d, baseDir, filepath.Join(pg.Dir, p.Index)); err != nil {
+			return fmt.Errorf("failed to write paginated page: %w", err)
+		}
+	}
+
+	d := s.NewDocument()
+	d.Title(title)
+	b := d.Body()
+
+	var list []string
+	for _, pg := range pages {
+		if pg.FirstKey == pg.LastKey {
+			list = append(list, b.EncodeLink(pg.FirstKey, pg.Dir))
+		} else {
+			list = append(list, b.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Dir))
+		}
+	}
+	b.UnorderedList(list)
+	if err := writePage(d, baseDir, p.Index); err != nil {
+		return fmt.Errorf("failed to write paginated index: %w", err)
+	}
+
+	return nil
 }

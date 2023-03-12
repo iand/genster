@@ -9,10 +9,17 @@ import (
 	"github.com/iand/genster/text"
 )
 
-type StructuredMarkdownEncoder interface {
-	BlockEncoder
+type ExtendedMarkdownBuilder interface {
+	ExtendedMarkdownEncoder
+	MarkdownBuilder
+}
+
+type MarkdownBuilder interface {
+	MarkdownEncoder
+	Markdown() string
 	Para(s string)
 	EmptyPara()
+	Heading2(s string)
 	Heading3(s string)
 	Heading4(s string)
 	UnorderedList(items []string)
@@ -21,7 +28,12 @@ type StructuredMarkdownEncoder interface {
 	BlockQuote(s string)
 }
 
-type BlockEncoder interface {
+type InlineBuilder interface {
+	InlineEncoder
+	Markdown() string
+}
+
+type MarkdownEncoder interface {
 	InlineEncoder
 	EncodePara(s string) string
 	EncodeEmptyPara() string
@@ -31,15 +43,27 @@ type BlockEncoder interface {
 	EncodeDefinitionList(items [][2]string) string
 	EncodeBlockQuote(s string) string
 }
+
 type InlineEncoder interface {
-	EncodeLink(text string, url string, suppressDuplicates bool) string
-	EncodeModelLink(text string, m any, suppressDuplicates bool) string
-	EncodeCitation(citation string, detail string, citationID string) string
+	EncodeLink(text string, url string) string
+	EncodeModelLink(text string, m any) string
 	EncodeItalic(s string) string
 	EncodeBold(s string) string
 }
 
-func EncodeWithCitations(s string, citations []*model.GeneralCitation, enc BlockEncoder) string {
+type ExtendedMarkdownEncoder interface {
+	MarkdownEncoder
+	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
+	EncodeCitation(citation string, detail string, citationID string) string
+}
+
+type ExtendedInlineEncoder interface {
+	InlineEncoder
+	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
+	EncodeCitation(citation string, detail string, citationID string) string
+}
+
+func EncodeWithCitations(s string, citations []*model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
 	for i, cit := range citations {
 		if i > 0 {
 			s += "<sup>,</sup>"
@@ -49,7 +73,7 @@ func EncodeWithCitations(s string, citations []*model.GeneralCitation, enc Block
 	return s
 }
 
-func EncodeCitationDetail(c *model.GeneralCitation, enc BlockEncoder) string {
+func EncodeCitationDetail(c *model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
 	var heading string
 	var detail string
 
@@ -62,7 +86,7 @@ func EncodeCitationDetail(c *model.GeneralCitation, enc BlockEncoder) string {
 			heading += enc.EncodePara(cleanCitationDetail(c.Detail))
 		}
 		heading = text.FinishSentence(heading)
-		heading += " (" + enc.EncodeModelLink("source", c.Source, false) + ")"
+		heading += " (" + enc.EncodeModelLink("source", c.Source) + ")"
 
 		// heading = enc.EncodeModelLink(text.FinishSentence(c.Source.Title), c.Source, false)
 		// if c.Detail != "" {
@@ -75,7 +99,7 @@ func EncodeCitationDetail(c *model.GeneralCitation, enc BlockEncoder) string {
 
 	if c.URL != nil {
 		detail += enc.EncodeEmptyPara()
-		detail += enc.EncodePara("View at " + enc.EncodeLink(c.URL.Title, c.URL.URL, false))
+		detail += enc.EncodePara("View at " + enc.EncodeLink(c.URL.Title, c.URL.URL))
 	}
 
 	if len(c.TranscriptionText) > 0 {
@@ -94,7 +118,7 @@ func EncodeCitationDetail(c *model.GeneralCitation, enc BlockEncoder) string {
 	return enc.EncodeCitation(heading, detail, c.ID)
 }
 
-func EncodeRawLink(u string, enc InlineEncoder) string {
+func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {
 	text := u
 
 	pu, err := url.Parse(u)
@@ -102,5 +126,5 @@ func EncodeRawLink(u string, enc InlineEncoder) string {
 		text = pu.Host
 	}
 
-	return enc.EncodeLink(text, u, false)
+	return enc.EncodeLink(text, u)
 }

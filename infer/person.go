@@ -2,8 +2,11 @@ package infer
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/iand/gdate"
+	// "github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 )
 
@@ -193,6 +196,97 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 				}
 				p.Inferences = append(p.Inferences, inf)
 			}
+		}
+	}
+	return nil
+}
+
+var (
+	reWorkhouse = regexp.MustCompile(`(?i)\bwork.?house\b`)
+	rePauper    = regexp.MustCompile(`(?i)\bPauper\b`)
+)
+
+func InferPersonGeneralFacts(p *model.Person) error {
+	if p.BestBirthlikeEvent != nil {
+		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
+			pl := p.BestBirthlikeEvent.GetPlace()
+			if reWorkhouse.MatchString(pl.PreferredName) {
+				p.BornInWorkhouse = true
+				inf := model.Inference{
+					Type:   model.InferenceTypeGeneralFact,
+					Value:  fmt.Sprintf("born in workhouse"),
+					Reason: fmt.Sprintf("place of birth appears to contains the word workhouse"),
+				}
+				p.Inferences = append(p.Inferences, inf)
+			}
+		}
+	}
+
+	if p.BestDeathlikeEvent != nil {
+		if !p.BestDeathlikeEvent.GetPlace().IsUnknown() {
+			pl := p.BestDeathlikeEvent.GetPlace()
+			if reWorkhouse.MatchString(pl.PreferredName) {
+				p.DiedInWorkhouse = true
+				inf := model.Inference{
+					Type:   model.InferenceTypeGeneralFact,
+					Value:  fmt.Sprintf("died in workhouse"),
+					Reason: fmt.Sprintf("place of death appears to contains the word workhouse"),
+				}
+				p.Inferences = append(p.Inferences, inf)
+			}
+			if rePauper.MatchString(p.BestDeathlikeEvent.GetDetail()) {
+				p.Pauper = true
+				inf := model.Inference{
+					Type:   model.InferenceTypeGeneralFact,
+					Value:  fmt.Sprintf("pauper"),
+					Reason: fmt.Sprintf("detail of death appears to contains the word pauper"),
+				}
+				p.Inferences = append(p.Inferences, inf)
+			}
+		}
+	}
+
+	return nil
+}
+
+var (
+	reSuicide   = regexp.MustCompile(`(?i)\bsuicide\b`)
+	reLostAtSea = regexp.MustCompile(`(?i)\blost at sea\b`)
+	reDrowning  = regexp.MustCompile(`(?i)\bdrown(ed|ing)\b`)
+)
+
+func InferPersonCauseOfDeath(p *model.Person) error {
+	if p.BestDeathlikeEvent != nil {
+		detail := strings.TrimSpace(p.BestDeathlikeEvent.GetDetail())
+		if detail == "" {
+			return nil
+		}
+		if reSuicide.MatchString(p.BestDeathlikeEvent.GetDetail()) {
+			p.CauseOfDeath = model.CauseOfDeathSuicide
+			inf := model.Inference{
+				Type:   model.InferenceTypeCauseOfDeath,
+				Value:  string(p.CauseOfDeath),
+				Reason: fmt.Sprintf("detail of death event contains the word suicide"),
+			}
+			p.Inferences = append(p.Inferences, inf)
+		} else if reLostAtSea.MatchString(p.BestDeathlikeEvent.GetDetail()) {
+			p.CauseOfDeath = model.CauseOfDeathLostAtSea
+			inf := model.Inference{
+				Type:   model.InferenceTypeCauseOfDeath,
+				Value:  string(p.CauseOfDeath),
+				Reason: fmt.Sprintf("detail of death event contains the words lost at sea"),
+			}
+			p.Inferences = append(p.Inferences, inf)
+		} else if reDrowning.MatchString(p.BestDeathlikeEvent.GetDetail()) {
+			p.CauseOfDeath = model.CauseOfDeathDrowned
+			inf := model.Inference{
+				Type:   model.InferenceTypeCauseOfDeath,
+				Value:  string(p.CauseOfDeath),
+				Reason: fmt.Sprintf("detail of death event contains the words drowned or drowning"),
+			}
+			p.Inferences = append(p.Inferences, inf)
+		} else {
+			// logging.Dump("death detail: " + p.BestDeathlikeEvent.GetDetail())
 		}
 	}
 	return nil

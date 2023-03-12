@@ -77,7 +77,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 	events := append([]*gedcom.EventRecord{}, fr.Event...)
 
 	for _, er := range events {
-		pl := l.findPlaceForEvent(m, er)
+		pl, _ := l.findPlaceForEvent(m, er)
 
 		dt, err := gdate.Parse(er.Date)
 		if err != nil {

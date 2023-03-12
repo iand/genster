@@ -67,3 +67,7 @@ func stringOneOf(s string, alts ...string) bool {
 	}
 	return false
 }
+
+func stripXref(s string) string {
+	return strings.Trim(s, "@")
+}

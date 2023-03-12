@@ -6,75 +6,6 @@ import (
 	"github.com/iand/gdate"
 )
 
-type EventDateType string
-
-const (
-	EventDateTypeOccurred EventDateType = "occurred" // the date represents the date the event occurred
-	EventDateTypeRecorded EventDateType = "recorded" // the date represents the date the event was recorded
-)
-
-type CensusEntryRelation string
-
-// These can all be followed by " of the head of the household." (except head and any impersonal ones)
-const (
-	CensusEntryRelationUnknown       CensusEntryRelation = ""
-	CensusEntryRelationHead          CensusEntryRelation = "head"
-	CensusEntryRelationWife          CensusEntryRelation = "wife"
-	CensusEntryRelationHusband       CensusEntryRelation = "husband"
-	CensusEntryRelationSon           CensusEntryRelation = "son"
-	CensusEntryRelationDaughter      CensusEntryRelation = "daughter"
-	CensusEntryRelationChild         CensusEntryRelation = "child"
-	CensusEntryRelationFather        CensusEntryRelation = "father"
-	CensusEntryRelationMother        CensusEntryRelation = "mother"
-	CensusEntryRelationUncle         CensusEntryRelation = "uncle"
-	CensusEntryRelationAunt          CensusEntryRelation = "aunt"
-	CensusEntryRelationLodger        CensusEntryRelation = "lodger"
-	CensusEntryRelationBoarder       CensusEntryRelation = "boarder"
-	CensusEntryRelationInmate        CensusEntryRelation = "inmate"
-	CensusEntryRelationPatient       CensusEntryRelation = "patient"
-	CensusEntryRelationServant       CensusEntryRelation = "servant"
-	CensusEntryRelationNephew        CensusEntryRelation = "nephew"
-	CensusEntryRelationNiece         CensusEntryRelation = "niece"
-	CensusEntryRelationBrother       CensusEntryRelation = "brother"
-	CensusEntryRelationSister        CensusEntryRelation = "sister"
-	CensusEntryRelationSonInLaw      CensusEntryRelation = "son-in-law"
-	CensusEntryRelationDaughterInLaw CensusEntryRelation = "daughter-in-law"
-	CensusEntryRelationFatherInLaw   CensusEntryRelation = "father-in-law"
-	CensusEntryRelationMotherInLaw   CensusEntryRelation = "mother-in-law"
-	CensusEntryRelationBrotherInLaw  CensusEntryRelation = "brother-in-law"
-	CensusEntryRelationSisterInLaw   CensusEntryRelation = "sister-in-law"
-	CensusEntryRelationGrandson      CensusEntryRelation = "grandson"
-	CensusEntryRelationGranddaughter CensusEntryRelation = "granddaughter"
-	CensusEntryRelationVisitor       CensusEntryRelation = "visitor"
-	CensusEntryRelationSoldier       CensusEntryRelation = "soldier"
-)
-
-// IsImpersonal reports whether the relation is to the place rather than the head
-func (r CensusEntryRelation) IsImpersonal() bool {
-	switch r {
-	case CensusEntryRelationLodger,
-		CensusEntryRelationBoarder,
-		CensusEntryRelationInmate,
-		CensusEntryRelationPatient,
-		CensusEntryRelationServant,
-		CensusEntryRelationSoldier,
-		CensusEntryRelationVisitor:
-		return true
-	default:
-		return false
-	}
-}
-
-type CensusEntryMaritalStatus string
-
-const (
-	CensusEntryMaritalStatusUnknown   CensusEntryMaritalStatus = ""
-	CensusEntryMaritalStatusMarried   CensusEntryMaritalStatus = "married"
-	CensusEntryMaritalStatusUnmarried CensusEntryMaritalStatus = "unmarried"
-	CensusEntryMaritalStatusWidowed   CensusEntryMaritalStatus = "widowed"
-	CensusEntryMaritalStatusDivorced  CensusEntryMaritalStatus = "divorced"
-)
-
 type TimelineEvent interface {
 	GetDate() gdate.Date
 	GetDateType() EventDateType
@@ -84,7 +15,7 @@ type TimelineEvent interface {
 	GetCitations() []*GeneralCitation
 	Type() string
 	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
-	Action() string                  // married, born, divorced
+	What() string                    // married, born, divorced
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
 	Participants() []*Person
@@ -166,7 +97,7 @@ func (e *GeneralEvent) abbrev(prefix string) string {
 	return prefix + ". " + e.Date.String()
 }
 
-func (e *GeneralEvent) Action() string { return "had an event" }
+func (e *GeneralEvent) What() string { return "had an event" }
 
 type GeneralIndividualEvent struct {
 	Principal *Person
@@ -255,7 +186,7 @@ type BirthEvent struct {
 
 func (e *BirthEvent) Type() string             { return "birth" }
 func (e *BirthEvent) ShortDescription() string { return e.abbrev("b") }
-func (e *BirthEvent) Action() string           { return "born" }
+func (e *BirthEvent) What() string             { return "born" }
 
 var (
 	_ TimelineEvent           = (*BirthEvent)(nil)
@@ -270,7 +201,7 @@ type BaptismEvent struct {
 
 func (e *BaptismEvent) Type() string             { return "baptism" }
 func (e *BaptismEvent) ShortDescription() string { return e.abbrev("bap") }
-func (e *BaptismEvent) Action() string           { return "baptised" }
+func (e *BaptismEvent) What() string             { return "baptised" }
 
 var (
 	_ TimelineEvent           = (*BaptismEvent)(nil)
@@ -290,7 +221,7 @@ type DeathEvent struct {
 
 func (e *DeathEvent) Type() string             { return "death" }
 func (e *DeathEvent) ShortDescription() string { return e.abbrev("d") }
-func (e *DeathEvent) Action() string           { return "died" }
+func (e *DeathEvent) What() string             { return "died" }
 
 var (
 	_ TimelineEvent           = (*DeathEvent)(nil)
@@ -305,7 +236,7 @@ type BurialEvent struct {
 
 func (e *BurialEvent) Type() string             { return "burial" }
 func (e *BurialEvent) ShortDescription() string { return e.abbrev("bur") }
-func (e *BurialEvent) Action() string           { return "buried" }
+func (e *BurialEvent) What() string             { return "buried" }
 
 var (
 	_ TimelineEvent           = (*BurialEvent)(nil)
@@ -320,7 +251,7 @@ type CremationEvent struct {
 
 func (e *CremationEvent) Type() string             { return "cremation" }
 func (e *CremationEvent) ShortDescription() string { return e.abbrev("crem") }
-func (e *CremationEvent) Action() string           { return "cremated" }
+func (e *CremationEvent) What() string             { return "cremated" }
 
 var (
 	_ TimelineEvent           = (*CremationEvent)(nil)
@@ -335,7 +266,7 @@ type DepartureEvent struct {
 
 func (e *DepartureEvent) Type() string             { return "departure" }
 func (e *DepartureEvent) ShortDescription() string { return e.abbrev("dep") }
-func (e *DepartureEvent) Action() string           { return "departed" }
+func (e *DepartureEvent) What() string             { return "departed" }
 
 var (
 	_ TimelineEvent           = (*DepartureEvent)(nil)
@@ -350,7 +281,7 @@ type ArrivalEvent struct {
 
 func (e *ArrivalEvent) Type() string             { return "arrival" }
 func (e *ArrivalEvent) ShortDescription() string { return e.abbrev("arr") }
-func (e *ArrivalEvent) Action() string           { return "arrived" }
+func (e *ArrivalEvent) What() string             { return "arrived" }
 
 var (
 	_ TimelineEvent           = (*ArrivalEvent)(nil)
@@ -364,7 +295,7 @@ type IndividualNarrativeEvent struct {
 }
 
 func (e *IndividualNarrativeEvent) ShortDescription() string { return e.abbrev("narr") }
-func (e *IndividualNarrativeEvent) Action() string           { return "narrative" }
+func (e *IndividualNarrativeEvent) What() string             { return e.GetTitle() }
 
 var (
 	_ TimelineEvent           = (*IndividualNarrativeEvent)(nil)
@@ -391,9 +322,12 @@ type CensusEntry struct {
 
 func (e *CensusEvent) Type() string             { return "census" }
 func (e *CensusEvent) ShortDescription() string { return e.abbrev("cens") }
-func (e *CensusEvent) Action() string           { return "appeared in census" }
+func (e *CensusEvent) What() string             { return "appeared in census" }
 
 func (e *CensusEvent) DirectlyInvolves(p *Person) bool {
+	if p.IsUnknown() {
+		return false
+	}
 	for _, en := range e.Entries {
 		if p.SameAs(en.Principal) {
 			return true
@@ -440,7 +374,7 @@ var (
 
 func (e *ProbateEvent) Type() string             { return "probate" }
 func (e *ProbateEvent) ShortDescription() string { return e.abbrev("prob") }
-func (e *ProbateEvent) Action() string           { return "had probate granted" }
+func (e *ProbateEvent) What() string             { return "had probate granted" }
 
 // ResidenceRecordedEvent represents the event of a person's occupation being recorded / noted
 type ResidenceRecordedEvent struct {
@@ -450,7 +384,7 @@ type ResidenceRecordedEvent struct {
 
 func (e *ResidenceRecordedEvent) Type() string               { return "residence" }
 func (e *ResidenceRecordedEvent) ShortDescription() string   { return e.abbrev("res") }
-func (e *ResidenceRecordedEvent) Action() string             { return "resided" }
+func (e *ResidenceRecordedEvent) What() string               { return "resided" }
 func (e *ResidenceRecordedEvent) GetDateType() EventDateType { return EventDateTypeRecorded }
 func (e *ResidenceRecordedEvent) GetTitle() string           { return "residence" }
 
@@ -472,7 +406,7 @@ var (
 
 func (e *MarriageEvent) Type() string             { return "marriage" }
 func (e *MarriageEvent) ShortDescription() string { return e.abbrev("marr") }
-func (e *MarriageEvent) Action() string           { return "married" }
+func (e *MarriageEvent) What() string             { return "married" }
 
 // MarriageLicenseEvent represents the event where two people obtain a license to marry
 type MarriageLicenseEvent struct {
@@ -487,7 +421,7 @@ var (
 
 func (e *MarriageLicenseEvent) Type() string             { return "marriage license" }
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
-func (e *MarriageLicenseEvent) Action() string           { return "obtained licensed to marry" }
+func (e *MarriageLicenseEvent) What() string             { return "obtained licensed to marry" }
 
 func (e *MarriageLicenseEvent) GetParty1() *Person {
 	return e.Party1
@@ -510,7 +444,7 @@ var (
 
 func (e *MarriageBannsEvent) Type() string             { return "marriage banns" }
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
-func (e *MarriageBannsEvent) Action() string           { return "had marriage banns read" }
+func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
 
 func (e *MarriageBannsEvent) GetParty1() *Person {
 	return e.Party1
@@ -533,7 +467,7 @@ var (
 
 func (e *DivorceEvent) Type() string             { return "divorce" }
 func (e *DivorceEvent) ShortDescription() string { return e.abbrev("div") }
-func (e *DivorceEvent) Action() string           { return "divorced" }
+func (e *DivorceEvent) What() string             { return "divorced" }
 
 func (e *DivorceEvent) GetParty1() *Person {
 	return e.Party1
@@ -556,7 +490,7 @@ var (
 
 func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
-func (e *AnnulmentEvent) Action() string           { return "had marriage anulled" }
+func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
 
 func (e *AnnulmentEvent) GetParty1() *Person {
 	return e.Party1
@@ -578,7 +512,7 @@ var (
 )
 
 func (e *FamilyStartEvent) ShortDescription() string { return e.abbrev("start") }
-func (e *FamilyStartEvent) Action() string           { return "started a family" }
+func (e *FamilyStartEvent) What() string             { return "started a family" }
 
 func (e *FamilyStartEvent) GetParty1() *Person {
 	return e.Party1
@@ -600,7 +534,7 @@ var (
 )
 
 func (e *FamilyEndEvent) ShortDescription() string { return e.abbrev("end") }
-func (e *FamilyEndEvent) Action() string           { return "ended a family" }
+func (e *FamilyEndEvent) What() string             { return "ended a family" }
 
 func (e *FamilyEndEvent) GetParty1() *Person {
 	return e.Party1
@@ -617,7 +551,7 @@ type PartyNarrativeEvent struct {
 }
 
 func (e *PartyNarrativeEvent) ShortDescription() string { return e.abbrev("narr") }
-func (e *PartyNarrativeEvent) Action() string           { return "narrative" }
+func (e *PartyNarrativeEvent) What() string             { return "narrative" }
 
 var (
 	_ TimelineEvent      = (*PartyNarrativeEvent)(nil)

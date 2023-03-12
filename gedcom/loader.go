@@ -12,6 +12,7 @@ import (
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/place"
 	"github.com/iand/genster/tree"
 	"golang.org/x/exp/slog"
 )
@@ -29,6 +30,7 @@ type Loader struct {
 	Gedcom    *gedcom.Gedcom
 	Attrs     map[string]string
 	Citations map[string]*model.GeneralCitation
+	Tags      map[string]string
 }
 
 func NewLoader(filename string) (*Loader, error) {
@@ -54,8 +56,10 @@ func NewLoader(filename string) (*Loader, error) {
 		Attrs:     make(map[string]string),
 		ScopeName: filename,
 		Citations: make(map[string]*model.GeneralCitation),
+		Tags:      make(map[string]string),
 	}
 	l.readAttrs()
+	l.readTags()
 
 	if id, ok := l.Attrs["ANCESTRY_TREE_ID"]; ok {
 		l.ScopeName = fmt.Sprintf("ANCESTRY_TREE_%s", id)
@@ -74,6 +78,23 @@ func (l *Loader) readAttrs() error {
 						l.Attrs["ANCESTRY_TREE_ID"] = tud.Value
 					}
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (l *Loader) readTags() error {
+	// Look for ancestry style tags using _MTTAG
+	for _, ud := range l.Gedcom.UserDefined {
+		if ud.Tag != "_MTTAG" {
+			continue
+		}
+		for _, uds := range ud.UserDefined {
+			if uds.Tag == "NAME" {
+				l.Tags[ud.Xref] = uds.Value
+				break
 			}
 		}
 	}
@@ -106,8 +127,9 @@ func (l *Loader) Load(t *tree.Tree) error {
 	return nil
 }
 
-func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) *model.Place {
+func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*model.Place, []*model.Anomaly) {
 	var name string
+	var anomalies []*model.Anomaly
 	if len(er.Address.Address) > 0 {
 		// just use first address for now
 		// TODO: handle multiple addresses
@@ -132,15 +154,48 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) *model
 	}
 
 	if name == "" {
-		return model.UnknownPlace()
+		return model.UnknownPlace(), nil
 	} else {
+		if _, country := place.LookupCountry(name); !country {
+			if !strings.Contains(name, ",") {
+				anomalies = append(anomalies, &model.Anomaly{
+					Category: "Name",
+					Text:     fmt.Sprintf("Place name does not appear to be structured: %q", name),
+					Context:  "Place in event",
+				})
+			}
+		}
+
+		if reUppercase.MatchString(name) {
+			anomalies = append(anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     fmt.Sprintf("Place name is all uppercase, should change to proper case: %q", name),
+				Context:  "Place in event",
+			})
+		}
+
 		pl := m.FindPlaceUnstructured(name)
 
 		if startsWithNumber.MatchString(name) {
 			pl.PlaceType = model.PlaceTypeAddress
 		}
 
-		return pl
+		if pl.Country.IsUnknown() {
+			anomalies = append(anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     fmt.Sprintf("Place name does not include a country: %q", name),
+				Context:  "Place in event",
+			})
+		} else if pl.Country.Name == "United Kingdom" {
+			// This is just my personal preference
+			anomalies = append(anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     fmt.Sprintf("Place name has United Kingdom as country, change to use England, Scotland or Wales: %q", name),
+				Context:  "Place in event",
+			})
+		}
+
+		return pl, anomalies
 	}
 }
 

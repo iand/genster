@@ -89,6 +89,17 @@ func (g Gender) RelationToSpouseNoun() string {
 	}
 }
 
+func (g Gender) RelationToSpouseNounPlural() string {
+	switch g {
+	case GenderMale:
+		return "husbands"
+	case GenderFemale:
+		return "wives"
+	default:
+		return "spouses"
+	}
+}
+
 func (g Gender) SubjectPronoun() string {
 	switch g {
 	case GenderMale:
@@ -141,6 +152,17 @@ func (g Gender) ObjectPronoun() string {
 		return "her"
 	default:
 		return "them"
+	}
+}
+
+func (g Gender) ReflexivePronoun() string {
+	switch g {
+	case GenderMale:
+		return "himself"
+	case GenderFemale:
+		return "herself"
+	default:
+		return "themselves"
 	}
 }
 

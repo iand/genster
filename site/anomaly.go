@@ -8,17 +8,6 @@ import (
 	"github.com/iand/genster/model"
 )
 
-func (s *Site) ScanPersonForAnomalies(p *model.Person) {
-	for _, ev := range p.Timeline {
-		anoms := ScanTimelineEventForAnomalies(ev)
-		if len(anoms) > 0 {
-			for _, anom := range anoms {
-				p.Anomalies = append(p.Anomalies, anom)
-			}
-		}
-	}
-}
-
 func ScanTimelineEventForAnomalies(ev model.TimelineEvent) []*model.Anomaly {
 	var anomalies []*model.Anomaly
 
@@ -59,3 +48,13 @@ func ScanGeneralCitationForAnomalies(cit *model.GeneralCitation) []*model.Anomal
 
 	return anomalies
 }
+
+// func (s *Site) GenerateAnomaliesPages() error {
+// 	anomd, err := RenderAnomaliesPage(s)
+// 	if err != nil {
+// 		return fmt.Errorf("render anomalies pages: %w", err)
+// 	}
+// 	if err := writePage(anomd, root, s.AnomaliesFile); err != nil {
+// 		return fmt.Errorf("anomalies: %w", err)
+// 	}
+// }

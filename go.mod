@@ -10,6 +10,7 @@ require (
 	github.com/iand/gedcom v0.2.0
 	github.com/iand/pontium v0.0.0-20230301125010-c5150812e101
 	github.com/iand/werr v0.1.1
+	github.com/kortschak/utter v1.5.0
 	github.com/tdewolff/canvas v0.0.0-20221230020303-9eb6d3934367
 	github.com/urfave/cli/v2 v2.24.4
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2
@@ -26,7 +27,6 @@ require (
 	github.com/go-fonts/latin-modern v0.3.0 // indirect
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/tdewolff/minify/v2 v2.12.4 // indirect
 	github.com/tdewolff/parse/v2 v2.6.5 // indirect
 	github.com/wcharczuk/go-chart/v2 v2.1.0 // indirect
@@ -38,3 +38,5 @@ require (
 	gonum.org/v1/plot v0.12.0 // indirect
 	star-tex.org/x/tex v0.4.0 // indirect
 )
+
+replace github.com/iand/pontium => ../../../wip/pontium

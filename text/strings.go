@@ -36,7 +36,7 @@ func UpperFirst(s string) string {
 }
 
 func CardinalNoun(n int) string {
-	noun := CardinalNounUnderTwenty(n)
+	noun := cardinalNounUnderTwenty(n)
 	if noun != "" {
 		return noun
 	}
@@ -52,7 +52,7 @@ func CardinalNoun(n int) string {
 		n -= 100
 	}
 	if n < 20 {
-		return noun + CardinalNounUnderTwenty(n)
+		return noun + cardinalNounUnderTwenty(n)
 	}
 
 	switch n / 10 {
@@ -99,7 +99,7 @@ func CardinalNoun(n int) string {
 	return noun
 }
 
-func CardinalNounUnderTwenty(n int) string {
+func cardinalNounUnderTwenty(n int) string {
 	switch n {
 	case 0:
 		return "no"
@@ -143,6 +143,100 @@ func CardinalNounUnderTwenty(n int) string {
 		return "nineteen"
 	}
 	return ""
+}
+
+func SmallCardinalNoun(n int) string {
+	switch n {
+	case 0:
+		return "no"
+	case 1:
+		return "one"
+	case 2:
+		return "two"
+	case 3:
+		return "three"
+	case 4:
+		return "four"
+	case 5:
+		return "five"
+	default:
+		return strconv.Itoa(n)
+	}
+}
+
+func OrdinalNoun(n int) string {
+	if n < 10 {
+		return ordinalNounUnderTen(n)
+	}
+	switch n {
+	case 10:
+		return "tenth"
+	case 11:
+		return "eleventh"
+	case 12:
+		return "twelfth"
+	case 13:
+		return "thirteenth"
+	case 14:
+		return "fourteenth"
+	case 15:
+		return "fifteenth"
+	case 16:
+		return "sixteenth"
+	case 17:
+		return "seventeenth"
+	case 18:
+		return "eighteenth"
+	case 19:
+		return "nineteenth"
+	case 20:
+		return "twentieth"
+	case 30:
+		return "thirtieth"
+	case 40:
+		return "fourtieth"
+	case 50:
+		return "fiftieth"
+	case 60:
+		return "sixtieth"
+	case 70:
+		return "seventieth"
+	case 80:
+		return "eightieth"
+	case 90:
+		return "ninetieth"
+	case 100:
+		return "one hundreth"
+	}
+
+	return CardinalNoun(n/10) + "-" + ordinalNounUnderTen(n%10)
+}
+
+func ordinalNounUnderTen(n int) string {
+	switch n {
+	case 0:
+		return "zeroeth"
+	case 1:
+		return "first"
+	case 2:
+		return "second"
+	case 3:
+		return "third"
+	case 4:
+		return "fourth"
+	case 5:
+		return "fifth"
+	case 6:
+		return "sixth"
+	case 7:
+		return "seventh"
+	case 8:
+		return "eighth"
+	case 9:
+		return "ninth"
+	default:
+		return ""
+	}
 }
 
 func MultiplicativeAdverb(n int) string {

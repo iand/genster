@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
 	"github.com/iand/werr"
 )
@@ -32,9 +34,11 @@ type Site struct {
 	FamilyFilePattern   string
 	PlaceFilePattern    string
 	CalendarFilePattern string
-	InferencesFile      string
-	AnomaliesFile       string
+	PersonDir           string
+	InferencesDir       string
+	AnomaliesDir        string
 	IncludePrivate      bool
+	TimelineExperiment  bool
 }
 
 func NewSite(basePath string, t *tree.Tree) *Site {
@@ -43,17 +47,18 @@ func NewSite(basePath string, t *tree.Tree) *Site {
 		Tree:                t,
 		Calendars:           make(map[int]*Calendar),
 		PersonPagePattern:   path.Join(basePath, "person/%s/"),
-		PersonFilePattern:   "/person/%s.md",
+		PersonDir:           "person",
+		PersonFilePattern:   "/person/%s/index.md",
 		SourcePagePattern:   path.Join(basePath, "source/%s/"),
-		SourceFilePattern:   "/source/%s.md",
+		SourceFilePattern:   "/source/%s/index.md",
 		FamilyPagePattern:   path.Join(basePath, "family/%s/"),
-		FamilyFilePattern:   "/family/%s.md",
+		FamilyFilePattern:   "/family/%s/index.md",
 		PlacePagePattern:    path.Join(basePath, "place/%s/"),
-		PlaceFilePattern:    "/place/%s.md",
+		PlaceFilePattern:    "/place/%s/index.md",
 		CalendarPagePattern: path.Join(basePath, "calendar/%02d/"),
 		CalendarFilePattern: "/calendar/%02d.md",
-		InferencesFile:      "/inferences.md",
-		AnomaliesFile:       "/anomalies.md",
+		InferencesDir:       "inferences",
+		AnomaliesDir:        "anomalies",
 	}
 
 	return s
@@ -120,20 +125,16 @@ func (s *Site) WritePages(root string) error {
 		f.Close()
 	}
 
-	infd, err := RenderInferencesPage(s)
-	if err != nil {
-		return fmt.Errorf("render inferences page markdown: %w", err)
-	}
-	if err := writePage(infd, root, s.InferencesFile); err != nil {
-		return fmt.Errorf("inferences: %w", err)
+	if err := s.WritePersonIndexPages(root); err != nil {
+		return fmt.Errorf("write people index pages: %w", err)
 	}
 
-	anomd, err := RenderAnomaliesPage(s)
-	if err != nil {
-		return fmt.Errorf("render inferences page markdown: %w", err)
+	if err := s.WriteInferencesPages(root); err != nil {
+		return fmt.Errorf("write inferences pages: %w", err)
 	}
-	if err := writePage(anomd, root, s.AnomaliesFile); err != nil {
-		return fmt.Errorf("anomalies: %w", err)
+
+	if err := s.WriteAnomaliesPages(root); err != nil {
+		return fmt.Errorf("write anomalies pages: %w", err)
 	}
 
 	return nil
@@ -144,6 +145,7 @@ func (s *Site) Generate() error {
 		return err
 	}
 	for _, p := range s.Tree.People {
+		GenerateOlb(p)
 		s.AssignTags(p)
 		s.ScanPersonForAnomalies(p)
 	}
@@ -155,7 +157,16 @@ func (s *Site) AssignTags(p *model.Person) error {
 	if p.RelationToKeyPerson != nil && p.RelationToKeyPerson.IsDirectAncestor() {
 		p.Tags = append(p.Tags, "Direct Ancestor")
 	}
-	p.Tags = append(p.Tags, p.PreferredFamilyName)
+
+	if p.PreferredFamilyName != model.UnknownNamePlaceholder && p.PreferredFamilyName != "" {
+		p.Tags = append(p.Tags, p.PreferredFamilyName)
+	} else {
+		p.Tags = append(p.Tags, "Unknown Surname")
+	}
+
+	if p.PreferredGivenName == model.UnknownNamePlaceholder || p.PreferredGivenName == "" {
+		p.Tags = append(p.Tags, "Unknown Forename")
+	}
 
 	if len(p.Inferences) > 0 {
 		p.Tags = append(p.Tags, "Has Inferences")
@@ -163,6 +174,22 @@ func (s *Site) AssignTags(p *model.Person) error {
 
 	if len(p.Anomalies) > 0 {
 		p.Tags = append(p.Tags, "Has Anomalies")
+	}
+
+	if p.Pauper {
+		p.Tags = append(p.Tags, "Pauper")
+	}
+
+	if p.BornInWorkhouse {
+		p.Tags = append(p.Tags, "Born in workhouse")
+	}
+
+	if p.DiedInWorkhouse {
+		p.Tags = append(p.Tags, "Died in workhouse")
+	}
+
+	if p.CauseOfDeath == model.CauseOfDeathSuicide {
+		p.Tags = append(p.Tags, "Died by suicide")
 	}
 
 	// if y, ok := gdate.AsYear(ev.Date); ok {
@@ -175,12 +202,12 @@ func (s *Site) AssignTags(p *model.Person) error {
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("died in %ds", decade))
 	// }
 
-	// if p.BestBirthlikeEvent == nil || gdate.IsUnknown(p.BestBirthlikeEvent.GetDate()) {
-	// 	p.Tags = append(p.Tags, "Unknown Birthdate")
-	// }
-	// if p.BestDeathlikeEvent == nil || gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
-	// 	p.Tags = append(p.Tags, "Unknown Deathdate")
-	// }
+	if p.BestBirthlikeEvent == nil || gdate.IsUnknown(p.BestBirthlikeEvent.GetDate()) {
+		p.Tags = append(p.Tags, "Unknown Birthdate")
+	}
+	if p.BestDeathlikeEvent == nil || gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
+		p.Tags = append(p.Tags, "Unknown Deathdate")
+	}
 
 	return nil
 }
@@ -314,9 +341,133 @@ func (s *Site) LinkFor(v any) string {
 }
 
 func (s *Site) NewDocument() *md.Document {
-	d := &md.Document{
-		LinkBuilder: s,
-	}
+	d := &md.Document{}
+	d.BasePath(s.BasePath)
+	d.SetLinkBuilder(s)
 
 	return d
+}
+
+func (s *Site) NewMarkdownBuilder() MarkdownBuilder {
+	d := &md.Document{}
+	d.BasePath(s.BasePath)
+	d.SetLinkBuilder(s)
+	return d.Body()
+}
+
+func (s *Site) ScanPersonForAnomalies(p *model.Person) {
+	for _, ev := range p.Timeline {
+		anoms := ScanTimelineEventForAnomalies(ev)
+		if len(anoms) > 0 {
+			for _, anom := range anoms {
+				p.Anomalies = append(p.Anomalies, anom)
+			}
+		}
+	}
+}
+
+func (s *Site) WriteAnomaliesPages(root string) error {
+	baseDir := filepath.Join(root, s.AnomaliesDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.People {
+		categories := make([]string, 0)
+		anomaliesByCategory := make(map[string][]*model.Anomaly)
+
+		for _, a := range p.Anomalies {
+			a := a // avoid shadowing
+			al, ok := anomaliesByCategory[a.Category]
+			if ok {
+				al = append(al, a)
+				anomaliesByCategory[a.Category] = al
+				continue
+			}
+
+			categories = append(categories, a.Category)
+			anomaliesByCategory[a.Category] = []*model.Anomaly{a}
+		}
+		sort.Strings(categories)
+
+		if len(anomaliesByCategory) > 0 {
+			b := s.NewMarkdownBuilder()
+			b.Heading2(p.PreferredUniqueName)
+			if p.EditLink != nil {
+				b.Para(b.EncodeModelLink("View page", p) + " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
+			} else {
+				b.Para(b.EncodeModelLink("View page", p))
+			}
+			for _, cat := range categories {
+				al := anomaliesByCategory[cat]
+				items := make([][2]string, 0, len(al))
+
+				for _, a := range al {
+					items = append(items, [2]string{
+						a.Context,
+						a.Text,
+					})
+				}
+				b.DefinitionList(items)
+			}
+			pn.AddEntry(p.PreferredSortName, b.Markdown())
+		}
+
+	}
+
+	if err := pn.WritePages(s, baseDir, "anomalies", "Anomalies"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Site) WriteInferencesPages(root string) error {
+	baseDir := filepath.Join(root, s.InferencesDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.People {
+		items := make([][2]string, 0)
+		for _, inf := range p.Inferences {
+			items = append(items, [2]string{
+				inf.Type + " " + inf.Value,
+				"because " + inf.Reason,
+			})
+		}
+
+		if len(items) > 0 {
+			b := s.NewMarkdownBuilder()
+			b.Heading2(p.PreferredUniqueName)
+			if p.EditLink != nil {
+				b.Para(b.EncodeModelLink("View page", p) + " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
+			} else {
+				b.Para(b.EncodeModelLink("View page", p))
+			}
+			b.DefinitionList(items)
+			pn.AddEntry(p.PreferredSortName, b.Markdown())
+		}
+
+	}
+	if err := pn.WritePages(s, baseDir, "inferences", "Inferences Made"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Site) WritePersonIndexPages(root string) error {
+	baseDir := filepath.Join(root, s.PersonDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.People {
+		items := make([][2]string, 0)
+		b := s.NewMarkdownBuilder()
+		items = append(items, [2]string{
+			b.EncodeModelLink(p.PreferredUniqueName, p),
+			p.Olb,
+		})
+		b.DefinitionList(items)
+		pn.AddEntry(p.PreferredSortName, b.Markdown())
+
+	}
+	if err := pn.WritePages(s, baseDir, s.PersonDir, "People"); err != nil {
+		return err
+	}
+
+	return nil
 }

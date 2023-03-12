@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/iand/genster/gedcom"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/tree"
 	"github.com/iand/werr"
 	"github.com/urfave/cli/v2"
@@ -14,7 +15,7 @@ var Command = &cli.Command{
 	Name:   "gen",
 	Usage:  "Generate a website from a gedcom file",
 	Action: gen,
-	Flags: []cli.Flag{
+	Flags: append([]cli.Flag{
 		&cli.StringFlag{
 			Name:        "gedcom",
 			Aliases:     []string{"g"},
@@ -63,20 +64,30 @@ var Command = &cli.Command{
 			Usage:       "Type and ID of an object to inspect. The internal data structure of the object will be printed to stdout. Use format '{object}/{id}' where object can be 'person', 'place' or 'source'.",
 			Destination: &genopts.inspect,
 		},
-	},
+		&cli.BoolFlag{
+			Name:        "timeline-experiment",
+			Value:       false,
+			Destination: &genopts.timelineExperiment,
+		},
+	}, logging.Flags...),
 }
 
 var genopts struct {
-	gedcomFile     string
-	rootDir        string
-	keyIndividual  string
-	includePrivate bool
-	configDir      string
-	basePath       string
-	inspect        string
+	gedcomFile         string
+	rootDir            string
+	keyIndividual      string
+	includePrivate     bool
+	configDir          string
+	basePath           string
+	inspect            string
+	timelineExperiment bool
+	verbose            bool
+	veryverbose        bool
 }
 
 func gen(cc *cli.Context) error {
+	logging.Setup()
+
 	if genopts.gedcomFile == "" {
 		return fmt.Errorf("no gedcom file specified")
 	}
@@ -93,6 +104,7 @@ func gen(cc *cli.Context) error {
 
 	s := NewSite(genopts.basePath, t)
 	s.IncludePrivate = genopts.includePrivate
+	s.TimelineExperiment = genopts.timelineExperiment
 
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)

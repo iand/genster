@@ -11,7 +11,11 @@ import (
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/infer"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/place"
+	"golang.org/x/exp/slog"
 )
+
+var _ = slog.Debug
 
 type Tree struct {
 	IdentityMap *IdentityMap
@@ -104,6 +108,7 @@ func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place
 			PreferredFullName:   gp.name,
 			PreferredSortName:   gp.name,
 			PlaceType:           model.PlaceTypeUnknown,
+			Country:             place.UnknownCountry(),
 		}
 
 		if gp.parentID != "" {
@@ -112,9 +117,16 @@ func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place
 				parent := t.findPlaceFromGazeteer(parentgp.name, parentgp)
 				if !parent.IsUnknown() {
 					p.Parent = parent
+					p.Country = parent.Country
 					p.PreferredFullName = gp.name + ", " + parent.PreferredFullName
 					p.PreferredUniqueName = gp.name + ", " + parent.PreferredUniqueName
 				}
+			}
+		} else {
+			country, ok := place.LookupCountry(p.PreferredName)
+			if ok {
+				p.PlaceType = model.PlaceTypeCountry
+				p.Country = &country
 			}
 		}
 
@@ -203,6 +215,7 @@ func (t *Tree) Generate(redact bool) error {
 	for _, p := range t.People {
 		t.SelectPersonBestBirthDeathEvents(p)
 		t.RefinePersonNames(p)
+		t.RefinePersonOccupations(p)
 		t.ExpandPersonTimeline(p)
 	}
 
@@ -211,6 +224,8 @@ func (t *Tree) Generate(redact bool) error {
 		infer.InferPersonBirthEventDate(p)
 		infer.InferPersonAliveOrDead(p, time.Now().Year())
 		infer.InferPersonDeathEventDate(p)
+		infer.InferPersonCauseOfDeath(p)
+		infer.InferPersonGeneralFacts(p)
 	}
 
 	for _, f := range t.Families {
@@ -529,6 +544,20 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 	if p.VitalYears != "" {
 		p.PreferredUniqueName = fmt.Sprintf("%s (%s)", p.PreferredFullName, p.VitalYears)
 		p.PreferredSortName = fmt.Sprintf("%s (%s)", p.PreferredSortName, p.VitalYears)
+	}
+
+	return nil
+}
+
+func (t *Tree) RefinePersonOccupations(p *model.Person) error {
+	// TODO: move from gedcom import to here
+
+	if len(p.Occupations) == 0 {
+		return nil
+	}
+	if len(p.Occupations) == 1 {
+		p.PrimaryOccupation = p.Occupations[0].Detail
+		return nil
 	}
 
 	return nil

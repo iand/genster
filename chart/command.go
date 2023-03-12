@@ -14,9 +14,9 @@ import (
 
 	"github.com/iand/gdate"
 	gegedcom "github.com/iand/genster/gedcom"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
-	"github.com/iand/pontium/hlog"
 	"github.com/tdewolff/canvas"
 	"github.com/tdewolff/canvas/renderers"
 	"github.com/tdewolff/canvas/renderers/svg"
@@ -91,16 +91,13 @@ var chartopts struct {
 	familySpacing     float64
 	margin            float64
 	dpi               float64
-
-	verbose     bool
-	veryverbose bool
 }
 
 var Command = &cli.Command{
 	Name:   "chart",
 	Usage:  "Create a family tree chart.",
 	Action: chartCmd,
-	Flags: []cli.Flag{
+	Flags: append([]cli.Flag{
 		&cli.StringFlag{
 			Name:        "gedcom",
 			Aliases:     []string{"g", "input"},
@@ -230,35 +227,7 @@ var Command = &cli.Command{
 			Usage:       "Identifier of the key individual",
 			Destination: &chartopts.keyPersonID,
 		},
-		&cli.BoolFlag{
-			Name:        "verbose",
-			Aliases:     []string{"v"},
-			Usage:       "Set logging level more verbose to include info level logs",
-			Value:       true,
-			Destination: &chartopts.verbose,
-		},
-		&cli.BoolFlag{
-			Name:        "veryverbose",
-			Aliases:     []string{"vv"},
-			Usage:       "Set logging level more verbose to include debug level logs",
-			Destination: &chartopts.veryverbose,
-		},
-	},
-}
-
-func setupLogging() {
-	logLevel := new(slog.LevelVar)
-	logLevel.Set(slog.LevelWarn)
-	if chartopts.verbose {
-		logLevel.Set(slog.LevelInfo)
-	}
-	if chartopts.veryverbose {
-		logLevel.Set(slog.LevelDebug)
-	}
-
-	h := new(hlog.Handler)
-	h = h.WithLevel(logLevel.Level())
-	slog.SetDefault(slog.New(h))
+	}, logging.Flags...),
 }
 
 func chartCmd(cc *cli.Context) error {
@@ -266,7 +235,7 @@ func chartCmd(cc *cli.Context) error {
 		return err
 	}
 
-	setupLogging()
+	logging.Setup()
 
 	l, err := gegedcom.NewLoader(chartopts.gedcomFile)
 	if err != nil {

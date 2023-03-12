@@ -116,7 +116,7 @@ func splitPlaceName(s string) []string {
 			continue
 		}
 
-		if unicode.IsPunct(c) || unicode.IsSymbol(c) {
+		if (unicode.IsPunct(c) || unicode.IsSymbol(c)) && c != '-' {
 			continue
 		}
 

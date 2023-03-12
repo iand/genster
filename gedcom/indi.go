@@ -14,6 +14,8 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
+
 func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord) error {
 	slog.Debug("populating from individual record", "xref", in.Xref)
 	p := m.FindPerson(l.ScopeName, in.Xref)
@@ -26,13 +28,49 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		p.PreferredSortName = "unknown"
 		p.PreferredUniqueName = "unknown"
 	} else {
-		prefName := gedcom.SplitPersonalName(in.Name[0].Name)
+		name := strings.ReplaceAll(in.Name[0].Name, "-?-", model.UnknownNamePlaceholder)
 
-		if prefName.Surname == "" && strings.Contains(prefName.Full, " ") &&
+		prefName := gedcom.SplitPersonalName(name)
+
+		if prefName.Surname == "" &&
+			strings.Contains(prefName.Full, " ") &&
 			!stringOneOf(prefName.Full, "Mary Ann") {
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
 				Category: "Name",
 				Text:     fmt.Sprintf("Person has no surname but full name %q contains more than one word.", prefName.Full),
+				Context:  "Person's name",
+			})
+		}
+
+		if prefName.Surname == "" {
+			prefName.Surname = model.UnknownNamePlaceholder
+			prefName.Full += model.UnknownNamePlaceholder
+			p.Anomalies = append(p.Anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     "Person has no surname, should replace with -?-.",
+				Context:  "Person's name",
+			})
+		}
+
+		if reUppercase.MatchString(prefName.Full) {
+			p.Anomalies = append(p.Anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     "Person's name is all uppercase, should change to proper case.",
+				Context:  "Person's name",
+			})
+		} else if reUppercase.MatchString(prefName.Surname) {
+			p.Anomalies = append(p.Anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     "Person's surname is all uppercase, should change to proper case.",
+				Context:  "Person's name",
+			})
+		}
+
+		if prefName.Given == "" {
+			prefName.Given = model.UnknownNamePlaceholder
+			p.Anomalies = append(p.Anomalies, &model.Anomaly{
+				Category: "Name",
+				Text:     "Person has no given name, should replace with -?-.",
 				Context:  "Person's name",
 			})
 		}
@@ -66,7 +104,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	occupationEvents := make([]model.GeneralEvent, 0)
 
 	for _, er := range events {
-		pl := l.findPlaceForEvent(m, er)
+		pl, anoms := l.findPlaceForEvent(m, er)
 
 		dt, err := gdate.Parse(er.Date)
 		if err != nil {
@@ -102,7 +140,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				GeneralIndividualEvent: giv,
 			}
 
-		case "BAPM":
+		case "BAPM", "CHR":
 			ev = &model.BaptismEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
@@ -246,6 +284,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
 			}
+			for _, anom := range anoms {
+				anom.Context = "Place in " + ev.Type() + " event"
+				if !gdate.IsUnknown(ev.GetDate()) {
+					anom.Context += " " + ev.GetDate().Occurrence()
+				}
+				p.Anomalies = append(p.Anomalies, anom)
+			}
+
 		}
 	}
 
@@ -255,6 +301,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			return gdate.SortsBefore(occupationEvents[i].Date, occupationEvents[j].Date)
 		})
 		for i, gev := range occupationEvents {
+			// slog.Debug("occupation event", "detail", gev.Detail)
 			// HACK: these are common in my ancestry descriptions
 			gev.Detail = strings.TrimPrefix(gev.Detail, "Occupation recorded as ")
 			gev.Detail = strings.TrimPrefix(gev.Detail, "Recorded as ")
@@ -310,6 +357,17 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		p.EditLink = &model.Link{
 			Title: "Edit details at ancestry.co.uk",
 			URL:   fmt.Sprintf("https://www.ancestry.co.uk/family-tree/person/tree/%s/person/%s/facts", id, personID),
+		}
+	}
+
+	// Add ancestry tags
+	for _, ud := range in.UserDefined {
+		switch ud.Tag {
+		case "_MTTAG":
+			tag, ok := l.Tags[stripXref(ud.Value)]
+			if ok {
+				p.Tags = append(p.Tags, tag)
+			}
 		}
 	}
 
@@ -436,6 +494,7 @@ var censusEntryRelationLookup = map[string]model.CensusEntryRelation{
 	"mother":          model.CensusEntryRelationMother,
 	"uncle":           model.CensusEntryRelationUncle,
 	"aunt":            model.CensusEntryRelationAunt,
+	"foster child":    model.CensusEntryRelationFosterChild,
 }
 
 var censusEntryMaritalStatusLookup = map[string]model.CensusEntryMaritalStatus{

@@ -6,6 +6,8 @@ import (
 	"github.com/iand/gdate"
 )
 
+const UnknownNamePlaceholder = "–?–" // en dashes, sorts after other names
+
 type Person struct {
 	ID string // canonical identifier
 	// Page                      string    // path to page in site
@@ -30,20 +32,28 @@ type Person struct {
 	BestBirthlikeEvent        TimelineEvent // event that best represents the person's birth
 	BestDeathlikeEvent        TimelineEvent // event that best represents the person's death
 	Timeline                  []TimelineEvent
-	PossiblyAlive             bool          // true if this person is possibly still alive
-	BeingTense                string        // tense to use when refering to person: 'is' if they are possibly alive, 'was' if they are dead
-	Unknown                   bool          // true if this person is known to have existed but no other information is known
-	Unmarried                 bool          // true if it is known that the person did not marry
-	Childless                 bool          // true if it is known that the person did not have any children
-	Occupations               []*Occupation // list of occupations
-	EditLink                  *Link         // link to a page that can be used to edit the details of this person
-	Links                     []Link        // list of links to more information relevant to this person
-	Redacted                  bool          // true if the person's details should be redacted
-	Inferences                []Inference   // list of inferences made
-	Anomalies                 []*Anomaly    // list of anomalies detected
-	MiscFacts                 []Fact        // miscellaneous facts
-	FeatureImage              *FeatureImage // an image that can be used to represent the person
-	RedactionKeepsName        bool          // true if this person's name should be kept during redaction
+	BeingTense                string // tense to use when refering to person: 'is' if they are possibly alive, 'was' if they are dead
+
+	PossiblyAlive   bool         // true if this person is possibly still alive
+	Unknown         bool         // true if this person is known to have existed but no other information is known
+	Unmarried       bool         // true if it is known that the person did not marry
+	Childless       bool         // true if it is known that the person did not have any children
+	Illegitimate    bool         // true if it is known that the person was born illlegitimately
+	BornInWorkhouse bool         // true if the birth place of the person was a workhouse
+	DiedInWorkhouse bool         // true if the death place of the person was a workhouse
+	Pauper          bool         // true if the person was, at some stage, noted as a pauper
+	CauseOfDeath    CauseOfDeath // cause of death, if known
+
+	Occupations        []*Occupation // list of occupations
+	PrimaryOccupation  string        // simple description of main occupation
+	EditLink           *Link         // link to a page that can be used to edit the details of this person
+	Links              []Link        // list of links to more information relevant to this person
+	Redacted           bool          // true if the person's details should be redacted
+	RedactionKeepsName bool          // true if this person's name should be kept during redaction
+	Inferences         []Inference   // list of inferences made
+	Anomalies          []*Anomaly    // list of anomalies detected
+	MiscFacts          []Fact        // miscellaneous facts
+	FeatureImage       *FeatureImage // an image that can be used to represent the person
 }
 
 func (p *Person) IsUnknown() bool {

@@ -3,11 +3,14 @@ package site
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/place"
 	"github.com/iand/genster/text"
+	"golang.org/x/exp/slog"
 )
 
 type Narrative struct {
@@ -34,7 +37,7 @@ const (
 	NarrativeSequencePostDeath = 4
 )
 
-func (n *Narrative) Render(pov *model.POV, b StructuredMarkdownEncoder) {
+func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
 			return gdate.SortsBefore(n.Statements[i].Start(), n.Statements[j].Start())
@@ -52,11 +55,11 @@ func (n *Narrative) Render(pov *model.POV, b StructuredMarkdownEncoder) {
 			case NarrativeSequenceEarlyLife:
 				// run on from intro, no separate heading
 			case NarrativeSequenceLifeStory:
-				b.Heading3("Life Story")
+				// b.Heading3("Life Story")
 				// reset sequence at start of new section
 				sequenceInNarrative = 0
 			case NarrativeSequenceDeath:
-				b.Heading3("Death")
+				// b.Heading3("Death")
 				// reset sequence at start of new section
 				sequenceInNarrative = 0
 			}
@@ -175,7 +178,7 @@ type GrammarHints struct {
 }
 
 type Statement interface {
-	RenderDetail(int, *NarrativeIntro, StructuredMarkdownEncoder, *GrammarHints)
+	RenderDetail(int, *NarrativeIntro, ExtendedMarkdownBuilder, *GrammarHints)
 	Start() gdate.Date
 	End() gdate.Date
 	NarrativeSequence() int
@@ -183,16 +186,19 @@ type Statement interface {
 
 type IntroStatement struct {
 	Principal *model.Person
+	Baptisms  []*model.BaptismEvent
 }
 
 var _ Statement = (*IntroStatement)(nil)
 
-func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
+func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
 	var birth string
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
-		birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
+		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
+		birth = EncodeWithCitations(text.LowerFirst(WhatWhenWhere(s.Principal.BestBirthlikeEvent, enc)), s.Principal.BestBirthlikeEvent.GetCitations(), enc)
 	}
+	// TODO: position in family
 
 	// Prose parentage
 	parentage := text.LowerFirst(s.Principal.Gender.RelationToParentNoun()) + " of "
@@ -200,13 +206,13 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struct
 		if s.Principal.Mother.IsUnknown() {
 			parentage += "unknown parents"
 		} else {
-			parentage += enc.EncodeModelLink(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother, true)
+			parentage += enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
 		}
 	} else {
 		if s.Principal.Mother.IsUnknown() {
-			parentage += enc.EncodeModelLink(s.Principal.Father.PreferredUniqueName, s.Principal.Father, true)
+			parentage += enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father)
 		} else {
-			parentage += enc.EncodeModelLink(s.Principal.Father.PreferredUniqueName, s.Principal.Father, true) + " and " + enc.EncodeModelLink(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother, true)
+			parentage += enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father) + " and " + enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
 		}
 	}
 
@@ -221,21 +227,50 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struct
 
 	detail += " was "
 	if birth != "" {
-		detail += birth + ", the " + parentage + "."
+		detail += birth + ", the " + parentage
 	} else {
-		detail += "the " + parentage + "."
+		detail += "the " + parentage
 	}
+	detail = text.FinishSentence(detail)
 
-	// TODO: position in family
-	// TODO: known as
+	// Insert baptism here if there is only one, otherwise leave for a new para
+	if len(s.Baptisms) == 1 {
+		bapDetail := AgeWhenWhere(s.Baptisms[0], enc)
+		if bapDetail != "" {
+			detail = text.JoinSentence(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was baptised", EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations(), enc))
+			detail = text.FinishSentence(detail)
+		}
+
+	}
 
 	// ---------------------------------------
 	// Prose relation to key person
 	// ---------------------------------------
 	if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
-		detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is the " + s.Principal.RelationToKeyPerson.Name() + " of " + enc.EncodeModelLink(s.Principal.RelationToKeyPerson.From.PreferredFullName, s.Principal.RelationToKeyPerson.From, true) + "."
+		detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is the " + s.Principal.RelationToKeyPerson.Name() + " of " + enc.EncodeModelLinkDedupe(s.Principal.RelationToKeyPerson.From.PreferredFullName, s.Principal.RelationToKeyPerson.From.PreferredFamiliarName, s.Principal.RelationToKeyPerson.From)
 	}
+
+	detail = text.FinishSentence(detail)
 	enc.Para(detail)
+
+	if len(s.Baptisms) > 1 {
+
+		var bapDetail string
+		for i, bev := range s.Baptisms {
+			evDetail := ""
+			if i == 0 {
+				evDetail += "was baptised"
+			} else {
+				evDetail += "and again"
+			}
+			aww := AgeWhenWhere(bev, enc)
+			if aww != "" {
+				bapDetail = text.JoinSentence(bapDetail, evDetail, EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations(), enc))
+			}
+		}
+		bapDetail = text.FinishSentence(text.JoinSentence(intro.NameBased, bapDetail))
+		enc.Para(bapDetail)
+	}
 }
 
 func (s *IntroStatement) Start() gdate.Date {
@@ -250,60 +285,6 @@ func (s *IntroStatement) NarrativeSequence() int {
 	return NarrativeSequenceIntro
 }
 
-type BaptismsStatement struct {
-	Principal *model.Person
-	Events    []*model.BaptismEvent
-}
-
-var _ Statement = (*BaptismsStatement)(nil)
-
-func (s *BaptismsStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
-	var detail string
-	for i, bev := range s.Events {
-		evDetail := ""
-		if i == 0 {
-			evDetail += "was baptised"
-		} else {
-			evDetail += "and again"
-		}
-		if !gdate.IsUnknown(bev.Date) {
-			if age, ok := s.Principal.AgeInYearsAt(bev.Date); ok {
-				evDetail += " " + AgeQualifier(age)
-			}
-			evDetail += " " + bev.Date.Occurrence()
-		}
-		if !bev.Place.IsUnknown() {
-			evDetail += " in " + bev.Place.PreferredName
-		}
-		detail += EncodeWithCitations(evDetail, bev.GetCitations(), enc)
-	}
-	detail += "."
-
-	enc.Para(intro.NameBased + " " + detail)
-}
-
-func (s *BaptismsStatement) Start() gdate.Date {
-	if len(s.Events) > 0 {
-		return s.Events[0].GetDate()
-	}
-	return s.Principal.BestBirthlikeEvent.GetDate()
-}
-
-func (s *BaptismsStatement) End() gdate.Date {
-	if len(s.Events) > 0 {
-		return s.Events[len(s.Events)-1].GetDate()
-	}
-	return s.Principal.BestBirthlikeEvent.GetDate()
-}
-
-func (s *BaptismsStatement) EndedWithDeathOf(p *model.Person) bool {
-	return true
-}
-
-func (s *BaptismsStatement) NarrativeSequence() int {
-	return NarrativeSequenceEarlyLife
-}
-
 type FamilyStatement struct {
 	Principal *model.Person
 	Family    *model.Family
@@ -311,7 +292,7 @@ type FamilyStatement struct {
 
 var _ Statement = (*FamilyStatement)(nil)
 
-func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
+func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 
@@ -332,7 +313,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struc
 	if other.IsUnknown() {
 		otherName = "an unknown " + s.Principal.Gender.Opposite().Noun()
 	} else {
-		otherName = enc.EncodeModelLink(other.PreferredUniqueName, other, true)
+		otherName = enc.EncodeModelLinkDedupe(other.PreferredUniqueName, other.PreferredFamiliarFullName, other)
 	}
 
 	singleParent := false
@@ -382,7 +363,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struc
 
 		children := make([]string, len(s.Family.Children))
 		for j := range s.Family.Children {
-			children[j] = enc.EncodeModelLink(s.Family.Children[j].PreferredGivenName, s.Family.Children[j], true)
+			children[j] = enc.EncodeModelLink(s.Family.Children[j].PreferredGivenName, s.Family.Children[j])
 			if !gdate.IsUnknown(s.Family.Children[j].BestBirthlikeEvent.GetDate()) {
 				children[j] += fmt.Sprintf(" (%s)", s.Family.Children[j].BestBirthlikeEvent.ShortDescription())
 			}
@@ -494,18 +475,30 @@ type DeathStatement struct {
 
 var _ Statement = (*DeathStatement)(nil)
 
-func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
+func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
 	var detail string
 
 	evDetail := ""
 	bev := s.Principal.BestDeathlikeEvent
 	switch bev.(type) {
 	case *model.DeathEvent:
-		evDetail += "died"
+		if bev.IsInferred() {
+			evDetail = text.JoinSentence(evDetail, "is inferred to have died")
+		} else {
+			evDetail = text.JoinSentence(evDetail, "died")
+		}
 	case *model.BurialEvent:
-		evDetail += "was buried"
+		if bev.IsInferred() {
+			evDetail = text.JoinSentence(evDetail, "is inferred to have been buried")
+		} else {
+			evDetail = text.JoinSentence(evDetail, "was buried")
+		}
 	case *model.CremationEvent:
-		evDetail += "was cremated"
+		if bev.IsInferred() {
+			evDetail = text.JoinSentence(evDetail, "is inferred to have been cremated")
+		} else {
+			evDetail = text.JoinSentence(evDetail, "was cremated")
+		}
 	default:
 		panic("unhandled deathlike event in DeathStatement")
 	}
@@ -551,7 +544,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struct
 	}
 	if !bev.GetPlace().IsUnknown() {
 		pl := bev.GetPlace()
-		evDetail += " " + pl.PlaceType.InAt() + " " + bev.GetPlace().PreferredFullName
+		evDetail = text.JoinSentence(evDetail, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	detail += EncodeWithCitations(evDetail, bev.GetCitations(), enc)
 
@@ -597,14 +590,14 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struct
 			} else if precise.D == 1 {
 				evDetail += " the next day"
 			} else {
-				evDetail += fmt.Sprintf(" %s days later", text.CardinalNounUnderTwenty(precise.D))
+				evDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(precise.D))
 			}
 		} else {
 			evDetail += " " + funeralEvent.GetDate().Occurrence()
 		}
 		if !funeralEvent.GetPlace().IsUnknown() {
 			pl := funeralEvent.GetPlace()
-			evDetail += " " + pl.PlaceType.InAt() + " " + funeralEvent.GetPlace().PreferredFullName
+			evDetail = text.JoinSentence(evDetail, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 		}
 
 		if additionalDetailFromDeathEvent != "" {
@@ -631,12 +624,12 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Struct
 		possibleSurvivor := lastFamily.OtherParent(s.Principal)
 		if possibleSurvivor != nil && possibleSurvivor.BestDeathlikeEvent != nil && !gdate.IsUnknown(possibleSurvivor.BestDeathlikeEvent.GetDate()) {
 			if gdate.SortsBefore(s.Principal.BestDeathlikeEvent.GetDate(), possibleSurvivor.BestDeathlikeEvent.GetDate()) {
-				detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " was survived by "
+				detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " survived by "
 				if lastFamily.Bond == model.FamilyBondMarried {
 					detail += text.LowerFirst(s.Principal.Gender.PossessivePronounSingular()) + " " + text.LowerFirst(possibleSurvivor.Gender.RelationToSpouseNoun()) + " "
 				}
 
-				detail += enc.EncodeModelLink(possibleSurvivor.PreferredFamiliarName, possibleSurvivor, true)
+				detail += enc.EncodeModelLinkDedupe(possibleSurvivor.PreferredFullName, possibleSurvivor.PreferredFamiliarName, possibleSurvivor)
 				detail += "."
 			}
 		}
@@ -654,95 +647,6 @@ func (s *DeathStatement) End() gdate.Date {
 
 func (s *DeathStatement) NarrativeSequence() int {
 	return NarrativeSequenceDeath
-}
-
-type WillAndProbateStatement struct {
-	Principal *model.Person
-	Event     model.TimelineEvent
-}
-
-var _ Statement = (*WillAndProbateStatement)(nil)
-
-func (s *WillAndProbateStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
-	detail := ""
-
-	switch tev := s.Event.(type) {
-	case *model.ProbateEvent:
-		detail = "probate was granted "
-		if !intro.DateInferred {
-			detail += tev.GetDate().Occurrence()
-		}
-		if !tev.GetPlace().IsUnknown() {
-			pl := tev.GetPlace()
-			detail += " " + pl.PlaceType.InAt() + " " + pl.PreferredFullName
-			detail = EncodeWithCitations(detail, tev.GetCitations(), enc)
-		}
-	}
-
-	if detail != "" {
-		enc.Para(text.FormatSentence(text.JoinSentence(intro.TimeBased, detail)))
-	}
-}
-
-func (s *WillAndProbateStatement) Start() gdate.Date {
-	return s.Event.GetDate()
-}
-
-func (s *WillAndProbateStatement) End() gdate.Date {
-	return s.Event.GetDate()
-}
-
-func (s *WillAndProbateStatement) NarrativeSequence() int {
-	return NarrativeSequencePostDeath
-}
-
-type CensusStatement struct {
-	Principal *model.Person
-	Event     *model.CensusEvent
-}
-
-var _ Statement = (*CensusStatement)(nil)
-
-func (s *CensusStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
-	detail := "was recorded in the "
-
-	if !intro.DateInferred {
-		yearer, ok := gdate.AsYear(s.Event.GetDate())
-		if ok {
-			detail = text.JoinSentence(detail, fmt.Sprintf("%d ", yearer.Year()))
-		}
-	}
-	detail = text.JoinSentence(detail, "census")
-
-	entry, _ := s.Event.Entry(s.Principal)
-	if entry != nil && entry.RelationToHead.IsImpersonal() {
-		detail = text.JoinSentence(detail, "as", "a"+text.MaybeAn(string(entry.RelationToHead)))
-	}
-
-	if !s.Event.GetPlace().IsUnknown() {
-		pl := s.Event.GetPlace()
-
-		residing := ChooseFrom(seq, "residing", "", "living")
-
-		detail = text.JoinSentence(detail, residing, pl.PlaceType.InAt(), pl.PreferredFullName)
-		detail = EncodeWithCitations(detail, s.Event.GetCitations(), enc)
-	}
-
-	if detail != "" {
-		enc.Para(text.FormatSentence(text.JoinSentence(intro.Text, detail)))
-	}
-}
-
-func (s *CensusStatement) Start() gdate.Date {
-	return s.Event.GetDate()
-}
-
-func (s *CensusStatement) End() gdate.Date {
-	return s.Event.GetDate()
-}
-
-func (s *CensusStatement) NarrativeSequence() int {
-	return NarrativeSequenceLifeStory
 }
 
 // UTILITY
@@ -781,96 +685,503 @@ func EventNarrativeDetail(ev model.TimelineEvent) string {
 	return ""
 }
 
-type VerbatimStatement struct {
-	Principal *model.Person
-	Detail    string
-	Date      gdate.Date
-	Citations []*model.GeneralCitation
-}
+func GenerateOlb(p *model.Person) error {
+	if p.Olb != "" {
+		return nil
+	}
+	log := false
+	logger := slog.With("id", p.ID, "name", p.PreferredFullName)
 
-var _ Statement = (*VerbatimStatement)(nil)
-
-func (s *VerbatimStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
-	var detail string
-	if intro.TimeBased != "" {
-		detail = text.JoinSentence(intro.TimeBased, s.Detail)
-	} else if !gdate.IsUnknown(s.Date) {
-		detail = text.JoinSentence(s.Date.Occurrence(), s.Detail)
-	} else {
-		detail = s.Detail
+	type BioFacts struct {
+		BirthYear             int
+		BirthYearDesc         string
+		BirthPlace            string
+		CountryOfBirth        *place.Country
+		DeathYear             int
+		DeathYearDesc         string
+		DeathPlace            string
+		DeathType             string
+		CountryOfDeath        *place.Country
+		AgeAtDeath            int
+		NumberOfMarriages     int
+		AgeAtFirstMarriage    int
+		AgeAtFirstSpouseDeath int
+		NumberOfDivorces      int
+		NumberOfAnnulments    int
+		Spouses               []*model.Person
+		NumberOfChildren      int
+		IllegitimateChildren  int
+		NumberOfSiblings      int // TODO
+		PositionInFamily      int
+		AgeAtDeathOfFather    int
+		AgeAtDeathOfMother    int
+		OrphanedAtAge         int
+		TravelEvents          int
+		Suicide               bool
 	}
 
-	if detail != "" {
-		enc.Para(EncodeWithCitations(text.UpperFirst(text.FinishSentence(detail)), s.Citations, enc))
-	}
-}
-
-func (s *VerbatimStatement) Start() gdate.Date {
-	return s.Date
-}
-
-func (s *VerbatimStatement) End() gdate.Date {
-	return s.Date
-}
-
-func (s *VerbatimStatement) NarrativeSequence() int {
-	return NarrativeSequenceLifeStory
-}
-
-type ArrivalDepartureStatement struct {
-	Principal *model.Person
-	Event     model.TimelineEvent
-}
-
-var _ Statement = (*ArrivalDepartureStatement)(nil)
-
-func (s *ArrivalDepartureStatement) RenderDetail(seq int, intro *NarrativeIntro, enc StructuredMarkdownEncoder, hints *GrammarHints) {
-	pl := s.Event.GetPlace()
-	if pl.IsUnknown() {
-		return
+	bf := BioFacts{
+		AgeAtDeath:            -1, // unknown
+		NumberOfChildren:      len(p.Children),
+		IllegitimateChildren:  -1,
+		NumberOfMarriages:     0,
+		NumberOfDivorces:      0,
+		NumberOfAnnulments:    0,
+		NumberOfSiblings:      -1,
+		PositionInFamily:      -1,
+		AgeAtDeathOfFather:    -1,
+		AgeAtDeathOfMother:    -1,
+		OrphanedAtAge:         -1,
+		AgeAtFirstSpouseDeath: -1,
 	}
 
-	var action string
+	if p.BestBirthlikeEvent != nil {
+		if yr, ok := gdate.AsYear(p.BestBirthlikeEvent.GetDate()); ok {
+			bf.BirthYear = yr.Year()
 
-	switch s.Event.(type) {
-	case *model.ArrivalEvent:
-		action = "arrived at"
-	case *model.DepartureEvent:
-		action = "departed"
-	default:
-		panic("unexpected event type")
+			switch p.BestBirthlikeEvent.GetDate().(type) {
+			case *gdate.BeforeYear:
+				bf.BirthYearDesc = "born before " + strconv.Itoa(bf.BirthYear)
+			case *gdate.AfterYear:
+				bf.BirthYearDesc = "born after " + strconv.Itoa(bf.BirthYear)
+			case *gdate.AboutYear:
+				bf.BirthYearDesc = "born about " + strconv.Itoa(bf.BirthYear)
+			default:
+				bf.BirthYearDesc = "born in " + strconv.Itoa(bf.BirthYear)
+				if !p.BestBirthlikeEvent.IsInferred() {
+					if _, ok := p.BestBirthlikeEvent.(*model.BirthEvent); !ok {
+						bf.BirthYearDesc = "likely " + bf.BirthYearDesc
+					}
+				}
+			}
+			if p.BestBirthlikeEvent.IsInferred() {
+				bf.BirthYearDesc = "likely " + bf.BirthYearDesc
+			}
+
+		}
+		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
+			pl := p.BestBirthlikeEvent.GetPlace()
+			bf.BirthPlace = pl.PreferredName
+
+			for pl.Parent != nil {
+				pl = pl.Parent
+			}
+
+			country, ok := place.LookupCountry(pl.PreferredName)
+			if ok {
+				bf.CountryOfBirth = &country
+			}
+		}
+
 	}
 
-	var detail string
-	if !gdate.IsUnknown(s.Event.GetDate()) {
-		if intro.NameBased == "" {
-			detail = text.JoinSentence(s.Event.GetDate().Occurrence(), action, pl.PreferredName)
+	if p.BestDeathlikeEvent != nil {
+		if yr, ok := gdate.AsYear(p.BestDeathlikeEvent.GetDate()); ok {
+			bf.DeathYear = yr.Year()
+			if bf.BirthYear != 0 {
+				if age, ok := p.AgeInYearsAt(p.BestDeathlikeEvent.GetDate()); ok {
+					bf.AgeAtDeath = age
+				}
+			}
+			if p.CauseOfDeath == model.CauseOfDeathSuicide {
+				bf.Suicide = true
+			}
+
+			bf.DeathType = "died"
+			if bf.Suicide {
+				bf.DeathType = "killed " + p.Gender.ReflexivePronoun()
+			}
+
+			switch p.BestDeathlikeEvent.GetDate().(type) {
+			case *gdate.BeforeYear:
+				bf.DeathYearDesc = "before " + strconv.Itoa(bf.DeathYear)
+			case *gdate.AfterYear:
+				bf.DeathYearDesc = "after " + strconv.Itoa(bf.DeathYear)
+			case *gdate.AboutYear:
+				bf.DeathYearDesc = "about " + strconv.Itoa(bf.DeathYear)
+			default:
+				bf.DeathYearDesc = "in " + strconv.Itoa(bf.DeathYear)
+			}
+
+			if p.BestDeathlikeEvent.IsInferred() {
+				bf.DeathType = "likely " + bf.DeathType
+			}
+
+		}
+
+		if !p.BestDeathlikeEvent.GetPlace().IsUnknown() {
+			pl := p.BestDeathlikeEvent.GetPlace()
+			bf.DeathPlace = pl.PreferredName
+
+			for pl.Parent != nil {
+				pl = pl.Parent
+			}
+
+			country, ok := place.LookupCountry(pl.PreferredName)
+			if ok {
+				bf.CountryOfDeath = &country
+			}
+
+		}
+	}
+
+	if !p.Mother.IsUnknown() {
+		if p.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
+			if p.Mother.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.Mother.BestDeathlikeEvent.GetDate()) && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), p.Mother.BestDeathlikeEvent.GetDate()) {
+				if age, ok := p.AgeInYearsAt(p.Mother.BestDeathlikeEvent.GetDate()); ok {
+					bf.AgeAtDeathOfMother = age
+				}
+			}
+		}
+
+		bf.NumberOfSiblings = len(p.Mother.Children)
+		if bf.NumberOfSiblings > 0 && bf.BirthYear > 0 {
+			bf.PositionInFamily = 1
+			for _, ch := range p.Mother.Children {
+				if gdate.IsUnknown(ch.BestBirthlikeEvent.GetDate()) {
+					bf.PositionInFamily = -1
+					break
+				}
+				if ch.SameAs(p) {
+					continue
+				}
+				if gdate.SortsBefore(ch.BestBirthlikeEvent.GetDate(), p.BestBirthlikeEvent.GetDate()) {
+					bf.PositionInFamily++
+				}
+			}
+		}
+	}
+
+	if !p.Father.IsUnknown() && p.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
+		if p.Father.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.Father.BestDeathlikeEvent.GetDate()) && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), p.Father.BestDeathlikeEvent.GetDate()) {
+			if age, ok := p.AgeInYearsAt(p.Father.BestDeathlikeEvent.GetDate()); ok {
+				bf.AgeAtDeathOfFather = age
+			}
+		}
+	}
+
+	if bf.AgeAtDeathOfFather != -1 && bf.AgeAtDeathOfFather < 18 && bf.AgeAtDeathOfMother != -1 && bf.AgeAtDeathOfMother < 18 {
+		if bf.AgeAtDeathOfFather > bf.AgeAtDeathOfMother {
+			bf.OrphanedAtAge = bf.AgeAtDeathOfFather
 		} else {
-			detail = text.JoinSentence(intro.NameBased, action, pl.PreferredName, s.Event.GetDate().Occurrence())
+			bf.OrphanedAtAge = bf.AgeAtDeathOfMother
+		}
+	}
+
+	for _, fam := range p.Families {
+		if fam.Bond == model.FamilyBondMarried || fam.Bond == model.FamilyBondLikelyMarried {
+			other := fam.OtherParent(p)
+			if bf.BirthYear != 0 && bf.NumberOfMarriages == 0 && fam.BestStartDate != nil {
+				if age, ok := p.AgeInYearsAt(fam.BestStartDate); ok {
+					bf.AgeAtFirstMarriage = age
+				}
+				if !other.IsUnknown() && other.BestDeathlikeEvent != nil && p.BestDeathlikeEvent != nil && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), other.BestDeathlikeEvent.GetDate()) {
+					if age, ok := p.AgeInYearsAt(other.BestDeathlikeEvent.GetDate()); ok {
+						bf.AgeAtFirstSpouseDeath = age
+					}
+				}
+
+			}
+
+			bf.NumberOfMarriages++
+			if !other.IsUnknown() {
+				bf.Spouses = append(bf.Spouses, other)
+			}
+		} else {
+			if fam.OtherParent(p).IsUnknown() {
+				if bf.IllegitimateChildren == -1 {
+					bf.IllegitimateChildren = len(fam.Children)
+				} else {
+					bf.IllegitimateChildren += len(fam.Children)
+				}
+			}
+		}
+	}
+
+	for _, ev := range p.Timeline {
+		if !ev.DirectlyInvolves(p) {
+			continue
+		}
+		switch ev.(type) {
+		case *model.DivorceEvent:
+			bf.NumberOfDivorces++
+		case *model.AnnulmentEvent:
+			bf.NumberOfAnnulments++
+		case *model.ArrivalEvent:
+			bf.TravelEvents++
+		case *model.DepartureEvent:
+			bf.TravelEvents++
+		}
+	}
+
+	type Clause struct {
+		Interestingness int
+		Text            string
+	}
+
+	var clauses []Clause
+
+	// Intro statement
+	if p.NickName != "" {
+		clauses = append(clauses, Clause{Text: "known as " + p.NickName, Interestingness: 2})
+	}
+
+	// Statement about birth
+	// TODO: ideally use primary occupation if it were clean enough
+	nonNotableCountries := map[string]bool{
+		"England":        true,
+		"United Kingdom": true,
+	}
+
+	if p.BornInWorkhouse {
+		if p.DiedInWorkhouse {
+			clauses = append(clauses, Clause{Text: "born and died in workhouse", Interestingness: 2})
+		} else {
+			clauses = append(clauses, Clause{Text: "born in workhouse", Interestingness: 2})
+		}
+	} else if bf.CountryOfBirth != nil && !nonNotableCountries[bf.CountryOfBirth.Name] {
+		if bf.BirthYear%3 == 1 {
+			clauses = append(clauses, Clause{Text: bf.CountryOfBirth.Adjective + "-born", Interestingness: 1})
+		} else {
+			clauses = append(clauses, Clause{Text: "born in " + bf.CountryOfBirth.Name, Interestingness: 1})
+		}
+	} else if bf.BirthYearDesc != "" {
+		clauses = append(clauses, Clause{Text: bf.BirthYearDesc, Interestingness: 0})
+	}
+
+	if bf.NumberOfSiblings > 1 {
+		clause := ""
+		if bf.PositionInFamily == 1 {
+			clause = "eldest"
+		} else if bf.PositionInFamily == bf.NumberOfSiblings {
+			clause = "youngest"
+		} else {
+			clause = "one"
+		}
+		clause += " of " + text.CardinalNoun(bf.NumberOfSiblings)
+
+		// add "children" if we aren't repeating the word later
+		if !p.Childless && bf.NumberOfChildren < 2 {
+			clause += " children"
+		}
+		clauses = append(clauses, Clause{Text: clause, Interestingness: 0})
+	}
+
+	if p.Mother.IsUnknown() && !p.Father.IsUnknown() {
+		clauses = append(clauses, Clause{Text: "mother unknown", Interestingness: 1})
+	} else if p.Father.IsUnknown() && !p.Mother.IsUnknown() {
+		clauses = append(clauses, Clause{Text: "father unknown", Interestingness: 1})
+	}
+
+	parentDeathDesc := func(age int) string {
+		if age == 0 {
+			return "as a baby"
+		} else if age < 5 {
+			return "while still a child"
+		} else {
+			return "at " + strconv.Itoa(age)
+		}
+	}
+
+	if bf.OrphanedAtAge > -1 && bf.OrphanedAtAge < 18 {
+		clauses = append(clauses, Clause{Text: "orphaned " + parentDeathDesc(bf.OrphanedAtAge), Interestingness: 3})
+	} else if bf.AgeAtDeathOfMother > -1 && bf.AgeAtDeathOfMother < 18 {
+		clauses = append(clauses, Clause{Text: "mother died " + parentDeathDesc(bf.AgeAtDeathOfMother), Interestingness: 2})
+	} else if bf.AgeAtDeathOfFather > -1 && bf.AgeAtDeathOfFather < 18 {
+		clauses = append(clauses, Clause{Text: "father died " + parentDeathDesc(bf.AgeAtDeathOfFather), Interestingness: 2})
+	}
+
+	// Statement about families and children
+	legitimateChildren := bf.NumberOfChildren
+	if bf.IllegitimateChildren != -1 {
+		legitimateChildren -= bf.IllegitimateChildren
+	}
+
+	// WRONG: http://127.0.0.1:8000/cg/person/VG5ZTZZBICWNU/
+	// WRONG: http://127.0.0.1:8000/cg/person/AGEPVPTJC6E5S/
+	// NO MARRIAGE? http://127.0.0.1:8000/cg/person/GMHISYDRNF3PQ/
+	// MISSING MARRIAGE: http://127.0.0.1:8000/cg/person/S4GUXNLNCYIBY/ (tizzy)
+	// MISSING MARRIAGE: http://127.0.0.1:8000/cg/person/W65FZDL7ABWD2/
+	if p.Childless && bf.AgeAtDeath > 18 {
+		clauses = append(clauses, Clause{Text: "had no children", Interestingness: 1})
+	} else if p.Gender.IsFemale() || bf.NumberOfChildren == 0 {
+		if bf.IllegitimateChildren == 1 {
+			clauses = append(clauses, Clause{Text: "had one child with an unknown father", Interestingness: 1})
+		} else if bf.IllegitimateChildren > 1 {
+			clauses = append(clauses, Clause{Text: "had " + text.SmallCardinalNoun(bf.IllegitimateChildren) + " children with unknown fathers", Interestingness: 1})
+		}
+
+		if p.Unmarried && bf.AgeAtDeath > 18 {
+			clauses = append(clauses, Clause{Text: "never married", Interestingness: 2})
+		} else if bf.NumberOfMarriages > 0 {
+			if bf.AgeAtFirstMarriage > 0 && bf.AgeAtFirstMarriage < 18 {
+				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
+					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName + " at " + strconv.Itoa(bf.AgeAtFirstMarriage), Interestingness: 2})
+				} else if bf.NumberOfMarriages == 2 {
+					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then later remarried", Interestingness: 2})
+				} else {
+					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then " + text.SmallCardinalNoun(bf.NumberOfMarriages-1) + " more times", Interestingness: 2})
+				}
+			} else {
+				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
+					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName, Interestingness: 1})
+				} else {
+					clauses = append(clauses, Clause{Text: "married " + text.MultiplicativeAdverb(bf.NumberOfMarriages), Interestingness: 2})
+				}
+			}
+		}
+
+		if legitimateChildren == 1 {
+			clauses = append(clauses, Clause{Text: "had one child", Interestingness: 1})
+		} else if legitimateChildren > 1 {
+			clauses = append(clauses, Clause{Text: fmt.Sprintf("had %s children", text.SmallCardinalNoun(legitimateChildren)), Interestingness: 1})
 		}
 	} else {
-		detail = text.JoinSentence(intro.NameBased, action, pl.PreferredName)
+		// male or has no children
+
+		clause := ""
+		if bf.NumberOfChildren == 1 {
+			if bf.IllegitimateChildren == 1 {
+				clause += "had one child with an unknown mother"
+			} else {
+				clause += "had one child"
+			}
+		} else if bf.NumberOfChildren > 1 {
+			clause += fmt.Sprintf("had %s children", text.SmallCardinalNoun(bf.NumberOfChildren))
+		}
+
+		if bf.NumberOfMarriages == 1 {
+			clause += " with his wife"
+			if len(bf.Spouses) > 0 {
+				clause += " " + bf.Spouses[0].PreferredFamiliarName
+			}
+		} else if bf.NumberOfMarriages > 1 {
+			clause += " with " + text.SmallCardinalNoun(bf.NumberOfMarriages) + " wives"
+		}
+
+		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+
+		if bf.IllegitimateChildren > 0 {
+			if bf.IllegitimateChildren == bf.NumberOfChildren {
+				if bf.IllegitimateChildren == 2 {
+					clauses = append(clauses, Clause{Text: "both with unknown mothers", Interestingness: 1})
+				} else if bf.IllegitimateChildren > 2 {
+					clauses = append(clauses, Clause{Text: "all with unknown mothers", Interestingness: 2})
+				}
+			} else {
+				clauses = append(clauses, Clause{Text: text.SmallCardinalNoun(bf.IllegitimateChildren) + " with unknown mothers", Interestingness: 1})
+			}
+		}
 	}
 
-	detail = text.FormatSentence(detail)
-
-	if s.Event.GetDetail() != "" {
-		detail += " " + text.FormatSentence(s.Event.GetDetail())
+	if bf.NumberOfMarriages == 1 && bf.AgeAtFirstSpouseDeath > 0 && bf.AgeAtFirstSpouseDeath < 40 {
+		if p.Gender.IsFemale() {
+			clauses = append(clauses, Clause{Text: "widowed at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: 2})
+		} else {
+			clauses = append(clauses, Clause{Text: "widower at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: 2})
+		}
 	}
 
-	if detail != "" {
-		enc.Para(EncodeWithCitations(detail, s.Event.GetCitations(), enc))
+	if bf.NumberOfDivorces > 0 {
+		if bf.NumberOfDivorces < bf.NumberOfMarriages {
+			clauses = append(clauses, Clause{Text: "divorced " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: 1})
+		} else if bf.NumberOfDivorces == bf.NumberOfMarriages && bf.NumberOfDivorces == 1 {
+			clauses = append(clauses, Clause{Text: "later divorced", Interestingness: 1})
+		}
 	}
-}
 
-func (s *ArrivalDepartureStatement) Start() gdate.Date {
-	return s.Event.GetDate()
-}
+	if bf.NumberOfAnnulments > 0 {
+		log = true
+		if bf.NumberOfAnnulments < bf.NumberOfMarriages {
+			clauses = append(clauses, Clause{Text: "anulled " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: 1})
+		} else if bf.NumberOfAnnulments == bf.NumberOfMarriages && bf.NumberOfAnnulments == 1 {
+			clauses = append(clauses, Clause{Text: "later anulled", Interestingness: 2})
+		}
+	}
 
-func (s *ArrivalDepartureStatement) End() gdate.Date {
-	return s.Event.GetDate()
-}
+	if bf.TravelEvents > 4 {
+		clauses = append(clauses, Clause{Text: "travelled widely", Interestingness: 2})
+	}
 
-func (s *ArrivalDepartureStatement) NarrativeSequence() int {
-	return NarrativeSequenceLifeStory
+	// TODO: occupation
+	// TODO: suicide
+	// TODO: imprisoned
+	// TODO: deported
+
+	if p.Pauper {
+		clauses = append(clauses, Clause{Text: "pauper", Interestingness: 1})
+	}
+
+	// Statement about death
+	if bf.AgeAtDeath == 0 {
+		clauses = append(clauses, Clause{Text: bf.DeathType + " as an infant", Interestingness: 1})
+	} else if bf.AgeAtDeath > 0 && bf.AgeAtDeath < 10 {
+		clauses = append(clauses, Clause{Text: bf.DeathType + " as a child", Interestingness: 1})
+	} else if bf.AgeAtDeath >= 10 && bf.AgeAtDeath < 30 {
+		clauses = append(clauses, Clause{Text: fmt.Sprintf("%s before %s %s", bf.DeathType, p.Gender.SubjectPronounWithLink(), strconv.Itoa(bf.AgeAtDeath+1)), Interestingness: 2})
+	} else if bf.AgeAtDeath > 90 && bf.Suicide {
+		clauses = append(clauses, Clause{Text: fmt.Sprintf("lived to %s", strconv.Itoa(bf.AgeAtDeath)), Interestingness: 2})
+	} else if p.DiedInWorkhouse && !p.BornInWorkhouse {
+		clause := bf.DeathType + " in poverty"
+		if bf.AgeAtDeath > 0 {
+			clause += " at the age of " + strconv.Itoa(bf.AgeAtDeath)
+		}
+		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+
+	} else if bf.DeathYear != 0 {
+		clause := bf.DeathType + " " + bf.DeathYearDesc
+		if bf.AgeAtDeath > 0 {
+			clause += " at the age of " + strconv.Itoa(bf.AgeAtDeath)
+		}
+		clauses = append(clauses, Clause{Text: clause, Interestingness: 1})
+	}
+
+	if p.CauseOfDeath == model.CauseOfDeathLostAtSea {
+		clauses = append(clauses, Clause{Text: "lost at sea", Interestingness: 3})
+	} else if p.CauseOfDeath == model.CauseOfDeathKilledInAction {
+		clauses = append(clauses, Clause{Text: "killed in action", Interestingness: 3})
+	} else if p.CauseOfDeath == model.CauseOfDeathDrowned {
+		clauses = append(clauses, Clause{Text: "drowned", Interestingness: 3})
+	}
+
+	if len(clauses) == 0 {
+		return nil
+	}
+
+	// Only keep 4 interesting clauses
+	maxClauses := 4
+	threshold := 1
+	if len(clauses) > maxClauses {
+		remove := len(clauses) - maxClauses
+		for remove > 0 {
+			for i := range clauses {
+				if clauses[i].Text != "" && clauses[i].Interestingness < threshold {
+					clauses[i].Text = ""
+					remove--
+					if remove == 0 {
+						break
+					}
+				}
+			}
+			threshold++
+		}
+	}
+
+	var texts []string
+	for i := range clauses {
+		if clauses[i].Text != "" {
+			texts = append(texts, clauses[i].Text)
+		}
+	}
+	p.Olb = strings.Join(texts, ", ")
+
+	if p.Olb != "" {
+		p.Olb = text.FinishSentence(text.UpperFirst(p.Olb))
+	}
+	if log {
+		logger.Info("generated olb: " + p.Olb)
+	} else {
+		logger.Debug("generated olb: " + p.Olb)
+	}
+	return nil
 }
