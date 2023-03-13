@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 )
 
@@ -29,8 +28,8 @@ type Family struct {
 	BestStartEvent      TimelineEvent // event that best represents the start of the family unit if the bond is a marriage type
 	BestEndEvent        TimelineEvent // event that best represents the end of the family unit if the bond is a marriage type
 
-	BestStartDate gdate.Date // date that best represents the start of the family unit
-	BestEndDate   gdate.Date // date that best represents the end of the family unit
+	BestStartDate *Date // date that best represents the start of the family unit
+	BestEndDate   *Date // date that best represents the end of the family unit
 
 	Timeline       []TimelineEvent
 	Bond           string  // the kind of bond between the parents in the family

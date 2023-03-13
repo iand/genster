@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -54,7 +53,7 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	}
 	if len(intro.Baptisms) > 0 {
 		sort.Slice(intro.Baptisms, func(i, j int) bool {
-			return gdate.SortsBefore(intro.Baptisms[i].GetDate(), intro.Baptisms[j].GetDate())
+			return intro.Baptisms[i].GetDate().SortsBefore(intro.Baptisms[j].GetDate())
 		})
 	}
 	n.Statements = append(n.Statements, intro)
@@ -84,7 +83,7 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		Events: make([]model.TimelineEvent, 0, len(p.Timeline)),
 	}
 	for _, ev := range p.Timeline {
-		if gdate.IsUnknown(ev.GetDate()) && ev.GetPlace().IsUnknown() {
+		if ev.GetDate().IsUnknown() && ev.GetPlace().IsUnknown() {
 			p.MiscFacts = append(p.MiscFacts, model.Fact{
 				Category: ev.GetTitle(),
 				Detail:   ev.GetDetail(),

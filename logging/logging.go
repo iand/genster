@@ -51,7 +51,7 @@ func Setup() {
 	logIDs := Opts.LogIDs.Value()
 	if len(logIDs) > 0 {
 		for _, id := range logIDs {
-			h = h.WithAlwaysLog(slog.String("id", id))
+			h = h.WithAttrLevel(slog.String("id", id), slog.LevelDebug)
 		}
 	}
 

@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/iand/gdate"
 )
 
@@ -70,34 +68,25 @@ func (p *Person) SameAs(other *Person) bool {
 	return p == other || (p.ID != "" && p.ID == other.ID)
 }
 
-func (p *Person) AgeInYearsAt(dt gdate.Date) (int, bool) {
-	if p.BestBirthlikeEvent == nil || gdate.IsUnknown(p.BestBirthlikeEvent.GetDate()) || gdate.IsUnknown(dt) {
+func (p *Person) AgeInYearsAt(dt *Date) (int, bool) {
+	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() || dt.IsUnknown() {
 		return 0, false
 	}
 
-	in := gdate.IntervalBetween(p.BestBirthlikeEvent.GetDate(), dt)
-	if gdate.IsUnknownInterval(in) {
-		return 0, false
-	}
-
-	if yi, ok := gdate.AsYearsInterval(in); ok {
-		return yi.Years(), true
-	}
-
-	return 0, false
+	return p.BestBirthlikeEvent.GetDate().WholeYearsUntil(dt)
 }
 
-func (p *Person) PreciseAgeAt(dt gdate.Date) (*gdate.PreciseInterval, bool) {
-	if p.BestBirthlikeEvent == nil || gdate.IsUnknown(p.BestBirthlikeEvent.GetDate()) || gdate.IsUnknown(dt) {
+func (p *Person) PreciseAgeAt(dt *Date) (*gdate.PreciseInterval, bool) {
+	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() || dt.IsUnknown() {
 		return nil, false
 	}
 
-	in := gdate.IntervalBetween(p.BestBirthlikeEvent.GetDate(), dt)
-	if gdate.IsUnknownInterval(in) {
+	in := p.BestBirthlikeEvent.GetDate().IntervalUntil(dt)
+	if in.IsUnknown() {
 		return nil, false
 	}
 
-	if pi, ok := gdate.AsPreciseInterval(in); ok {
+	if pi, ok := gdate.AsPreciseInterval(in.Interval); ok {
 		return pi, true
 	}
 
@@ -106,7 +95,7 @@ func (p *Person) PreciseAgeAt(dt gdate.Date) (*gdate.PreciseInterval, bool) {
 
 // RelationTo returns a textual description of the relation of p to other.
 // Returns an empty string if no relation was determined
-func (p *Person) RelationTo(other *Person, dt gdate.Date) string {
+func (p *Person) RelationTo(other *Person, dt *Date) string {
 	if p.SameAs(other) {
 		return "Self"
 	}
@@ -155,17 +144,17 @@ func (p *Person) RelationTo(other *Person, dt gdate.Date) string {
 	return ""
 }
 
-func (p *Person) BestBirthDate() gdate.Date {
+func (p *Person) BestBirthDate() *Date {
 	if p.BestBirthlikeEvent == nil {
-		return &gdate.Unknown{}
+		return UnknownDate()
 	}
 
 	return p.BestBirthlikeEvent.GetDate()
 }
 
-func (p *Person) BestDeathDate() gdate.Date {
+func (p *Person) BestDeathDate() *Date {
 	if p.BestDeathlikeEvent == nil {
-		return &gdate.Unknown{}
+		return UnknownDate()
 	}
 
 	return p.BestDeathlikeEvent.GetDate()
@@ -236,25 +225,10 @@ func RecurseDescendants(p *Person, fn PersonActionFunc) {
 }
 
 func YearsSinceDeath(p *Person) (int, bool) {
-	if p.BestDeathlikeEvent == nil || gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
+	if p.BestDeathlikeEvent == nil || p.BestDeathlikeEvent.GetDate().IsUnknown() {
 		return 0, false
 	}
 
-	now := time.Now()
-	dt := &gdate.Precise{
-		Y: now.Year(),
-		M: int(now.Month()),
-		D: now.Day(),
-	}
-
-	in := gdate.IntervalBetween(p.BestDeathlikeEvent.GetDate(), dt)
-	if gdate.IsUnknownInterval(in) {
-		return 0, false
-	}
-
-	if yi, ok := gdate.AsYearsInterval(in); ok {
-		return yi.Years(), true
-	}
-
-	return 0, false
+	in := IntervalSince(p.BestDeathlikeEvent.GetDate())
+	return in.WholeYears()
 }

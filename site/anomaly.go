@@ -16,7 +16,7 @@ func ScanTimelineEventForAnomalies(ev model.TimelineEvent) []*model.Anomaly {
 		if len(anoms) > 0 {
 			for _, anom := range anoms {
 				// TODO: add context
-				anom.Context += " for " + ev.Type() + " " + ev.GetDate().Occurrence()
+				anom.Context += " for " + ev.Type() + " " + ev.GetDate().When()
 				anomalies = append(anomalies, anom)
 			}
 		}

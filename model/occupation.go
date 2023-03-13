@@ -1,12 +1,8 @@
 package model
 
-import (
-	"github.com/iand/gdate"
-)
-
 type Occupation struct {
-	StartDate   gdate.Date
-	EndDate     gdate.Date
+	StartDate   *Date
+	EndDate     *Date
 	Place       *Place
 	Title       string
 	Detail      string

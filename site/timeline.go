@@ -3,7 +3,6 @@ package site
 import (
 	"fmt"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"golang.org/x/exp/slog"
@@ -38,8 +37,8 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuild
 func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
 	title := ev.What()
 	date := ev.GetDate()
-	if !gdate.IsUnknown(date) {
-		title = text.JoinSentence(title, date.Occurrence())
+	if !date.IsUnknown() {
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -53,11 +52,11 @@ func AgeWhenWhere(ev model.IndividualTimelineEvent, enc ExtendedInlineEncoder) s
 	title := ""
 
 	date := ev.GetDate()
-	if !gdate.IsUnknown(date) {
+	if !date.IsUnknown() {
 		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok {
 			title = text.JoinSentence(title, AgeQualifier(age))
 		}
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -135,7 +134,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	}
 
 	includeAge := true
-	if gdate.IsUnknown(date) {
+	if date.IsUnknown() {
 		includeAge = false
 	}
 	switch ev.(type) {
@@ -175,8 +174,8 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	}
 
 	// Add date if known
-	if !gdate.IsUnknown(date) {
-		title += " " + date.Occurrence()
+	if !date.IsUnknown() {
+		title += " " + date.When()
 	}
 
 	pl := ev.GetPlace()
@@ -190,9 +189,9 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 func (t *TimelineEntryFormatter) censusEventTitle(seq int, ev *model.CensusEvent) string {
 	var title string
 	title = text.JoinSentence(title, t.observerContext(ev), "recorded in the")
-	yearer, ok := gdate.AsYear(ev.GetDate())
+	year, ok := ev.GetDate().Year()
 	if ok {
-		title = text.JoinSentence(title, fmt.Sprintf("%d ", yearer.Year()))
+		title = text.JoinSentence(title, fmt.Sprintf("%d ", year))
 	}
 	title = text.JoinSentence(title, "census")
 
@@ -225,7 +224,7 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 	title = text.JoinSentence(title, ev.What())
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -239,7 +238,7 @@ func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEve
 	title := "probate was granted"
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -254,7 +253,7 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -275,7 +274,7 @@ func (t *TimelineEntryFormatter) arrivalEventTitle(seq int, ev *model.ArrivalEve
 
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	return title
@@ -291,7 +290,7 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	return title
@@ -330,7 +329,7 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.PartyTimel
 
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentence(title, date.Occurrence())
+		title = text.JoinSentence(title, date.When())
 	}
 
 	pl := ev.GetPlace()
@@ -349,7 +348,7 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 			return "" // no context needed
 		}
 		// This is someone else's event
-		if observer.IsUnknown() || gdate.IsUnknown(tev.GetDate()) {
+		if observer.IsUnknown() || tev.GetDate().IsUnknown() {
 			return t.enc.EncodeModelLinkDedupe(principal.PreferredFullName, principal.PreferredFullName, principal)
 		}
 		name := t.enc.EncodeModelLinkDedupe(principal.PreferredFullName, principal.PreferredGivenName, principal)
@@ -383,8 +382,8 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 	}
 }
 
-func dateIsKnownOrThereIsNoObserver(date gdate.Date, pov *model.POV) bool {
-	return !gdate.IsUnknown(date) && !pov.Person.IsUnknown()
+func dateIsKnownOrThereIsNoObserver(date *model.Date, pov *model.POV) bool {
+	return !date.IsUnknown() && !pov.Person.IsUnknown()
 }
 
 func placeIsKnownAndIsNotSameAsPointOfView(pl *model.Place, pov *model.POV) bool {

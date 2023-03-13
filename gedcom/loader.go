@@ -173,6 +173,13 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 				Context:  "Place in event",
 			})
 		}
+		// if na me == "Newport Market, Glamorgan, Gwent, Monmouthshire, United Kingdom" {
+		// 	anomalies = append(anomalies, &model.Anomaly{
+		// 		Category: "Name",
+		// 		Text:     fmt.Sprintf("Place name should be Newport, Monmouthshire, England (ancestry database incorrectly links Newport M with wrong place): %q", name),
+		// 		Context:  "Place in event",
+		// 	})
+		// }
 
 		pl := m.FindPlaceUnstructured(name)
 

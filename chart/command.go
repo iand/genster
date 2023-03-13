@@ -421,9 +421,9 @@ func descend(p *model.Person, generations int, detail int) *Individual {
 			if detail == 1 {
 				start := f.BestStartEvent
 				if start != nil {
-					yr, ok := gdate.AsYear(start.GetDate())
+					yr, ok := start.GetDate().Year()
 					if ok {
-						fd.Details = append(fd.Details, fmt.Sprintf("m. %d", yr.Year()))
+						fd.Details = append(fd.Details, fmt.Sprintf("m. %d", yr))
 					}
 				}
 			} else {

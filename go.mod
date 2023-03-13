@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/iand/gdate v0.0.0-20230208124302-f78f7f274edf
 	github.com/iand/gedcom v0.2.0
-	github.com/iand/pontium v0.0.0-20230301125010-c5150812e101
+	github.com/iand/pontium v0.1.0
 	github.com/iand/werr v0.1.1
 	github.com/kortschak/utter v1.5.0
 	github.com/tdewolff/canvas v0.0.0-20221230020303-9eb6d3934367
@@ -38,5 +38,3 @@ require (
 	gonum.org/v1/plot v0.12.0 // indirect
 	star-tex.org/x/tex v0.4.0 // indirect
 )
-
-replace github.com/iand/pontium => ../../../wip/pontium

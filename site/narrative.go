@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"github.com/iand/genster/text"
@@ -40,7 +39,7 @@ const (
 func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
-			return gdate.SortsBefore(n.Statements[i].Start(), n.Statements[j].Start())
+			return n.Statements[i].Start().SortsBefore(n.Statements[j].Start())
 		}
 		return n.Statements[i].NarrativeSequence() < n.Statements[j].NarrativeSequence()
 	})
@@ -67,11 +66,11 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 
 		var nintro NarrativeIntro
 
-		if sequenceInNarrative == 0 || gdate.SortsBefore(pov.Person.BestDeathDate(), s.Start()) {
+		if sequenceInNarrative == 0 || pov.Person.BestDeathDate().SortsBefore(s.Start()) {
 			nintro.NameBased = pov.Person.PreferredFamiliarName
 
 			if s.NarrativeSequence() == NarrativeSequenceLifeStory {
-				nintro.TimeBased = text.UpperFirst(s.Start().Occurrence()) + ", "
+				nintro.TimeBased = text.UpperFirst(s.Start().When()) + ", "
 			}
 
 		} else {
@@ -82,32 +81,30 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 			nintro.NameBased = name
 
 			if i > 0 {
-				sincePrev := gdate.IntervalBetween(n.Statements[i-1].End(), s.Start())
-				if yrs, ok := gdate.AsYearsInterval(sincePrev); ok {
-					years := yrs.Years()
-					preciseStart, isPreciseStart := gdate.AsPrecise(s.Start())
-					dateInYear := ""
-					if isPreciseStart {
-						dateInYear = "on " + preciseStart.DateInYear(true)
+				sincePrev := n.Statements[i-1].End().IntervalUntil(s.Start())
+				if years, ok := sincePrev.WholeYears(); ok {
+					dateInYear, ok := s.Start().DateInYear(true)
+					if ok {
+						dateInYear = "on " + dateInYear
 					}
 
-					if years < 0 && gdate.SortsBefore(s.Start(), n.Statements[i-1].End()) {
+					if years < 0 && s.Start().SortsBefore(n.Statements[i-1].End()) {
 						nintro.TimeBased = ""
 					} else if years == 0 {
-						preciseInterval, isPreciseInterval := gdate.AsPreciseInterval(sincePrev)
-						if isPreciseInterval && preciseInterval.ApproxDays() < 5 {
+						days, isPreciseInterval := sincePrev.ApproxDays()
+						if isPreciseInterval && days < 5 {
 							nintro.TimeBased = ChooseFrom(sequenceInNarrative,
 								dateInYear,
 								text.AppendAside(dateInYear, "just a few days later"),
 								text.AppendAside("Very shortly after", dateInYear),
 								text.AppendAside("Just a few days later", dateInYear),
 							)
-						} else if isPreciseInterval && preciseInterval.ApproxDays() < 20 {
+						} else if isPreciseInterval && days < 20 {
 							nintro.TimeBased = ChooseFrom(sequenceInNarrative,
 								text.AppendAside("Shortly after", dateInYear),
 								text.AppendAside("Several days later", dateInYear),
 							)
-						} else if SameYear(n.Statements[i-1].End(), s.Start()) {
+						} else if n.Statements[i-1].End().SameYear(s.Start()) {
 							nintro.TimeBased = ChooseFrom(sequenceInNarrative,
 								text.AppendAside("Later that year", dateInYear),
 								text.AppendAside("The same year", dateInYear),
@@ -118,7 +115,6 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 							nintro.TimeBased = ChooseFrom(sequenceInNarrative,
 								text.AppendAside("Shortly after", dateInYear),
 								text.AppendAside("Some time later", dateInYear),
-								text.AppendAside(text.UpperFirst(text.ReplaceFirstNumberWithCardinalNoun(sincePrev.Rough()))+" later", dateInYear),
 								text.AppendAside("A short while later", dateInYear),
 							)
 						}
@@ -131,18 +127,16 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 						)
 					} else if years < 5 {
 						nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-							s.Start().Occurrence(),
-							text.AppendClause(text.UpperFirst(text.ReplaceFirstNumberWithCardinalNoun(sincePrev.Rough()))+" later,", s.Start().Occurrence()),
+							s.Start().When(),
 							"",
-							text.AppendClause("A few years later", s.Start().Occurrence()),
-							text.AppendClause("Some years later", s.Start().Occurrence()),
+							text.AppendClause("A few years later", s.Start().When()),
+							text.AppendClause("Some years later", s.Start().When()),
 							"",
 						)
 					} else {
 						nintro.TimeBased = ChooseFrom(sequenceInNarrative,
 							"",
-							text.AppendClause(text.UpperFirst(text.ReplaceFirstNumberWithCardinalNoun(sincePrev.Rough()))+" later,", s.Start().Occurrence()),
-							text.AppendClause("Several years later", s.Start().Occurrence()),
+							text.AppendClause("Several years later", s.Start().When()),
 						)
 						if nintro.TimeBased != "" {
 							nintro.TimeBased += ", "
@@ -179,8 +173,8 @@ type GrammarHints struct {
 
 type Statement interface {
 	RenderDetail(int, *NarrativeIntro, ExtendedMarkdownBuilder, *GrammarHints)
-	Start() gdate.Date
-	End() gdate.Date
+	Start() *model.Date
+	End() *model.Date
 	NarrativeSequence() int
 }
 
@@ -273,11 +267,11 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	}
 }
 
-func (s *IntroStatement) Start() gdate.Date {
+func (s *IntroStatement) Start() *model.Date {
 	return s.Principal.BestBirthDate()
 }
 
-func (s *IntroStatement) End() gdate.Date {
+func (s *IntroStatement) End() *model.Date {
 	return s.Principal.BestBirthDate()
 }
 
@@ -329,11 +323,11 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 	if !singleParent {
 		startDate := s.Family.BestStartDate
 		var event string
-		if !gdate.IsUnknown(startDate) {
+		if !startDate.IsUnknown() {
 			event += " " + action
 			event += " " + otherName
 			if !intro.DateInferred {
-				event += " " + startDate.Occurrence()
+				event += " " + startDate.When()
 			}
 			if age, ok := s.Principal.AgeInYearsAt(startDate); ok && age < 18 || age > 45 {
 				event += " " + AgeQualifier(age)
@@ -358,13 +352,13 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 		}
 	} else {
 		sort.Slice(s.Family.Children, func(i, j int) bool {
-			return gdate.SortsBefore(s.Family.Children[i].BestBirthlikeEvent.GetDate(), s.Family.Children[j].BestBirthlikeEvent.GetDate())
+			return s.Family.Children[i].BestBirthlikeEvent.GetDate().SortsBefore(s.Family.Children[j].BestBirthlikeEvent.GetDate())
 		})
 
 		children := make([]string, len(s.Family.Children))
 		for j := range s.Family.Children {
 			children[j] = enc.EncodeModelLink(s.Family.Children[j].PreferredGivenName, s.Family.Children[j])
-			if !gdate.IsUnknown(s.Family.Children[j].BestBirthlikeEvent.GetDate()) {
+			if !s.Family.Children[j].BestBirthlikeEvent.GetDate().IsUnknown() {
 				children[j] += fmt.Sprintf(" (%s)", s.Family.Children[j].BestBirthlikeEvent.ShortDescription())
 			}
 		}
@@ -420,10 +414,10 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 
 	endDate := s.Family.BestEndDate
 	end := ""
-	if !gdate.IsUnknown(endDate) {
+	if !endDate.IsUnknown() {
 		switch s.Family.EndReason {
 		case model.FamilyEndReasonDivorce:
-			end += "They divorced " + endDate.Occurrence() + "."
+			end += "They divorced " + endDate.When() + "."
 		case model.FamilyEndReasonDeath:
 			if s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried {
 				if !s.EndedWithDeathOf(s.Principal) {
@@ -434,16 +428,16 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 						leavingWidow = " leaving her a widow"
 					}
 					end += ChooseFrom(seq,
-						other.PreferredFamiliarName+" died "+endDate.Occurrence()+".",
-						other.PreferredFamiliarName+" died "+endDate.Occurrence()+leavingWidow+".",
-						"However, "+endDate.Occurrence()+", "+other.PreferredFamiliarName+" died.",
-						"However, "+endDate.Occurrence()+", "+other.PreferredFamiliarName+" died "+leavingWidow+".",
+						other.PreferredFamiliarName+" died "+endDate.When()+".",
+						other.PreferredFamiliarName+" died "+endDate.When()+leavingWidow+".",
+						"However, "+endDate.When()+", "+other.PreferredFamiliarName+" died.",
+						"However, "+endDate.When()+", "+other.PreferredFamiliarName+" died "+leavingWidow+".",
 					)
 				}
 			}
 		case model.FamilyEndReasonUnknown:
 			// TODO: format FamilyEndReasonUnknown
-			end += " unknown " + endDate.Occurrence()
+			end += " unknown " + endDate.When()
 		}
 	}
 	if end != "" {
@@ -453,11 +447,11 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 	enc.Para(intro.Text + detail)
 }
 
-func (s *FamilyStatement) Start() gdate.Date {
+func (s *FamilyStatement) Start() *model.Date {
 	return s.Family.BestStartDate
 }
 
-func (s *FamilyStatement) End() gdate.Date {
+func (s *FamilyStatement) End() *model.Date {
 	return s.Family.BestEndDate
 }
 
@@ -503,7 +497,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 		panic("unhandled deathlike event in DeathStatement")
 	}
 
-	if !gdate.IsUnknown(bev.GetDate()) {
+	if !bev.GetDate().IsUnknown() {
 		if age, ok := s.Principal.AgeInYearsAt(bev.GetDate()); ok {
 			ageDetail := ""
 			if age == 0 {
@@ -538,7 +532,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			}
 			evDetail += " " + ageDetail
 		}
-		evDetail += " " + bev.GetDate().Occurrence()
+		evDetail += " " + bev.GetDate().When()
 	} else {
 		evDetail += " on an unknown date"
 	}
@@ -583,17 +577,17 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			panic("unhandled funeral event")
 		}
 
-		interval := gdate.IntervalBetween(bev.GetDate(), funeralEvent.GetDate())
-		if precise, ok := gdate.AsPreciseInterval(interval); ok && precise.D < 15 {
-			if precise.D == 0 {
+		interval := bev.GetDate().IntervalUntil(funeralEvent.GetDate())
+		if days, ok := interval.ApproxDays(); ok && days < 15 {
+			if days == 0 {
 				evDetail += " the same day"
-			} else if precise.D == 1 {
+			} else if days == 1 {
 				evDetail += " the next day"
 			} else {
-				evDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(precise.D))
+				evDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(days))
 			}
 		} else {
-			evDetail += " " + funeralEvent.GetDate().Occurrence()
+			evDetail += " " + funeralEvent.GetDate().When()
 		}
 		if !funeralEvent.GetPlace().IsUnknown() {
 			pl := funeralEvent.GetPlace()
@@ -617,13 +611,13 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			if s.Principal.Families[i].BestStartDate != nil || s.Principal.Families[j].BestStartDate == nil {
 				return false
 			}
-			return gdate.SortsBefore(s.Principal.Families[i].BestStartDate, s.Principal.Families[j].BestStartDate)
+			return s.Principal.Families[i].BestStartDate.SortsBefore(s.Principal.Families[j].BestStartDate)
 		})
 
 		lastFamily := s.Principal.Families[len(s.Principal.Families)-1]
 		possibleSurvivor := lastFamily.OtherParent(s.Principal)
-		if possibleSurvivor != nil && possibleSurvivor.BestDeathlikeEvent != nil && !gdate.IsUnknown(possibleSurvivor.BestDeathlikeEvent.GetDate()) {
-			if gdate.SortsBefore(s.Principal.BestDeathlikeEvent.GetDate(), possibleSurvivor.BestDeathlikeEvent.GetDate()) {
+		if possibleSurvivor != nil && possibleSurvivor.BestDeathlikeEvent != nil && !possibleSurvivor.BestDeathlikeEvent.GetDate().IsUnknown() {
+			if s.Principal.BestDeathlikeEvent.GetDate().SortsBefore(possibleSurvivor.BestDeathlikeEvent.GetDate()) {
 				detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " survived by "
 				if lastFamily.Bond == model.FamilyBondMarried {
 					detail += text.LowerFirst(s.Principal.Gender.PossessivePronounSingular()) + " " + text.LowerFirst(possibleSurvivor.Gender.RelationToSpouseNoun()) + " "
@@ -637,11 +631,11 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	enc.Para(s.Principal.PreferredFamiliarName + " " + detail)
 }
 
-func (s *DeathStatement) Start() gdate.Date {
+func (s *DeathStatement) Start() *model.Date {
 	return s.Principal.BestDeathlikeEvent.GetDate()
 }
 
-func (s *DeathStatement) End() gdate.Date {
+func (s *DeathStatement) End() *model.Date {
 	return s.Principal.BestDeathlikeEvent.GetDate()
 }
 
@@ -650,19 +644,6 @@ func (s *DeathStatement) NarrativeSequence() int {
 }
 
 // UTILITY
-
-func SameYear(a, b gdate.Date) bool {
-	ay, ok := gdate.AsYear(a)
-	if !ok {
-		return false
-	}
-	by, ok := gdate.AsYear(b)
-	if !ok {
-		return false
-	}
-
-	return ay.Year() == by.Year()
-}
 
 func ChooseFrom(n int, alternatives ...string) string {
 	return alternatives[n%len(alternatives)]
@@ -736,24 +717,14 @@ func GenerateOlb(p *model.Person) error {
 	}
 
 	if p.BestBirthlikeEvent != nil {
-		if yr, ok := gdate.AsYear(p.BestBirthlikeEvent.GetDate()); ok {
-			bf.BirthYear = yr.Year()
+		if year, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
+			bf.BirthYear = year
 
-			switch p.BestBirthlikeEvent.GetDate().(type) {
-			case *gdate.BeforeYear:
-				bf.BirthYearDesc = "born before " + strconv.Itoa(bf.BirthYear)
-			case *gdate.AfterYear:
-				bf.BirthYearDesc = "born after " + strconv.Itoa(bf.BirthYear)
-			case *gdate.AboutYear:
-				bf.BirthYearDesc = "born about " + strconv.Itoa(bf.BirthYear)
-			default:
-				bf.BirthYearDesc = "born in " + strconv.Itoa(bf.BirthYear)
-				if !p.BestBirthlikeEvent.IsInferred() {
-					if _, ok := p.BestBirthlikeEvent.(*model.BirthEvent); !ok {
-						bf.BirthYearDesc = "likely " + bf.BirthYearDesc
-					}
-				}
+			whenYear, ok := p.BestBirthlikeEvent.GetDate().WhenYear()
+			if ok {
+				bf.BirthYearDesc = "born " + whenYear
 			}
+
 			if p.BestBirthlikeEvent.IsInferred() {
 				bf.BirthYearDesc = "likely " + bf.BirthYearDesc
 			}
@@ -776,8 +747,8 @@ func GenerateOlb(p *model.Person) error {
 	}
 
 	if p.BestDeathlikeEvent != nil {
-		if yr, ok := gdate.AsYear(p.BestDeathlikeEvent.GetDate()); ok {
-			bf.DeathYear = yr.Year()
+		if year, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
+			bf.DeathYear = year
 			if bf.BirthYear != 0 {
 				if age, ok := p.AgeInYearsAt(p.BestDeathlikeEvent.GetDate()); ok {
 					bf.AgeAtDeath = age
@@ -792,15 +763,9 @@ func GenerateOlb(p *model.Person) error {
 				bf.DeathType = "killed " + p.Gender.ReflexivePronoun()
 			}
 
-			switch p.BestDeathlikeEvent.GetDate().(type) {
-			case *gdate.BeforeYear:
-				bf.DeathYearDesc = "before " + strconv.Itoa(bf.DeathYear)
-			case *gdate.AfterYear:
-				bf.DeathYearDesc = "after " + strconv.Itoa(bf.DeathYear)
-			case *gdate.AboutYear:
-				bf.DeathYearDesc = "about " + strconv.Itoa(bf.DeathYear)
-			default:
-				bf.DeathYearDesc = "in " + strconv.Itoa(bf.DeathYear)
+			whenYear, ok := p.BestDeathlikeEvent.GetDate().WhenYear()
+			if ok {
+				bf.DeathYearDesc = whenYear
 			}
 
 			if p.BestDeathlikeEvent.IsInferred() {
@@ -826,8 +791,8 @@ func GenerateOlb(p *model.Person) error {
 	}
 
 	if !p.Mother.IsUnknown() {
-		if p.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
-			if p.Mother.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.Mother.BestDeathlikeEvent.GetDate()) && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), p.Mother.BestDeathlikeEvent.GetDate()) {
+		if p.BestDeathlikeEvent != nil && !p.BestDeathlikeEvent.GetDate().IsUnknown() {
+			if p.Mother.BestDeathlikeEvent != nil && !p.Mother.BestDeathlikeEvent.GetDate().IsUnknown() && !p.BestDeathlikeEvent.GetDate().SortsBefore(p.Mother.BestDeathlikeEvent.GetDate()) {
 				if age, ok := p.AgeInYearsAt(p.Mother.BestDeathlikeEvent.GetDate()); ok {
 					bf.AgeAtDeathOfMother = age
 				}
@@ -838,22 +803,22 @@ func GenerateOlb(p *model.Person) error {
 		if bf.NumberOfSiblings > 0 && bf.BirthYear > 0 {
 			bf.PositionInFamily = 1
 			for _, ch := range p.Mother.Children {
-				if gdate.IsUnknown(ch.BestBirthlikeEvent.GetDate()) {
+				if ch.BestBirthlikeEvent.GetDate().IsUnknown() {
 					bf.PositionInFamily = -1
 					break
 				}
 				if ch.SameAs(p) {
 					continue
 				}
-				if gdate.SortsBefore(ch.BestBirthlikeEvent.GetDate(), p.BestBirthlikeEvent.GetDate()) {
+				if ch.BestBirthlikeEvent.GetDate().SortsBefore(p.BestBirthlikeEvent.GetDate()) {
 					bf.PositionInFamily++
 				}
 			}
 		}
 	}
 
-	if !p.Father.IsUnknown() && p.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
-		if p.Father.BestDeathlikeEvent != nil && !gdate.IsUnknown(p.Father.BestDeathlikeEvent.GetDate()) && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), p.Father.BestDeathlikeEvent.GetDate()) {
+	if !p.Father.IsUnknown() && p.BestDeathlikeEvent != nil && !p.BestDeathlikeEvent.GetDate().IsUnknown() {
+		if p.Father.BestDeathlikeEvent != nil && !p.Father.BestDeathlikeEvent.GetDate().IsUnknown() && !p.BestDeathlikeEvent.GetDate().SortsBefore(p.Father.BestDeathlikeEvent.GetDate()) {
 			if age, ok := p.AgeInYearsAt(p.Father.BestDeathlikeEvent.GetDate()); ok {
 				bf.AgeAtDeathOfFather = age
 			}
@@ -875,7 +840,7 @@ func GenerateOlb(p *model.Person) error {
 				if age, ok := p.AgeInYearsAt(fam.BestStartDate); ok {
 					bf.AgeAtFirstMarriage = age
 				}
-				if !other.IsUnknown() && other.BestDeathlikeEvent != nil && p.BestDeathlikeEvent != nil && !gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), other.BestDeathlikeEvent.GetDate()) {
+				if !other.IsUnknown() && other.BestDeathlikeEvent != nil && p.BestDeathlikeEvent != nil && !p.BestDeathlikeEvent.GetDate().SortsBefore(other.BestDeathlikeEvent.GetDate()) {
 					if age, ok := p.AgeInYearsAt(other.BestDeathlikeEvent.GetDate()); ok {
 						bf.AgeAtFirstSpouseDeath = age
 					}

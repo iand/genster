@@ -8,7 +8,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -202,10 +201,10 @@ func (s *Site) AssignTags(p *model.Person) error {
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("died in %ds", decade))
 	// }
 
-	if p.BestBirthlikeEvent == nil || gdate.IsUnknown(p.BestBirthlikeEvent.GetDate()) {
+	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() {
 		p.Tags = append(p.Tags, "Unknown Birthdate")
 	}
-	if p.BestDeathlikeEvent == nil || gdate.IsUnknown(p.BestDeathlikeEvent.GetDate()) {
+	if p.BestDeathlikeEvent == nil || p.BestDeathlikeEvent.GetDate().IsUnknown() {
 		p.Tags = append(p.Tags, "Unknown Deathdate")
 	}
 
@@ -231,7 +230,7 @@ func (s *Site) BuildCalendar() error {
 				continue
 			}
 
-			dt, ok := gdate.AsPrecise(ev.GetDate())
+			_, m, _, ok := ev.GetDate().YMD()
 			if !ok {
 				continue
 			}
@@ -246,12 +245,12 @@ func (s *Site) BuildCalendar() error {
 			}
 
 			// Ensure unique events only
-			evs, ok := monthEvents[dt.M]
+			evs, ok := monthEvents[m]
 			if !ok {
 				evs = make(map[model.TimelineEvent]struct{})
 			}
 			evs[ev] = struct{}{}
-			monthEvents[dt.M] = evs
+			monthEvents[m] = evs
 		}
 	}
 

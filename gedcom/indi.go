@@ -119,7 +119,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		}
 
 		gev := model.GeneralEvent{
-			Date:   dt,
+			Date:   &model.Date{Date: dt},
 			Place:  pl,
 			Detail: detail,
 			Title:  fmt.Sprintf("%s", er.Tag),
@@ -286,8 +286,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			}
 			for _, anom := range anoms {
 				anom.Context = "Place in " + ev.Type() + " event"
-				if !gdate.IsUnknown(ev.GetDate()) {
-					anom.Context += " " + ev.GetDate().Occurrence()
+				if !ev.GetDate().IsUnknown() {
+					anom.Context += " " + ev.GetDate().When()
 				}
 				p.Anomalies = append(p.Anomalies, anom)
 			}
@@ -298,7 +298,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	// Try and consolidate occupation events
 	if len(occupationEvents) > 0 {
 		sort.Slice(occupationEvents, func(i, j int) bool {
-			return gdate.SortsBefore(occupationEvents[i].Date, occupationEvents[j].Date)
+			return occupationEvents[i].GetDate().SortsBefore(occupationEvents[j].GetDate())
 		})
 		for i, gev := range occupationEvents {
 			// slog.Debug("occupation event", "detail", gev.Detail)
@@ -310,8 +310,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 
 			if i == 0 {
 				oc := &model.Occupation{
-					StartDate:   gev.Date,
-					EndDate:     gev.Date,
+					StartDate:   gev.GetDate(),
+					EndDate:     gev.GetDate(),
 					Place:       gev.Place,
 					Title:       "Occupation",
 					Detail:      gev.Detail,
@@ -327,7 +327,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				// fmt.Printf("Occupation similarity between %q and %q is %v\n", gev.Detail, previous.Detail, similarity)
 				if similarity >= 0.7 {
 					// consolidate
-					previous.EndDate = gev.Date
+					previous.EndDate = gev.GetDate()
 					if len(gev.Detail) > len(previous.Detail) {
 						previous.Detail = gev.Detail
 					}
@@ -335,8 +335,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					previous.Occurrences++
 				} else {
 					oc := &model.Occupation{
-						StartDate:   gev.Date,
-						EndDate:     gev.Date,
+						StartDate:   gev.GetDate(),
+						EndDate:     gev.GetDate(),
 						Place:       gev.Place,
 						Title:       "Occupation",
 						Detail:      gev.Detail,
@@ -374,38 +374,38 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	return nil
 }
 
-func maybeFixCensusDate(er *gedcom.EventRecord) (gdate.Date, bool) {
+func maybeFixCensusDate(er *gedcom.EventRecord) (*model.Date, bool) {
 	if len(er.Citation) > 0 {
 		for _, c := range er.Citation {
 			if strings.Contains(c.Page, "Class: HO107") || strings.Contains(c.Page, "Class: HO 107") {
 				// 1841 or 1851 census
 				if er.Date == "1841" {
-					return &gdate.Precise{Y: 1841, M: 6, D: 6}, true
+					return model.PreciseDate(1841, 6, 6), true
 				} else if er.Date == "1851" {
-					return &gdate.Precise{Y: 1851, M: 3, D: 30}, true
+					return model.PreciseDate(1851, 3, 30), true
 				}
 				return nil, false
 			} else if strings.Contains(c.Page, "Class: RG9") || strings.Contains(c.Page, "Class: RG 9") {
 				// 1861 census
-				return &gdate.Precise{Y: 1861, M: 4, D: 7}, true
+				return model.PreciseDate(1861, 4, 7), true
 			} else if strings.Contains(c.Page, "Class: RG10") || strings.Contains(c.Page, "Class: RG 10") {
 				// 1871 census
-				return &gdate.Precise{Y: 1871, M: 4, D: 2}, true
+				return model.PreciseDate(1871, 4, 2), true
 			} else if strings.Contains(c.Page, "Class: RG11") || strings.Contains(c.Page, "Class: RG 11") {
 				// 1881 census
-				return &gdate.Precise{Y: 1881, M: 4, D: 3}, true
+				return model.PreciseDate(1881, 4, 3), true
 			} else if strings.Contains(c.Page, "Class: RG12") || strings.Contains(c.Page, "Class: RG 12") {
 				// 1891 census
-				return &gdate.Precise{Y: 1891, M: 4, D: 5}, true
+				return model.PreciseDate(1891, 4, 5), true
 			} else if strings.Contains(c.Page, "Class: RG13") || strings.Contains(c.Page, "Class: RG 13") {
 				// 1901 census
-				return &gdate.Precise{Y: 1901, M: 3, D: 31}, true
+				return model.PreciseDate(1901, 3, 31), true
 			} else if strings.Contains(c.Page, "Class: RG14") || strings.Contains(c.Page, "Class: RG 14") {
 				// 1911 census
-				return &gdate.Precise{Y: 1911, M: 4, D: 2}, true
+				return model.PreciseDate(1911, 4, 2), true
 			} else if strings.Contains(c.Page, "Class: RG15") || strings.Contains(c.Page, "Class: RG 15") {
 				// 1921 census
-				return &gdate.Precise{Y: 1921, M: 6, D: 19}, true
+				return model.PreciseDate(1921, 6, 19), true
 			}
 		}
 	}

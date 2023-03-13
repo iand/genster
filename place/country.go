@@ -77,6 +77,7 @@ var countries = []Country{
 	{Name: "Bhutan", Adjective: "Bhutanese"},
 	{Name: "Bolivia", Adjective: "Bolivian"},
 	{Name: "Cambodia", Adjective: "Cambodian"},
+	{Name: "Canada", Adjective: "Canadian"},
 	{Name: "Chile", Adjective: "Chilean"},
 	{Name: "China", Adjective: "Chinese"},
 	{Name: "Colombia", Adjective: "Colombian"},

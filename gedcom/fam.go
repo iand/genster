@@ -85,7 +85,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		}
 
 		gev := model.GeneralEvent{
-			Date:   dt,
+			Date:   &model.Date{Date: dt},
 			Place:  pl,
 			Detail: er.Value,
 			Title:  fmt.Sprintf("%s event %s", er.Tag, dt.Occurrence()),

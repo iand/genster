@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/infer"
 	"github.com/iand/genster/model"
@@ -53,7 +52,7 @@ func (t *Tree) FindPerson(scope string, sid string) *model.Person {
 			ID: id,
 		}
 		p.BestBirthlikeEvent = &model.BirthEvent{
-			GeneralEvent: model.GeneralEvent{Date: &gdate.Unknown{}},
+			GeneralEvent: model.GeneralEvent{Date: model.UnknownDate()},
 			GeneralIndividualEvent: model.GeneralIndividualEvent{
 				Principal: p,
 			},
@@ -353,7 +352,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 			switch tev := ev.(type) {
 			case *model.BirthEvent:
 				if bev, ok := p.BestBirthlikeEvent.(*model.BirthEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
 				} else {
@@ -363,7 +362,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 
 			case *model.BaptismEvent:
 				if bev, ok := p.BestBirthlikeEvent.(*model.BaptismEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
 				} else if p.BestBirthlikeEvent == nil {
@@ -373,7 +372,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 
 			case *model.DeathEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestDeathlikeEvent = tev
 					}
 				} else {
@@ -383,7 +382,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 
 			case *model.BurialEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.BurialEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestDeathlikeEvent = ev
 					}
 				} else if p.BestDeathlikeEvent == nil {
@@ -393,7 +392,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 
 			case *model.CremationEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.CremationEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestDeathlikeEvent = ev
 					}
 				} else if p.BestDeathlikeEvent == nil {
@@ -403,7 +402,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 
 			case *model.ProbateEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.ProbateEvent); ok {
-					if gdate.SortsBefore(tev.Date, bev.Date) {
+					if tev.Date.SortsBefore(bev.Date) {
 						p.BestDeathlikeEvent = tev
 					}
 				} else if p.BestDeathlikeEvent == nil {
@@ -417,8 +416,8 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 	var startYear, endYear int
 
 	if p.BestBirthlikeEvent != nil {
-		if startEventYearer, ok := gdate.AsYear(p.BestBirthlikeEvent.GetDate()); ok {
-			startYear = startEventYearer.Year()
+		if year, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
+			startYear = year
 		}
 	}
 
@@ -427,9 +426,9 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 	}
 
 	if p.BestDeathlikeEvent != nil {
-		if endEventYearer, ok := gdate.AsYear(p.BestDeathlikeEvent.GetDate()); ok {
+		if year, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
 			p.PossiblyAlive = false
-			endYear = endEventYearer.Year()
+			endYear = year
 		}
 	}
 
@@ -491,9 +490,9 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 
 		// Set family start date to the be about person's birth if it is better than the current start date
 		if p.BestBirthlikeEvent != nil {
-			if f.BestStartDate == nil || gdate.SortsBefore(p.BestBirthlikeEvent.GetDate(), f.BestStartDate) {
-				if yr, ok := gdate.AsYear(p.BestBirthlikeEvent.GetDate()); ok {
-					f.BestStartDate = &gdate.AboutYear{Y: yr.Year()}
+			if f.BestStartDate == nil || p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate) {
+				if yr, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
+					f.BestStartDate = model.AboutYear(yr)
 				}
 			}
 		}
@@ -506,9 +505,9 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 
 		// Set family start date to the be before person's death if it is better than the current start date
 		if p.BestDeathlikeEvent != nil {
-			if f.BestStartDate == nil || gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), f.BestStartDate) {
-				if yr, ok := gdate.AsYear(p.BestDeathlikeEvent.GetDate()); ok {
-					f.BestStartDate = &gdate.BeforeYear{Y: yr.Year()}
+			if f.BestStartDate == nil || p.BestDeathlikeEvent.GetDate().SortsBefore(f.BestStartDate) {
+				if yr, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
+					f.BestStartDate = model.BeforeYear(yr)
 				}
 			}
 		}
@@ -519,13 +518,6 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 	for _, c := range f.Children {
 		inferFromPersonBirth(f, c)
 		inferFromPersonDeath(f, c)
-	}
-
-	if f.BestEndDate == nil {
-		f.BestEndDate = &gdate.Unknown{}
-	}
-	if f.BestStartDate == nil {
-		f.BestStartDate = &gdate.Unknown{}
 	}
 
 	return nil
@@ -643,14 +635,14 @@ EventLoop:
 
 		// Skip events before the person's birth
 		if p.BestBirthlikeEvent != nil {
-			if gdate.SortsBefore(ev.GetDate(), p.BestBirthlikeEvent.GetDate()) {
+			if ev.GetDate().SortsBefore(p.BestBirthlikeEvent.GetDate()) {
 				continue
 			}
 		}
 
 		// Skip events after the person's birth
 		if p.BestDeathlikeEvent != nil {
-			if gdate.SortsBefore(p.BestDeathlikeEvent.GetDate(), ev.GetDate()) {
+			if p.BestDeathlikeEvent.GetDate().SortsBefore(ev.GetDate()) {
 				continue
 			}
 		}

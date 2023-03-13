@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -46,17 +45,17 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 	month := 0
 	items := []string{}
 	for _, ev := range c.Events {
-		dt, ok := gdate.AsPrecise(ev.GetDate())
+		y, m, d, ok := ev.GetDate().YMD()
 		if !ok {
 			continue
 		}
 		if month == 0 {
-			month = dt.M
+			month = m
 		}
 
 		evd := eventDay{
-			day:  dt.D,
-			year: dt.Y,
+			day:  d,
+			year: y,
 			ev:   ev,
 		}
 

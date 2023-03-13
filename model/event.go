@@ -2,12 +2,10 @@ package model
 
 import (
 	"sort"
-
-	"github.com/iand/gdate"
 )
 
 type TimelineEvent interface {
-	GetDate() gdate.Date
+	GetDate() *Date
 	GetDateType() EventDateType
 	GetPlace() *Place
 	GetTitle() string
@@ -19,6 +17,7 @@ type TimelineEvent interface {
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
 	Participants() []*Person
+	SortsBefore(other TimelineEvent) bool
 }
 
 type IndividualTimelineEvent interface {
@@ -35,14 +34,14 @@ type PartyTimelineEvent interface {
 
 func SortTimelineEvents(evs []TimelineEvent) {
 	sort.Slice(evs, func(i, j int) bool {
-		return gdate.SortsBefore(evs[i].GetDate(), evs[j].GetDate())
+		return evs[i].SortsBefore(evs[j])
 	})
 }
 
 // var _ TimelineEvent = (*GeneralEvent)(nil)
 
 type GeneralEvent struct {
-	Date      gdate.Date
+	Date      *Date
 	Place     *Place
 	Title     string
 	Detail    string
@@ -50,7 +49,7 @@ type GeneralEvent struct {
 	Inferred  bool
 }
 
-func (e *GeneralEvent) GetDate() gdate.Date {
+func (e *GeneralEvent) GetDate() *Date {
 	return e.Date
 }
 
@@ -74,7 +73,7 @@ func (e *GeneralEvent) GetCitations() []*GeneralCitation {
 	return e.Citations
 }
 
-func (e *GeneralEvent) EventDate() gdate.Date {
+func (e *GeneralEvent) EventDate() *Date {
 	return e.Date
 }
 
@@ -98,6 +97,17 @@ func (e *GeneralEvent) abbrev(prefix string) string {
 }
 
 func (e *GeneralEvent) What() string { return "had an event" }
+
+func (e *GeneralEvent) SortsBefore(other TimelineEvent) bool {
+	if e == nil || e.Date == nil {
+		return false
+	}
+	if other == nil || other.GetDate() == nil {
+		return true
+	}
+
+	return e.Date.SortsBefore(other.GetDate())
+}
 
 type GeneralIndividualEvent struct {
 	Principal *Person
