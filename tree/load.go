@@ -39,7 +39,7 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load gazeteer: %w", err)
 	}
 
-	im.ReplaceCanonical("ZUKZH4UEY66AK", "bertie-herbert-tew")
+	// im.ReplaceCanonical("ZUKZH4UEY66AK", "bertie-herbert-tew")
 
 	overrides := new(Overrides)
 	overrides.AddOverride("person", "TA5YTXSS52YDC", "nickname", "Andy")

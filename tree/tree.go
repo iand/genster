@@ -85,8 +85,8 @@ func (t *Tree) GetPlace(id string) (*model.Place, bool) {
 	return p, ok
 }
 
-func (t *Tree) FindPlaceUnstructured(name string) *model.Place {
-	gp, err := t.Gazeteer.MatchPlace(name, nil)
+func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place {
+	gp, err := t.Gazeteer.MatchPlace(name, hints...)
 	if err != nil {
 		return model.UnknownPlace()
 	}
@@ -107,7 +107,7 @@ func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place
 			PreferredFullName:   gp.name,
 			PreferredSortName:   gp.name,
 			PlaceType:           model.PlaceTypeUnknown,
-			Country:             place.UnknownCountry(),
+			Kind:                gp.kind,
 		}
 
 		if gp.parentID != "" {
@@ -116,16 +116,9 @@ func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place
 				parent := t.findPlaceFromGazeteer(parentgp.name, parentgp)
 				if !parent.IsUnknown() {
 					p.Parent = parent
-					p.Country = parent.Country
 					p.PreferredFullName = gp.name + ", " + parent.PreferredFullName
 					p.PreferredUniqueName = gp.name + ", " + parent.PreferredUniqueName
 				}
-			}
-		} else {
-			country, ok := place.LookupCountry(p.PreferredName)
-			if ok {
-				p.PlaceType = model.PlaceTypeCountry
-				p.Country = &country
 			}
 		}
 

@@ -677,12 +677,12 @@ func GenerateOlb(p *model.Person) error {
 		BirthYear             int
 		BirthYearDesc         string
 		BirthPlace            string
-		CountryOfBirth        *place.Country
+		CountryOfBirth        *place.PlaceName
 		DeathYear             int
 		DeathYearDesc         string
 		DeathPlace            string
 		DeathType             string
-		CountryOfDeath        *place.Country
+		CountryOfDeath        *place.PlaceName
 		AgeAtDeath            int
 		NumberOfMarriages     int
 		AgeAtFirstMarriage    int
@@ -738,7 +738,7 @@ func GenerateOlb(p *model.Person) error {
 				pl = pl.Parent
 			}
 
-			country, ok := place.LookupCountry(pl.PreferredName)
+			country, ok := place.LookupPlaceOfOrigin(pl.PreferredName)
 			if ok {
 				bf.CountryOfBirth = &country
 			}
@@ -782,7 +782,7 @@ func GenerateOlb(p *model.Person) error {
 				pl = pl.Parent
 			}
 
-			country, ok := place.LookupCountry(pl.PreferredName)
+			country, ok := place.LookupPlaceOfOrigin(pl.PreferredName)
 			if ok {
 				bf.CountryOfDeath = &country
 			}

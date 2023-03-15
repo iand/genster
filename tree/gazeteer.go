@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/place"
@@ -21,14 +23,17 @@ type Gazeteer struct {
 
 type GazeteerPlace struct {
 	id       string
-	idname   string // the name that was used to generate the id
-	name     string // the administrative name of the place without hierarchy
+	idsrc    string          // the string that was used to generate the id
+	name     string          // the administrative name of the place without hierarchy
+	kind     place.PlaceKind // kind of place, empty if not known
 	parentID string
 }
 
 // MatchPlace returns information about the named place, creating a new one if necessary
 // The supplied name is assumed to be generally unstructured, but ordered hierarchically from most to least specific
-// with each heierarchy level separated by a comma
+// with each heierarchy level separated by a comma. Additional context may be supplied by the use of hints.
+// For example the user could hint that the place could be a UK registration district
+// based on the source being the general register office.
 func (g *Gazeteer) MatchPlace(original string, hints ...place.Hint) (GazeteerPlace, error) {
 	if g.lookup == nil {
 		g.lookup = map[string]string{}
@@ -36,59 +41,78 @@ func (g *Gazeteer) MatchPlace(original string, hints ...place.Hint) (GazeteerPla
 	if g.places == nil {
 		g.places = map[string]GazeteerPlace{}
 	}
-	id, exists := g.lookup[original]
-	if exists {
-		gp, exists := g.places[id]
-		if !exists {
-			return GazeteerPlace{}, fmt.Errorf("could not find place with id %q in gazeteer", id)
-		}
-
-		return gp, nil
-	}
 
 	norm := place.Normalize(original)
 	if norm == "" {
 		return GazeteerPlace{}, ErrInvalidPlaceName
 	}
 
-	id, exists = g.lookup[norm]
+	hintIDs := make([]string, len(hints))
+	for i := range hints {
+		hintIDs[i] = hints[i].ID()
+	}
+	sort.Strings(hintIDs)
+	hintstr := strings.Join(hintIDs, "|")
+
+	lookupstr := norm
+	if len(hints) > 0 {
+		lookupstr += "|" + hintstr
+	}
+
+	// See if we have already processed this placename
+	id, exists := g.lookup[lookupstr]
 	if exists {
 		gp, exists := g.places[id]
 		if !exists {
+			// this only happens if the gazeteer is corrupt or has been edited
 			return GazeteerPlace{}, fmt.Errorf("could not find place with id %q in gazeteer", id)
 		}
 
-		g.lookup[original] = id
 		return gp, nil
 	}
 
-	id = g.makeID(norm)
-	g.lookup[norm] = id
-	g.lookup[original] = id
-	gp := GazeteerPlace{
-		id:     id,
-		idname: norm,
-	}
-	g.places[id] = gp
-
-	ph, ok := place.Parse(original)
+	ph, ok := place.ParseHierarchy(original, hints...)
 	if !ok {
-		return gp, nil
-	}
-	gp.name = ph.Name
-	g.places[id] = gp
-
-	parent, ok := ph.Parent()
-	if !ok {
-		return gp, nil
+		return GazeteerPlace{}, fmt.Errorf("could not parse hierarchy of %q", original)
 	}
 
-	parentgp, err := g.MatchPlace(parent.String())
+	gp, err := g.addPlaceHierarchy(ph)
 	if err != nil {
+		return GazeteerPlace{}, err
+	}
+	g.lookup[lookupstr] = gp.id
+	return gp, nil
+}
+
+func (g *Gazeteer) addPlaceHierarchy(ph *place.PlaceHierarchy) (GazeteerPlace, error) {
+	idsrc := ph.NormalizedWithHierarchy
+	if len(ph.Kind) > 0 {
+		idsrc += "|" + string(ph.Kind)
+	}
+
+	id := g.makeID(idsrc)
+
+	gp, exists := g.places[id]
+	if exists {
 		return gp, nil
 	}
-	gp.parentID = parentgp.id
+
+	gp = GazeteerPlace{
+		id:    id,
+		idsrc: idsrc,
+		name:  ph.Name.Name,
+		kind:  ph.Kind,
+	}
 	g.places[id] = gp
+
+	if ph.Parent != nil {
+		parent, err := g.addPlaceHierarchy(ph.Parent)
+		if err != nil {
+			return GazeteerPlace{}, err
+		}
+		gp.parentID = parent.id
+		g.places[id] = gp
+	}
 
 	return gp, nil
 }
@@ -117,13 +141,15 @@ func (g *Gazeteer) UnmarshalJSON(data []byte) error {
 
 	g.places = map[string]GazeteerPlace{}
 	for id, info := range jg.Places {
-		g.places[id] = GazeteerPlace{
+		gp := GazeteerPlace{
 			id:       id,
 			name:     info.Name,
-			idname:   info.IDName,
+			kind:     place.PlaceKind(info.Kind),
+			idsrc:    info.IDSrc,
 			parentID: info.ParentID,
 		}
-		g.lookup[info.IDName] = id
+		g.places[id] = gp
+		g.lookup[info.IDSrc] = id
 	}
 
 	return nil
@@ -137,7 +163,8 @@ func (g *Gazeteer) MarshalJSON() ([]byte, error) {
 	for id, info := range g.places {
 		jg.Places[id] = PlaceInfoJSON{
 			Name:     info.name,
-			IDName:   info.idname,
+			Kind:     string(info.kind),
+			IDSrc:    info.idsrc,
 			ParentID: info.parentID,
 		}
 	}
@@ -147,7 +174,7 @@ func (g *Gazeteer) MarshalJSON() ([]byte, error) {
 		if !ok {
 			info = PlaceInfoJSON{}
 		}
-		if name != info.IDName {
+		if name != info.IDSrc {
 			info.Matches = append(info.Matches, name)
 		}
 		jg.Places[id] = info
@@ -162,13 +189,15 @@ type GazeteerJSON struct {
 
 type PlaceInfoJSON struct {
 	Name     string   `json:"name"`
-	IDName   string   `json:"idname"`
-	Matches  []string `json:"matches"`
-	ParentID string   `json:"parentid"`
+	Kind     string   `json:"kind,omitempty"`
+	IDSrc    string   `json:"idsrc"`
+	Matches  []string `json:"matches,omitempty"`
+	ParentID string   `json:"parentid,omitempty"`
 }
 
 func LoadGazeteer(filename string) (*Gazeteer, error) {
 	var g Gazeteer
+	return &g, nil
 	if filename == "" {
 		return &g, nil
 	}

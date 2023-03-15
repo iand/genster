@@ -3,87 +3,48 @@ package place
 import (
 	"strings"
 	"unicode"
+
+	"github.com/iand/genster/logging"
 )
 
-// Parse attempts to parse a placename. Additional context may be supplied by the use of hints.
-// For example the user could hint that the place could be a UK registration district
-// based on the source being the general register office.
-func Parse(s string, hints ...Hint) (PlaceHierarchy, bool) {
+// ParseHierarchy attempts to parse a placename into a hierarchy
+func ParseHierarchy(s string, hints ...Hint) (*PlaceHierarchy, bool) {
 	parts := splitPlaceName(s)
 	if len(parts) == 0 {
-		return PlaceHierarchy{}, false
+		return nil, false
 	}
 
-	ph := PlaceHierarchy{
-		Hierarchy: []string{},
-	}
+	ph := &PlaceHierarchy{}
 
 	if len(parts) > 0 {
-		ph.Name = parts[0]
-	}
-	if len(parts) > 1 {
-		ph.Hierarchy = parts[1:]
+		ph.Name = PlaceName{Name: parts[0]}
+		ph.NormalizedWithHierarchy = strings.Join(parts, ",")
 	}
 
-	// pl, conf := matchBest(pc, hints...)
-
-	// if pl != nil && conf > 0 {
-	// 	return pl, nil
-	// }
-	return ph, true
-}
-
-type PlaceHierarchy struct {
-	Name      string
-	Hierarchy []string
-}
-
-func (p *PlaceHierarchy) String() string {
-	return strings.Join(append([]string{p.Name}, p.Hierarchy...), ", ")
-}
-
-func (p *PlaceHierarchy) Normalized() string {
-	return normalizeParts(append([]string{p.Name}, p.Hierarchy...))
-}
-
-func (p *PlaceHierarchy) HasParent() bool {
-	return len(p.Hierarchy) > 0
-}
-
-func (p *PlaceHierarchy) Parent() (PlaceHierarchy, bool) {
-	if len(p.Hierarchy) == 0 {
-		return PlaceHierarchy{}, false
-	}
-	return PlaceHierarchy{
-		Name:      p.Hierarchy[0],
-		Hierarchy: p.Hierarchy[1:],
-	}, true
-}
-
-func (p *PlaceHierarchy) TrimHierarchy(n int) PlaceHierarchy {
-	if n > len(p.Hierarchy) {
-		n = len(p.Hierarchy)
-	}
-
-	return PlaceHierarchy{
-		Name:      p.Name,
-		Hierarchy: p.Hierarchy[:len(p.Hierarchy)-n],
-	}
-}
-
-func matchBest(pc PlaceHierarchy, hints ...Hint) (Place, float64) {
-	var bestPlace Place
-	var bestConfidence float64
-
-	for _, hint := range hints {
-		p, conf := hint(pc)
-		if conf > bestConfidence {
-			bestConfidence = conf
-			bestPlace = p
+	p := ph
+	for i := 1; i < len(parts); i++ {
+		p.Parent = &PlaceHierarchy{
+			Name:                    PlaceName{Name: parts[i]},
+			NormalizedWithHierarchy: strings.Join(parts[i:], ","),
+			Child:                   p,
 		}
+
+		p = p.Parent
+
 	}
 
-	return bestPlace, bestConfidence
+	broadest := ph
+	for broadest.Parent != nil {
+		broadest = broadest.Parent
+	}
+
+	_, ok := LookupPlaceOfOrigin(broadest.Name.Name)
+	logging.Debug("checking if country", "name", broadest.Name, "is_country", ok)
+	if ok {
+		broadest.Kind = PlaceKindCountry
+	}
+
+	return ph, true
 }
 
 func splitPlaceName(s string) []string {

@@ -22,7 +22,7 @@ var startsWithNumber = regexp.MustCompile(`^[1-9]`)
 type ModelFinder interface {
 	FindPerson(scope string, id string) *model.Person
 	FindSource(scope string, id string) *model.Source
-	FindPlaceUnstructured(name string) *model.Place
+	FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place
 }
 
 type Loader struct {
@@ -156,7 +156,7 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 	if name == "" {
 		return model.UnknownPlace(), nil
 	} else {
-		if _, country := place.LookupCountry(name); !country {
+		if _, country := place.LookupPlaceOfOrigin(name); !country {
 			if !strings.Contains(name, ",") {
 				anomalies = append(anomalies, &model.Anomaly{
 					Category: "Name",
@@ -187,13 +187,14 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 			pl.PlaceType = model.PlaceTypeAddress
 		}
 
-		if pl.Country.IsUnknown() {
+		c := pl.Country()
+		if c.IsUnknown() {
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "Name",
 				Text:     fmt.Sprintf("Place name does not include a country: %q", name),
 				Context:  "Place in event",
 			})
-		} else if pl.Country.Name == "United Kingdom" {
+		} else if c.PreferredName == "United Kingdom" {
 			// This is just my personal preference
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "Name",

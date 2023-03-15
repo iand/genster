@@ -2,55 +2,61 @@ package place
 
 import (
 	"strings"
+	"sync"
 )
 
-type Country struct {
-	Name      string
-	Adjective string
-	Aliases   []string
-	Unknown   bool
-}
+var (
+	countryNameLookup     = map[string]PlaceName{}
+	countryNameLookupOnce sync.Once
+)
 
-func (c *Country) IsUnknown() bool {
-	if c == nil {
-		return true
-	}
-	return c.Unknown
-}
-
-func (c *Country) SameAs(other *Country) bool {
-	if c == nil || other == nil {
-		return false
-	}
-	return c == other || (c.Name != "" && c.Name == other.Name)
-}
-
-func UnknownCountry() *Country {
-	return &Country{
-		Name:      "unknown",
-		Adjective: "unknown",
-		Unknown:   true,
-	}
-}
-
-var countryLookup = map[string]Country{}
-
-func init() {
-	for _, c := range countries {
-		countryLookup[strings.ToLower(c.Name)] = c
-		for _, al := range c.Aliases {
-			countryLookup[strings.ToLower(al)] = c
+func LookupCountryName(v string) (PlaceName, bool) {
+	countryNameLookupOnce.Do(func() {
+		for _, c := range countryNames {
+			countryNameLookup[strings.ToLower(c.Name)] = c
+			for _, al := range c.Aliases {
+				countryNameLookup[strings.ToLower(al)] = c
+			}
 		}
+	})
+	pn, ok := countryNameLookup[strings.ToLower(v)]
+	return pn, ok
+}
+
+var (
+	ukNationNameLookup     = map[string]PlaceName{}
+	ukNationNameLookupOnce sync.Once
+)
+
+func LookupUKNationName(v string) (PlaceName, bool) {
+	ukNationNameLookupOnce.Do(func() {
+		for _, c := range ukNationNames {
+			ukNationNameLookup[strings.ToLower(c.Name)] = c
+			for _, al := range c.Aliases {
+				ukNationNameLookup[strings.ToLower(al)] = c
+			}
+		}
+	})
+	pn, ok := ukNationNameLookup[strings.ToLower(v)]
+	return pn, ok
+}
+
+func LookupPlaceOfOrigin(v string) (PlaceName, bool) {
+	pn, ok := LookupCountryName(v)
+	if ok {
+		return pn, ok
 	}
+
+	pn, ok = LookupUKNationName(v)
+	if ok {
+		return pn, ok
+	}
+
+	return UnknownPlaceName(), false
 }
 
-func LookupCountry(v string) (Country, bool) {
-	c, ok := countryLookup[strings.ToLower(v)]
-	return c, ok
-}
-
-// TODO: not all countries, or historic countries are here
-var countries = []Country{
+// TODO: not all country names, or historic country names are here
+var countryNames = []PlaceName{
 	{Name: "Abkhazia", Adjective: "Abkhaz"},
 	{Name: "Afghanistan", Adjective: "Afghan"},
 	{Name: "Albania", Adjective: "Albanian"},
@@ -95,7 +101,6 @@ var countries = []Country{
 	{Name: "Ecuador", Adjective: "Ecuadorian"},
 	{Name: "Egypt", Adjective: "Egyptian"},
 	{Name: "El Salvador", Adjective: "Salvadoran"},
-	{Name: "England", Adjective: "English"},
 	{Name: "Equatorial Guinea", Adjective: "Equatoguinean"},
 	{Name: "Eritrea", Adjective: "Eritrean"},
 	{Name: "Estonia", Adjective: "Estonian"},
@@ -170,7 +175,6 @@ var countries = []Country{
 	{Name: "New Zealand", Adjective: "New Zealand"},
 	{Name: "Nicaragua", Adjective: "Nicaraguan"},
 	{Name: "Nigeria", Adjective: "Nigerian"},
-	{Name: "Northern Ireland", Adjective: "Northern Irish"},
 	{Name: "Norway", Adjective: "Norwegian"},
 	{Name: "Oman", Adjective: "Omani"},
 	{Name: "Pakistan", Adjective: "Pakistani"},
@@ -189,7 +193,6 @@ var countries = []Country{
 	{Name: "Samoa", Adjective: "Samoan"},
 	{Name: "San Marino", Adjective: "Sammarinese"},
 	{Name: "Saudi Arabia", Adjective: "Saudi"},
-	{Name: "Scotland", Adjective: "Scottish"},
 	{Name: "Senegal", Adjective: "Senegalese"},
 	{Name: "Serbia", Adjective: "Serbian"},
 	{Name: "Slovakia", Adjective: "Slovak"},
@@ -214,16 +217,22 @@ var countries = []Country{
 	{Name: "Uganda", Adjective: "Ugandan"},
 	{Name: "Ukraine", Adjective: "Ukrainian"},
 	{Name: "United Arab Emirates", Adjective: "Emirati"},
-	{Name: "United Kingdom", Adjective: "British", Aliases: []string{"UK", "Britain"}},
+	{Name: "United Kingdom", Adjective: "British", Aliases: []string{"UK", "Britain"}, ChildHints: []Hint{MaybeUKNation{}}},
 	{Name: "United States of America", Adjective: "American", Aliases: []string{"US", "USA", "United States"}},
 	{Name: "Uruguay", Adjective: "Uruguayans"},
 	{Name: "Uzbekistan", Adjective: "Uzbekistani"},
 	{Name: "Vatican City", Adjective: "Vaticanian"},
 	{Name: "Venezuela", Adjective: "Venezuelan"},
 	{Name: "Vietnam", Adjective: "Vietnamese"},
-	{Name: "Wales", Adjective: "Welsh"},
 	{Name: "Yemen", Adjective: "Yemeni"},
 	{Name: "Zambia", Adjective: "Zambian"},
 	{Name: "Zanzibar", Adjective: "Zanzibari"},
 	{Name: "Zimbabwe", Adjective: "Zimbabwean"},
+}
+
+var ukNationNames = []PlaceName{
+	{Name: "England", Adjective: "English"},
+	{Name: "Scotland", Adjective: "Scottish"},
+	{Name: "Northern Ireland", Adjective: "Northern Irish"},
+	{Name: "Wales", Adjective: "Welsh"},
 }

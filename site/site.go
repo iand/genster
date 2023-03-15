@@ -16,24 +16,23 @@ import (
 )
 
 type Site struct {
-	BasePath string
-	Tree     *tree.Tree
-	// People              map[string]*model.Person
-	// Sources             map[string]*model.Source
-	// Families            map[string]*model.Family
-	// Places              map[string]*model.Place
-	Calendars           map[int]*Calendar
+	BasePath  string
+	Tree      *tree.Tree
+	Calendars map[int]*Calendar
+
+	PersonDir           string
 	PersonPagePattern   string
-	SourcePagePattern   string
-	FamilyPagePattern   string
-	PlacePagePattern    string
-	CalendarPagePattern string
 	PersonFilePattern   string
+	SourceDir           string
+	SourcePagePattern   string
 	SourceFilePattern   string
+	FamilyPagePattern   string
+	CalendarPagePattern string
 	FamilyFilePattern   string
+	PlaceDir            string
+	PlacePagePattern    string
 	PlaceFilePattern    string
 	CalendarFilePattern string
-	PersonDir           string
 	InferencesDir       string
 	AnomaliesDir        string
 	IncludePrivate      bool
@@ -42,18 +41,25 @@ type Site struct {
 
 func NewSite(basePath string, t *tree.Tree) *Site {
 	s := &Site{
-		BasePath:            basePath,
-		Tree:                t,
-		Calendars:           make(map[int]*Calendar),
-		PersonPagePattern:   path.Join(basePath, "person/%s/"),
-		PersonDir:           "person",
-		PersonFilePattern:   "/person/%s/index.md",
-		SourcePagePattern:   path.Join(basePath, "source/%s/"),
-		SourceFilePattern:   "/source/%s/index.md",
-		FamilyPagePattern:   path.Join(basePath, "family/%s/"),
-		FamilyFilePattern:   "/family/%s/index.md",
-		PlacePagePattern:    path.Join(basePath, "place/%s/"),
-		PlaceFilePattern:    "/place/%s/index.md",
+		BasePath:  basePath,
+		Tree:      t,
+		Calendars: make(map[int]*Calendar),
+
+		PersonDir:         "person",
+		PersonPagePattern: path.Join(basePath, "person/%s/"),
+		PersonFilePattern: "/person/%s/index.md",
+
+		SourceDir:         "source",
+		SourcePagePattern: path.Join(basePath, "source/%s/"),
+		SourceFilePattern: "/source/%s/index.md",
+
+		FamilyPagePattern: path.Join(basePath, "family/%s/"),
+		FamilyFilePattern: "/family/%s/index.md",
+
+		PlaceDir:         "place",
+		PlacePagePattern: path.Join(basePath, "place/%s/"),
+		PlaceFilePattern: "/place/%s/index.md",
+
 		CalendarPagePattern: path.Join(basePath, "calendar/%02d/"),
 		CalendarFilePattern: "/calendar/%02d.md",
 		InferencesDir:       "inferences",
@@ -126,6 +132,14 @@ func (s *Site) WritePages(root string) error {
 
 	if err := s.WritePersonIndexPages(root); err != nil {
 		return fmt.Errorf("write people index pages: %w", err)
+	}
+
+	if err := s.WritePlaceIndexPages(root); err != nil {
+		return fmt.Errorf("write place index pages: %w", err)
+	}
+
+	if err := s.WriteSourceIndexPages(root); err != nil {
+		return fmt.Errorf("write source index pages: %w", err)
 	}
 
 	if err := s.WriteInferencesPages(root); err != nil {
@@ -465,6 +479,46 @@ func (s *Site) WritePersonIndexPages(root string) error {
 
 	}
 	if err := pn.WritePages(s, baseDir, s.PersonDir, "People"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Site) WritePlaceIndexPages(root string) error {
+	baseDir := filepath.Join(root, s.PlaceDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.Places {
+		items := make([][2]string, 0)
+		b := s.NewMarkdownBuilder()
+		items = append(items, [2]string{
+			b.EncodeModelLink(p.PreferredUniqueName, p),
+		})
+		b.DefinitionList(items)
+		pn.AddEntry(p.PreferredSortName, b.Markdown())
+
+	}
+	if err := pn.WritePages(s, baseDir, s.PlaceDir, "Places"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Site) WriteSourceIndexPages(root string) error {
+	baseDir := filepath.Join(root, s.SourceDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.Sources {
+		items := make([][2]string, 0)
+		b := s.NewMarkdownBuilder()
+		items = append(items, [2]string{
+			b.EncodeModelLink(p.Title, p),
+		})
+		b.DefinitionList(items)
+		pn.AddEntry(p.Title, b.Markdown())
+
+	}
+	if err := pn.WritePages(s, baseDir, s.SourceDir, "Sources"); err != nil {
 		return err
 	}
 
