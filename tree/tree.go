@@ -19,7 +19,7 @@ var _ = slog.Debug
 type Tree struct {
 	IdentityMap *IdentityMap
 	Gazeteer    *Gazeteer
-	Overrides   *Overrides
+	Overrides   *Annotations
 	People      map[string]*model.Person
 	Sources     map[string]*model.Source
 	Places      map[string]*model.Place
@@ -27,7 +27,7 @@ type Tree struct {
 	KeyPerson   *model.Person
 }
 
-func NewTree(m *IdentityMap, g *Gazeteer, o *Overrides) *Tree {
+func NewTree(m *IdentityMap, g *Gazeteer, o *Annotations) *Tree {
 	return &Tree{
 		IdentityMap: m,
 		Gazeteer:    g,

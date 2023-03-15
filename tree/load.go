@@ -21,12 +21,14 @@ type Loader interface {
 func LoadTree(configDir string, loader Loader) (*Tree, error) {
 	var identityMapFilename string
 	var gazeteerFilename string
+	var annotationsFilename string
 	if configDir != "" {
 		if err := os.MkdirAll(configDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create config directory: %w", err)
 		}
 		identityMapFilename = filepath.Join(configDir, "identitymap.json")
 		gazeteerFilename = filepath.Join(configDir, "gazeteer.json")
+		annotationsFilename = filepath.Join(configDir, "annotations.json")
 	}
 
 	im, err := LoadIdentityMap(identityMapFilename)
@@ -39,17 +41,12 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load gazeteer: %w", err)
 	}
 
-	// im.ReplaceCanonical("ZUKZH4UEY66AK", "bertie-herbert-tew")
+	a, err := LoadAnnotations(annotationsFilename)
+	if err != nil {
+		return nil, fmt.Errorf("load annotations: %w", err)
+	}
 
-	overrides := new(Overrides)
-	overrides.AddOverride("person", "TA5YTXSS52YDC", "nickname", "Andy")
-	overrides.AddOverride("person", "S4GUXNLNCYIBY", "nickname", "Tizzie")
-	overrides.AddOverride("person", "S4GULNLNCYC4U", "nickname", "Peggy")
-	overrides.AddOverride("person", "ZU7RPKPLONKFC", "nickname", "Nel")
-	overrides.AddOverride("person", "TC7G3QSRW4GAY", "nickname", "Bill")
-	overrides.AddOverride("person", "TC7HJQSRW4MCU", "nickname", "Flo")
-
-	t := NewTree(im, g, overrides)
+	t := NewTree(im, g, a)
 
 	if err := loader.Load(t); err != nil {
 		return nil, fmt.Errorf("load gedcom: %w", err)
@@ -61,6 +58,10 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 
 	if err := SaveGazeteer(gazeteerFilename, g); err != nil {
 		return nil, fmt.Errorf("save gazeteer: %w", err)
+	}
+
+	if err := SaveAnnotations(annotationsFilename, a); err != nil {
+		return nil, fmt.Errorf("save annotations: %w", err)
 	}
 
 	return t, nil

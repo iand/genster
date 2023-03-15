@@ -197,7 +197,6 @@ type PlaceInfoJSON struct {
 
 func LoadGazeteer(filename string) (*Gazeteer, error) {
 	var g Gazeteer
-	return &g, nil
 	if filename == "" {
 		return &g, nil
 	}
