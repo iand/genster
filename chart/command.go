@@ -8,6 +8,7 @@ package chart
 import (
 	"fmt"
 	"image/color"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -382,17 +383,17 @@ func chartCmd(cc *cli.Context) error {
 		// 	return fmt.Errorf("Failed encoding output image: %w", err)
 		// }
 
-	// case "dot":
-	// 	root := descend(rootRecord, chartopts.generations-1, chartopts.detail)
-	// 	c := NewDotChart()
-	// 	dataOut, err := c.Draw(root)
-	// 	if err != nil {
-	// 		return fmt.Errorf("Failed drawing chart: %w", err)
-	// 	}
-	// 	err = os.WriteFile(chartopts.outputFilename, dataOut, 0o666)
-	// 	if err != nil {
-	// 		return fmt.Errorf("Failed writing output file: %w", err)
-	// 	}
+	case "dot":
+		root := descend(startPerson, chartopts.generations-1, chartopts.detail)
+		c := NewDotChart()
+		dataOut, err := c.Draw(root)
+		if err != nil {
+			return fmt.Errorf("Failed drawing chart: %w", err)
+		}
+		err = os.WriteFile(chartopts.outputFilename, dataOut, 0o666)
+		if err != nil {
+			return fmt.Errorf("Failed writing output file: %w", err)
+		}
 	default:
 
 		return fmt.Errorf("Unsupported output format '%s'", chartopts.outputFormat)

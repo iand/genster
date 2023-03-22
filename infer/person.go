@@ -10,32 +10,30 @@ import (
 )
 
 func RedactPersonalDetails(p *model.Person) {
-	if !p.Redacted {
-		p.Redacted = true
-		// p.Page = ""
-		if !p.RedactionKeepsName {
-			p.PreferredFullName = "(living or recently deceased person)"
-			p.PreferredGivenName = "(living or recently deceased person)"
-			p.PreferredFamiliarName = "(living or recently deceased person)"
-			p.PreferredFamilyName = "(living or recently deceased person)"
-			p.PreferredSortName = "(living or recently deceased person)"
-			p.PreferredUniqueName = "(living or recently deceased person)"
-			p.NickName = ""
-		}
-		p.Olb = ""
-		p.Gender = model.GenderUnknown
-		p.Tags = []string{}
-		p.Timeline = []model.TimelineEvent{}
-		p.Occupations = []*model.Occupation{}
-		p.Links = []model.Link{}
-		p.VitalYears = "(?-?)"
-		p.BestBirthlikeEvent = &model.BirthEvent{
-			GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
-			GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
-		}
-		p.BestDeathlikeEvent = nil
-		p.Families = []*model.Family{}
+	p.Redacted = true
+	// p.Page = ""
+	if !p.RedactionKeepsName {
+		p.PreferredFullName = "(living or recently deceased person)"
+		p.PreferredGivenName = "(living or recently deceased person)"
+		p.PreferredFamiliarName = "(living or recently deceased person)"
+		p.PreferredFamilyName = "(living or recently deceased person)"
+		p.PreferredSortName = "(living or recently deceased person)"
+		p.PreferredUniqueName = "(living or recently deceased person)"
+		p.NickName = ""
 	}
+	p.Olb = "information withheld to preserve privacy"
+	p.Gender = model.GenderUnknown
+	p.Tags = []string{}
+	p.Timeline = []model.TimelineEvent{}
+	p.Occupations = []*model.Occupation{}
+	p.Links = []model.Link{}
+	p.VitalYears = "(?-?)"
+	p.BestBirthlikeEvent = &model.BirthEvent{
+		GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
+		GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
+	}
+	p.BestDeathlikeEvent = nil
+	p.Families = []*model.Family{}
 
 	// redact all descendants
 	model.RecurseDescendants(p, RedactPersonalDetails)
@@ -54,34 +52,34 @@ func InferPersonBirthEventDate(p *model.Person) error {
 					if tev.Principal.SameAs(p) {
 						break
 					}
-					year -= 13
-					bev.Date = model.BeforeYear(year)
+					inferredYear := year - 13
+					bev.Date = model.BeforeYear(inferredYear)
 					inference = &model.Inference{
 						Type:   model.InferenceTypeYearOfBirth,
-						Value:  fmt.Sprintf("before %d", year),
+						Value:  fmt.Sprintf("before %d", inferredYear),
 						Reason: fmt.Sprintf("%s had a child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
 					}
 				case *model.BaptismEvent:
 					if tev.Principal.SameAs(p) {
 						break
 					}
-					year -= 13
-					bev.Date = model.BeforeYear(year)
+					inferredYear := year - 13
+					bev.Date = model.BeforeYear(inferredYear)
 					inference = &model.Inference{
 						Type:   model.InferenceTypeYearOfBirth,
-						Value:  fmt.Sprintf("before %d", year),
+						Value:  fmt.Sprintf("before %d", inferredYear),
 						Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
 					}
 				case *model.MarriageEvent:
 					if !tev.Party1.SameAs(p) && tev.Party2.SameAs(p) {
 						break
 					}
-					year -= 16
+					inferredYear := year - 16
 					bev.Date = model.BeforeYear(year)
 					other := tev.GetOther(p)
 					inference = &model.Inference{
 						Type:   model.InferenceTypeYearOfBirth,
-						Value:  fmt.Sprintf("before %d", year),
+						Value:  fmt.Sprintf("before %d", inferredYear),
 						Reason: fmt.Sprintf("%s married %s in %d", p.Gender.SubjectPronoun(), other.PreferredUniqueName, year),
 					}
 				}

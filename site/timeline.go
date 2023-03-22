@@ -100,15 +100,15 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 		title = t.marriageEventTitle(seq, tev)
 	case *model.ArrivalEvent:
 		title = t.arrivalEventTitle(seq, tev)
-		slog.Debug(fmt.Sprintf("arrival eventfor %s (%s)", tev.GetPrincipal().PreferredUniqueName, tev.GetPrincipal().ID))
 	case *model.DepartureEvent:
 		title = t.departureEventTitle(seq, tev)
-		slog.Debug(fmt.Sprintf("departure eventfor %s (%s)", tev.GetPrincipal().PreferredUniqueName, tev.GetPrincipal().ID))
+	case *model.DivorceEvent:
+		slog.Debug("timeline: unhandled divorce event")
 	case *model.PlaceholderIndividualEvent:
-		slog.Debug(fmt.Sprintf("placeholder event %q for %s", tev.ExtraInfo, tev.GetPrincipal().PreferredUniqueName))
+		slog.Debug("timeline: ignored placeholder event", "id", tev.GetPrincipal().ID, "info", tev.ExtraInfo)
 		title = tev.ExtraInfo
 	default:
-		slog.Debug(fmt.Sprintf("unhandled event type: %T", ev))
+		slog.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)
 	}
 	title = EncodeWithCitations(title, ev.GetCitations(), t.enc)

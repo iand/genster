@@ -124,59 +124,6 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	return d, nil
 }
 
-func RenderSourcePage(s *Site, sr *model.Source) (*md.Document, error) {
-	d := s.NewDocument()
-
-	d.Title(sr.Title)
-	d.Section(md.PageLayoutSource)
-	d.ID(sr.ID)
-	d.AddTags(CleanTags(sr.Tags))
-
-	return d, nil
-}
-
-func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
-	pov := &model.POV{Place: p}
-
-	d := s.NewDocument()
-	b := d.Body()
-
-	d.Title(p.PreferredName)
-	d.Section(md.PageLayoutPlace)
-	d.ID(p.ID)
-	d.AddTags(CleanTags(p.Tags))
-
-	desc := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
-
-	if !p.Parent.IsUnknown() {
-		desc += " in " + b.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
-	}
-
-	b.Para(text.FinishSentence(desc))
-
-	t := &model.Timeline{
-		Events: p.Timeline,
-	}
-
-	if len(p.Timeline) > 0 {
-		b.EmptyPara()
-		b.Heading2("Timeline")
-
-		if err := RenderTimeline(t, pov, b); err != nil {
-			return nil, fmt.Errorf("render timeline narrative: %w", err)
-		}
-	}
-
-	if len(p.Links) > 0 {
-		b.Heading2("Links")
-		for _, l := range p.Links {
-			b.Para(b.EncodeLink(l.Title, l.URL))
-		}
-	}
-
-	return d, nil
-}
-
 // cleanCitationDetail removes some redundant information that isn't necessary when a source is included
 func cleanCitationDetail(page string) string {
 	page = strings.TrimPrefix(page, "The National Archives of the UK (TNA); Kew, Surrey, England; Census Returns of England and Wales, 1891;")

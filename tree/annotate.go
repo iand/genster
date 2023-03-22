@@ -7,45 +7,97 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/iand/genster/model"
 	"golang.org/x/exp/slog"
 )
 
 type Annotations struct {
-	person map[string]map[string]string
-	place  map[string]map[string]string
+	person map[string][]PersonAnnotation
+	place  map[string][]PlaceAnnotation
 }
 
-func (o *Annotations) Add(kind string, id string, field string, value string) error {
+type PersonAnnotation struct {
+	Field string
+	Value any
+	Kind  string
+	Fn    personAnnotaterFunc
+}
+
+type PlaceAnnotation struct {
+	Field string
+	Value any
+	Kind  string
+	Fn    placeAnnotaterFunc
+}
+
+func (o *Annotations) Replace(kind string, id string, field string, value any) error {
 	switch kind {
 	case "person":
-		if _, ok := personOverrides[field]; !ok {
+		fn, ok := personOverrides[field]
+		if !ok {
 			return fmt.Errorf("unsupported override field for person: %s", field)
 		}
 		if o.person == nil {
-			o.person = make(map[string]map[string]string, 0)
+			o.person = make(map[string][]PersonAnnotation, 0)
 		}
-		m, ok := o.person[id]
-		if !ok {
-			m = make(map[string]string)
-		}
-		m[strings.ToLower(field)] = value
-		o.person[id] = m
+		o.person[id] = append(o.person[id], PersonAnnotation{
+			Fn:    fn,
+			Field: field,
+			Kind:  "replace",
+			Value: value,
+		})
 	case "place":
-		if _, ok := placeOverrides[field]; !ok {
+		fn, ok := placeOverrides[field]
+		if !ok {
 			return fmt.Errorf("unsupported override field for place: %s", field)
 		}
 		if o.place == nil {
-			o.place = make(map[string]map[string]string, 0)
+			o.place = make(map[string][]PlaceAnnotation, 0)
 		}
-		m, ok := o.place[id]
+		o.place[id] = append(o.place[id], PlaceAnnotation{
+			Fn:    fn,
+			Field: field,
+			Kind:  "replace",
+			Value: value,
+		})
+	default:
+		return fmt.Errorf("unsupported override kind: %s", kind)
+	}
+
+	return nil
+}
+
+func (o *Annotations) Add(kind string, id string, field string, value any) error {
+	switch kind {
+	case "person":
+		fn, ok := personAdders[field]
 		if !ok {
-			m = make(map[string]string)
+			return fmt.Errorf("unsupported override field for person: %s", field)
 		}
-		m[strings.ToLower(field)] = value
-		o.place[id] = m
+		if o.person == nil {
+			o.person = make(map[string][]PersonAnnotation, 0)
+		}
+		o.person[id] = append(o.person[id], PersonAnnotation{
+			Fn:    fn,
+			Field: field,
+			Kind:  "add",
+			Value: value,
+		})
+	case "place":
+		fn, ok := placeAdders[field]
+		if !ok {
+			return fmt.Errorf("unsupported override field for place: %s", field)
+		}
+		if o.place == nil {
+			o.place = make(map[string][]PlaceAnnotation, 0)
+		}
+		o.place[id] = append(o.place[id], PlaceAnnotation{
+			Fn:    fn,
+			Field: field,
+			Kind:  "add",
+			Value: value,
+		})
 	default:
 		return fmt.Errorf("unsupported override kind: %s", kind)
 	}
@@ -54,14 +106,15 @@ func (o *Annotations) Add(kind string, id string, field string, value string) er
 }
 
 func (o *Annotations) ApplyPerson(p *model.Person) error {
-	fvs, ok := o.person[p.ID]
+	anns, ok := o.person[p.ID]
 	if !ok {
 		return nil
 	}
 
-	for f, v := range fvs {
-		if fn, ok := personOverrides[f]; ok {
-			fn(p, v)
+	for _, ann := range anns {
+		slog.Debug("annotation for person", "id", p.ID, "field", ann.Field, "value", ann.Value)
+		if err := ann.Fn(p, ann.Value); err != nil {
+			return fmt.Errorf("annotating value of person field %s: %w", ann.Field, err)
 		}
 	}
 
@@ -69,14 +122,15 @@ func (o *Annotations) ApplyPerson(p *model.Person) error {
 }
 
 func (o *Annotations) ApplyPlace(p *model.Place) error {
-	fvs, ok := o.place[p.ID]
+	anns, ok := o.place[p.ID]
 	if !ok {
 		return nil
 	}
 
-	for f, v := range fvs {
-		if fn, ok := placeOverrides[f]; ok {
-			fn(p, v)
+	for _, ann := range anns {
+		slog.Debug("annotation for place", "id", p.ID, "field", ann.Field, "value", ann.Value)
+		if err := ann.Fn(p, ann.Value); err != nil {
+			return fmt.Errorf("annotating value of place field %s: %w", ann.Field, err)
 		}
 	}
 
@@ -94,16 +148,26 @@ func (a *Annotations) UnmarshalJSON(data []byte) error {
 	}
 
 	for _, oa := range aj.People {
-		for _, ann := range oa.Annotations {
-			if err := a.Add("person", oa.ID, ann.Field, ann.Value); err != nil {
+		for f, v := range oa.Replace {
+			if err := a.Replace("person", oa.ID, f, v); err != nil {
+				return err
+			}
+		}
+		for f, v := range oa.Add {
+			if err := a.Add("person", oa.ID, f, v); err != nil {
 				return err
 			}
 		}
 	}
 
 	for _, oa := range aj.Places {
-		for _, ann := range oa.Annotations {
-			if err := a.Add("place", oa.ID, ann.Field, ann.Value); err != nil {
+		for f, v := range oa.Replace {
+			if err := a.Replace("place", oa.ID, f, v); err != nil {
+				return err
+			}
+		}
+		for f, v := range oa.Add {
+			if err := a.Add("place", oa.ID, f, v); err != nil {
 				return err
 			}
 		}
@@ -117,29 +181,45 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		Places: make([]ObjectAnnotationsJSON, 0, len(a.place)),
 	}
 
-	for id, fvs := range a.person {
+	for id, anns := range a.person {
 		oa := ObjectAnnotationsJSON{
-			ID: id,
+			ID:      id,
+			Replace: make(map[string]any),
+			Add:     make(map[string]any),
 		}
 
-		for f, v := range fvs {
-			oa.Annotations = append(oa.Annotations, AnnotationJSON{Field: f, Value: v})
+		for _, ann := range anns {
+			switch ann.Kind {
+			case "replace":
+				oa.Replace[ann.Field] = ann.Value
+			case "add":
+				oa.Add[ann.Field] = ann.Value
+			default:
+				slog.Warn("unsupported annotation kind, not writing to file: " + ann.Kind)
+			}
 		}
-		sort.Slice(oa.Annotations, func(i, j int) bool { return oa.Annotations[i].Field < oa.Annotations[j].Field })
 
 		aj.People = append(aj.People, oa)
 	}
 	sort.Slice(aj.People, func(i, j int) bool { return aj.People[i].ID < aj.People[j].ID })
 
-	for id, fvs := range a.place {
+	for id, anns := range a.place {
 		oa := ObjectAnnotationsJSON{
-			ID: id,
+			ID:      id,
+			Replace: make(map[string]any),
+			Add:     make(map[string]any),
 		}
 
-		for f, v := range fvs {
-			oa.Annotations = append(oa.Annotations, AnnotationJSON{Field: f, Value: v})
+		for _, ann := range anns {
+			switch ann.Kind {
+			case "replace":
+				oa.Replace[ann.Field] = ann.Value
+			case "add":
+				oa.Add[ann.Field] = ann.Value
+			default:
+				slog.Warn("unsupported annotation kind, not writing to file: " + ann.Kind)
+			}
 		}
-		sort.Slice(oa.Annotations, func(i, j int) bool { return oa.Annotations[i].Field < oa.Annotations[j].Field })
 
 		aj.Places = append(aj.Places, oa)
 	}
@@ -148,21 +228,88 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aj)
 }
 
-type FV struct {
-	Field string
-	Value string
+func setString(f *string, v any) error {
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("expected a string value")
+	}
+
+	*f = s
+	return nil
+}
+
+func setBool(f *bool, v any) error {
+	b, ok := v.(bool)
+	if !ok {
+		return fmt.Errorf("expected a boolean value")
+	}
+
+	*f = b
+	return nil
+}
+
+func appendStringOrList(f *[]string, v any) error {
+	switch tv := v.(type) {
+	case string:
+		*f = append(*f, tv)
+	case []string:
+		*f = append(*f, tv...)
+	case []any:
+		strs := make([]string, len(tv))
+		for i := range tv {
+			if s, ok := tv[i].(string); ok {
+				strs[i] = s
+			} else {
+				return fmt.Errorf("expected a string value or a list of strings")
+			}
+		}
+		*f = append(*f, strs...)
+	default:
+		return fmt.Errorf("expected a string value or a list of strings")
+	}
+	return nil
+}
+
+type (
+	personAnnotaterFunc func(p *model.Person, v any) error
+	placeAnnotaterFunc  func(p *model.Place, v any) error
+)
+
+// all possible person overrides. use a map so the names of the overrides could be
+// printed in a help command.
+var personOverrides = map[string]personAnnotaterFunc{
+	"nickname":                  func(p *model.Person, v any) error { return setString(&p.NickName, v) },
+	"olb":                       func(p *model.Person, v any) error { return setString(&p.Olb, v) },
+	"preferredfullname":         func(p *model.Person, v any) error { return setString(&p.PreferredFullName, v) },
+	"preferredgivenname":        func(p *model.Person, v any) error { return setString(&p.PreferredGivenName, v) },
+	"preferredfamiliarname":     func(p *model.Person, v any) error { return setString(&p.PreferredFamiliarName, v) },
+	"preferredfamiliarfullname": func(p *model.Person, v any) error { return setString(&p.PreferredFamiliarFullName, v) },
+	"preferredfamilyname":       func(p *model.Person, v any) error { return setString(&p.PreferredFamilyName, v) },
+	"preferredsortname":         func(p *model.Person, v any) error { return setString(&p.PreferredSortName, v) },
+	"preferreduniquename":       func(p *model.Person, v any) error { return setString(&p.PreferredUniqueName, v) },
+	// "causeofdeath":              func(p *model.Person, v any) error { return setString(&p.CauseOfDeath, v) },
+
+	"possiblyalive": func(p *model.Person, v any) error { return setBool(&p.PossiblyAlive, v) },
+	"unmarried":     func(p *model.Person, v any) error { return setBool(&p.Unmarried, v) },
+	"childless":     func(p *model.Person, v any) error { return setBool(&p.Childless, v) },
+	"illegitimate":  func(p *model.Person, v any) error { return setBool(&p.Illegitimate, v) },
+	"redacted":      func(p *model.Person, v any) error { return setBool(&p.Redacted, v) },
+}
+
+// all possible place overrides
+var placeOverrides = map[string]placeAnnotaterFunc{
+	"preferredname": func(p *model.Place, v any) error { return setString(&p.PreferredName, v) },
 }
 
 // all possible person overrides. use a map so the names of the overrides could be
 // printed in a help command.
-var personOverrides = map[string]func(p *model.Person, v string){
-	"nickname": func(p *model.Person, v string) { p.NickName = v },
-	"olb":      func(p *model.Person, v string) { p.Olb = v },
+var personAdders = map[string]personAnnotaterFunc{
+	"tags": func(p *model.Person, v any) error { return appendStringOrList(&p.Tags, v) },
 }
 
 // all possible place overrides
-var placeOverrides = map[string]func(p *model.Place, v string){
-	"preferredname": func(p *model.Place, v string) { p.PreferredName = v },
+var placeAdders = map[string]placeAnnotaterFunc{
+	"tags": func(p *model.Place, v any) error { return appendStringOrList(&p.Tags, v) },
 }
 
 type AnnotationsJSON struct {
@@ -171,13 +318,9 @@ type AnnotationsJSON struct {
 }
 
 type ObjectAnnotationsJSON struct {
-	ID          string           `json:"id,omitempty"`
-	Annotations []AnnotationJSON `json:"annotations,omitempty"`
-}
-
-type AnnotationJSON struct {
-	Field string `json:"field,omitempty"`
-	Value string `json:"value,omitempty"`
+	ID      string         `json:"id,omitempty"`
+	Replace map[string]any `json:"replace,omitempty"`
+	Add     map[string]any `json:"add,omitempty"`
 }
 
 func LoadAnnotations(filename string) (*Annotations, error) {
@@ -209,17 +352,17 @@ func SaveAnnotations(filename string, a *Annotations) error {
 		return nil
 	}
 
-	slog.Info("writing annotations", "filename", filename)
-	f, err := CreateFile(filename)
-	if err != nil {
-		return fmt.Errorf("open: %w", err)
-	}
-	defer f.Close()
-
-	d := json.NewEncoder(f)
+	buf := new(bytes.Buffer)
+	d := json.NewEncoder(buf)
 	d.SetIndent("", "  ")
 	if err := d.Encode(&a); err != nil {
 		return fmt.Errorf("write: %w", err)
+	}
+
+	slog.Info("writing annotations", "filename", filename)
+	err := os.WriteFile(filename, buf.Bytes(), 0o666)
+	if err != nil {
+		return fmt.Errorf("write annotations file: %w", err)
 	}
 
 	return nil

@@ -36,11 +36,12 @@ func (p *Place) SameAs(other *Place) bool {
 }
 
 func (p *Place) Country() *Place {
-	for p.Parent != nil {
-		if p.Parent.Kind == place.PlaceKindCountry || p.Parent.Kind == place.PlaceKindUKNation {
-			return p.Parent
+	pp := p
+	for pp != nil {
+		if pp.Kind == place.PlaceKindCountry || pp.Kind == place.PlaceKindUKNation {
+			return pp
 		}
-		p = p.Parent
+		pp = pp.Parent
 	}
 
 	return UnknownPlace()

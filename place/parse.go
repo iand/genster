@@ -39,7 +39,7 @@ func ParseHierarchy(s string, hints ...Hint) (*PlaceHierarchy, bool) {
 	}
 
 	_, ok := LookupPlaceOfOrigin(broadest.Name.Name)
-	logging.Debug("checking if country", "name", broadest.Name, "is_country", ok)
+	logging.Debug("parse place hierarchy: checking if country", "name", broadest.Name.Name, "is_country", ok)
 	if ok {
 		broadest.Kind = PlaceKindCountry
 	}

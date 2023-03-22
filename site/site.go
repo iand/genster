@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -370,6 +371,9 @@ func (s *Site) NewMarkdownBuilder() MarkdownBuilder {
 
 func (s *Site) ScanPersonForAnomalies(p *model.Person) {
 	for _, ev := range p.Timeline {
+		if !ev.DirectlyInvolves(p) {
+			continue
+		}
 		anoms := ScanTimelineEventForAnomalies(ev)
 		if len(anoms) > 0 {
 			for _, anom := range anoms {
@@ -383,6 +387,10 @@ func (s *Site) WriteAnomaliesPages(root string) error {
 	baseDir := filepath.Join(root, s.AnomaliesDir)
 	pn := NewPaginator()
 	for _, p := range s.Tree.People {
+		if p.Redacted {
+			logging.Debug("not writing redacted person to anomalies index", "id", p.ID)
+			continue
+		}
 		categories := make([]string, 0)
 		anomaliesByCategory := make(map[string][]*model.Anomaly)
 
@@ -436,6 +444,10 @@ func (s *Site) WriteInferencesPages(root string) error {
 	baseDir := filepath.Join(root, s.InferencesDir)
 	pn := NewPaginator()
 	for _, p := range s.Tree.People {
+		if p.Redacted {
+			logging.Debug("not writing redacted person to inference index", "id", p.ID)
+			continue
+		}
 		items := make([][2]string, 0)
 		for _, inf := range p.Inferences {
 			items = append(items, [2]string{
@@ -468,6 +480,10 @@ func (s *Site) WritePersonIndexPages(root string) error {
 	baseDir := filepath.Join(root, s.PersonDir)
 	pn := NewPaginator()
 	for _, p := range s.Tree.People {
+		if p.Redacted {
+			logging.Debug("not writing redacted person to person index", "id", p.ID)
+			continue
+		}
 		items := make([][2]string, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]string{

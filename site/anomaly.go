@@ -35,7 +35,7 @@ func ScanGeneralCitationForAnomalies(cit *model.GeneralCitation) []*model.Anomal
 		name = cit.Detail
 	}
 
-	recent := &gdate.Year{Y: time.Now().Year() - 25}
+	recent := &gdate.Year{Y: time.Now().Year() - 60}
 	if len(cit.TranscriptionText) != 0 && !gdate.IsUnknown(cit.TranscriptionDate) && gdate.SortsBefore(cit.TranscriptionDate, recent) {
 		// Transcription date might be the date of the original record
 

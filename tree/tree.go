@@ -9,6 +9,7 @@ import (
 
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/infer"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"golang.org/x/exp/slog"
@@ -180,7 +181,7 @@ func (s *Tree) newFamily(id string) *model.Family {
 	return f
 }
 
-func (t *Tree) Generate(redact bool) error {
+func (t *Tree) Generate(redactLiving bool) error {
 	// Apply any overrides first, they may be redacted after
 	if t.Overrides != nil {
 		for _, p := range t.People {
@@ -225,9 +226,7 @@ func (t *Tree) Generate(redact bool) error {
 	}
 
 	// Redact any personal information
-	if redact {
-		t.Redact()
-	}
+	t.Redact(redactLiving)
 
 	for _, p := range t.People {
 		t.TrimPersonTimeline(p)
@@ -552,15 +551,19 @@ func (t *Tree) BuildOlb(p *model.Person) error {
 	return nil
 }
 
-func (t *Tree) Redact() error {
+func (t *Tree) Redact(redactLiving bool) error {
 	for _, p := range t.People {
 		redact := false
-		if p.PossiblyAlive {
-			redact = true
-		} else if years, known := model.YearsSinceDeath(p); known && years < 21 {
-			redact = true
+		if redactLiving {
+			if p.PossiblyAlive {
+				logging.Debug("redacting possibly alive person", "id", p.ID, "name", p.PreferredFullName)
+				redact = true
+			} else if years, known := model.YearsSinceDeath(p); known && years < 21 {
+				logging.Debug("redacting recently deceased person", "id", p.ID, "name", p.PreferredFullName)
+				redact = true
+			}
 		}
-		if redact {
+		if p.Redacted || redact {
 			infer.RedactPersonalDetails(p)
 		}
 	}

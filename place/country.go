@@ -131,6 +131,7 @@ var countryNames = []PlaceName{
 	{Name: "Indonesia", Adjective: "Indonesian"},
 	{Name: "Iran", Adjective: "Iranian"},
 	{Name: "Iraq", Adjective: "Iraqi"},
+	{Name: "Ireland", Adjective: "Irish"},
 	{Name: "Isle of Man", Adjective: "Manx"},
 	{Name: "Israel", Adjective: "Israeli"},
 	{Name: "Italy", Adjective: "Italian"},
