@@ -172,13 +172,16 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 			}
 		}
 	}
+	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentence(title, "here")
+	}
 
 	// Add date if known
 	if !date.IsUnknown() {
 		title += " " + date.When()
 	}
 
-	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentence(title, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
@@ -236,12 +239,21 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 
 func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEvent) string {
 	title := "probate was granted"
+	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentence(title, "here")
+	}
+
+	obsContext := t.observerContext(ev)
+	if obsContext != "" {
+		title = text.JoinSentence(title, "for", t.observerContext(ev))
+	}
+
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentence(title, date.When())
 	}
 
-	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentence(title, "by the", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl), "probate office")
 	}
@@ -249,25 +261,32 @@ func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEve
 }
 
 func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.ResidenceRecordedEvent) string {
-	title := "recorded"
+	title := text.JoinSentence(t.observerContext(ev), "recorded")
+
+	pl := ev.GetPlace()
+	residing := ChooseFrom(seq, "as residing", "as living")
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentence(title, residing, "here")
+	}
 
 	date := ev.GetDate()
 	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentence(title, date.When())
 	}
 
-	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		residing := ChooseFrom(seq, "as residing", "as living")
 		title = text.JoinSentence(title, residing, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	return title
 }
 
 func (t *TimelineEntryFormatter) arrivalEventTitle(seq int, ev *model.ArrivalEvent) string {
-	title := "arrived"
-
+	title := text.JoinSentence(t.observerContext(ev), "arrived")
 	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentence(title, "here")
+	}
+
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentence(title, "at", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
@@ -281,9 +300,12 @@ func (t *TimelineEntryFormatter) arrivalEventTitle(seq int, ev *model.ArrivalEve
 }
 
 func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.DepartureEvent) string {
-	title := "departed"
-
+	title := text.JoinSentence(t.observerContext(ev), "departed")
 	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentence(title, "from here")
+	}
+
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentence(title, "from", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
@@ -298,29 +320,34 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 
 func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.PartyTimelineEvent) string {
 	title := ""
-	if t.pov.Person == nil {
+	if t.pov.Person.IsUnknown() {
 		party1 := ev.GetParty1()
-		party2 := ev.GetParty1()
+		party2 := ev.GetParty2()
+
+		party1Link := t.enc.EncodeModelLink(party1.PreferredFullName, party1)
+		party2Link := t.enc.EncodeModelLink(party2.PreferredFullName, party2)
+
 		switch ev.(type) {
 		case *model.MarriageEvent:
-			title = text.JoinSentence(party1.PreferredFullName, "married", party2.PreferredFullName)
+			title = text.JoinSentence(party1Link, "married", party2Link)
 		case *model.MarriageLicenseEvent:
-			title = text.JoinSentence("license was obtained for the marriage of ", party1.PreferredFullName, "and", party2.PreferredFullName)
+			title = text.JoinSentence("license was obtained for the marriage of ", party1Link, "and", party2Link)
 		case *model.MarriageBannsEvent:
-			title = text.JoinSentence("banns were read for the marriage of ", party1.PreferredFullName, "and", party2.PreferredFullName)
+			title = text.JoinSentence("banns were read for the marriage of ", party1Link, "and", party2Link)
 		default:
 			panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 		}
 
 	} else {
 		spouse := ev.GetOther(t.pov.Person)
+		spouseLink := t.enc.EncodeModelLink(spouse.PreferredFullName, spouse)
 		switch ev.(type) {
 		case *model.MarriageEvent:
-			title = text.JoinSentence("married", spouse.PreferredFullName)
+			title = text.JoinSentence("married", spouseLink)
 		case *model.MarriageLicenseEvent:
-			title = text.JoinSentence("obtained license to marry", spouse.PreferredFullName)
+			title = text.JoinSentence("obtained license to marry", spouseLink)
 		case *model.MarriageBannsEvent:
-			title = text.JoinSentence("banns were read to marry", spouse.PreferredFullName)
+			title = text.JoinSentence("banns were read to marry", spouseLink)
 		default:
 			panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 		}
@@ -383,7 +410,7 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 }
 
 func dateIsKnownOrThereIsNoObserver(date *model.Date, pov *model.POV) bool {
-	return !date.IsUnknown() && !pov.Person.IsUnknown()
+	return !date.IsUnknown() || pov.Person.IsUnknown()
 }
 
 func placeIsKnownAndIsNotSameAsPointOfView(pl *model.Place, pov *model.POV) bool {

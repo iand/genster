@@ -7,7 +7,6 @@ import (
 	"github.com/iand/genster/gedcom"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/tree"
-	"github.com/iand/werr"
 	"github.com/urfave/cli/v2"
 )
 
@@ -115,7 +114,7 @@ func gen(cc *cli.Context) error {
 	t.SetKeyPerson(keyIndividual)
 
 	if err := s.Generate(); err != nil {
-		return werr.Wrap(err)
+		return fmt.Errorf("generate: %w", err)
 	}
 
 	if genopts.inspect != "" {
@@ -133,7 +132,7 @@ func gen(cc *cli.Context) error {
 
 	if genopts.rootDir != "" {
 		if err := s.WritePages(genopts.rootDir); err != nil {
-			return werr.Wrap(err)
+			return fmt.Errorf("write pages: %w", err)
 		}
 	}
 

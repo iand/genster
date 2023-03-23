@@ -886,6 +886,17 @@ func GenerateOlb(p *model.Person) error {
 
 	var clauses []Clause
 
+	hasIllegitimateClause := false
+	if p.Illegitimate && p.Father.IsUnknown() {
+		clause := "illegitimate"
+		if !p.Mother.IsUnknown() {
+			clause += " " + p.Gender.RelationToParentNoun() + " of " + p.Mother.PreferredFamiliarFullName
+		}
+
+		hasIllegitimateClause = true
+		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+	}
+
 	// Intro statement
 	if p.NickName != "" {
 		clauses = append(clauses, Clause{Text: "known as " + p.NickName, Interestingness: 2})
@@ -914,28 +925,51 @@ func GenerateOlb(p *model.Person) error {
 		clauses = append(clauses, Clause{Text: bf.BirthYearDesc, Interestingness: 0})
 	}
 
-	if bf.NumberOfSiblings > 1 {
-		clause := ""
-		if bf.PositionInFamily == 1 {
-			clause = "eldest"
-		} else if bf.PositionInFamily == bf.NumberOfSiblings {
-			clause = "youngest"
-		} else {
-			clause = "one"
-		}
-		clause += " of " + text.CardinalNoun(bf.NumberOfSiblings)
+	if !hasIllegitimateClause {
 
-		// add "children" if we aren't repeating the word later
-		if !p.Childless && bf.NumberOfChildren < 2 {
-			clause += " children"
+		if bf.NumberOfSiblings > 1 {
+			clause := ""
+			if bf.PositionInFamily == 1 {
+				clause = "eldest"
+			} else if bf.PositionInFamily == bf.NumberOfSiblings {
+				clause = "youngest"
+			} else {
+				clause = "one"
+			}
+			clause += " of " + text.CardinalNoun(bf.NumberOfSiblings)
+
+			// add "children" if we aren't repeating the word later
+			if !p.Childless && bf.NumberOfChildren < 2 {
+				clause += " children"
+			}
+			clauses = append(clauses, Clause{Text: clause, Interestingness: 0})
 		}
-		clauses = append(clauses, Clause{Text: clause, Interestingness: 0})
+
+		if p.Mother.IsUnknown() && !p.Father.IsUnknown() {
+			clauses = append(clauses, Clause{Text: "mother unknown", Interestingness: 1})
+		} else if p.Father.IsUnknown() && !p.Mother.IsUnknown() {
+			clauses = append(clauses, Clause{Text: "father unknown", Interestingness: 1})
+		}
 	}
 
-	if p.Mother.IsUnknown() && !p.Father.IsUnknown() {
-		clauses = append(clauses, Clause{Text: "mother unknown", Interestingness: 1})
-	} else if p.Father.IsUnknown() && !p.Mother.IsUnknown() {
-		clauses = append(clauses, Clause{Text: "father unknown", Interestingness: 1})
+	if p.Twin {
+		clauses = append(clauses, Clause{Text: "twin", Interestingness: 2})
+	}
+
+	if p.PhysicalImpairment {
+		clauses = append(clauses, Clause{Text: "physically impaired", Interestingness: 2})
+	}
+
+	if p.MentalImpairment {
+		clauses = append(clauses, Clause{Text: "mentally impaired", Interestingness: 2})
+	}
+
+	if p.Deaf {
+		clauses = append(clauses, Clause{Text: "deaf", Interestingness: 2})
+	}
+
+	if p.Blind {
+		clauses = append(clauses, Clause{Text: "blind", Interestingness: 2})
 	}
 
 	parentDeathDesc := func(age int) string {
@@ -962,11 +996,6 @@ func GenerateOlb(p *model.Person) error {
 		legitimateChildren -= bf.IllegitimateChildren
 	}
 
-	// WRONG: http://127.0.0.1:8000/cg/person/VG5ZTZZBICWNU/
-	// WRONG: http://127.0.0.1:8000/cg/person/AGEPVPTJC6E5S/
-	// NO MARRIAGE? http://127.0.0.1:8000/cg/person/GMHISYDRNF3PQ/
-	// MISSING MARRIAGE: http://127.0.0.1:8000/cg/person/S4GUXNLNCYIBY/ (tizzy)
-	// MISSING MARRIAGE: http://127.0.0.1:8000/cg/person/W65FZDL7ABWD2/
 	if p.Childless && bf.AgeAtDeath > 18 {
 		clauses = append(clauses, Clause{Text: "had no children", Interestingness: 1})
 	} else if p.Gender.IsFemale() || bf.NumberOfChildren == 0 {

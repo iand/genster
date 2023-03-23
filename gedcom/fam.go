@@ -75,11 +75,14 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 	}
 
 	events := append([]*gedcom.EventRecord{}, fr.Event...)
+	dp := &gdate.Parser{
+		AssumeGROQuarter: true,
+	}
 
 	for _, er := range events {
 		pl, _ := l.findPlaceForEvent(m, er)
 
-		dt, err := gdate.Parse(er.Date)
+		dt, err := dp.Parse(er.Date)
 		if err != nil {
 			return fmt.Errorf("date: %w", err)
 		}
@@ -140,6 +143,10 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		if !father.IsUnknown() {
 			father.Timeline = append(father.Timeline, ev)
 		}
+		if !pl.IsUnknown() {
+			pl.Timeline = append(pl.Timeline, ev)
+		}
+
 	}
 
 	return nil

@@ -6,10 +6,9 @@ require (
 	github.com/adrg/strutil v0.3.0
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/google/go-cmp v0.5.9
-	github.com/iand/gdate v0.0.0-20230208124302-f78f7f274edf
+	github.com/iand/gdate v0.1.0
 	github.com/iand/gedcom v0.2.0
 	github.com/iand/pontium v0.1.0
-	github.com/iand/werr v0.1.1
 	github.com/kortschak/utter v1.5.0
 	github.com/tdewolff/canvas v0.0.0-20221230020303-9eb6d3934367
 	github.com/urfave/cli/v2 v2.24.4
@@ -34,7 +33,6 @@ require (
 	golang.org/x/image v0.5.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gonum.org/v1/plot v0.12.0 // indirect
 	star-tex.org/x/tex v0.4.0 // indirect
 )

@@ -14,6 +14,8 @@ type TimelineEvent interface {
 	Type() string
 	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
 	What() string                    // married, born, divorced
+	When() string                    // text description of date
+	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
 	Participants() []*Person
@@ -53,12 +55,20 @@ func (e *GeneralEvent) GetDate() *Date {
 	return e.Date
 }
 
+func (e *GeneralEvent) When() string {
+	return e.Date.When()
+}
+
 func (e *GeneralEvent) GetDateType() EventDateType {
 	return EventDateTypeOccurred
 }
 
 func (e *GeneralEvent) GetPlace() *Place {
 	return e.Place
+}
+
+func (e *GeneralEvent) Where() string {
+	return e.Place.Where()
 }
 
 func (e *GeneralEvent) GetTitle() string {

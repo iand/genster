@@ -47,6 +47,14 @@ func (p *Place) Country() *Place {
 	return UnknownPlace()
 }
 
+func (p *Place) Where() string {
+	if p == nil {
+		return "an unknown place"
+	}
+
+	return p.PlaceType.InAt() + " " + p.PreferredFullName
+}
+
 func UnknownPlace() *Place {
 	return &Place{
 		PreferredName:       "unknown",

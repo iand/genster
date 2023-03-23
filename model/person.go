@@ -32,15 +32,20 @@ type Person struct {
 	Timeline                  []TimelineEvent
 	BeingTense                string // tense to use when refering to person: 'is' if they are possibly alive, 'was' if they are dead
 
-	PossiblyAlive   bool         // true if this person is possibly still alive
-	Unknown         bool         // true if this person is known to have existed but no other information is known
-	Unmarried       bool         // true if it is known that the person did not marry
-	Childless       bool         // true if it is known that the person did not have any children
-	Illegitimate    bool         // true if it is known that the person was born illlegitimately
-	BornInWorkhouse bool         // true if the birth place of the person was a workhouse
-	DiedInWorkhouse bool         // true if the death place of the person was a workhouse
-	Pauper          bool         // true if the person was, at some stage, noted as a pauper
-	CauseOfDeath    CauseOfDeath // cause of death, if known
+	PossiblyAlive      bool         // true if this person is possibly still alive
+	Unknown            bool         // true if this person is known to have existed but no other information is known
+	Unmarried          bool         // true if it is known that the person did not marry
+	Childless          bool         // true if it is known that the person did not have any children
+	Illegitimate       bool         // true if it is known that the person was born illlegitimately
+	BornInWorkhouse    bool         // true if the birth place of the person was a workhouse
+	DiedInWorkhouse    bool         // true if the death place of the person was a workhouse
+	Pauper             bool         // true if the person was, at some stage, noted as a pauper
+	Twin               bool         // true if it is known that the person was a twin
+	Blind              bool         // true if it is known that the person was blind for the majority of their life
+	Deaf               bool         // true if it is known that the person was deaf for the majority of their life
+	PhysicalImpairment bool         // true if it is known that the person was physically impaired for the majority of their life
+	MentalImpairment   bool         // true if it is known that the person was mentally impaired for the majority of their life
+	CauseOfDeath       CauseOfDeath // cause of death, if known
 
 	Occupations        []*Occupation // list of occupations
 	PrimaryOccupation  string        // simple description of main occupation

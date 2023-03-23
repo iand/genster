@@ -259,7 +259,8 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 	}
 
 	if b.seenLinks[url] {
-		return subsequentText
+		// return subsequentText
+		return b.EncodeLink(subsequentText, url)
 	}
 	b.seenLinks[url] = true
 

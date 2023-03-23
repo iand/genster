@@ -13,7 +13,6 @@ import (
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
-	"github.com/iand/werr"
 )
 
 type Site struct {
@@ -77,11 +76,11 @@ func (s *Site) WritePages(root string) error {
 		}
 		d, err := RenderPersonPage(s, p)
 		if err != nil {
-			return werr.Wrap(err) // fmt.Errorf("generate markdown: %w", err)
+			return fmt.Errorf("render person page: %w", err)
 		}
 
 		if err := writePage(d, root, fmt.Sprintf(s.PersonFilePattern, p.ID)); err != nil {
-			return werr.Wrap(err)
+			return fmt.Errorf("write person page: %w", err)
 		}
 	}
 
@@ -91,11 +90,11 @@ func (s *Site) WritePages(root string) error {
 		}
 		d, err := RenderPlacePage(s, p)
 		if err != nil {
-			return werr.Wrap(err) // fmt.Errorf("generate markdown: %w", err)
+			return fmt.Errorf("render place page: %w", err)
 		}
 
 		if err := writePage(d, root, fmt.Sprintf(s.PlaceFilePattern, p.ID)); err != nil {
-			return werr.Wrap(err)
+			return fmt.Errorf("write place page: %w", err)
 		}
 	}
 
@@ -105,10 +104,10 @@ func (s *Site) WritePages(root string) error {
 		}
 		d, err := RenderSourcePage(s, p)
 		if err != nil {
-			return werr.Wrap(err) // fmt.Errorf("generate markdown: %w", err)
+			return fmt.Errorf("render source page: %w", err)
 		}
 		if err := writePage(d, root, fmt.Sprintf(s.SourceFilePattern, p.ID)); err != nil {
-			return werr.Wrap(err)
+			return fmt.Errorf("write source page: %w", err)
 		}
 	}
 	s.BuildCalendar()
@@ -123,10 +122,10 @@ func (s *Site) WritePages(root string) error {
 
 		f, err := CreateFile(filepath.Join(root, fname))
 		if err != nil {
-			return fmt.Errorf("create file: %w", err)
+			return fmt.Errorf("create calendar file: %w", err)
 		}
 		if err := d.WriteMarkdown(f); err != nil {
-			return fmt.Errorf("write markdown: %w", err)
+			return fmt.Errorf("write calendar markdown: %w", err)
 		}
 		f.Close()
 	}

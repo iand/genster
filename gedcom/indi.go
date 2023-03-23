@@ -17,8 +17,10 @@ import (
 var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
 
 func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord) error {
-	slog.Debug("populating from individual record", "xref", in.Xref)
 	p := m.FindPerson(l.ScopeName, in.Xref)
+
+	logger := slog.With("id", p.ID)
+	logger.Debug("populating from individual record", "xref", in.Xref)
 
 	if len(in.Name) == 0 {
 		p.PreferredFullName = "unknown"
@@ -103,10 +105,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	// collect occupation events and attempt to consolidate them later
 	occupationEvents := make([]model.GeneralEvent, 0)
 
+	dp := &gdate.Parser{
+		AssumeGROQuarter: true,
+	}
+
 	for _, er := range events {
 		pl, anoms := l.findPlaceForEvent(m, er)
 
-		dt, err := gdate.Parse(er.Date)
+		logger.Debug("found gedcom event", "date", er.Date)
+
+		dt, err := dp.Parse(er.Date)
 		if err != nil {
 			return fmt.Errorf("date: %w", err)
 		}
@@ -280,6 +288,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		}
 
 		if ev != nil {
+			logger.Debug("adding event to timeline", "what", ev.What(), "when", ev.When(), "where", ev.Where())
+
 			p.Timeline = append(p.Timeline, ev)
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
@@ -366,7 +376,34 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		case "_MTTAG":
 			tag, ok := l.Tags[stripXref(ud.Value)]
 			if ok {
-				p.Tags = append(p.Tags, tag)
+				switch strings.ToLower(tag) {
+				case "illegitimate":
+					p.Illegitimate = true
+					logger.Debug("found illegitimate tag, marking as illegitimate")
+				case "never married":
+					p.Unmarried = true
+					logger.Debug("found never married tag, marking as unmarried")
+				case "no children":
+					p.Childless = true
+					logger.Debug("found no children tag, marking as childless")
+				case "twin":
+					p.Twin = true
+					logger.Debug("found twin tag, marking as twin")
+				case "blind":
+					p.Blind = true
+					logger.Debug("found blind tag, marking as blind")
+				case "deaf":
+					p.Deaf = true
+					logger.Debug("found deaf tag, marking as deaf")
+				case "physically impaired":
+					p.PhysicalImpairment = true
+					logger.Debug("found physically impaired tag, marking as physically impaired")
+				case "mentally impaired":
+					p.MentalImpairment = true
+					logger.Debug("found mentally impaired tag, marking as mentally impaired")
+				default:
+					p.Tags = append(p.Tags, tag)
+				}
 			}
 		}
 	}
@@ -441,6 +478,12 @@ func factCategoryForType(ty string) string {
 	}
 }
 
+var (
+	reDetectMentalImpairment   = regexp.MustCompile(`(?i)\b(?:idiot|imbecile)\b`)
+	reDetectPhysicalImpairment = regexp.MustCompile(`(?i)\b(?:crippled|disabled)\b`)
+	reDetectPauper             = regexp.MustCompile(`(?i)\b(?:pauper)\b`)
+)
+
 func (l *Loader) populateCensusRecord(er *gedcom.EventRecord, gev model.GeneralEvent, p *model.Person) *model.CensusEvent {
 	// TODO: lookup census event
 	ev := &model.CensusEvent{GeneralEvent: gev}
@@ -458,6 +501,21 @@ func (l *Loader) populateCensusRecord(er *gedcom.EventRecord, gev model.GeneralE
 	}
 
 	fillCensusEntry(detail, ce)
+
+	if reDetectMentalImpairment.MatchString(ce.Detail) {
+		p.MentalImpairment = true
+		slog.Warn("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
+	}
+
+	if reDetectPhysicalImpairment.MatchString(ce.Detail) {
+		p.PhysicalImpairment = true
+		slog.Warn("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
+	}
+
+	if reDetectPauper.MatchString(ce.Detail) {
+		p.Pauper = true
+		slog.Warn("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
+	}
 
 	ev.Entries = append(ev.Entries, ce)
 	ev.GeneralEvent.Detail = ce.Detail // TODO: change when census events are shared
@@ -515,7 +573,6 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 	}
 	reRelationshipToHead := regexp.MustCompile(`(?i)^(.*)\brelation(?:ship)?(?: to head(?: of house)?)?:\s*(.+?(?:-in-law)?)\b[\.,;]*(.*)$`)
 	reMaritalStatus := regexp.MustCompile(`(?i)^(.*)\bmarital status:\s*(.+?)\b[\.,;]*(.*)$`)
-
 	matches := reRelationshipToHead.FindStringSubmatch(v)
 	if len(matches) > 3 {
 		if rel, ok := censusEntryRelationLookup[strings.ToLower(matches[2])]; ok {
