@@ -11,41 +11,42 @@ import (
 func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 	pov := &model.POV{Place: p}
 
-	d := s.NewDocument()
-	b := d.Body()
+	doc := s.NewDocument()
 
-	d.Title(p.PreferredName)
-	d.Section(md.PageLayoutPlace)
-	d.ID(p.ID)
-	d.AddTags(CleanTags(p.Tags))
+	doc.Title(p.PreferredName)
+	doc.Section(md.PageLayoutPlace)
+	doc.ID(p.ID)
+	doc.AddTags(CleanTags(p.Tags))
 
 	desc := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
 
 	if !p.Parent.IsUnknown() {
-		desc += " in " + b.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
+		desc += " in " + doc.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
 	}
 
-	b.Para(text.FinishSentence(desc))
+	doc.Para(text.FinishSentence(desc))
 
 	t := &model.Timeline{
 		Events: p.Timeline,
 	}
 
 	if len(p.Timeline) > 0 {
-		b.EmptyPara()
-		b.Heading2("Timeline")
+		doc.EmptyPara()
+		doc.Heading2("Timeline")
 
-		if err := RenderTimeline(t, pov, b); err != nil {
+		if err := RenderTimeline(t, pov, doc); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}
 
 	if len(p.Links) > 0 {
-		b.Heading2("Links")
+		doc.Heading2("Links")
 		for _, l := range p.Links {
-			b.Para(b.EncodeLink(l.Title, l.URL))
+			doc.Para(doc.EncodeLink(l.Title, l.URL))
 		}
 	}
 
-	return d, nil
+	// TODO: link to https://maps.nls.uk/geo/explore/#zoom=14&lat=52.32243&lon=1.26273&layers=161&b=1
+
+	return doc, nil
 }

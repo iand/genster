@@ -10,8 +10,8 @@ import (
 	"github.com/adrg/strutil/metrics"
 	"github.com/iand/gdate"
 	"github.com/iand/gedcom"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
-	"golang.org/x/exp/slog"
 )
 
 var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
@@ -19,7 +19,7 @@ var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
 func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord) error {
 	p := m.FindPerson(l.ScopeName, in.Xref)
 
-	logger := slog.With("id", p.ID)
+	logger := logging.With("id", p.ID)
 	logger.Debug("populating from individual record", "xref", in.Xref)
 
 	if len(in.Name) == 0 {
@@ -110,7 +110,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	}
 
 	for _, er := range events {
-		pl, anoms := l.findPlaceForEvent(m, er)
+		pl, planoms := l.findPlaceForEvent(m, er)
 
 		logger.Debug("found gedcom event", "date", er.Date)
 
@@ -137,7 +137,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			Principal: p,
 		}
 
-		gev.Citations = l.parseCitationRecords(m, er.Citation)
+		if p.ID == "S5CIY3MFEIPTK" {
+			logging.Dump(er.Citation)
+		}
+
+		var citanoms []*model.Anomaly
+		if len(er.Citation) > 0 {
+			gev.Citations, citanoms = l.parseCitationRecords(m, er.Citation)
+		}
 
 		var ev model.TimelineEvent
 
@@ -212,11 +219,13 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					})
 				}
 				for _, n := range er.Note {
+					cits, anoms := l.parseCitationRecords(m, n.Citation)
 					p.MiscFacts = append(p.MiscFacts, model.Fact{
 						Category:  category,
 						Detail:    n.Note,
-						Citations: l.parseCitationRecords(m, n.Citation),
+						Citations: cits,
 					})
+					p.Anomalies = append(p.Anomalies, anoms...)
 				}
 			}
 		case "EVEN":
@@ -294,12 +303,33 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
 			}
-			for _, anom := range anoms {
+			for _, anom := range planoms {
 				anom.Context = "Place in " + ev.Type() + " event"
 				if !ev.GetDate().IsUnknown() {
 					anom.Context += " " + ev.GetDate().When()
 				}
 				p.Anomalies = append(p.Anomalies, anom)
+			}
+
+			seenSource := make(map[*model.Source]bool)
+			for _, c := range ev.GetCitations() {
+				if c.Source != nil && !seenSource[c.Source] {
+					c.Source.EventsCiting = append(c.Source.EventsCiting, ev)
+					seenSource[c.Source] = true
+				}
+			}
+
+			for _, anom := range citanoms {
+				anom.Context = "Citation for " + ev.Type() + " event"
+				p.Anomalies = append(p.Anomalies, anom)
+			}
+
+			if len(ev.GetCitations()) == 0 && ev.GetDate().IsFirm() {
+				p.ToDos = append(p.ToDos, &model.ToDo{
+					Category: "Citation",
+					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
+					Context:  "No citation for " + ev.Type() + " event",
+				})
 			}
 
 		}
@@ -311,7 +341,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			return occupationEvents[i].GetDate().SortsBefore(occupationEvents[j].GetDate())
 		})
 		for i, gev := range occupationEvents {
-			// slog.Debug("occupation event", "detail", gev.Detail)
+			// logging.Debug("occupation event", "detail", gev.Detail)
 			// HACK: these are common in my ancestry descriptions
 			gev.Detail = strings.TrimPrefix(gev.Detail, "Occupation recorded as ")
 			gev.Detail = strings.TrimPrefix(gev.Detail, "Recorded as ")
@@ -369,6 +399,33 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			URL:   fmt.Sprintf("https://www.ancestry.co.uk/family-tree/person/tree/%s/person/%s/facts", id, personID),
 		}
 	}
+
+	// Add links to other ancestry trees
+	// TODO: add these as a general citation
+	// reAncestryTreeID := regexp.MustCompile(`^(\d+):1030:(\d+)$`)
+	// for _, cr := range in.Citation {
+	// 	if cr.Page == "Ancestry Family Tree" {
+	// 		// 1 SOUR @S503070767@
+	// 		// 2 PAGE Ancestry Family Tree
+	// 		// 2 _APID 29347156557:1030:18090881
+	// 		// 2 _APID 332290679880:1030:102833601
+	// 		// 2 _APID 202436359813:1030:179850252
+	// 		apIDs := findAllUserDefinedTagValues("_APID", cr.UserDefined)
+	// 		for _, apID := range apIDs {
+	// 			m := reAncestryTreeID.FindStringSubmatch(apID)
+	// 			if len(m) > 2 {
+	// 				treeID := m[2]
+	// 				personID := m[1]
+	// 				link := fmt.Sprintf("https://www.ancestry.co.uk/family-tree/person/tree/%s/person/%s/facts", treeID, personID)
+	// 				p.Links = append(p.Links, model.Link{
+	// 					Title: "Another tree at ancestry.co.uk",
+	// 					URL:   link,
+	// 				})
+	// 			}
+	// 			// logger.Debug("foun
+	// 		}
+	// 	}
+	// }
 
 	// Add ancestry tags
 	for _, ud := range in.UserDefined {
@@ -460,6 +517,17 @@ func findFirstUserDefinedTag(tag string, uds []gedcom.UserDefinedTag) (gedcom.Us
 	return gedcom.UserDefinedTag{}, false
 }
 
+func findAllUserDefinedTagValues(tag string, uds []gedcom.UserDefinedTag) []string {
+	var vals []string
+	for _, ud := range uds {
+		if ud.Tag == tag {
+			vals = append(vals, ud.Value)
+		}
+	}
+
+	return vals
+}
+
 func anyNonEmpty(ss ...string) bool {
 	for _, s := range ss {
 		if s != "" {
@@ -501,20 +569,29 @@ func (l *Loader) populateCensusRecord(er *gedcom.EventRecord, gev model.GeneralE
 	}
 
 	fillCensusEntry(detail, ce)
+	if ce.RelationToHead != "" {
+		logging.Debug("noting relation to head as "+ce.RelationToHead.String()+" from information on census", "id", p.ID)
+	}
+	if ce.MaritalStatus != "" {
+		logging.Debug("noting marital status as "+ce.MaritalStatus.String()+" from information on census", "id", p.ID)
+	}
+	if ce.Occupation != "" {
+		logging.Debug("noting occupation as "+ce.Occupation+" from information on census", "id", p.ID)
+	}
 
 	if reDetectMentalImpairment.MatchString(ce.Detail) {
 		p.MentalImpairment = true
-		slog.Warn("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
+		logging.Debug("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
 	}
 
 	if reDetectPhysicalImpairment.MatchString(ce.Detail) {
 		p.PhysicalImpairment = true
-		slog.Warn("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
+		logging.Debug("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
 	}
 
 	if reDetectPauper.MatchString(ce.Detail) {
 		p.Pauper = true
-		slog.Warn("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
+		logging.Debug("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
 	}
 
 	ev.Entries = append(ev.Entries, ce)
@@ -566,13 +643,16 @@ var censusEntryMaritalStatusLookup = map[string]model.CensusEntryMaritalStatus{
 	"widowed":   model.CensusEntryMaritalStatusWidowed,
 }
 
+var (
+	reRelationshipToHead = regexp.MustCompile(`(?i)^(.*)\brelation(?:ship)?(?: to head(?: of house)?)?:\s*(.+?(?:-in-law)?)\b[\.,;]*(.*)$`)
+	reMaritalStatus      = regexp.MustCompile(`(?i)^(.*)\bmarital status:\s*(.+?)\b[\.,;]*(.*)$`)
+)
+
 func fillCensusEntry(v string, ce *model.CensusEntry) {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return
 	}
-	reRelationshipToHead := regexp.MustCompile(`(?i)^(.*)\brelation(?:ship)?(?: to head(?: of house)?)?:\s*(.+?(?:-in-law)?)\b[\.,;]*(.*)$`)
-	reMaritalStatus := regexp.MustCompile(`(?i)^(.*)\bmarital status:\s*(.+?)\b[\.,;]*(.*)$`)
 	matches := reRelationshipToHead.FindStringSubmatch(v)
 	if len(matches) > 3 {
 		if rel, ok := censusEntryRelationLookup[strings.ToLower(matches[2])]; ok {

@@ -60,6 +60,10 @@ func (r CensusEntryRelation) IsImpersonal() bool {
 	}
 }
 
+func (r CensusEntryRelation) String() string {
+	return string(r)
+}
+
 type CensusEntryMaritalStatus string
 
 const (
@@ -70,6 +74,10 @@ const (
 	CensusEntryMaritalStatusDivorced  CensusEntryMaritalStatus = "divorced"
 )
 
+func (c CensusEntryMaritalStatus) String() string {
+	return string(c)
+}
+
 type CauseOfDeath string
 
 const (
@@ -78,3 +86,7 @@ const (
 	CauseOfDeathKilledInAction CauseOfDeath = "killed in action"
 	CauseOfDeathDrowned        CauseOfDeath = "drowned"
 )
+
+func (c CauseOfDeath) String() string {
+	return string(c)
+}

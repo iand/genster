@@ -35,6 +35,7 @@ type Site struct {
 	CalendarFilePattern string
 	InferencesDir       string
 	AnomaliesDir        string
+	TodoDir             string
 	IncludePrivate      bool
 	TimelineExperiment  bool
 }
@@ -64,6 +65,7 @@ func NewSite(basePath string, t *tree.Tree) *Site {
 		CalendarFilePattern: "/calendar/%02d.md",
 		InferencesDir:       "inferences",
 		AnomaliesDir:        "anomalies",
+		TodoDir:             "todo",
 	}
 
 	return s
@@ -148,6 +150,10 @@ func (s *Site) WritePages(root string) error {
 
 	if err := s.WriteAnomaliesPages(root); err != nil {
 		return fmt.Errorf("write anomalies pages: %w", err)
+	}
+
+	if err := s.WriteTodoPages(root); err != nil {
+		return fmt.Errorf("write todo pages: %w", err)
 	}
 
 	return nil
@@ -354,18 +360,18 @@ func (s *Site) LinkFor(v any) string {
 }
 
 func (s *Site) NewDocument() *md.Document {
-	d := &md.Document{}
-	d.BasePath(s.BasePath)
-	d.SetLinkBuilder(s)
+	doc := &md.Document{}
+	doc.BasePath(s.BasePath)
+	doc.SetLinkBuilder(s)
 
-	return d
+	return doc
 }
 
 func (s *Site) NewMarkdownBuilder() MarkdownBuilder {
-	d := &md.Document{}
-	d.BasePath(s.BasePath)
-	d.SetLinkBuilder(s)
-	return d.Body()
+	enc := &md.Encoder{}
+	enc.SetLinkBuilder(s)
+
+	return enc
 }
 
 func (s *Site) ScanPersonForAnomalies(p *model.Person) {
@@ -475,6 +481,63 @@ func (s *Site) WriteInferencesPages(root string) error {
 	return nil
 }
 
+func (s *Site) WriteTodoPages(root string) error {
+	baseDir := filepath.Join(root, s.TodoDir)
+	pn := NewPaginator()
+	for _, p := range s.Tree.People {
+		if p.Redacted {
+			logging.Debug("not writing redacted person to todo index", "id", p.ID)
+			continue
+		}
+		categories := make([]string, 0)
+		todosByCategory := make(map[string][]*model.ToDo)
+
+		for _, a := range p.ToDos {
+			a := a // avoid shadowing
+			al, ok := todosByCategory[a.Category]
+			if ok {
+				al = append(al, a)
+				todosByCategory[a.Category] = al
+				continue
+			}
+
+			categories = append(categories, a.Category)
+			todosByCategory[a.Category] = []*model.ToDo{a}
+		}
+		sort.Strings(categories)
+
+		if len(todosByCategory) > 0 {
+			b := s.NewMarkdownBuilder()
+			b.Heading2(p.PreferredUniqueName)
+			if p.EditLink != nil {
+				b.Para(b.EncodeModelLink("View page", p) + " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
+			} else {
+				b.Para(b.EncodeModelLink("View page", p))
+			}
+			for _, cat := range categories {
+				al := todosByCategory[cat]
+				items := make([][2]string, 0, len(al))
+
+				for _, a := range al {
+					items = append(items, [2]string{
+						a.Context,
+						a.Text,
+					})
+				}
+				b.DefinitionList(items)
+			}
+			pn.AddEntry(p.PreferredSortName, b.Markdown())
+		}
+
+	}
+
+	if err := pn.WritePages(s, baseDir, "todo", "To Do"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Site) WritePersonIndexPages(root string) error {
 	baseDir := filepath.Join(root, s.PersonDir)
 	pn := NewPaginator()
@@ -523,14 +586,14 @@ func (s *Site) WritePlaceIndexPages(root string) error {
 func (s *Site) WriteSourceIndexPages(root string) error {
 	baseDir := filepath.Join(root, s.SourceDir)
 	pn := NewPaginator()
-	for _, p := range s.Tree.Sources {
+	for _, so := range s.Tree.Sources {
 		items := make([][2]string, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]string{
-			b.EncodeModelLink(p.Title, p),
+			b.EncodeModelLink(so.Title, so),
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(p.Title, b.Markdown())
+		pn.AddEntry(so.Title, b.Markdown())
 
 	}
 	if err := pn.WritePages(s, baseDir, s.SourceDir, "Sources"); err != nil {

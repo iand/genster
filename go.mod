@@ -23,6 +23,7 @@ require (
 	github.com/benoitkugler/textprocessing v0.0.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/flopp/go-coordsparser v0.0.0-20201115094714-8baaeb7062d5 // indirect
 	github.com/go-fonts/latin-modern v0.3.0 // indirect
 	github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

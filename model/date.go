@@ -60,6 +60,20 @@ func (d *Date) IsUnknown() bool {
 	return ok
 }
 
+// IsEstimated reports whether d is a firm date or range of dates
+func (d *Date) IsFirm() bool {
+	if d == nil {
+		return false
+	}
+
+	switch d.Date.(type) {
+	case *gdate.Precise, *gdate.MonthYear, *gdate.Year, *gdate.YearQuarter:
+		return true
+	}
+
+	return false
+}
+
 func (d *Date) String() string {
 	if d == nil {
 		return "unknown"

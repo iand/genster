@@ -41,6 +41,7 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load gazeteer: %w", err)
 	}
 
+	// Annotations are only read by genster, never written
 	a, err := LoadAnnotations(annotationsFilename)
 	if err != nil {
 		return nil, fmt.Errorf("load annotations: %w", err)
@@ -58,10 +59,6 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 
 	if err := SaveGazeteer(gazeteerFilename, g); err != nil {
 		return nil, fmt.Errorf("save gazeteer: %w", err)
-	}
-
-	if err := SaveAnnotations(annotationsFilename, a); err != nil {
-		return nil, fmt.Errorf("save annotations: %w", err)
 	}
 
 	return t, nil

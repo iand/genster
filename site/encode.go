@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 )
@@ -64,13 +63,14 @@ type ExtendedInlineEncoder interface {
 }
 
 func EncodeWithCitations(s string, citations []*model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
+	sups := ""
 	for i, cit := range citations {
-		if i > 0 {
-			s += "<sup>,</sup>"
+		if i > 0 && sups != "" {
+			sups += "<sup>,</sup>"
 		}
-		s += EncodeCitationDetail(cit, enc)
+		sups += EncodeCitationDetail(cit, enc)
 	}
-	return s
+	return s + sups
 }
 
 func EncodeCitationDetail(c *model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
@@ -107,8 +107,8 @@ func EncodeCitationDetail(c *model.GeneralCitation, enc ExtendedMarkdownEncoder)
 			detail += enc.EncodeBlockQuote(t)
 			detail += enc.EncodeBlockQuote("")
 		}
-		if !gdate.IsUnknown(c.TranscriptionDate) {
-			detail += enc.EncodeBlockQuote("-- transcribed " + c.TranscriptionDate.Occurrence())
+		if !c.TranscriptionDate.IsUnknown() {
+			detail += enc.EncodeBlockQuote("-- transcribed " + c.TranscriptionDate.When())
 		}
 	}
 

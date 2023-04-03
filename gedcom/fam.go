@@ -93,7 +93,16 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 			Detail: er.Value,
 			Title:  fmt.Sprintf("%s event %s", er.Tag, dt.Occurrence()),
 		}
-		gev.Citations = l.parseCitationRecords(m, er.Citation)
+		var anoms []*model.Anomaly
+		gev.Citations, anoms = l.parseCitationRecords(m, er.Citation)
+		for _, anom := range anoms {
+			if fatherPresent {
+				father.Anomalies = append(father.Anomalies, anom)
+			}
+			if motherPresent {
+				mother.Anomalies = append(mother.Anomalies, anom)
+			}
+		}
 
 		gpe := model.GeneralPartyEvent{
 			Party1: father,
@@ -145,6 +154,31 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		}
 		if !pl.IsUnknown() {
 			pl.Timeline = append(pl.Timeline, ev)
+		}
+
+		seenSource := make(map[*model.Source]bool)
+		for _, c := range ev.GetCitations() {
+			if c.Source != nil && !seenSource[c.Source] {
+				c.Source.EventsCiting = append(c.Source.EventsCiting, ev)
+				seenSource[c.Source] = true
+			}
+		}
+
+		if len(ev.GetCitations()) == 0 && ev.GetDate().IsFirm() {
+			if !mother.IsUnknown() {
+				mother.ToDos = append(mother.ToDos, &model.ToDo{
+					Category: "Citation",
+					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
+					Context:  "No citation for " + ev.Type() + " event",
+				})
+			}
+			if !father.IsUnknown() {
+				father.ToDos = append(father.ToDos, &model.ToDo{
+					Category: "Citation",
+					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
+					Context:  "No citation for " + ev.Type() + " event",
+				})
+			}
 		}
 
 	}

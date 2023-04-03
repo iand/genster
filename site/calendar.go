@@ -29,9 +29,7 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 		12: "December",
 	}
 
-	d := s.NewDocument()
-
-	b := d.Body()
+	doc := s.NewDocument()
 
 	type eventDay struct {
 		day  int
@@ -61,17 +59,17 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 
 		switch tev := ev.(type) {
 		case *model.BirthEvent:
-			evd.text = b.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was born."
+			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was born."
 		case *model.BaptismEvent:
-			evd.text = b.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was baptised."
+			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was baptised."
 		case *model.DeathEvent:
-			evd.text = b.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " died."
+			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " died."
 		case *model.BurialEvent:
-			evd.text = b.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was buried."
+			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was buried."
 		case *model.MarriageEvent:
-			evd.text = b.EncodeModelLink(tev.Party1.PreferredUniqueName, tev.Party1) + " and " + b.EncodeModelLink(tev.Party2.PreferredUniqueName, tev.Party2) + " were married."
+			evd.text = doc.EncodeModelLink(tev.Party1.PreferredUniqueName, tev.Party1) + " and " + doc.EncodeModelLink(tev.Party2.PreferredUniqueName, tev.Party2) + " were married."
 		default:
-			evd.text = WhatWhenWhere(tev, b)
+			evd.text = WhatWhenWhere(tev, doc)
 		}
 
 		if tev, ok := ev.(model.IndividualTimelineEvent); ok {
@@ -93,9 +91,9 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 
 		eventDays = append(eventDays, evd)
 	}
-	d.Title(fmt.Sprintf("On this day in %s", monthNames[month]))
-	d.Section(md.PageLayoutCalendar)
-	d.SetFrontMatterField("month", monthNames[month])
+	doc.Title(fmt.Sprintf("On this day in %s", monthNames[month]))
+	doc.Section(md.PageLayoutCalendar)
+	doc.SetFrontMatterField("month", monthNames[month])
 
 	sort.Slice(eventDays, func(i, j int) bool {
 		if eventDays[i].day == eventDays[j].day {
@@ -108,13 +106,13 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 	for _, evd := range eventDays {
 		if day != evd.day {
 			if len(items) > 0 {
-				b.UnorderedList(items)
-				b.EmptyPara()
+				doc.UnorderedList(items)
+				doc.EmptyPara()
 				items = items[:0]
 			}
 
 			day = evd.day
-			b.Heading2(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day)))
+			doc.Heading2(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day)))
 		}
 
 		items = append(items, evd.text)
@@ -122,8 +120,8 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 	}
 
 	if len(items) > 0 {
-		b.UnorderedList(items)
+		doc.UnorderedList(items)
 	}
 
-	return d, nil
+	return doc, nil
 }

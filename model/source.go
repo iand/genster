@@ -1,21 +1,20 @@
 package model
 
-import (
-	"github.com/iand/gdate"
-)
-
 type Source struct {
-	ID string // canonical id
-	// Page  string // path to page in site
-	Title string
-	Tags  []string
+	ID             string // canonical id
+	Title          string
+	SearchLink     string // link to online search interface
+	RepositoryName string
+	RepositoryLink string
+	EventsCiting   []TimelineEvent
+	Tags           []string
 }
 
 type GeneralCitation struct {
 	Source            *Source
 	Detail            string
 	ID                string
-	TranscriptionDate gdate.Date
+	TranscriptionDate *Date
 	TranscriptionText []string
 	URL               *Link
 	MediaObjects      []MediaObject

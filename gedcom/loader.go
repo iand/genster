@@ -11,11 +11,14 @@ import (
 	"github.com/iand/gdate"
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/identifier"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"github.com/iand/genster/tree"
 	"golang.org/x/exp/slog"
 )
+
+var _ = logging.Debug
 
 var startsWithNumber = regexp.MustCompile(`^[1-9]`)
 
@@ -207,49 +210,62 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 	}
 }
 
-func (l *Loader) parseCitationRecords(m ModelFinder, crs []*gedcom.CitationRecord) []*model.GeneralCitation {
+func (l *Loader) parseCitationRecords(m ModelFinder, crs []*gedcom.CitationRecord) ([]*model.GeneralCitation, []*model.Anomaly) {
 	cits := make([]*model.GeneralCitation, 0)
+	anomalies := make([]*model.Anomaly, 0)
 	for _, cr := range crs {
-		cit := l.parseCitation(m, cr)
+		cit, err := l.parseCitation(m, cr)
+		if err != nil {
+			anomalies = append(anomalies, &model.Anomaly{
+				Category: "GEDCOM",
+				Text:     err.Error(),
+				Context:  "Citation",
+			})
+			logging.Warn("skipping citation with no source", "error", err.Error())
+			continue
+		}
 		cits = append(cits, cit)
 	}
-	return cits
+	return cits, anomalies
 }
 
-func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) *model.GeneralCitation {
+func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model.GeneralCitation, error) {
 	var id string
 	// Look for an id that indicates a shared citation
 	ud, found := findFirstUserDefinedTag("_APID", cr.UserDefined)
 	if found && ud.Value != "" {
+		if cr.Page == "" && (cr.Source == nil || cr.Source.Xref == "") {
+			return nil, fmt.Errorf("no source name or citation detail found, but Ancestry ID " + ud.Value + " was cited")
+		}
 		id = identifier.New("_APID", ud.Value)
 	} else {
 		if cr.Source != nil && cr.Source.Xref != "" {
 			id = identifier.New(cr.Source.Xref, cr.Page)
-		} else {
+		} else if cr.Page != "" {
 			id = identifier.New("Page", cr.Page)
+		} else {
+			return nil, fmt.Errorf("no source name or citation detail found")
 		}
 	}
 
 	cit, ok := l.Citations[id]
 	if ok {
-		return cit
-	}
-
-	sourceID := "unknown"
-	if cr.Source != nil && cr.Source.Xref != "" {
-		sourceID = cr.Source.Xref
+		return cit, nil
 	}
 
 	cit = &model.GeneralCitation{
 		ID:     id,
-		Source: m.FindSource(l.ScopeName, sourceID),
 		Detail: cr.Page,
+	}
+
+	if cr.Source != nil && cr.Source.Xref != "" {
+		cit.Source = m.FindSource(l.ScopeName, cr.Source.Xref)
 	}
 
 	if cr.Data.Date != "" {
 		dt, err := gdate.Parse(cr.Data.Date)
 		if err == nil {
-			cit.TranscriptionDate = dt
+			cit.TranscriptionDate = &model.Date{Date: dt}
 		}
 	}
 
@@ -324,5 +340,5 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) *model.
 	// Note        []*NoteRecord
 	// UserDefined []UserDefinedTag
 
-	return cit
+	return cit, nil
 }

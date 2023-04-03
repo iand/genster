@@ -11,23 +11,21 @@ import (
 func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
-	d := s.NewDocument()
-	d.Section(md.PageLayoutPerson)
-	d.ID(p.ID)
-	d.Title(p.PreferredUniqueName)
-	d.SetFrontMatterField("gender", p.Gender.Noun())
+	doc := s.NewDocument()
+	doc.Section(md.PageLayoutPerson)
+	doc.ID(p.ID)
+	doc.Title(p.PreferredUniqueName)
+	doc.SetFrontMatterField("gender", p.Gender.Noun())
 
 	if p.Redacted {
-		d.Summary("information withheld to preserve privacy")
-		return d, nil
+		doc.Summary("information withheld to preserve privacy")
+		return doc, nil
 	}
 
 	if p.Olb != "" {
-		d.Summary(p.Olb)
+		doc.Summary(p.Olb)
 	}
-	d.AddTags(CleanTags(p.Tags))
-
-	b := d.Body()
+	doc.AddTags(CleanTags(p.Tags))
 
 	// Render narrative
 	n := &Narrative{
@@ -67,11 +65,11 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		})
 	}
 
-	n.Render(pov, b)
+	n.Render(pov, doc)
 
 	if p.EditLink != nil {
-		d.SetFrontMatterField("editlink", p.EditLink.URL)
-		d.SetFrontMatterField("editlinktitle", p.EditLink.Title)
+		doc.SetFrontMatterField("editlink", p.EditLink.URL)
+		doc.SetFrontMatterField("editlinktitle", p.EditLink.Title)
 	}
 
 	t := &model.Timeline{
@@ -89,32 +87,32 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	}
 
 	if len(p.Timeline) > 0 {
-		b.EmptyPara()
-		b.Heading2("Timeline")
+		doc.EmptyPara()
+		doc.Heading2("Timeline")
 
-		b.ResetSeenLinks()
-		if err := RenderTimeline(t, pov, b); err != nil {
+		doc.ResetSeenLinks()
+		if err := RenderTimeline(t, pov, doc); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}
 
 	if len(p.MiscFacts) > 0 {
-		b.EmptyPara()
-		b.Heading2("Other Information")
-		if err := RenderFacts(p.MiscFacts, pov, b); err != nil {
+		doc.EmptyPara()
+		doc.Heading2("Other Information")
+		if err := RenderFacts(p.MiscFacts, pov, doc); err != nil {
 			return nil, fmt.Errorf("render facts: %w", err)
 		}
 	}
 
 	links := make([]string, 0, len(p.Links))
 	for _, l := range p.Links {
-		links = append(links, b.EncodeLink(l.Title, l.URL))
+		links = append(links, doc.EncodeLink(l.Title, l.URL))
 	}
 
 	if len(links) > 0 {
-		b.Heading2("Links")
-		b.UnorderedList(links)
+		doc.Heading2("Links")
+		doc.UnorderedList(links)
 	}
 
-	return d, nil
+	return doc, nil
 }

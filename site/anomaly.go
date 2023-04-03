@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
 )
 
@@ -35,8 +34,8 @@ func ScanGeneralCitationForAnomalies(cit *model.GeneralCitation) []*model.Anomal
 		name = cit.Detail
 	}
 
-	recent := &gdate.Year{Y: time.Now().Year() - 60}
-	if len(cit.TranscriptionText) != 0 && !gdate.IsUnknown(cit.TranscriptionDate) && gdate.SortsBefore(cit.TranscriptionDate, recent) {
+	recent := model.Year(time.Now().Year() - 60)
+	if len(cit.TranscriptionText) != 0 && !cit.TranscriptionDate.IsUnknown() && cit.TranscriptionDate.SortsBefore(recent) {
 		// Transcription date might be the date of the original record
 
 		anomalies = append(anomalies, &model.Anomaly{

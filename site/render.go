@@ -153,45 +153,44 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 
 	for i, pg := range pages {
 		idx := i + 1
-		d := s.NewDocument()
-		d.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
-		d.Section(section)
+		doc := s.NewDocument()
+		doc.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
+		doc.Section(section)
 
-		d.SetFrontMatterField(md.MarkdownTagIndexPage, section)
+		doc.SetFrontMatterField(md.MarkdownTagIndexPage, section)
 		if idx > 1 {
-			d.SetFrontMatterField(md.MarkdownTagFirstPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, 1)))
+			doc.SetFrontMatterField(md.MarkdownTagFirstPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, 1)))
 			if idx > 2 {
-				d.SetFrontMatterField(md.MarkdownTagPrevPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx-1)))
+				doc.SetFrontMatterField(md.MarkdownTagPrevPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx-1)))
 			}
 		}
 		if idx < len(pages) {
-			d.SetFrontMatterField(md.MarkdownTagLastPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, len(pages))))
+			doc.SetFrontMatterField(md.MarkdownTagLastPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, len(pages))))
 			if idx < len(pages)-1 {
-				d.SetFrontMatterField(md.MarkdownTagNextPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx+1)))
+				doc.SetFrontMatterField(md.MarkdownTagNextPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx+1)))
 			}
 		}
 
-		d.Body().Set(pg.Content)
+		doc.SetBody(pg.Content)
 
-		if err := writePage(d, baseDir, filepath.Join(pg.Dir, p.Index)); err != nil {
+		if err := writePage(doc, baseDir, filepath.Join(pg.Dir, p.Index)); err != nil {
 			return fmt.Errorf("failed to write paginated page: %w", err)
 		}
 	}
 
-	d := s.NewDocument()
-	d.Title(title)
-	b := d.Body()
+	doc := s.NewDocument()
+	doc.Title(title)
 
 	var list []string
 	for _, pg := range pages {
 		if pg.FirstKey == pg.LastKey {
-			list = append(list, b.EncodeLink(pg.FirstKey, pg.Dir))
+			list = append(list, doc.EncodeLink(pg.FirstKey, pg.Dir))
 		} else {
-			list = append(list, b.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Dir))
+			list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Dir))
 		}
 	}
-	b.UnorderedList(list)
-	if err := writePage(d, baseDir, p.Index); err != nil {
+	doc.UnorderedList(list)
+	if err := writePage(doc, baseDir, p.Index); err != nil {
 		return fmt.Errorf("failed to write paginated index: %w", err)
 	}
 

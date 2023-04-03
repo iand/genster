@@ -17,8 +17,10 @@ type Place struct {
 	PlaceType           PlaceType       // the type of place, such as "village", "town", "parish"
 	Kind                place.PlaceKind // the type of place, such as "village", "town", "parish"
 	Timeline            []TimelineEvent
-	Unknown             bool   // true if this place is known to have existed but no other information is known
-	Links               []Link // list of links to more information relevant to this place
+	Unknown             bool    // true if this place is known to have existed but no other information is known
+	Links               []Link  // list of links to more information relevant to this place
+	Latitude            float64 // latitude of the place in decimal degrees, +ve is east of meridian, -ve is west
+	Longitude           float64 // longitude of the place in decimal degrees, +ve is north of equator, -ve is south
 }
 
 func (p *Place) IsUnknown() bool {

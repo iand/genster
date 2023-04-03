@@ -55,6 +55,7 @@ type Person struct {
 	RedactionKeepsName bool          // true if this person's name should be kept during redaction
 	Inferences         []Inference   // list of inferences made
 	Anomalies          []*Anomaly    // list of anomalies detected
+	ToDos              []*ToDo       // list of todos detected
 	MiscFacts          []Fact        // miscellaneous facts
 	FeatureImage       *FeatureImage // an image that can be used to represent the person
 }

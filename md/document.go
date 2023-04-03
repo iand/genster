@@ -35,12 +35,8 @@ type LinkBuilder interface {
 }
 
 type Document struct {
-	BodyEncoder Encoder
+	Encoder
 	frontMatter map[string][]string
-}
-
-func (d *Document) SetLinkBuilder(l LinkBuilder) {
-	d.BodyEncoder.LinkBuilder = l
 }
 
 func (b *Document) Markdown() string {
@@ -89,14 +85,8 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 		bw.WriteString("---\n")
 	}
 	bw.WriteString("\n")
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return b.BodyEncoder.WriteMarkdown(w)
-}
 
-func (d *Document) Body() *Encoder {
-	return &d.BodyEncoder
+	return b.Encoder.WriteMarkdown(bw)
 }
 
 func (b *Document) SetFrontMatterField(k, v string) {

@@ -8,12 +8,17 @@ import (
 )
 
 type Encoder struct {
-	LinkBuilder LinkBuilder
-	main        strings.Builder
-	citations   strings.Builder
-	citationidx int
-	citationMap map[string]int
-	seenLinks   map[string]bool
+	LinkBuilder       LinkBuilder
+	main              strings.Builder
+	citations         strings.Builder
+	citationidx       int
+	citationMap       map[string]int
+	seenLinks         map[string]bool
+	SuppressCitations bool
+}
+
+func (e *Encoder) SetLinkBuilder(l LinkBuilder) {
+	e.LinkBuilder = l
 }
 
 func (e *Encoder) Markdown() string {
@@ -36,7 +41,7 @@ func (e *Encoder) WriteMarkdown(w io.Writer) error {
 	return bw.Flush()
 }
 
-func (e *Encoder) Set(s string) {
+func (e *Encoder) SetBody(s string) {
 	e.main = strings.Builder{}
 	e.main.WriteString(s)
 }
@@ -268,6 +273,9 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 }
 
 func (b *Encoder) EncodeCitation(citation string, detail string, citationID string) string {
+	if b.SuppressCitations {
+		return ""
+	}
 	if b.citationMap == nil {
 		b.citationMap = make(map[string]int)
 	}

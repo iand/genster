@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/flopp/go-coordsparser"
 	"github.com/iand/genster/model"
 	"golang.org/x/exp/slog"
 )
@@ -34,7 +35,7 @@ type PlaceAnnotation struct {
 func (o *Annotations) Replace(kind string, id string, field string, value any) error {
 	switch kind {
 	case "person":
-		fn, ok := personOverrides[field]
+		fn, ok := personReplacers[field]
 		if !ok {
 			return fmt.Errorf("unsupported override field for person: %s", field)
 		}
@@ -48,7 +49,7 @@ func (o *Annotations) Replace(kind string, id string, field string, value any) e
 			Value: value,
 		})
 	case "place":
-		fn, ok := placeOverrides[field]
+		fn, ok := placeReplacers[field]
 		if !ok {
 			return fmt.Errorf("unsupported override field for place: %s", field)
 		}
@@ -248,6 +249,21 @@ func setBool(f *bool, v any) error {
 	return nil
 }
 
+func setCoordinates(latf *float64, longf *float64, v any) error {
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("expected a string containing a pair of coordinates")
+	}
+
+	lat, long, err := coordsparser.Parse(s)
+	if err != nil {
+		return fmt.Errorf("failed to parse coordinates string: %s", s)
+	}
+	*latf = lat
+	*longf = long
+	return nil
+}
+
 func appendStringOrList(f *[]string, v any) error {
 	switch tv := v.(type) {
 	case string:
@@ -277,7 +293,7 @@ type (
 
 // all possible person overrides. use a map so the names of the overrides could be
 // printed in a help command.
-var personOverrides = map[string]personAnnotaterFunc{
+var personReplacers = map[string]personAnnotaterFunc{
 	"nickname":                  func(p *model.Person, v any) error { return setString(&p.NickName, v) },
 	"olb":                       func(p *model.Person, v any) error { return setString(&p.Olb, v) },
 	"preferredfullname":         func(p *model.Person, v any) error { return setString(&p.PreferredFullName, v) },
@@ -296,9 +312,10 @@ var personOverrides = map[string]personAnnotaterFunc{
 	"redacted":      func(p *model.Person, v any) error { return setBool(&p.Redacted, v) },
 }
 
-// all possible place overrides
-var placeOverrides = map[string]placeAnnotaterFunc{
+// all possible place replacers
+var placeReplacers = map[string]placeAnnotaterFunc{
 	"preferredname": func(p *model.Place, v any) error { return setString(&p.PreferredName, v) },
+	"latlong":       func(p *model.Place, v any) error { return setCoordinates(&p.Latitude, &p.Longitude, v) },
 }
 
 // all possible person overrides. use a map so the names of the overrides could be
@@ -345,25 +362,4 @@ func LoadAnnotations(filename string) (*Annotations, error) {
 	}
 
 	return &a, nil
-}
-
-func SaveAnnotations(filename string, a *Annotations) error {
-	if filename == "" {
-		return nil
-	}
-
-	buf := new(bytes.Buffer)
-	d := json.NewEncoder(buf)
-	d.SetIndent("", "  ")
-	if err := d.Encode(&a); err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-
-	slog.Info("writing annotations", "filename", filename)
-	err := os.WriteFile(filename, buf.Bytes(), 0o666)
-	if err != nil {
-		return fmt.Errorf("write annotations file: %w", err)
-	}
-
-	return nil
 }

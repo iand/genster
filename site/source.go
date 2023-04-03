@@ -1,20 +1,81 @@
 package site
 
 import (
+	// "fmt"
+
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 )
 
-func RenderSourcePage(s *Site, sr *model.Source) (*md.Document, error) {
-	d := s.NewDocument()
-	b := d.Body()
+func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
+	doc := s.NewDocument()
+	doc.SuppressCitations = true
 
-	d.Title(sr.Title)
-	d.Section(md.PageLayoutSource)
-	d.ID(sr.ID)
-	d.AddTags(CleanTags(sr.Tags))
+	doc.Title(so.Title)
+	doc.Section(md.PageLayoutSource)
+	doc.ID(so.ID)
+	doc.AddTags(CleanTags(so.Tags))
 
-	b.Para("Citations from this source")
+	if so.RepositoryName != "" {
+		para := text.JoinSentence("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
+		doc.Para(text.FormatSentence(para))
+	}
 
-	return d, nil
+	if so.SearchLink != "" {
+		para := text.JoinSentence("It can be ", doc.EncodeLink("searched online", so.SearchLink))
+		doc.Para(text.FormatSentence(para))
+	}
+
+	const maxEvents = 20
+
+	var cites string
+	if len(so.EventsCiting) == 0 {
+		cites = "no evidence cites this source."
+	} else if len(so.EventsCiting) == 1 {
+		cites = "one piece of evidence cites this source:"
+	} else {
+		cites = text.JoinSentence(text.SmallCardinalNoun(len(so.EventsCiting)), "pieces of evidence cite this source")
+		if len(so.EventsCiting) > maxEvents {
+			cites = text.JoinSentence(cites, ", some of which are:")
+		} else {
+			cites += ":"
+		}
+	}
+	doc.EmptyPara()
+	doc.Para(text.UpperFirst(cites))
+
+	fmtr := &TimelineEntryFormatter{
+		pov: &model.POV{},
+		enc: doc,
+	}
+
+	events := make([][2]string, 0, len(so.EventsCiting))
+	for i, ev := range so.EventsCiting {
+		if i == maxEvents {
+			break
+		}
+		citation := ""
+		for _, c := range ev.GetCitations() {
+			if c.Source != so {
+				continue
+			}
+			citation = c.Detail
+			break
+		}
+
+		title := fmtr.Title(i, ev)
+		detail := ""
+		if citation != "" {
+			detail = "cites " + citation
+		}
+		events = append(events, [2]string{
+			title,
+			detail,
+		})
+	}
+
+	doc.DefinitionList(events)
+
+	return doc, nil
 }
