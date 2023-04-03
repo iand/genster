@@ -14,8 +14,13 @@ import (
 )
 
 type Annotations struct {
-	person map[string][]PersonAnnotation
+	person map[string]PersonMeta
 	place  map[string][]PlaceAnnotation
+}
+
+type PersonMeta struct {
+	Comment     string
+	Annotations []PersonAnnotation
 }
 
 type PersonAnnotation struct {
@@ -40,14 +45,16 @@ func (o *Annotations) Replace(kind string, id string, field string, value any) e
 			return fmt.Errorf("unsupported override field for person: %s", field)
 		}
 		if o.person == nil {
-			o.person = make(map[string][]PersonAnnotation, 0)
+			o.person = make(map[string]PersonMeta, 0)
 		}
-		o.person[id] = append(o.person[id], PersonAnnotation{
+		pm := o.person[id]
+		pm.Annotations = append(pm.Annotations, PersonAnnotation{
 			Fn:    fn,
 			Field: field,
 			Kind:  "replace",
 			Value: value,
 		})
+		o.person[id] = pm
 	case "place":
 		fn, ok := placeReplacers[field]
 		if !ok {
@@ -77,14 +84,17 @@ func (o *Annotations) Add(kind string, id string, field string, value any) error
 			return fmt.Errorf("unsupported override field for person: %s", field)
 		}
 		if o.person == nil {
-			o.person = make(map[string][]PersonAnnotation, 0)
+			o.person = make(map[string]PersonMeta, 0)
 		}
-		o.person[id] = append(o.person[id], PersonAnnotation{
+		pm := o.person[id]
+		pm.Annotations = append(pm.Annotations, PersonAnnotation{
 			Fn:    fn,
 			Field: field,
 			Kind:  "add",
 			Value: value,
 		})
+		o.person[id] = pm
+
 	case "place":
 		fn, ok := placeAdders[field]
 		if !ok {
@@ -107,12 +117,12 @@ func (o *Annotations) Add(kind string, id string, field string, value any) error
 }
 
 func (o *Annotations) ApplyPerson(p *model.Person) error {
-	anns, ok := o.person[p.ID]
+	pm, ok := o.person[p.ID]
 	if !ok {
 		return nil
 	}
 
-	for _, ann := range anns {
+	for _, ann := range pm.Annotations {
 		slog.Debug("annotation for person", "id", p.ID, "field", ann.Field, "value", ann.Value)
 		if err := ann.Fn(p, ann.Value); err != nil {
 			return fmt.Errorf("annotating value of person field %s: %w", ann.Field, err)
@@ -149,6 +159,13 @@ func (a *Annotations) UnmarshalJSON(data []byte) error {
 	}
 
 	for _, oa := range aj.People {
+		if a.person == nil {
+			a.person = make(map[string]PersonMeta, 0)
+		}
+		pm := a.person[oa.ID]
+		pm.Comment = oa.Comment
+		a.person[oa.ID] = pm
+
 		for f, v := range oa.Replace {
 			if err := a.Replace("person", oa.ID, f, v); err != nil {
 				return err
@@ -182,14 +199,15 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		Places: make([]ObjectAnnotationsJSON, 0, len(a.place)),
 	}
 
-	for id, anns := range a.person {
+	for id, pm := range a.person {
 		oa := ObjectAnnotationsJSON{
 			ID:      id,
+			Comment: pm.Comment,
 			Replace: make(map[string]any),
 			Add:     make(map[string]any),
 		}
 
-		for _, ann := range anns {
+		for _, ann := range pm.Annotations {
 			switch ann.Kind {
 			case "replace":
 				oa.Replace[ann.Field] = ann.Value
@@ -337,6 +355,7 @@ type AnnotationsJSON struct {
 
 type ObjectAnnotationsJSON struct {
 	ID      string         `json:"id,omitempty"`
+	Comment string         `json:"comment,omitempty"` // for use by user as a free form comment in the annotations file
 	Replace map[string]any `json:"replace,omitempty"`
 	Add     map[string]any `json:"add,omitempty"`
 }
