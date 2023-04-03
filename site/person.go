@@ -72,6 +72,10 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		doc.SetFrontMatterField("editlinktitle", p.EditLink.Title)
 	}
 
+	if p.WikiTreeID != "" {
+		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)
+	}
+
 	t := &model.Timeline{
 		Events: make([]model.TimelineEvent, 0, len(p.Timeline)),
 	}

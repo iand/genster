@@ -50,6 +50,7 @@ type Person struct {
 	Occupations        []*Occupation // list of occupations
 	PrimaryOccupation  string        // simple description of main occupation
 	EditLink           *Link         // link to a page that can be used to edit the details of this person
+	WikiTreeID         string        // the wikitree id of this person
 	Links              []Link        // list of links to more information relevant to this person
 	Redacted           bool          // true if the person's details should be redacted
 	RedactionKeepsName bool          // true if this person's name should be kept during redaction

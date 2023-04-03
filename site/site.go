@@ -228,6 +228,10 @@ func (s *Site) AssignTags(p *model.Person) error {
 		p.Tags = append(p.Tags, "Unknown Deathdate")
 	}
 
+	if p.WikiTreeID != "" {
+		p.Tags = append(p.Tags, "WikiTree")
+	}
+
 	return nil
 }
 
