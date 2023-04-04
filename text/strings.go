@@ -333,6 +333,18 @@ func AppendAside(s, clause string) string {
 	return AppendClause(s, clause) + ","
 }
 
+func AppendIndependentClause(s, clause string) string {
+	if s == "" {
+		return clause
+	}
+	if clause == "" {
+		return s
+	}
+	s = strings.TrimSpace(s)
+	s = strings.TrimRight(s, ",:;.!?")
+	return s + "; " + clause
+}
+
 var startsWithVowel = regexp.MustCompile(`^[aeiouAEIOU]`)
 
 func MaybeAn(s string) string {
@@ -366,3 +378,11 @@ func ReplaceFirstNumberWithCardinalNoun(s string) string {
 }
 
 var CommonSentenceStarts = []string{"He", "She", "They", "His", "Her", "Their", "The", "It"}
+
+func StripNewlines(s string) string {
+	return strings.Join(strings.Split(s, "\n"), " ")
+}
+
+func PrefixLines(s string, prefix string) string {
+	return prefix + strings.Join(strings.Split(s, "\n"), "\n"+prefix)
+}

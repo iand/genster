@@ -3,8 +3,12 @@ package md
 import (
 	"bufio"
 	"fmt"
+	"html"
 	"io"
 	"strings"
+
+	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 )
 
 type Encoder struct {
@@ -304,4 +308,76 @@ func (b *Encoder) EncodeCitation(citation string, detail string, citationID stri
 	}
 
 	return fmt.Sprintf("<sup>[%d](#cit_%[1]d)</sup>", idx)
+}
+
+func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
+	sups := ""
+	for i, cit := range citations {
+		if i > 0 && sups != "" {
+			sups += "<sup>,</sup>"
+		}
+		sups += b.EncodeCitationDetail(cit)
+	}
+	return s + sups
+}
+
+func (b *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
+	var heading string
+	var detail string
+
+	if c.Source != nil && c.Source.Title != "" {
+		heading = c.Source.Title
+		if c.Detail != "" {
+			if !strings.HasSuffix(heading, ".") && !strings.HasSuffix(heading, "!") && !strings.HasSuffix(heading, "?") {
+				heading += "; "
+			}
+			heading += b.EncodePara(c.Detail)
+		}
+		heading = text.FinishSentence(heading)
+		heading += " (" + b.EncodeModelLink("source", c.Source) + ")"
+
+		// heading = enc.EncodeModelLink(text.FinishSentence(c.Source.Title), c.Source, false)
+		// if c.Detail != "" {
+		// 	detail = enc.EncodePara(cleanCitationDetail(c.Detail))
+		// }
+	} else {
+		heading = c.Detail
+		detail = ""
+	}
+
+	if c.URL != nil {
+		detail += b.EncodeEmptyPara()
+		detail += b.EncodePara("View at " + b.EncodeLink(c.URL.Title, c.URL.URL))
+	}
+
+	if len(c.TranscriptionText) > 0 {
+		for _, t := range c.TranscriptionText {
+			detail += b.EncodeBlockQuote(t)
+			detail += b.EncodeBlockQuote("")
+		}
+		if !c.TranscriptionDate.IsUnknown() {
+			detail += b.EncodeBlockQuote("-- transcribed " + c.TranscriptionDate.When())
+		}
+	}
+
+	// for _, m := range c.Media {
+	// }
+
+	return b.EncodeCitation(heading, detail, c.ID)
+}
+
+func (b *Encoder) Pre(s string) {
+	b.writePre(&b.main, s)
+}
+
+func (b *Encoder) EncodePre(s string) string {
+	buf := new(strings.Builder)
+	b.writePre(buf, s)
+	return buf.String()
+}
+
+func (b *Encoder) writePre(buf io.StringWriter, s string) {
+	buf.WriteString("<pre>\n")
+	buf.WriteString(html.EscapeString(s))
+	buf.WriteString("</pre>\n")
 }

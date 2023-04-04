@@ -111,7 +111,7 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 		slog.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)
 	}
-	title = EncodeWithCitations(title, ev.GetCitations(), t.enc)
+	title = t.enc.EncodeWithCitations(title, ev.GetCitations())
 	return text.FormatSentence(title)
 }
 

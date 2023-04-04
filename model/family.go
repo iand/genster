@@ -1,9 +1,5 @@
 package model
 
-import (
-	"github.com/iand/genster/md"
-)
-
 const (
 	FamilyBondMarried         = "married"
 	FamilyBondUnmarried       = "unmarried"
@@ -45,8 +41,4 @@ func (f *Family) OtherParent(p *Person) *Person {
 		return f.Father
 	}
 	return UnknownPerson()
-}
-
-func (f *Family) RenderMarkdown(b *md.Document) error {
-	return nil
 }

@@ -2,10 +2,8 @@ package site
 
 import (
 	"net/url"
-	"strings"
 
 	"github.com/iand/genster/model"
-	"github.com/iand/genster/text"
 )
 
 type ExtendedMarkdownBuilder interface {
@@ -53,69 +51,15 @@ type InlineEncoder interface {
 type ExtendedMarkdownEncoder interface {
 	MarkdownEncoder
 	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	EncodeCitation(citation string, detail string, citationID string) string
+	// EncodeCitation(citation string, detail string, citationID string) string
+	EncodeCitationDetail(c *model.GeneralCitation) string
+	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
 }
 
 type ExtendedInlineEncoder interface {
 	InlineEncoder
 	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	EncodeCitation(citation string, detail string, citationID string) string
-}
-
-func EncodeWithCitations(s string, citations []*model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
-	sups := ""
-	for i, cit := range citations {
-		if i > 0 && sups != "" {
-			sups += "<sup>,</sup>"
-		}
-		sups += EncodeCitationDetail(cit, enc)
-	}
-	return s + sups
-}
-
-func EncodeCitationDetail(c *model.GeneralCitation, enc ExtendedMarkdownEncoder) string {
-	var heading string
-	var detail string
-
-	if c.Source != nil && c.Source.Title != "" {
-		heading = c.Source.Title
-		if c.Detail != "" {
-			if !strings.HasSuffix(heading, ".") && !strings.HasSuffix(heading, "!") && !strings.HasSuffix(heading, "?") {
-				heading += "; "
-			}
-			heading += enc.EncodePara(cleanCitationDetail(c.Detail))
-		}
-		heading = text.FinishSentence(heading)
-		heading += " (" + enc.EncodeModelLink("source", c.Source) + ")"
-
-		// heading = enc.EncodeModelLink(text.FinishSentence(c.Source.Title), c.Source, false)
-		// if c.Detail != "" {
-		// 	detail = enc.EncodePara(cleanCitationDetail(c.Detail))
-		// }
-	} else {
-		heading = cleanCitationDetail(c.Detail)
-		detail = ""
-	}
-
-	if c.URL != nil {
-		detail += enc.EncodeEmptyPara()
-		detail += enc.EncodePara("View at " + enc.EncodeLink(c.URL.Title, c.URL.URL))
-	}
-
-	if len(c.TranscriptionText) > 0 {
-		for _, t := range c.TranscriptionText {
-			detail += enc.EncodeBlockQuote(t)
-			detail += enc.EncodeBlockQuote("")
-		}
-		if !c.TranscriptionDate.IsUnknown() {
-			detail += enc.EncodeBlockQuote("-- transcribed " + c.TranscriptionDate.When())
-		}
-	}
-
-	// for _, m := range c.Media {
-	// }
-
-	return enc.EncodeCitation(heading, detail, c.ID)
+	// EncodeCitation(citation string, detail string, citationID string) string
 }
 
 func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {

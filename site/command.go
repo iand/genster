@@ -64,24 +64,25 @@ var Command = &cli.Command{
 			Destination: &genopts.inspect,
 		},
 		&cli.BoolFlag{
-			Name:        "timeline-experiment",
+			Name:        "wikitree",
+			Usage:       "Generate pages that include wikitree markup for copy and paste.",
 			Value:       false,
-			Destination: &genopts.timelineExperiment,
+			Destination: &genopts.generateWikiTree,
 		},
 	}, logging.Flags...),
 }
 
 var genopts struct {
-	gedcomFile         string
-	rootDir            string
-	keyIndividual      string
-	includePrivate     bool
-	configDir          string
-	basePath           string
-	inspect            string
-	timelineExperiment bool
-	verbose            bool
-	veryverbose        bool
+	gedcomFile       string
+	rootDir          string
+	keyIndividual    string
+	includePrivate   bool
+	configDir        string
+	basePath         string
+	inspect          string
+	generateWikiTree bool
+	verbose          bool
+	veryverbose      bool
 }
 
 func gen(cc *cli.Context) error {
@@ -103,7 +104,7 @@ func gen(cc *cli.Context) error {
 
 	s := NewSite(genopts.basePath, t)
 	s.IncludePrivate = genopts.includePrivate
-	s.TimelineExperiment = genopts.timelineExperiment
+	s.GenerateWikiTree = genopts.generateWikiTree
 
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)

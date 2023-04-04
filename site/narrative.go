@@ -179,8 +179,9 @@ type Statement interface {
 }
 
 type IntroStatement struct {
-	Principal *model.Person
-	Baptisms  []*model.BaptismEvent
+	Principal        *model.Person
+	Baptisms         []*model.BaptismEvent
+	SuppressRelation bool
 }
 
 var _ Statement = (*IntroStatement)(nil)
@@ -190,7 +191,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
 		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
-		birth = EncodeWithCitations(text.LowerFirst(WhatWhenWhere(s.Principal.BestBirthlikeEvent, enc)), s.Principal.BestBirthlikeEvent.GetCitations(), enc)
+		birth = enc.EncodeWithCitations(text.LowerFirst(WhatWhenWhere(s.Principal.BestBirthlikeEvent, enc)), s.Principal.BestBirthlikeEvent.GetCitations())
 	}
 	// TODO: position in family
 
@@ -231,7 +232,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	if len(s.Baptisms) == 1 {
 		bapDetail := AgeWhenWhere(s.Baptisms[0], enc)
 		if bapDetail != "" {
-			detail = text.JoinSentence(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was baptised", EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations(), enc))
+			detail = text.JoinSentence(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
 			detail = text.FinishSentence(detail)
 		}
 
@@ -240,8 +241,10 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// ---------------------------------------
 	// Prose relation to key person
 	// ---------------------------------------
-	if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
-		detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is the " + s.Principal.RelationToKeyPerson.Name() + " of " + enc.EncodeModelLinkDedupe(s.Principal.RelationToKeyPerson.From.PreferredFullName, s.Principal.RelationToKeyPerson.From.PreferredFamiliarName, s.Principal.RelationToKeyPerson.From)
+	if !s.SuppressRelation {
+		if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
+			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is the " + s.Principal.RelationToKeyPerson.Name() + " of " + enc.EncodeModelLinkDedupe(s.Principal.RelationToKeyPerson.From.PreferredFullName, s.Principal.RelationToKeyPerson.From.PreferredFamiliarName, s.Principal.RelationToKeyPerson.From)
+		}
 	}
 
 	detail = text.FinishSentence(detail)
@@ -259,7 +262,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			}
 			aww := AgeWhenWhere(bev, enc)
 			if aww != "" {
-				bapDetail = text.JoinSentence(bapDetail, evDetail, EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations(), enc))
+				bapDetail = text.JoinSentence(bapDetail, evDetail, enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
 			}
 		}
 		bapDetail = text.FinishSentence(text.JoinSentence(intro.NameBased, bapDetail))
@@ -337,7 +340,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 			event += " " + otherName
 		}
 		if s.Family.BestStartEvent != nil {
-			detail += EncodeWithCitations(event, s.Family.BestStartEvent.GetCitations(), enc)
+			detail += enc.EncodeWithCitations(event, s.Family.BestStartEvent.GetCitations())
 		} else {
 			detail += event
 		}
@@ -540,7 +543,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 		pl := bev.GetPlace()
 		evDetail = text.JoinSentence(evDetail, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
-	detail += EncodeWithCitations(evDetail, bev.GetCitations(), enc)
+	detail += enc.EncodeWithCitations(evDetail, bev.GetCitations())
 
 	additionalDetailFromDeathEvent := EventNarrativeDetail(bev)
 
@@ -600,7 +603,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			detail += " and was "
 		}
 
-		detail += EncodeWithCitations(evDetail, funeralEvent.GetCitations(), enc)
+		detail += enc.EncodeWithCitations(evDetail, funeralEvent.GetCitations())
 
 	}
 

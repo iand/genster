@@ -38,6 +38,11 @@ type Site struct {
 	TodoDir             string
 	IncludePrivate      bool
 	TimelineExperiment  bool
+
+	GenerateWikiTree    bool
+	WikiTreeDir         string
+	WikiTreePagePattern string
+	WikiTreeFilePattern string
 }
 
 func NewSite(basePath string, t *tree.Tree) *Site {
@@ -61,6 +66,10 @@ func NewSite(basePath string, t *tree.Tree) *Site {
 		PlacePagePattern: path.Join(basePath, "place/%s/"),
 		PlaceFilePattern: "/place/%s/index.md",
 
+		WikiTreeDir:         "wikitree",
+		WikiTreePagePattern: path.Join(basePath, "wikitree/%s/"),
+		WikiTreeFilePattern: "/wikitree/%s/index.md",
+
 		CalendarPagePattern: path.Join(basePath, "calendar/%02d/"),
 		CalendarFilePattern: "/calendar/%02d.md",
 		InferencesDir:       "inferences",
@@ -83,6 +92,17 @@ func (s *Site) WritePages(root string) error {
 
 		if err := writePage(d, root, fmt.Sprintf(s.PersonFilePattern, p.ID)); err != nil {
 			return fmt.Errorf("write person page: %w", err)
+		}
+
+		if s.GenerateWikiTree {
+			d, err = RenderWikiTreePage(s, p)
+			if err != nil {
+				return fmt.Errorf("render wikitree page: %w", err)
+			}
+
+			if err := writePage(d, root, fmt.Sprintf(s.WikiTreeFilePattern, p.ID)); err != nil {
+				return fmt.Errorf("write wikitree page: %w", err)
+			}
 		}
 	}
 

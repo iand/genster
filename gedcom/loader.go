@@ -258,6 +258,8 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 		Detail: cr.Page,
 	}
 
+	cit.Detail = cleanCitationDetail(cit.Detail)
+
 	if cr.Source != nil && cr.Source.Xref != "" {
 		cit.Source = m.FindSource(l.ScopeName, cr.Source.Xref)
 	}
@@ -341,4 +343,11 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 	// UserDefined []UserDefinedTag
 
 	return cit, nil
+}
+
+// cleanCitationDetail removes some redundant information that isn't necessary when a source is included
+func cleanCitationDetail(page string) string {
+	page = strings.TrimPrefix(page, "The National Archives of the UK (TNA); Kew, Surrey, England; Census Returns of England and Wales, 1891;")
+	page = strings.TrimPrefix(page, "The National Archives; Kew, London, England; 1871 England Census; ")
+	return page
 }
