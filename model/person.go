@@ -59,6 +59,7 @@ type Person struct {
 	ToDos              []*ToDo       // list of todos detected
 	MiscFacts          []Fact        // miscellaneous facts
 	FeatureImage       *FeatureImage // an image that can be used to represent the person
+	ResearchNotes      []*Note       // research notes associated with this person
 }
 
 func (p *Person) IsUnknown() bool {

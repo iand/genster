@@ -50,6 +50,10 @@ func (e *Encoder) SetBody(s string) {
 	e.main.WriteString(s)
 }
 
+func (e *Encoder) RawMarkdown(s string) {
+	e.main.WriteString(s)
+}
+
 func (e *Encoder) Heading1(s string) {
 	e.writeHeading1(&e.main, s)
 }

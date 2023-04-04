@@ -6,6 +6,7 @@ import (
 
 	"github.com/iand/genster/gedcom"
 	"github.com/iand/genster/logging"
+	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
 	"github.com/urfave/cli/v2"
 )
@@ -69,6 +70,11 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &genopts.generateWikiTree,
 		},
+		&cli.StringFlag{
+			Name:        "notes",
+			Usage:       "Path to the folder where research notes are stored (in markdown format).",
+			Destination: &genopts.notesDir,
+		},
 	}, logging.Flags...),
 }
 
@@ -78,6 +84,7 @@ var genopts struct {
 	keyIndividual    string
 	includePrivate   bool
 	configDir        string
+	notesDir         string
 	basePath         string
 	inspect          string
 	generateWikiTree bool
@@ -100,6 +107,32 @@ func gen(cc *cli.Context) error {
 	t, err := tree.LoadTree(genopts.configDir, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
+	}
+
+	if genopts.notesDir != "" {
+		nds, err := LoadNotes(genopts.notesDir)
+		if err != nil {
+			return fmt.Errorf("load notes: %w", err)
+		}
+
+		for _, nd := range nds {
+			logging.Debug("found note", "filename", nd.Filename, "type", nd.Type)
+			if nd.Type == "note" && nd.Person != "" {
+				p, ok := t.GetPerson(nd.Person)
+				if !ok {
+					logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
+					continue
+				}
+				logging.Debug("found research note for person", "filename", nd.Filename, "id", nd.Person)
+				p.ResearchNotes = append(p.ResearchNotes, &model.Note{
+					Title:    nd.Title,
+					Author:   nd.Author,
+					Date:     nd.Date,
+					Markdown: nd.Markdown,
+				})
+			}
+		}
+
 	}
 
 	s := NewSite(genopts.basePath, t)

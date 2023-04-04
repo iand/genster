@@ -118,5 +118,28 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		doc.UnorderedList(links)
 	}
 
+	if len(p.ResearchNotes) > 0 {
+		doc.Heading2("Research Notes")
+		for _, n := range p.ResearchNotes {
+			doc.Heading3(n.Title)
+
+			byline := ""
+			if n.Author != "" {
+				byline = "by " + n.Author
+			}
+			if n.Date != "" {
+				if byline != "" {
+					byline += ", "
+				}
+				byline += n.Date
+			}
+			if byline != "" {
+				doc.Para(doc.EncodeItalic("Written " + byline))
+				doc.EmptyPara()
+			}
+			doc.RawMarkdown(n.Markdown)
+		}
+	}
+
 	return doc, nil
 }
