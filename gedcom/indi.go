@@ -324,14 +324,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				p.Anomalies = append(p.Anomalies, anom)
 			}
 
-			if len(ev.GetCitations()) == 0 && ev.GetDate().IsFirm() {
-				p.ToDos = append(p.ToDos, &model.ToDo{
-					Category: "Citation",
-					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
-					Context:  "No citation for " + ev.Type() + " event",
-				})
-			}
-
 		}
 	}
 

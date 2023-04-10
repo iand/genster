@@ -333,6 +333,10 @@ func AppendAside(s, clause string) string {
 	return AppendClause(s, clause) + ","
 }
 
+func StripTerminator(s string) string {
+	return strings.TrimRight(s, ",:;.!?")
+}
+
 func AppendIndependentClause(s, clause string) string {
 	if s == "" {
 		return clause
@@ -341,7 +345,7 @@ func AppendIndependentClause(s, clause string) string {
 		return s
 	}
 	s = strings.TrimSpace(s)
-	s = strings.TrimRight(s, ",:;.!?")
+	s = StripTerminator(s)
 	return s + "; " + clause
 }
 

@@ -66,9 +66,9 @@ func NewSite(basePath string, t *tree.Tree) *Site {
 		PlacePagePattern: path.Join(basePath, "place/%s/"),
 		PlaceFilePattern: "/place/%s/index.md",
 
-		WikiTreeDir:         "wikitree",
-		WikiTreePagePattern: path.Join(basePath, "wikitree/%s/"),
-		WikiTreeFilePattern: "/wikitree/%s/index.md",
+		WikiTreeDir:         "person",
+		WikiTreePagePattern: path.Join(basePath, "person/%s/wikitree"),
+		WikiTreeFilePattern: "/person/%s/wikitree.md",
 
 		CalendarPagePattern: path.Join(basePath, "calendar/%02d/"),
 		CalendarFilePattern: "/calendar/%02d.md",
@@ -185,8 +185,9 @@ func (s *Site) Generate() error {
 	}
 	for _, p := range s.Tree.People {
 		GenerateOlb(p)
-		s.AssignTags(p)
+		s.ScanPersonTodos(p)
 		s.ScanPersonForAnomalies(p)
+		s.AssignTags(p)
 	}
 
 	return nil
@@ -250,6 +251,10 @@ func (s *Site) AssignTags(p *model.Person) error {
 
 	if p.WikiTreeID != "" {
 		p.Tags = append(p.Tags, "WikiTree")
+	}
+
+	if len(p.ResearchNotes) > 0 {
+		p.Tags = append(p.Tags, "Has Research Notes")
 	}
 
 	return nil
@@ -383,6 +388,20 @@ func (s *Site) LinkFor(v any) string {
 	}
 }
 
+func (s *Site) LinkForFormat(v any, format string) string {
+	switch format {
+	case "markdown":
+		return s.LinkFor(v)
+	case "wikitree":
+		switch vt := v.(type) {
+		case *model.Person:
+			return fmt.Sprintf(s.WikiTreePagePattern, vt.ID)
+		}
+	}
+
+	return ""
+}
+
 func (s *Site) NewDocument() *md.Document {
 	doc := &md.Document{}
 	doc.BasePath(s.BasePath)
@@ -513,8 +532,8 @@ func (s *Site) WriteTodoPages(root string) error {
 			logging.Debug("not writing redacted person to todo index", "id", p.ID)
 			continue
 		}
-		categories := make([]string, 0)
-		todosByCategory := make(map[string][]*model.ToDo)
+		categories := make([]model.ToDoCategory, 0)
+		todosByCategory := make(map[model.ToDoCategory][]*model.ToDo)
 
 		for _, a := range p.ToDos {
 			a := a // avoid shadowing
@@ -528,7 +547,9 @@ func (s *Site) WriteTodoPages(root string) error {
 			categories = append(categories, a.Category)
 			todosByCategory[a.Category] = []*model.ToDo{a}
 		}
-		sort.Strings(categories)
+		sort.Slice(categories, func(i, j int) bool {
+			return categories[i] < categories[j]
+		})
 
 		if len(todosByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
@@ -540,15 +561,19 @@ func (s *Site) WriteTodoPages(root string) error {
 			}
 			for _, cat := range categories {
 				al := todosByCategory[cat]
-				items := make([][2]string, 0, len(al))
+				items := make([]string, 0, len(al))
 
 				for _, a := range al {
-					items = append(items, [2]string{
-						a.Context,
-						a.Text,
-					})
+					line := b.EncodeItalic(a.Context) + ": " + text.StripTerminator(text.LowerFirst(a.Goal))
+					if a.Reason != "" {
+						line += " (" + text.LowerFirst(a.Reason) + ")"
+					} else {
+						line = text.FinishSentence(line)
+					}
+					items = append(items, line)
 				}
-				b.DefinitionList(items)
+				b.Heading4(cat.String())
+				b.UnorderedList(items)
 			}
 			pn.AddEntry(p.PreferredSortName, b.Markdown())
 		}

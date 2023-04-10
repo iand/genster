@@ -164,23 +164,6 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 			}
 		}
 
-		if len(ev.GetCitations()) == 0 && ev.GetDate().IsFirm() {
-			if !mother.IsUnknown() {
-				mother.ToDos = append(mother.ToDos, &model.ToDo{
-					Category: "Citation",
-					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
-					Context:  "No citation for " + ev.Type() + " event",
-				})
-			}
-			if !father.IsUnknown() {
-				father.ToDos = append(father.ToDos, &model.ToDo{
-					Category: "Citation",
-					Text:     fmt.Sprintf("This event appears to have a firm date %q but no source citation", ev.GetDate().String()),
-					Context:  "No citation for " + ev.Type() + " event",
-				})
-			}
-		}
-
 	}
 
 	return nil

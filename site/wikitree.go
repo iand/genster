@@ -18,6 +18,9 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
 	doc.SetFrontMatterField("gender", p.Gender.Noun())
+	if l := s.LinkForFormat(p, "markdown"); l != "" {
+		doc.SetFrontMatterField("markdownformat", l)
+	}
 
 	if p.WikiTreeID != "" {
 		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)
@@ -401,7 +404,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if !hasExcludedTranscriptionSource(c) {
 		if len(c.TranscriptionText) > 0 {
 			for _, t := range c.TranscriptionText {
-				detail = text.AppendIndependentClause(detail, w.EncodeItalic(`"`+text.StripNewlines(t)+`"`))
+				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(text.StripNewlines(t))+`"`)
 			}
 		}
 	}

@@ -17,6 +17,10 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	doc.Title(p.PreferredUniqueName)
 	doc.SetFrontMatterField("gender", p.Gender.Noun())
 
+	if l := s.LinkForFormat(p, "wikitree"); l != "" {
+		doc.SetFrontMatterField("wikitreeformat", l)
+	}
+
 	if p.Redacted {
 		doc.Summary("information withheld to preserve privacy")
 		return doc, nil
