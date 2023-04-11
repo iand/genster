@@ -1,20 +1,15 @@
 package model
 
+// Relation describes the relationship between the From person and the To
 type Relation struct {
-	From                *Person
-	To                  *Person
-	CommonAncestor      *Person
-	FromGenerations     int       // number of generations between the From person and CommonAncestor. 1 = parent
-	ToGenerations       int       // number of generations between the To person and CommonAncestor. 1 = parent
-	SpouseRelation      *Relation // if the To person does not share an ancestor with the From person, then this is the relation of the spouse to From
-	ToSpouseGenerations int       // number of generations between the To person and CommonSpouse. 0 = spouse, 1 = parent of spouse
-}
-
-func (r *Relation) IsDirectAncestor() bool {
-	if r == nil {
-		return false
-	}
-	return r.To.SameAs(r.CommonAncestor)
+	From                  *Person
+	To                    *Person
+	CommonAncestor        *Person
+	FromGenerations       int       // number of generations between the From person and CommonAncestor. 1 = common ancestor is parent of from
+	ToGenerations         int       // number of generations between the To person and CommonAncestor. 1 = common ancestor is parent of to
+	ClosestDirectRelation *Relation // if the To person does not share an ancestor with the From person, then this is the relation of From to a person who was the partner/spouse of a direct relation of To
+	// ToSpouseGenerations   int       // number of generations between the To person and the spouse of SpouseRelation. 0 = spouse, 1 = parent of spouse
+	SpouseRelation *Relation // the relationship of the To person to the spouse of the ClosestDirectRelation
 }
 
 func (r *Relation) IsSelf() bool {
@@ -22,6 +17,38 @@ func (r *Relation) IsSelf() bool {
 		return false
 	}
 	return r.To.SameAs(r.From)
+}
+
+// IsDirectAncestor reports whether the To person is a direct ancestor of the From person
+func (r *Relation) IsDirectAncestor() bool {
+	if r == nil {
+		return false
+	}
+	return r.To.SameAs(r.CommonAncestor)
+}
+
+// IsParent reports whether the To person is a parent of the From person
+func (r *Relation) IsParent() bool {
+	if r == nil {
+		return false
+	}
+	return r.To.SameAs(r.CommonAncestor) && r.FromGenerations == 1
+}
+
+// IsDirectAncestor reports whether the To person is a direct ancestor of the From person
+func (r *Relation) IsDirectDescendant() bool {
+	if r == nil {
+		return false
+	}
+	return r.From.SameAs(r.CommonAncestor)
+}
+
+// IsChild reports whether the To person is a child of the From person
+func (r *Relation) IsChild() bool {
+	if r == nil {
+		return false
+	}
+	return r.From.SameAs(r.CommonAncestor) && r.ToGenerations == 1
 }
 
 // Name returns the name of the relation between From and To, in the
@@ -170,9 +197,19 @@ func (r *Relation) Name() string {
 
 	}
 
-	if r.SpouseRelation != nil {
+	if r.ClosestDirectRelation != nil && r.SpouseRelation != nil {
 		var rel string
-		if r.ToSpouseGenerations == 0 {
+		if r.SpouseRelation.IsSelf() {
+			if r.ClosestDirectRelation.IsParent() {
+				switch r.To.Gender {
+				case GenderMale:
+					return "step-father"
+				case GenderFemale:
+					return "step-mother"
+				default:
+					return "step-parent"
+				}
+			}
 			switch r.To.Gender {
 			case GenderMale:
 				rel = "husband"
@@ -181,7 +218,7 @@ func (r *Relation) Name() string {
 			default:
 				rel = "spouse"
 			}
-		} else if r.ToSpouseGenerations == 1 {
+		} else if r.SpouseRelation.FromGenerations == 1 {
 			switch r.To.Gender {
 			case GenderMale:
 				rel = "father-in-law"
@@ -190,7 +227,7 @@ func (r *Relation) Name() string {
 			default:
 				rel = "parent-in-law"
 			}
-		} else if r.ToSpouseGenerations == -1 {
+		} else if r.SpouseRelation.ToGenerations == 1 {
 			switch r.To.Gender {
 			case GenderMale:
 				rel = "stepson"
@@ -202,16 +239,129 @@ func (r *Relation) Name() string {
 		}
 
 		if rel != "" {
-			if r.SpouseRelation.From.SameAs(r.SpouseRelation.To) {
+			if r.ClosestDirectRelation.From.SameAs(r.ClosestDirectRelation.To) {
 				return rel
 			}
 
-			return rel + " of the " + r.SpouseRelation.Name()
+			return rel + " of the " + r.ClosestDirectRelation.Name()
 		}
 
 	}
 
 	return "unknown relation"
+}
+
+const MaxDistance = 1000
+
+// Distance computes a score for how distant the relationship is.
+// A self relationship has score 0, a parent/child/spouse has score 1
+// A direct ancestor scores 1 per generation step
+// A direct descendant scores 1 per generation step
+// A descendant of a common ancestor scores 1 per generation step to the common ancestor and 2 per generation down beyond the first
+// A non-direct relationship doubles the score of the closest direct relationship
+func (r *Relation) Distance() int {
+	if r == nil {
+		return MaxDistance
+	}
+	if r.From.SameAs(r.To) {
+		// self
+		return 0
+	}
+	if r.CommonAncestor != nil {
+		// Is the From person the common ancestor
+		if r.From.SameAs(r.CommonAncestor) {
+			// The To person is a descendant
+			return r.ToGenerations
+		}
+
+		// Is the To person the common ancestor
+		if r.To.SameAs(r.CommonAncestor) {
+			// The To person is a direct ancestor
+			return r.FromGenerations
+		}
+
+		// direct relationship
+		return r.FromGenerations + 2*(r.ToGenerations-1)
+	} else if r.ClosestDirectRelation != nil && r.SpouseRelation != nil {
+		// indirect relationship
+		if r.SpouseRelation.Distance() == 0 {
+			return r.ClosestDirectRelation.Distance() + 1
+		}
+		return r.ClosestDirectRelation.Distance() + r.SpouseRelation.Distance()*2
+	}
+
+	return MaxDistance
+}
+
+// ExtendToSpouse produces a new relationship extended to the spouse of the To person
+func (r *Relation) ExtendToSpouse(spouse *Person) *Relation {
+	return &Relation{
+		From:                  r.From,
+		To:                    spouse,
+		ClosestDirectRelation: r,
+		SpouseRelation:        Self(spouse),
+	}
+}
+
+// ExtendToChild produces a new relationship extended to the child of the To person
+func (r *Relation) ExtendToChild(ch *Person) *Relation {
+	if r.CommonAncestor != nil {
+		return &Relation{
+			From:            r.From,
+			To:              ch,
+			CommonAncestor:  r.CommonAncestor,
+			FromGenerations: r.FromGenerations,
+			ToGenerations:   r.ToGenerations + 1,
+		}
+	} else if r.ClosestDirectRelation != nil && r.SpouseRelation != nil {
+		return &Relation{
+			From:                  r.From,
+			To:                    ch,
+			ClosestDirectRelation: r.ClosestDirectRelation,
+			SpouseRelation:        r.SpouseRelation.ExtendToChild(ch),
+		}
+	} else {
+		return &Relation{
+			From: r.From,
+			To:   ch,
+		}
+	}
+}
+
+// ExtendToParent produces a new relationship extended to the parent of the To person
+func (r *Relation) ExtendToParent(ch *Person) *Relation {
+	if r.CommonAncestor != nil {
+		if r.CommonAncestor.SameAs(r.To) {
+			return &Relation{
+				From:            r.From,
+				To:              ch,
+				CommonAncestor:  ch,
+				FromGenerations: r.FromGenerations + 1,
+				ToGenerations:   0,
+			}
+		} else {
+			return &Relation{
+				From:            r.From,
+				To:              ch,
+				CommonAncestor:  r.CommonAncestor,
+				FromGenerations: r.FromGenerations,
+				ToGenerations:   r.ToGenerations - 1,
+			}
+		}
+		// TODO
+		// } else if r.ClosestDirectRelation != nil && r.SpouseRelation != nil {
+		// 	return &Relation{
+		// 		From:                  r.From,
+		// 		To:                    ch,
+		// 		ClosestDirectRelation: r.ClosestDirectRelation,
+		// 		SpouseRelation:        r.SpouseRelation.ExtendToChild(ch),
+		// 	}
+	} else {
+		return &Relation{
+			From: r.From,
+			To:   ch,
+		}
+	}
 }
 
 func abs(i int) int {
@@ -228,5 +378,24 @@ func Parent(child *Person, parent *Person) *Relation {
 		CommonAncestor:  parent,
 		FromGenerations: 1,
 		ToGenerations:   0,
+	}
+}
+
+func Self(p *Person) *Relation {
+	return &Relation{
+		From:            p,
+		To:              p,
+		CommonAncestor:  p,
+		FromGenerations: 0,
+		ToGenerations:   0,
+	}
+}
+
+func Spouse(p *Person, spouse *Person) *Relation {
+	return &Relation{
+		From:                  p,
+		To:                    spouse,
+		ClosestDirectRelation: Self(p),
+		SpouseRelation:        Self(spouse),
 	}
 }

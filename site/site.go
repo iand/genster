@@ -476,7 +476,9 @@ func (s *Site) WriteAnomaliesPages(root string) error {
 				}
 				b.DefinitionList(items)
 			}
-			pn.AddEntry(p.PreferredSortName, b.Markdown())
+
+			group, groupPriority := groupRelation(p.RelationToKeyPerson)
+			pn.AddEntryWithGroup(p.PreferredSortName, b.Markdown(), group, groupPriority)
 		}
 
 	}
@@ -575,7 +577,9 @@ func (s *Site) WriteTodoPages(root string) error {
 				b.Heading4(cat.String())
 				b.UnorderedList(items)
 			}
-			pn.AddEntry(p.PreferredSortName, b.Markdown())
+
+			group, groupPriority := groupRelation(p.RelationToKeyPerson)
+			pn.AddEntryWithGroup(p.PreferredSortName, b.Markdown(), group, groupPriority)
 		}
 
 	}
@@ -650,4 +654,25 @@ func (s *Site) WriteSourceIndexPages(root string) error {
 	}
 
 	return nil
+}
+
+func groupRelation(rel *model.Relation) (string, int) {
+	var group string
+	var groupPriority int
+	distance := rel.Distance()
+	if distance < 5 {
+		group = "Close relations"
+		groupPriority = 1
+	} else if rel.IsDirectAncestor() {
+		group = "Direct ancestors"
+		groupPriority = 2
+	} else if distance < 12 {
+		group = "Distant relations"
+		groupPriority = 3
+	} else {
+		group = "Others"
+		groupPriority = 4
+	}
+
+	return group, groupPriority
 }

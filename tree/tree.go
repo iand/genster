@@ -98,6 +98,7 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place {
 	p, ok := t.Places[gp.id]
 	if !ok {
+		logging.Info("adding place to map", "name", name, "id", gp.id)
 
 		p = &model.Place{
 			ID: gp.id,
@@ -120,6 +121,8 @@ func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place
 					p.PreferredFullName = gp.name + ", " + parent.PreferredFullName
 					p.PreferredUniqueName = gp.name + ", " + parent.PreferredUniqueName
 				}
+			} else {
+				logging.Warn("parent id not found in gazeteer", "parent_id", gp.parentID, "id", gp.id)
 			}
 		}
 
@@ -224,6 +227,8 @@ func (t *Tree) Generate(redactLiving bool) error {
 	for _, f := range t.Families {
 		t.InferFamilyStartEndDates(f)
 	}
+
+	t.BuildRelationsToKeyPerson()
 
 	// Redact any personal information
 	t.Redact(redactLiving)
@@ -652,84 +657,58 @@ EventLoop:
 
 func (t *Tree) SetKeyPerson(p *model.Person) {
 	t.KeyPerson = p
-	var ppl []*model.Person
-	var roots []*model.Person
+}
 
-	p.RelationToKeyPerson = &model.Relation{
-		From:            p,
-		To:              p,
-		CommonAncestor:  p,
-		FromGenerations: 0,
-		ToGenerations:   0,
+func (t *Tree) BuildRelationsToKeyPerson() {
+	if t.KeyPerson == nil {
+		return
 	}
-	p.RedactionKeepsName = true
+	t.KeyPerson.RelationToKeyPerson = model.Self(t.KeyPerson)
+	t.KeyPerson.RedactionKeepsName = true
 
-	ppl = append(ppl, p)
+	descendKeyPersonRelationship(t.KeyPerson)
+	roots := ascendKeyPersonRelationship(t.KeyPerson)
+	for _, r := range roots {
+		descendKeyPersonRelationship(r)
+	}
+}
 
-	// Ascend all known ancestors
-	for len(ppl) > 0 {
-		cur := ppl[0]
-		ppl = ppl[1:]
+func ascendKeyPersonRelationship(p *model.Person) []*model.Person {
+	if p.Father == nil && p.Mother == nil {
+		// this person is a root of the tree
+		return []*model.Person{p}
+	}
 
-		if cur.Father == nil && cur.Mother == nil {
-			roots = append(roots, cur)
+	var roots []*model.Person
+	if p.Father != nil {
+		p.Father.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToParent(p.Father)
+		froots := ascendKeyPersonRelationship(p.Father)
+		roots = append(roots, froots...)
+	}
+
+	if p.Mother != nil {
+		p.Mother.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToParent(p.Mother)
+		mroots := ascendKeyPersonRelationship(p.Mother)
+		roots = append(roots, mroots...)
+	}
+
+	return roots
+}
+
+func descendKeyPersonRelationship(p *model.Person) {
+	for _, ch := range p.Children {
+		if ch.RelationToKeyPerson != nil {
 			continue
 		}
-
-		if cur.Father != nil {
-			cur.Father.RelationToKeyPerson = &model.Relation{
-				From:            p,
-				To:              cur.Father,
-				CommonAncestor:  cur.Father,
-				FromGenerations: cur.RelationToKeyPerson.FromGenerations + 1,
-				ToGenerations:   0,
-			}
-			ppl = append(ppl, cur.Father)
-		}
-		if cur.Mother != nil {
-			cur.Mother.RelationToKeyPerson = &model.Relation{
-				From:            p,
-				To:              cur.Mother,
-				CommonAncestor:  cur.Mother,
-				FromGenerations: cur.RelationToKeyPerson.FromGenerations + 1,
-				ToGenerations:   0,
-			}
-			ppl = append(ppl, cur.Mother)
-		}
+		ch.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToChild(ch)
+		descendKeyPersonRelationship(ch)
 	}
 
-	// Descend all known descendants of roots
-	for len(roots) > 0 {
-		cur := roots[0]
-		roots = roots[1:]
-
-		for _, c := range cur.Children {
-			if c.RelationToKeyPerson == nil {
-				c.RelationToKeyPerson = &model.Relation{
-					From:            p,
-					To:              c,
-					CommonAncestor:  cur.RelationToKeyPerson.CommonAncestor,
-					FromGenerations: cur.RelationToKeyPerson.FromGenerations,
-					ToGenerations:   cur.RelationToKeyPerson.ToGenerations + 1,
-					SpouseRelation:  cur.RelationToKeyPerson.SpouseRelation,
-				}
-			}
-
-			roots = append(roots, c)
+	for _, sp := range p.Spouses {
+		if sp.RelationToKeyPerson != nil {
+			continue
 		}
-
-		for _, sp := range cur.Spouses {
-			if sp.RelationToKeyPerson == nil {
-				sp.RelationToKeyPerson = &model.Relation{
-					From:            p,
-					To:              sp,
-					FromGenerations: cur.RelationToKeyPerson.FromGenerations,
-					ToGenerations:   cur.RelationToKeyPerson.ToGenerations,
-					SpouseRelation:  cur.RelationToKeyPerson,
-				}
-				roots = append(roots, sp)
-			}
-		}
-
+		sp.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToSpouse(sp)
+		// recurseKeyPersonRelationship(sp)
 	}
 }

@@ -1,10 +1,18 @@
 package model
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+)
 
 func makeSelfRelation() *Relation {
+	return makeGenderedSelfRelation(GenderMale)
+}
+
+func makeGenderedSelfRelation(gender Gender) *Relation {
 	p := &Person{
-		Gender: GenderMale,
+		Gender: gender,
 	}
 
 	return &Relation{
@@ -98,267 +106,133 @@ func makeGenderedCousinRelation(fromGenerations, toGenerations int, sex Gender) 
 	}
 }
 
-func makeGenderedSpouseRelation(spouseRelation *Relation, toSpouseGenerations int, sex Gender) *Relation {
+func makeSpouseRelation(closestDirectRelation *Relation, spouseRelation *Relation) *Relation {
 	return &Relation{
-		From: spouseRelation.From,
-		To: &Person{
-			Gender: sex,
-		},
-		SpouseRelation:      spouseRelation,
-		ToSpouseGenerations: toSpouseGenerations,
+		From:                  closestDirectRelation.From,
+		To:                    spouseRelation.To,
+		ClosestDirectRelation: closestDirectRelation,
+		SpouseRelation:        spouseRelation,
 	}
 }
 
-func TestRelationsDirect(t *testing.T) {
+var testRelations = map[string]*Relation{
+	"father":                           makeDirectAncestorRelation("f"),
+	"mother":                           makeDirectAncestorRelation("m"),
+	"grandfather":                      makeDirectAncestorRelation("ff"),
+	"grandmother":                      makeDirectAncestorRelation("fm"),
+	"great grandfather":                makeDirectAncestorRelation("mmf"),
+	"great grandmother":                makeDirectAncestorRelation("mmm"),
+	"son":                              makeDirectDescendentRelation("f", GenderMale),
+	"daughter":                         makeDirectDescendentRelation("f", GenderFemale),
+	"child":                            makeDirectDescendentRelation("f", GenderUnknown),
+	"grandson":                         makeDirectDescendentRelation("mf", GenderMale),
+	"granddaughter":                    makeDirectDescendentRelation("mf", GenderFemale),
+	"grandchild":                       makeDirectDescendentRelation("mf", GenderUnknown),
+	"great grandson":                   makeDirectDescendentRelation("mmf", GenderMale),
+	"great granddaughter":              makeDirectDescendentRelation("mmf", GenderFemale),
+	"great grandchild":                 makeDirectDescendentRelation("mmf", GenderUnknown),
+	"first cousin":                     makeCousinRelation(2, 2),
+	"second cousin":                    makeCousinRelation(3, 3),
+	"third cousin":                     makeCousinRelation(4, 4),
+	"fourth cousin":                    makeCousinRelation(5, 5),
+	"fifth cousin":                     makeCousinRelation(6, 6),
+	"sixth cousin":                     makeCousinRelation(7, 7),
+	"seventh cousin":                   makeCousinRelation(8, 8),
+	"eighth cousin":                    makeCousinRelation(9, 9),
+	"ninth cousin":                     makeCousinRelation(10, 10),
+	"uncle":                            makeGenderedCousinRelation(2, 1, GenderMale),
+	"aunt":                             makeGenderedCousinRelation(2, 1, GenderFemale),
+	"great uncle":                      makeGenderedCousinRelation(3, 1, GenderMale),
+	"great aunt":                       makeGenderedCousinRelation(3, 1, GenderFemale),
+	"great great uncle":                makeGenderedCousinRelation(4, 1, GenderMale),
+	"great great aunt":                 makeGenderedCousinRelation(4, 1, GenderFemale),
+	"first cousin twice removed":       makeCousinRelation(2, 4),
+	"first cousin three times removed": makeCousinRelation(2, 5),
+	"first cousin four times removed":  makeCousinRelation(2, 6),
+	"second cousin once removed":       makeCousinRelation(3, 2),
+	"husband":                          makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderMale)),
+	"wife":                             makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderFemale)),
+	"spouse":                           makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderUnknown)),
+	"father-in-law":                    makeSpouseRelation(makeSelfRelation(), makeDirectAncestorRelation("f")),
+	"mother-in-law":                    makeSpouseRelation(makeSelfRelation(), makeDirectAncestorRelation("m")),
+	"stepson":                          makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderMale)),
+	"stepdaughter":                     makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderFemale)),
+	"stepchild":                        makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderUnknown)),
+
+	"brother": {
+		To: &Person{
+			Gender: GenderMale,
+		},
+		From: &Person{
+			Gender: GenderMale,
+		},
+		CommonAncestor: &Person{
+			Gender: GenderMale,
+		},
+		FromGenerations: 1,
+		ToGenerations:   1,
+	},
+	"sister": {
+		To: &Person{
+			Gender: GenderMale,
+		},
+		From: &Person{
+			Gender: GenderFemale,
+		},
+		CommonAncestor: &Person{
+			Gender: GenderMale,
+		},
+		FromGenerations: 1,
+		ToGenerations:   1,
+	},
+
+	"sibling": {
+		To: &Person{
+			Gender: GenderMale,
+		},
+		From: &Person{},
+		CommonAncestor: &Person{
+			Gender: GenderMale,
+		},
+		FromGenerations: 1,
+		ToGenerations:   1,
+	},
+
+	"step-mother": makeSpouseRelation(makeDirectAncestorRelation("f"), makeGenderedSelfRelation(GenderFemale)),
+	"step-father": makeSpouseRelation(makeDirectAncestorRelation("m"), makeGenderedSelfRelation(GenderMale)),
+}
+
+func TestRelationName(t *testing.T) {
+	for want, rel := range testRelations {
+		t.Run(want, func(t *testing.T) {
+			got := rel.Name()
+			if got != want {
+				t.Errorf("got %s, wanted %s", got, want)
+			}
+		})
+	}
+}
+
+func TestRelationsViaSpouse(t *testing.T) {
 	testCases := []struct {
 		rel  *Relation
 		want string
 	}{
 		{
-			rel:  makeDirectAncestorRelation("f"),
-			want: "father",
-		},
-		{
-			rel:  makeDirectAncestorRelation("m"),
-			want: "mother",
-		},
-		{
-			rel:  makeDirectAncestorRelation("ff"),
-			want: "grandfather",
-		},
-		{
-			rel:  makeDirectAncestorRelation("mf"),
-			want: "grandfather",
-		},
-		{
-			rel:  makeDirectAncestorRelation("fm"),
-			want: "grandmother",
-		},
-		{
-			rel:  makeDirectAncestorRelation("mm"),
-			want: "grandmother",
-		},
-		{
-			rel:  makeDirectAncestorRelation("mmm"),
-			want: "great grandmother",
-		},
-		{
-			rel:  makeDirectAncestorRelation("fmm"),
-			want: "great grandmother",
-		},
-		{
-			rel:  makeDirectAncestorRelation("fmmf"),
-			want: "great great grandfather",
-		},
-		{
-			rel:  makeDirectDescendentRelation("f", GenderMale),
-			want: "son",
-		},
-		{
-			rel:  makeDirectDescendentRelation("m", GenderMale),
-			want: "son",
-		},
-		{
-			rel:  makeDirectDescendentRelation("f", GenderFemale),
-			want: "daughter",
-		},
-		{
-			rel:  makeDirectDescendentRelation("m", GenderFemale),
-			want: "daughter",
-		},
-		{
-			rel:  makeDirectDescendentRelation("mf", GenderMale),
-			want: "grandson",
-		},
-		{
-			rel:  makeDirectDescendentRelation("fm", GenderMale),
-			want: "grandson",
-		},
-		{
-			rel:  makeDirectDescendentRelation("mf", GenderFemale),
-			want: "granddaughter",
-		},
-		{
-			rel:  makeDirectDescendentRelation("fm", GenderFemale),
-			want: "granddaughter",
-		},
-		{
-			rel:  makeDirectDescendentRelation("mfm", GenderFemale),
-			want: "great granddaughter",
-		},
-		{
-			rel: &Relation{
-				To: &Person{
-					Gender: GenderMale,
-				},
-				From: &Person{
-					Gender: GenderMale,
-				},
-				CommonAncestor: &Person{
-					Gender: GenderMale,
-				},
-				FromGenerations: 1,
-				ToGenerations:   1,
-			},
-
-			want: "brother",
-		},
-		{
-			rel: &Relation{
-				To: &Person{
-					Gender: GenderMale,
-				},
-				From: &Person{
-					Gender: GenderFemale,
-				},
-				CommonAncestor: &Person{
-					Gender: GenderMale,
-				},
-				FromGenerations: 1,
-				ToGenerations:   1,
-			},
-
-			want: "sister",
-		},
-		{
-			rel: &Relation{
-				To: &Person{
-					Gender: GenderMale,
-				},
-				From: &Person{},
-				CommonAncestor: &Person{
-					Gender: GenderMale,
-				},
-				FromGenerations: 1,
-				ToGenerations:   1,
-			},
-
-			want: "sibling",
-		},
-		{
-			rel:  makeCousinRelation(2, 2),
-			want: "first cousin",
-		},
-		{
-			rel:  makeCousinRelation(3, 3),
-			want: "second cousin",
-		},
-		{
-			rel:  makeCousinRelation(4, 4),
-			want: "third cousin",
-		},
-		{
-			rel:  makeCousinRelation(5, 5),
-			want: "fourth cousin",
-		},
-		{
-			rel:  makeCousinRelation(6, 6),
-			want: "fifth cousin",
-		},
-		{
-			rel:  makeCousinRelation(7, 7),
-			want: "sixth cousin",
-		},
-		{
-			rel:  makeCousinRelation(8, 8),
-			want: "seventh cousin",
-		},
-		{
-			rel:  makeCousinRelation(9, 9),
-			want: "eighth cousin",
-		},
-		{
-			rel:  makeCousinRelation(10, 10),
-			want: "ninth cousin",
-		},
-		{
-			rel:  makeGenderedCousinRelation(2, 1, GenderMale),
-			want: "uncle",
-		},
-		{
-			rel:  makeGenderedCousinRelation(2, 1, GenderFemale),
-			want: "aunt",
-		},
-		{
-			rel:  makeGenderedCousinRelation(3, 1, GenderMale),
-			want: "great uncle",
-		},
-		{
-			rel:  makeGenderedCousinRelation(3, 1, GenderFemale),
-			want: "great aunt",
-		},
-		{
-			rel:  makeGenderedCousinRelation(4, 1, GenderMale),
-			want: "great great uncle",
-		},
-		{
-			rel:  makeGenderedCousinRelation(4, 1, GenderFemale),
-			want: "great great aunt",
-		},
-		{
-			rel:  makeCousinRelation(2, 4),
-			want: "first cousin twice removed",
-		},
-		{
-			rel:  makeCousinRelation(3, 2),
-			want: "second cousin once removed",
-		},
-		{
-			rel:  makeCousinRelation(3, 2),
-			want: "second cousin once removed",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 0, GenderMale),
+			rel:  makeSpouseRelation(makeGenderedSelfRelation(GenderFemale), makeGenderedSelfRelation(GenderMale)),
 			want: "husband",
 		},
 		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 0, GenderFemale),
+			rel:  makeSpouseRelation(makeGenderedSelfRelation(GenderMale), makeGenderedSelfRelation(GenderFemale)),
 			want: "wife",
 		},
 		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 0, GenderUnknown),
+			rel:  makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderUnknown)),
 			want: "spouse",
 		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 1, GenderMale),
-			want: "father-in-law",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 1, GenderFemale),
-			want: "mother-in-law",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), 1, GenderUnknown),
-			want: "parent-in-law",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), -1, GenderMale),
-			want: "stepson",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), -1, GenderFemale),
-			want: "stepdaughter",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeSelfRelation(), -1, GenderUnknown),
-			want: "stepchild",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeDirectAncestorRelation("ff"), 0, GenderFemale),
-			want: "wife of the grandfather",
-		},
-		{
-			rel:  makeGenderedSpouseRelation(makeDirectAncestorRelation("fm"), 0, GenderMale),
-			want: "husband of the grandmother",
-		},
-		// {
-		// 	rel:  makeGenderedSpouseRelation(makeDirectAncestorRelation("m"), 0, SexMale),
-		// 	want: "step-father",
-		// },
-		// {
-		// 	rel:  makeGenderedSpouseRelation(makeDirectAncestorRelation("f"), 0, SexFemale),
-		// 	want: "step-mother",
-		// },
+
+		// Judith Margery King is first cousin once removed
+
 	}
 
 	for _, tc := range testCases {
@@ -366,6 +240,347 @@ func TestRelationsDirect(t *testing.T) {
 			got := tc.rel.Name()
 			if got != tc.want {
 				t.Errorf("got %s, wanted %s", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRelationDistanceByName(t *testing.T) {
+	testCases := []struct {
+		name string
+		want int
+	}{
+		{
+			name: "father",
+			want: 1,
+		},
+		{
+			name: "mother",
+			want: 1,
+		},
+		{
+			name: "grandfather",
+			want: 2,
+		},
+		{
+			name: "grandmother",
+			want: 2,
+		},
+		{
+			name: "great grandfather",
+			want: 3,
+		},
+		{
+			name: "great grandmother",
+			want: 3,
+		},
+		{
+			name: "son",
+			want: 1,
+		},
+		{
+			name: "daughter",
+			want: 1,
+		},
+		{
+			name: "child",
+			want: 1,
+		},
+		{
+			name: "grandson",
+			want: 2,
+		},
+		{
+			name: "granddaughter",
+			want: 2,
+		},
+		{
+			name: "grandchild",
+			want: 2,
+		},
+		{
+			name: "great grandson",
+			want: 3,
+		},
+		{
+			name: "great granddaughter",
+			want: 3,
+		},
+		{
+			name: "great grandchild",
+			want: 3,
+		},
+		{
+			name: "first cousin",
+			want: 4,
+		},
+		{
+			name: "second cousin",
+			want: 7,
+		},
+		{
+			name: "third cousin",
+			want: 10,
+		},
+		{
+			name: "fourth cousin",
+			want: 13,
+		},
+		{
+			name: "fifth cousin",
+			want: 16,
+		},
+		{
+			name: "sixth cousin",
+			want: 19,
+		},
+		{
+			name: "seventh cousin",
+			want: 22,
+		},
+		{
+			name: "eighth cousin",
+			want: 25,
+		},
+		{
+			name: "ninth cousin",
+			want: 28,
+		},
+		{
+			name: "uncle",
+			want: 2,
+		},
+		{
+			name: "aunt",
+			want: 2,
+		},
+		{
+			name: "great uncle",
+			want: 3,
+		},
+		{
+			name: "great aunt",
+			want: 3,
+		},
+		{
+			name: "great great uncle",
+			want: 4,
+		},
+		{
+			name: "great great aunt",
+			want: 4,
+		},
+		{
+			name: "first cousin twice removed",
+			want: 8,
+		},
+		{
+			name: "second cousin once removed",
+			want: 5,
+		},
+		{
+			name: "husband",
+			want: 1,
+		},
+		{
+			name: "wife",
+			want: 1,
+		},
+		{
+			name: "spouse",
+			want: 1,
+		},
+		{
+			name: "father-in-law",
+			want: 2,
+		},
+		{
+			name: "mother-in-law",
+			want: 2,
+		},
+		{
+			name: "stepson",
+			want: 2,
+		},
+		{
+			name: "stepdaughter",
+			want: 2,
+		},
+		{
+			name: "stepchild",
+			want: 2,
+		},
+
+		{
+			name: "first cousin three times removed",
+			want: 10,
+		},
+		{
+			name: "first cousin four times removed",
+			want: 12,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rel, ok := testRelations[tc.name]
+			if !ok {
+				t.Fatalf("relation %q not found", tc.name)
+			}
+
+			got := rel.Distance()
+			if got != tc.want {
+				t.Errorf("got %d, wanted %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRelationExtendToSpouse(t *testing.T) {
+	p := &Person{
+		ID: "start",
+	}
+
+	self := &Relation{
+		From:           p,
+		To:             p,
+		CommonAncestor: p,
+	}
+
+	sp := &Person{
+		ID: "spouse",
+	}
+
+	testCases := []struct {
+		rel  *Relation
+		want *Relation
+	}{
+		{
+			rel: self,
+			want: &Relation{
+				From:                  p,
+				To:                    sp,
+				CommonAncestor:        nil,
+				ClosestDirectRelation: self,
+				SpouseRelation: &Relation{
+					From:           sp,
+					To:             sp,
+					CommonAncestor: sp,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.rel.Name(), func(t *testing.T) {
+			got := tc.rel.ExtendToSpouse(sp)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtendToSpouse() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRelationExtendToChild(t *testing.T) {
+	p := &Person{
+		ID: "start",
+	}
+
+	self := &Relation{
+		From:           p,
+		To:             p,
+		CommonAncestor: p,
+	}
+
+	ch := &Person{
+		ID: "child",
+	}
+
+	testCases := []struct {
+		rel  *Relation
+		want *Relation
+	}{
+		{
+			rel: self,
+			want: &Relation{
+				From:            p,
+				To:              ch,
+				CommonAncestor:  p,
+				FromGenerations: 0,
+				ToGenerations:   1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.rel.Name(), func(t *testing.T) {
+			got := tc.rel.ExtendToChild(ch)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtendToChild() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRelationExtendToParent(t *testing.T) {
+	p := &Person{
+		ID: "start",
+	}
+
+	self := &Relation{
+		From:           p,
+		To:             p,
+		CommonAncestor: p,
+	}
+
+	pnew := &Person{
+		ID: "new",
+	}
+
+	parent := &Person{
+		ID: "parent",
+	}
+
+	testCases := []struct {
+		rel  *Relation
+		want *Relation
+	}{
+		{
+			rel: self,
+			want: &Relation{
+				From:            p,
+				To:              pnew,
+				CommonAncestor:  pnew,
+				FromGenerations: 1,
+				ToGenerations:   0,
+			},
+		},
+		{
+			rel: &Relation{
+				From:            p,
+				To:              parent,
+				CommonAncestor:  parent,
+				FromGenerations: 1,
+				ToGenerations:   0,
+			},
+			want: &Relation{
+				From:            p,
+				To:              pnew,
+				CommonAncestor:  pnew,
+				FromGenerations: 2,
+				ToGenerations:   0,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.rel.Name(), func(t *testing.T) {
+			got := tc.rel.ExtendToParent(pnew)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExtendToParent() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

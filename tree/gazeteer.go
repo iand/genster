@@ -183,6 +183,21 @@ func (g *Gazeteer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(jg)
 }
 
+func (g *Gazeteer) CleanHierarchy() {
+	// places map[string]GazeteerPlace // map of canonical id to place information
+	// lookup map[string]string        // map of place names to canonical id
+	// remove any dangling references to parents
+	for id, gp := range g.places {
+		if gp.parentID != "" {
+			_, exists := g.places[gp.parentID]
+			if !exists {
+				gp.parentID = ""
+				g.places[id] = gp
+			}
+		}
+	}
+}
+
 type GazeteerJSON struct {
 	Places map[string]PlaceInfoJSON `json:"places"`
 }
@@ -215,6 +230,8 @@ func LoadGazeteer(filename string) (*Gazeteer, error) {
 	if err := d.Decode(&g); err != nil {
 		return nil, fmt.Errorf("read: %w", err)
 	}
+
+	g.CleanHierarchy()
 
 	return &g, nil
 }

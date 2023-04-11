@@ -93,8 +93,10 @@ func NewPaginator() *Paginator {
 }
 
 type PaginatorEntry struct {
-	Key     string
-	Content string
+	Key           string
+	Group         string
+	GroupPriority int
+	Content       string
 }
 
 func (p *Paginator) AddEntry(key string, content string) {
@@ -104,8 +106,20 @@ func (p *Paginator) AddEntry(key string, content string) {
 	})
 }
 
+func (p *Paginator) AddEntryWithGroup(key string, content string, group string, groupPriority int) {
+	p.Entries = append(p.Entries, PaginatorEntry{
+		Key:           key,
+		Group:         group,
+		GroupPriority: groupPriority,
+		Content:       content,
+	})
+}
+
 func (p *Paginator) WritePages(s *Site, baseDir string, section string, title string) error {
 	sort.Slice(p.Entries, func(i, j int) bool {
+		if p.Entries[i].Group != p.Entries[j].Group {
+			return p.Entries[i].GroupPriority < p.Entries[j].GroupPriority
+		}
 		return p.Entries[i].Key < p.Entries[j].Key
 	})
 
@@ -114,6 +128,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 		LastKey  string
 		Content  string
 		Dir      string
+		Group    string
 	}
 
 	var pages []*Page
@@ -122,7 +137,18 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 	pg := &Page{
 		Dir: fmt.Sprintf(p.DirPattern, 1),
 	}
+	if len(p.Entries) > 0 {
+		pg.Group = p.Entries[0].Group
+	}
 	for _, e := range p.Entries {
+		if e.Group != pg.Group {
+			// start a new page and group
+			pages = append(pages, pg)
+			pg = &Page{
+				Dir:   fmt.Sprintf(p.DirPattern, len(pages)+1),
+				Group: e.Group,
+			}
+		}
 		if len(pg.Content)+len(e.Content) > maxSize {
 			if len(pg.Content) == 0 {
 				slog.Warn("skipping item since it is larger than maximum allowed for a single page")
@@ -130,7 +156,8 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 			}
 			pages = append(pages, pg)
 			pg = &Page{
-				Dir: fmt.Sprintf(p.DirPattern, len(pages)+1),
+				Dir:   fmt.Sprintf(p.DirPattern, len(pages)+1),
+				Group: e.Group,
 			}
 		}
 		if len(pg.Content) == 0 {
@@ -171,15 +198,29 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 	doc := s.NewDocument()
 	doc.Title(title)
 
+	var group string
 	var list []string
 	for _, pg := range pages {
+		if pg.Group != group {
+			if len(list) > 0 {
+				doc.Heading3(group)
+				doc.UnorderedList(list)
+				list = list[:0]
+			}
+			group = pg.Group
+		}
 		if pg.FirstKey == pg.LastKey {
 			list = append(list, doc.EncodeLink(pg.FirstKey, pg.Dir))
 		} else {
 			list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Dir))
 		}
 	}
-	doc.UnorderedList(list)
+
+	if len(list) > 0 {
+		doc.Heading3(group)
+		doc.UnorderedList(list)
+	}
+
 	if err := writePage(doc, baseDir, p.Index); err != nil {
 		return fmt.Errorf("failed to write paginated index: %w", err)
 	}
