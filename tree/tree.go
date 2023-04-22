@@ -87,19 +87,46 @@ func (t *Tree) GetPlace(id string) (*model.Place, bool) {
 }
 
 func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place {
-	gp, err := t.Gazeteer.MatchPlace(name, hints...)
-	if err != nil {
-		return model.UnknownPlace()
+	id := t.Gazeteer.ID(name, hints...)
+	p, ok := t.Places[id]
+	if !ok {
+
+		pn := place.ClassifyName(name, hints...)
+		cleanName := pn.Name
+
+		p = &model.Place{
+			ID:                  id,
+			OriginalText:        name,
+			Hints:               hints,
+			PreferredName:       cleanName,
+			PreferredUniqueName: cleanName,
+			PreferredFullName:   cleanName,
+			PreferredSortName:   cleanName,
+			PlaceType:           model.PlaceTypeUnknown,
+			Kind:                place.PlaceKindUnknown,
+			CountryName:         place.UnknownPlaceName(),
+			UKNationName:        place.UnknownPlaceName(),
+		}
+
+		if c, ok := pn.FindContainerKind(place.PlaceKindCountry); ok {
+			p.CountryName = c
+		}
+
+		if c, ok := pn.FindContainerKind(place.PlaceKindUKNation); ok {
+			p.UKNationName = c
+		}
+
+		logging.Info("adding place", "name", name, "id", id, "country", p.CountryName.Name)
+
+		t.Places[id] = p
 	}
 
-	return t.findPlaceFromGazeteer(name, gp)
+	return p
 }
 
 func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place {
 	p, ok := t.Places[gp.id]
 	if !ok {
-		logging.Info("adding place to map", "name", name, "id", gp.id)
-
 		p = &model.Place{
 			ID: gp.id,
 			// Page:                fmt.Sprintf(s.PlacePagePattern, gp.id),

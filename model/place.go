@@ -7,8 +7,9 @@ import (
 type Place struct {
 	ID string // canonical identifier
 	// Page                string    // path to page in site
-	Tags                []string        // tags to add to the place's page
-	OriginalText        string          // the original text that was used to fill in the place information
+	Tags                []string // tags to add to the place's page
+	OriginalText        string   // the original text that was used to fill in the place information
+	Hints               []place.Hint
 	PreferredName       string          // fully parsed name but with just the minimum amount of context, such as "locality, region"
 	PreferredUniqueName string          // fully parsed name but with just enough extra context to make it unique
 	PreferredFullName   string          // the fully parsed name
@@ -21,6 +22,9 @@ type Place struct {
 	Links               []Link  // list of links to more information relevant to this place
 	Latitude            float64 // latitude of the place in decimal degrees, +ve is east of meridian, -ve is west
 	Longitude           float64 // longitude of the place in decimal degrees, +ve is north of equator, -ve is south
+
+	CountryName  *place.PlaceName
+	UKNationName *place.PlaceName
 }
 
 func (p *Place) IsUnknown() bool {
@@ -37,17 +41,17 @@ func (p *Place) SameAs(other *Place) bool {
 	return p == other || (p.ID != "" && p.ID == other.ID)
 }
 
-func (p *Place) Country() *Place {
-	pp := p
-	for pp != nil {
-		if pp.Kind == place.PlaceKindCountry || pp.Kind == place.PlaceKindUKNation {
-			return pp
-		}
-		pp = pp.Parent
-	}
+// func (p *Place) Country() *Place {
+// 	pp := p
+// 	for pp != nil {
+// 		if pp.Kind == place.PlaceKindCountry || pp.Kind == place.PlaceKindUKNation {
+// 			return pp
+// 		}
+// 		pp = pp.Parent
+// 	}
 
-	return UnknownPlace()
-}
+// 	return UnknownPlace()
+// }
 
 func (p *Place) Where() string {
 	if p == nil {

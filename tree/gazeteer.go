@@ -29,6 +29,38 @@ type GazeteerPlace struct {
 	parentID string
 }
 
+// ID returns the canonical identifier corresponding to the named place, creating a new one if necessary
+// The supplied name is assumed to be generally unstructured, but ordered hierarchically from most to least specific
+// with each heierarchy level separated by a comma. Additional context may be supplied by the use of hints.
+// For example the user could hint that the place could be a UK registration district
+// based on the source being the general register office.
+func (g *Gazeteer) ID(original string, hints ...place.Hint) string {
+	norm := place.Normalize(original)
+	if norm == "" {
+		norm = "--"
+	}
+	hintIDs := make([]string, len(hints))
+	for i := range hints {
+		hintIDs[i] = hints[i].ID()
+	}
+	sort.Strings(hintIDs)
+	hintstr := strings.Join(hintIDs, "|")
+
+	lookupstr := norm
+	if len(hints) > 0 {
+		lookupstr += "|" + hintstr
+	}
+
+	// See if we have already processed this placename
+	id, exists := g.lookup[lookupstr]
+	if exists {
+		return id
+	}
+
+	id = g.makeID(lookupstr)
+	return id
+}
+
 // MatchPlace returns information about the named place, creating a new one if necessary
 // The supplied name is assumed to be generally unstructured, but ordered hierarchically from most to least specific
 // with each heierarchy level separated by a comma. Additional context may be supplied by the use of hints.
@@ -71,7 +103,7 @@ func (g *Gazeteer) MatchPlace(original string, hints ...place.Hint) (GazeteerPla
 		return gp, nil
 	}
 
-	ph, ok := place.ParseHierarchy(original, hints...)
+	ph, ok := place.ParseNameHierarchy(original, hints...)
 	if !ok {
 		return GazeteerPlace{}, fmt.Errorf("could not parse hierarchy of %q", original)
 	}
@@ -84,7 +116,7 @@ func (g *Gazeteer) MatchPlace(original string, hints ...place.Hint) (GazeteerPla
 	return gp, nil
 }
 
-func (g *Gazeteer) addPlaceHierarchy(ph *place.PlaceHierarchy) (GazeteerPlace, error) {
+func (g *Gazeteer) addPlaceHierarchy(ph *place.PlaceNameHierarchy) (GazeteerPlace, error) {
 	idsrc := ph.NormalizedWithHierarchy
 	if len(ph.Kind) > 0 {
 		idsrc += "|" + string(ph.Kind)

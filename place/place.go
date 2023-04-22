@@ -20,6 +20,7 @@ package place
 type PlaceKind string
 
 const (
+	PlaceKindUnknown  PlaceKind = "unknown"
 	PlaceKindCountry  PlaceKind = "country"
 	PlaceKindUKNation PlaceKind = "uknation"
 	PlaceKindAddress  PlaceKind = "address"
@@ -27,32 +28,34 @@ const (
 
 // See https://www.visionofbritain.org.uk/types/level/11 for parish etc
 
-type PlaceHierarchy struct {
+type PlaceNameHierarchy struct {
 	Name                    PlaceName
 	Kind                    PlaceKind
 	NormalizedWithHierarchy string
-	Parent                  *PlaceHierarchy
-	Child                   *PlaceHierarchy
+	Parent                  *PlaceNameHierarchy
+	Child                   *PlaceNameHierarchy
 }
 
-func (p *PlaceHierarchy) String() string {
+func (p *PlaceNameHierarchy) String() string {
 	if p.Parent == nil {
 		return p.Name.Name
 	}
 	return p.Name.Name + "," + p.Parent.String()
 }
 
-func (p *PlaceHierarchy) HasParent() bool {
+func (p *PlaceNameHierarchy) HasParent() bool {
 	return p.Parent != nil
 }
 
 type PlaceName struct {
 	ID         string
+	Kind       PlaceKind
 	Name       string
 	Adjective  string
 	Aliases    []string
 	Unknown    bool
 	ChildHints []Hint
+	PartOf     []*PlaceName
 }
 
 func (c *PlaceName) IsUnknown() bool {
@@ -69,8 +72,23 @@ func (c *PlaceName) SameAs(other *PlaceName) bool {
 	return c == other || (c.Name != "" && c.Name == other.Name)
 }
 
-func UnknownPlaceName() PlaceName {
-	return PlaceName{
+func (pn *PlaceName) FindContainerKind(kind PlaceKind) (*PlaceName, bool) {
+	for _, po := range pn.PartOf {
+		if po.Kind == kind {
+			return po, true
+		}
+
+		c, ok := po.FindContainerKind(kind)
+		if ok {
+			return c, true
+		}
+	}
+
+	return nil, false
+}
+
+func UnknownPlaceName() *PlaceName {
+	return &PlaceName{
 		Name:      "unknown",
 		Adjective: "unknown",
 		Unknown:   true,

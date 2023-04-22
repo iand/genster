@@ -8,57 +8,57 @@ type Hint interface {
 	ID() string // a unique identifier for the hint
 }
 
-var _ Hint = MaybeCountry{}
+// var _ Hint = MaybeCountry{}
 
-type MaybeCountry struct{}
+// type MaybeCountry struct{}
 
-func (MaybeCountry) ID() string {
-	return "maybecountry"
-}
+// func (MaybeCountry) ID() string {
+// 	return "maybecountry"
+// }
 
-func (MaybeCountry) Match(ph *PlaceHierarchy) (bool, []Hint) {
-	if ph == nil || ph.Name.Name == "" {
-		return false, nil
-	}
-	if ph.Parent != nil {
-		return false, nil
-	}
+// func (MaybeCountry) Match(ph *PlaceNameHierarchy) (bool, []Hint) {
+// 	if ph == nil || ph.Name.Name == "" {
+// 		return false, nil
+// 	}
+// 	if ph.Parent != nil {
+// 		return false, nil
+// 	}
 
-	pn, ok := LookupCountryName(ph.Name.Name)
-	if !ok {
-		return false, nil
-	}
-	ph.Name = pn
-	ph.Kind = PlaceKindCountry
+// 	pn, ok := LookupCountryName(ph.Name.Name)
+// 	if !ok {
+// 		return false, nil
+// 	}
+// 	ph.Name = pn
+// 	ph.Kind = PlaceKindCountry
 
-	return true, pn.ChildHints
-}
+// 	return true, pn.ChildHints
+// }
 
-var _ Hint = MaybeUKNation{}
+// var _ Hint = MaybeUKNation{}
 
-type MaybeUKNation struct{}
+// type MaybeUKNation struct{}
 
-func (MaybeUKNation) ID() string {
-	return "maybeuknation"
-}
+// func (MaybeUKNation) ID() string {
+// 	return "maybeuknation"
+// }
 
-func (MaybeUKNation) Match(ph *PlaceHierarchy) (bool, []Hint) {
-	if ph == nil || ph.Name.Name == "" {
-		return false, nil
-	}
-	if ph.Parent != nil && ph.Parent.Kind != PlaceKindCountry && ph.Parent.Name.Name != "United Kingdom" {
-		return false, nil
-	}
+// func (MaybeUKNation) Match(ph *PlaceNameHierarchy) (bool, []Hint) {
+// 	if ph == nil || ph.Name.Name == "" {
+// 		return false, nil
+// 	}
+// 	if ph.Parent != nil && ph.Parent.Kind != PlaceKindCountry && ph.Parent.Name.Name != "United Kingdom" {
+// 		return false, nil
+// 	}
 
-	pn, ok := LookupUKNationName(ph.Name.Name)
-	if !ok {
-		return false, nil
-	}
-	ph.Name = pn
-	ph.Kind = PlaceKindUKNation
+// 	pn, ok := LookupUKNationName(ph.Name.Name)
+// 	if !ok {
+// 		return false, nil
+// 	}
+// 	ph.Name = pn
+// 	ph.Kind = PlaceKindUKNation
 
-	return true, pn.ChildHints
-}
+// 	return true, pn.ChildHints
+// }
 
 // // A hint attempts to match a place from an input string. It returns a place
 // // with a confidence score ranging from 0 (no match) to 1 (confident match)

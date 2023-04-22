@@ -741,9 +741,8 @@ func GenerateOlb(p *model.Person) error {
 				pl = pl.Parent
 			}
 
-			country, ok := place.LookupPlaceOfOrigin(pl.PreferredName)
-			if ok {
-				bf.CountryOfBirth = &country
+			if !pl.CountryName.IsUnknown() {
+				bf.CountryOfBirth = pl.CountryName
 			}
 		}
 
@@ -785,9 +784,8 @@ func GenerateOlb(p *model.Person) error {
 				pl = pl.Parent
 			}
 
-			country, ok := place.LookupPlaceOfOrigin(pl.PreferredName)
-			if ok {
-				bf.CountryOfDeath = &country
+			if !pl.CountryName.IsUnknown() {
+				bf.CountryOfBirth = pl.CountryName
 			}
 
 		}

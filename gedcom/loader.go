@@ -159,15 +159,15 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 	if name == "" {
 		return model.UnknownPlace(), nil
 	} else {
-		if _, country := place.LookupPlaceOfOrigin(name); !country {
-			if !strings.Contains(name, ",") {
-				anomalies = append(anomalies, &model.Anomaly{
-					Category: "Name",
-					Text:     fmt.Sprintf("Place name does not appear to be structured: %q", name),
-					Context:  "Place in event",
-				})
-			}
-		}
+		// if _, country := place.LookupPlaceName(name); !country {
+		// 	if !strings.Contains(name, ",") {
+		// 		anomalies = append(anomalies, &model.Anomaly{
+		// 			Category: "Name",
+		// 			Text:     fmt.Sprintf("Place name does not appear to be structured: %q", name),
+		// 			Context:  "Place in event",
+		// 		})
+		// 	}
+		// }
 
 		if reUppercase.MatchString(name) {
 			anomalies = append(anomalies, &model.Anomaly{
@@ -190,14 +190,14 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 			pl.PlaceType = model.PlaceTypeAddress
 		}
 
-		c := pl.Country()
+		c := pl.CountryName
 		if c.IsUnknown() {
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "Name",
 				Text:     fmt.Sprintf("Place name does not include a country: %q", name),
 				Context:  "Place in event",
 			})
-		} else if c.PreferredName == "United Kingdom" {
+		} else if c.Name == "United Kingdom" {
 			// This is just my personal preference
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "Name",

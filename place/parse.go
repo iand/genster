@@ -7,14 +7,14 @@ import (
 	"github.com/iand/genster/logging"
 )
 
-// ParseHierarchy attempts to parse a placename into a hierarchy
-func ParseHierarchy(s string, hints ...Hint) (*PlaceHierarchy, bool) {
+// ParseNameHierarchy attempts to parse a placename into a hierarchy
+func ParseNameHierarchy(s string, hints ...Hint) (*PlaceNameHierarchy, bool) {
 	parts := splitPlaceName(s)
 	if len(parts) == 0 {
 		return nil, false
 	}
 
-	ph := &PlaceHierarchy{}
+	ph := &PlaceNameHierarchy{}
 
 	if len(parts) > 0 {
 		ph.Name = PlaceName{Name: parts[0]}
@@ -23,7 +23,7 @@ func ParseHierarchy(s string, hints ...Hint) (*PlaceHierarchy, bool) {
 
 	p := ph
 	for i := 1; i < len(parts); i++ {
-		p.Parent = &PlaceHierarchy{
+		p.Parent = &PlaceNameHierarchy{
 			Name:                    PlaceName{Name: parts[i]},
 			NormalizedWithHierarchy: strings.Join(parts[i:], ","),
 			Child:                   p,
@@ -38,7 +38,7 @@ func ParseHierarchy(s string, hints ...Hint) (*PlaceHierarchy, bool) {
 		broadest = broadest.Parent
 	}
 
-	_, ok := LookupPlaceOfOrigin(broadest.Name.Name)
+	_, ok := LookupPlaceName(broadest.Name.Name)
 	logging.Debug("parse place hierarchy: checking if country", "name", broadest.Name.Name, "is_country", ok)
 	if ok {
 		broadest.Kind = PlaceKindCountry
@@ -106,4 +106,24 @@ func normalizeParts(parts []string) string {
 
 func Normalize(name string) string {
 	return normalizeParts(splitPlaceName(name))
+}
+
+func Clean(name string) string {
+	return strings.Join(splitPlaceName(name), ", ")
+}
+
+func LastElement(name string) string {
+	parts := splitPlaceName(name)
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
+}
+
+func CutLastElement(name string) (string, string) {
+	parts := splitPlaceName(name)
+	if len(parts) > 1 {
+		return strings.Join(parts[:len(parts)-1], ", "), parts[len(parts)-1]
+	}
+	return "", name
 }
