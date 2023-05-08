@@ -12,18 +12,19 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
-	doc.Section(md.PageLayoutPerson)
+	doc.Layout(md.PageLayoutPerson)
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
-	doc.SetFrontMatterField("gender", p.Gender.Noun())
-
-	if l := s.LinkForFormat(p, "wikitree"); l != "" {
-		doc.SetFrontMatterField("wikitreeformat", l)
-	}
-
 	if p.Redacted {
 		doc.Summary("information withheld to preserve privacy")
 		return doc, nil
+	}
+
+	doc.SetFrontMatterField("gender", p.Gender.Noun())
+	if s.GenerateWikiTree {
+		if l := s.LinkForFormat(p, "wikitree"); l != "" {
+			doc.SetFrontMatterField("wikitreeformat", l)
+		}
 	}
 
 	if p.Olb != "" {

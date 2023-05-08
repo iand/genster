@@ -92,3 +92,16 @@ func (p PlaceType) InAt() string {
 		return "in"
 	}
 }
+
+type PlaceMatcher func(*Place) bool
+
+func PlaceHasTag(tag string) PlaceMatcher {
+	return func(p *Place) bool {
+		for _, t := range p.Tags {
+			if t == tag {
+				return true
+			}
+		}
+		return false
+	}
+}

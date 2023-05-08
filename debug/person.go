@@ -1,38 +1,14 @@
-package site
+package debug
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
 )
 
-func ObjectTitle(obj any) string {
-	if obj == nil {
-		return "none"
-	}
-	switch tobj := obj.(type) {
-	case model.IndividualTimelineEvent:
-		return fmt.Sprintf("%s [d=%s; pl=%s; p=%s]", tobj.Type(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()), ObjectTitle(tobj.GetPrincipal()))
-	case model.PartyTimelineEvent:
-		return fmt.Sprintf("%s [d=%s; pl=%s; p1=%s; p2=%s]", tobj.Type(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()), ObjectTitle(tobj.GetParty1()), ObjectTitle(tobj.GetParty2()))
-	case model.TimelineEvent:
-		return fmt.Sprintf("%s [d=%s; pl=%s]", tobj.GetTitle(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()))
-	case *model.Person:
-		return fmt.Sprintf("%s (%s)", tobj.PreferredUniqueName, tobj.ID)
-	case *model.Place:
-		return fmt.Sprintf("%s (%s)", tobj.PreferredUniqueName, tobj.ID)
-	case gdate.Date:
-		return tobj.String()
-	}
-
-	return "unknown type"
-}
-
-func (s *Site) InspectPerson(p *model.Person) error {
+func DumpPerson(p *model.Person) error {
 	fmt.Println("ID:", p.ID)
-	fmt.Println("Page:", s.LinkFor(p))
 	fmt.Println("Redacted:", p.Redacted)
 	fmt.Println("PreferredFullName:", p.PreferredFullName)
 	fmt.Println("PreferredGivenName:", p.PreferredGivenName)

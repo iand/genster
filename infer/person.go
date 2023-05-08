@@ -5,13 +5,17 @@ import (
 	"regexp"
 	"strings"
 
-	// "github.com/iand/genster/logging"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 )
 
-func RedactPersonalDetails(p *model.Person) {
+func RedactPersonalDetailsWithDescendants(p *model.Person) {
+	model.RecurseDescendantsAndApply(p, RedactPersonalDetails)
+}
+
+func RedactPersonalDetails(p *model.Person) (bool, error) {
+	logging.Debug("redacting person", "id", p.ID, "name", p.PreferredFullName)
 	p.Redacted = true
-	// p.Page = ""
 	if !p.RedactionKeepsName {
 		p.PreferredFullName = "(living or recently deceased person)"
 		p.PreferredGivenName = "(living or recently deceased person)"
@@ -34,9 +38,9 @@ func RedactPersonalDetails(p *model.Person) {
 	}
 	p.BestDeathlikeEvent = nil
 	p.Families = []*model.Family{}
+	p.Children = []*model.Person{}
 
-	// redact all descendants
-	model.RecurseDescendants(p, RedactPersonalDetails)
+	return false, nil
 }
 
 func InferPersonBirthEventDate(p *model.Person) error {
@@ -156,42 +160,83 @@ func InferPersonDeathEventDate(p *model.Person) error {
 func InferPersonAliveOrDead(p *model.Person, year int) error {
 	const maximumLifespan = 120
 
+	lastPossibleYearAlive := year
+
+	deathInferenceReason := ""
+	if byear, ok := p.BestBirthDate().Year(); ok {
+		lastPossibleYearAlive = byear + maximumLifespan
+		deathInferenceReason = fmt.Sprintf("it is %d years after birth year of %d", maximumLifespan, byear)
+	} else {
+		lastEventYear := 0
+		for _, ev := range p.Timeline {
+			if ev.DirectlyInvolves(p) {
+				if eyear, ok := ev.GetDate().Year(); ok {
+					if eyear > lastEventYear {
+						lastEventYear = eyear
+					}
+				}
+			}
+		}
+
+		if lastEventYear > 0 {
+			lastPossibleYearAlive = lastEventYear + maximumLifespan
+			deathInferenceReason = fmt.Sprintf("it is %d years after the last event involving this person", maximumLifespan)
+		}
+
+	}
+
+	if lastPossibleYearAlive < year {
+		// set person and all ancestors as historic
+		if err := model.ApplyAndRecurseAncestors(p, func(a *model.Person) (bool, error) {
+			if !a.Historic {
+				logging.Debug("marking person as historic since they lived more than one lifespan ago", "id", a.ID)
+			}
+			a.Historic = true
+			a.PossiblyAlive = false
+			return true, nil
+		}); err != nil {
+			return fmt.Errorf("mark person as historic: %w", err)
+		}
+
+		dt := model.BeforeYear(lastPossibleYearAlive)
+		inf := model.Inference{
+			Type:   model.InferenceTypeYearOfDeath,
+			Value:  fmt.Sprintf("before %d", lastPossibleYearAlive),
+			Reason: deathInferenceReason,
+		}
+
+		if p.BestDeathlikeEvent == nil {
+			p.BestDeathlikeEvent = &model.DeathEvent{
+				GeneralEvent: model.GeneralEvent{Date: dt, Inferred: true, Citations: []*model.GeneralCitation{inf.AsCitation()}},
+				GeneralIndividualEvent: model.GeneralIndividualEvent{
+					Principal: p,
+				},
+			}
+		} else if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
+			bev.Inferred = true
+			bev.Date = dt
+			bev.Citations = append(bev.Citations, inf.AsCitation())
+		}
+		p.Inferences = append(p.Inferences, inf)
+	}
+
+	if p.Historic {
+		logging.Debug("marking person as not alive since they are marked as historic", "id", p.ID)
+		p.PossiblyAlive = false
+		return nil
+	}
+
 	if p.BestDeathlikeEvent != nil {
 		if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && !bev.GetDate().IsUnknown() {
+			logging.Debug("marking person as not alive since they have a deathlike event with a known date", "id", p.ID)
 			p.PossiblyAlive = false
 			return nil
 		}
 	}
 
-	if p.BestBirthlikeEvent != nil {
-		if year, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
-			lastPossibleYearAlive := year + maximumLifespan
-			if lastPossibleYearAlive > year {
-				p.PossiblyAlive = true
-			} else {
-				dt := model.BeforeYear(lastPossibleYearAlive)
-				inf := model.Inference{
-					Type:   model.InferenceTypeYearOfDeath,
-					Value:  fmt.Sprintf("before %d", lastPossibleYearAlive),
-					Reason: fmt.Sprintf("it is %d years after birth year of %d", maximumLifespan, year),
-				}
+	logging.Debug("marking person as possibly alive", "id", p.ID)
+	p.PossiblyAlive = true
 
-				if p.BestDeathlikeEvent == nil {
-					p.BestDeathlikeEvent = &model.DeathEvent{
-						GeneralEvent: model.GeneralEvent{Date: dt, Inferred: true, Citations: []*model.GeneralCitation{inf.AsCitation()}},
-						GeneralIndividualEvent: model.GeneralIndividualEvent{
-							Principal: p,
-						},
-					}
-				} else if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
-					bev.Inferred = true
-					bev.Date = dt
-					bev.Citations = append(bev.Citations, inf.AsCitation())
-				}
-				p.Inferences = append(p.Inferences, inf)
-			}
-		}
-	}
 	return nil
 }
 

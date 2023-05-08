@@ -309,7 +309,7 @@ type (
 	placeAnnotaterFunc  func(p *model.Place, v any) error
 )
 
-// all possible person overrides. use a map so the names of the overrides could be
+// all possible person replacers. use a map so the names of the overrides could be
 // printed in a help command.
 var personReplacers = map[string]personAnnotaterFunc{
 	"nickname":                  func(p *model.Person, v any) error { return setString(&p.NickName, v) },
@@ -337,13 +337,13 @@ var placeReplacers = map[string]placeAnnotaterFunc{
 	"latlong":       func(p *model.Place, v any) error { return setCoordinates(&p.Latitude, &p.Longitude, v) },
 }
 
-// all possible person overrides. use a map so the names of the overrides could be
+// all possible person adders. use a map so the names of the overrides could be
 // printed in a help command.
 var personAdders = map[string]personAnnotaterFunc{
 	"tags": func(p *model.Person, v any) error { return appendStringOrList(&p.Tags, v) },
 }
 
-// all possible place overrides
+// all possible place adders
 var placeAdders = map[string]placeAnnotaterFunc{
 	"tags": func(p *model.Place, v any) error { return appendStringOrList(&p.Tags, v) },
 }

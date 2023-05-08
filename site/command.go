@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/iand/genster/debug"
 	"github.com/iand/genster/gedcom"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
@@ -25,7 +26,7 @@ var Command = &cli.Command{
 		&cli.StringFlag{
 			Name:        "site",
 			Aliases:     []string{"s"},
-			Usage:       "Path to root of website",
+			Usage:       "Directory in which to write generated site",
 			Destination: &genopts.rootDir,
 		},
 		&cli.StringFlag{
@@ -70,6 +71,12 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &genopts.generateWikiTree,
 		},
+		&cli.BoolFlag{
+			Name:        "hugo",
+			Usage:       "Generate Hugo-specific markup and index pages.",
+			Value:       true,
+			Destination: &genopts.generateHugo,
+		},
 		&cli.StringFlag{
 			Name:        "notes",
 			Usage:       "Path to the folder where research notes are stored (in markdown format).",
@@ -88,6 +95,7 @@ var genopts struct {
 	basePath         string
 	inspect          string
 	generateWikiTree bool
+	generateHugo     bool
 	verbose          bool
 	veryverbose      bool
 }
@@ -138,6 +146,7 @@ func gen(cc *cli.Context) error {
 	s := NewSite(genopts.basePath, t)
 	s.IncludePrivate = genopts.includePrivate
 	s.GenerateWikiTree = genopts.generateWikiTree
+	s.GenerateHugo = genopts.generateHugo
 
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)
@@ -158,7 +167,7 @@ func gen(cc *cli.Context) error {
 			if !ok {
 				return fmt.Errorf("no person found with id %s", id)
 			}
-			return s.InspectPerson(p)
+			return debug.DumpPerson(p)
 		} else {
 			return fmt.Errorf("unrecognised object to inspect: %s", genopts.inspect)
 		}

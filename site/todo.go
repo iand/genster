@@ -27,6 +27,40 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 		})
 	}
 
+	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() {
+		p.ToDos = append(p.ToDos, &model.ToDo{
+			Category: model.ToDoCategoryMissing,
+			Context:  "birth",
+			Goal:     "Find the person's birth or baptism date",
+			Reason:   "No date for the person's birth is known",
+		})
+	} else if p.BestBirthlikeEvent != nil && p.BestBirthlikeEvent.IsInferred() {
+		p.ToDos = append(p.ToDos, &model.ToDo{
+			Category: model.ToDoCategoryMissing,
+			Context:  "birth",
+			Goal:     "Find the person's birth or baptism date",
+			Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestBirthlikeEvent.GetDate().When()),
+		})
+	}
+
+	if !p.PossiblyAlive {
+		if p.BestDeathlikeEvent == nil || p.BestDeathlikeEvent.GetDate().IsUnknown() {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryMissing,
+				Context:  "death",
+				Goal:     "Find the person's death or burial date",
+				Reason:   "No date for the person's death is known",
+			})
+		} else if p.BestDeathlikeEvent != nil && p.BestDeathlikeEvent.IsInferred() {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryMissing,
+				Context:  "death",
+				Goal:     "Find the person's death or burial date",
+				Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestBirthlikeEvent.GetDate().When()),
+			})
+		}
+	}
+
 	for _, ev := range p.Timeline {
 		if !ev.DirectlyInvolves(p) {
 			continue

@@ -13,7 +13,7 @@ func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
 	doc.SuppressCitations = true
 
 	doc.Title(so.Title)
-	doc.Section(md.PageLayoutSource)
+	doc.Layout(md.PageLayoutSource)
 	doc.ID(so.ID)
 	doc.AddTags(CleanTags(so.Tags))
 

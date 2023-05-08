@@ -4,6 +4,7 @@ import (
 	"net/url"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 )
 
 type ExtendedMarkdownBuilder interface {
@@ -71,4 +72,12 @@ func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {
 	}
 
 	return enc.EncodeLink(text, u)
+}
+
+func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) string, enc InlineEncoder) string {
+	ss := make([]string, len(ps))
+	for i := range ps {
+		ss[i] = enc.EncodeModelLink(formatter(ps[i]), ps[i])
+	}
+	return text.JoinList(ss)
 }

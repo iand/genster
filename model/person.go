@@ -32,7 +32,9 @@ type Person struct {
 	Timeline                  []TimelineEvent
 	BeingTense                string // tense to use when refering to person: 'is' if they are possibly alive, 'was' if they are dead
 
-	PossiblyAlive      bool         // true if this person is possibly still alive
+	Historic      bool // true if this person lived in a period more than a lifespan before the present (more than 120 years ago)
+	PossiblyAlive bool // true if this person is possibly still alive, false if they are known to be dead or are historic
+
 	Unknown            bool         // true if this person is known to have existed but no other information is known
 	Unmarried          bool         // true if it is known that the person did not marry
 	Childless          bool         // true if it is known that the person did not have any children
@@ -45,6 +47,7 @@ type Person struct {
 	Deaf               bool         // true if it is known that the person was deaf for the majority of their life
 	PhysicalImpairment bool         // true if it is known that the person was physically impaired for the majority of their life
 	MentalImpairment   bool         // true if it is known that the person was mentally impaired for the majority of their life
+	DiedInChildbirth   bool         // true if it is known that the person died in childbirth
 	CauseOfDeath       CauseOfDeath // cause of death, if known
 
 	Occupations        []*Occupation // list of occupations
@@ -82,6 +85,14 @@ func (p *Person) AgeInYearsAt(dt *Date) (int, bool) {
 	}
 
 	return p.BestBirthlikeEvent.GetDate().WholeYearsUntil(dt)
+}
+
+func (p *Person) AgeInYearsAtDeath() (int, bool) {
+	if p.BestDeathlikeEvent == nil || p.BestDeathlikeEvent.GetDate().IsUnknown() {
+		return 0, false
+	}
+
+	return p.AgeInYearsAt(p.BestDeathlikeEvent.GetDate())
 }
 
 func (p *Person) PreciseAgeAt(dt *Date) (*gdate.PreciseInterval, bool) {
@@ -223,13 +234,62 @@ func UnknownPerson() *Person {
 	}
 }
 
-type PersonActionFunc func(*Person)
+type PersonActionFunc func(*Person) (bool, error)
 
-func RecurseDescendants(p *Person, fn PersonActionFunc) {
-	for _, c := range p.Children {
-		fn(c)
-		RecurseDescendants(c, fn)
+// ApplyAndRecurseDescendants applies fn to p and then recurses descendants until fn returns false or an error
+// which is returned if encountered
+func ApplyAndRecurseDescendants(p *Person, fn PersonActionFunc) error {
+	ok, err := fn(p)
+	if err != nil {
+		return err
 	}
+	if !ok {
+		return nil
+	}
+	for _, c := range p.Children {
+		if err := ApplyAndRecurseAncestors(c, fn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RecurseDescendantsAndApply recurses descendants and then applies fn to p until fn returns an error
+// which is returned if encountered. This differs from ApplyAndRecurseDescendants in the order in which fn is applied.
+func RecurseDescendantsAndApply(p *Person, fn PersonActionFunc) error {
+	for _, c := range p.Children {
+		if err := RecurseDescendantsAndApply(c, fn); err != nil {
+			return err
+		}
+	}
+	_, err := fn(p)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ApplyAndRecurseAncestors applies fn to p and then recurses ancestors until fn returns false or an error, which
+// is returned if encountered
+func ApplyAndRecurseAncestors(p *Person, fn PersonActionFunc) error {
+	ok, err := fn(p)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	if p.Father != nil {
+		if err := ApplyAndRecurseAncestors(p.Father, fn); err != nil {
+			return err
+		}
+	}
+	if p.Mother != nil {
+		if err := ApplyAndRecurseAncestors(p.Mother, fn); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func YearsSinceDeath(p *Person) (int, bool) {
@@ -239,4 +299,32 @@ func YearsSinceDeath(p *Person) (int, bool) {
 
 	in := IntervalSince(p.BestDeathlikeEvent.GetDate())
 	return in.WholeYears()
+}
+
+type PersonMatcher func(*Person) bool
+
+func PersonHasTag(tag string) PersonMatcher {
+	return func(p *Person) bool {
+		for _, t := range p.Tags {
+			if t == tag {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func PersonHasResearchNotes() PersonMatcher {
+	return func(p *Person) bool {
+		return len(p.ResearchNotes) > 0
+	}
+}
+
+func PersonIsDirectAncestor() PersonMatcher {
+	return func(p *Person) bool {
+		if p.RelationToKeyPerson == nil {
+			return false
+		}
+		return p.RelationToKeyPerson.IsDirectAncestor()
+	}
 }

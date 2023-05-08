@@ -47,13 +47,3 @@ func ScanGeneralCitationForAnomalies(cit *model.GeneralCitation) []*model.Anomal
 
 	return anomalies
 }
-
-// func (s *Site) GenerateAnomaliesPages() error {
-// 	anomd, err := RenderAnomaliesPage(s)
-// 	if err != nil {
-// 		return fmt.Errorf("render anomalies pages: %w", err)
-// 	}
-// 	if err := writePage(anomd, root, s.AnomaliesFile); err != nil {
-// 		return fmt.Errorf("anomalies: %w", err)
-// 	}
-// }

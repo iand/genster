@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"image/color"
 	"os"
+
+	// "os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -18,9 +20,11 @@ import (
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
-	"github.com/tdewolff/canvas"
-	"github.com/tdewolff/canvas/renderers"
-	"github.com/tdewolff/canvas/renderers/svg"
+	"github.com/iand/gtree"
+
+	// "github.com/tdewolff/canvas"
+	// "github.com/tdewolff/canvas/renderers"
+	// "github.com/tdewolff/canvas/renderers/svg"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/exp/slog"
 )
@@ -129,7 +133,7 @@ var Command = &cli.Command{
 		&cli.IntFlag{
 			Name:        "gen",
 			Usage:       "number of descendant generations to draw",
-			Value:       3,
+			Value:       2,
 			Destination: &chartopts.generations,
 		},
 		&cli.IntFlag{
@@ -265,10 +269,27 @@ func chartCmd(cc *cli.Context) error {
 		t.SetKeyPerson(keyPerson)
 	}
 
-	// Find the root of the tree, i.e. the earliest ancester we want to show of the tree
+	// Find the root of the tree, i.e. the earliest ancester we want to show on the tree
 	startPerson, ok := t.GetPerson(chartopts.startPersonID)
 	if !ok {
 		startPerson = t.FindPerson(l.ScopeName, chartopts.startPersonID)
+	}
+
+	lin := new(gtree.Lineage)
+	lin.Root = lineagePerson(lin, startPerson, new(sequence), chartopts.generations)
+	lay := gtree.NewLayout(lin, nil)
+	lay.Reflow()
+	lay.SizeCanvas()
+
+	s, _ := gtree.SVG(lay)
+
+	fmt.Println(s)
+
+	if chartopts.outputFilename != "" {
+		err = os.WriteFile(chartopts.outputFilename, []byte(s), 0o666)
+		if err != nil {
+			return fmt.Errorf("Failed writing output file: %w", err)
+		}
 	}
 
 	// familytree.RegisterFont(draw2d.FontData{"verdana", draw2d.FontFamilyMono, draw2d.FontStyleBold}, "/usr/share/fonts/truetype/msttcorefonts/verdanab.ttf")
@@ -305,99 +326,99 @@ func chartCmd(cc *cli.Context) error {
 	// 	return fmt.Errorf("Could not find a person with identifier '%s' in input file", chartopts.startPersonID)
 	// }
 
-	if chartopts.outputFilename == "" {
-		chartopts.outputFilename = fmt.Sprintf("%s-%d.%s", chartopts.startPersonID, chartopts.generations, chartopts.outputFormat)
-	}
+	// if chartopts.outputFilename == "" {
+	// 	chartopts.outputFilename = fmt.Sprintf("%s-%d.%s", chartopts.startPersonID, chartopts.generations, chartopts.outputFormat)
+	// }
 
-	slog.Info("creating chart")
+	// slog.Info("creating chart")
 
-	switch chartopts.outputFormat {
-	case "png", "svg", "pdf":
-		root := descend(startPerson, chartopts.generations-1, chartopts.detail)
-		c := NewChart()
-		c.ForceHorizontal = chartopts.horizontal
-		c.LineWidth = 1 // float64(lineWidth)
-		c.LineColor = chartopts.lineColor
-		c.IndividualNameFontSize = chartopts.nameSize
-		c.IndividualNameColor = chartopts.nameColor
-		c.IndividualDetailsFontSize = chartopts.detailsSize
-		c.IndividualDetailsColor = chartopts.detailsColor
-		c.IndividualSpacing = chartopts.individualSpacing
-		c.FamilySpacing = chartopts.familySpacing
+	// switch chartopts.outputFormat {
+	// case "png", "svg", "pdf":
+	// 	root := descend(startPerson, chartopts.generations-1, chartopts.detail)
+	// 	c := NewChart()
+	// 	c.ForceHorizontal = chartopts.horizontal
+	// 	c.LineWidth = 1 // float64(lineWidth)
+	// 	c.LineColor = chartopts.lineColor
+	// 	c.IndividualNameFontSize = chartopts.nameSize
+	// 	c.IndividualNameColor = chartopts.nameColor
+	// 	c.IndividualDetailsFontSize = chartopts.detailsSize
+	// 	c.IndividualDetailsColor = chartopts.detailsColor
+	// 	c.IndividualSpacing = chartopts.individualSpacing
+	// 	c.FamilySpacing = chartopts.familySpacing
 
-		// Temporary overrides
-		c.IndividualSpacing = 15        // the horizontal distance between individuals in a family group (in mm)
-		c.IndividualVerticalSpacing = 5 // the vertical distance between individuals in a family group (in mm)
-		c.FamilySpacing = 10            // the horizontal distance between different family groups (in mm)
-		c.IndividualPadding = 2         // the amount of whitespace padding between an individual and any line connecting to it (in mm)
-		c.FamilyDetailsDrop = 10        // the vertical distance (in mm) between family details and the center point of the parents info (between the = and the date of marriage)
-		c.ChildLineDropAbove = 10       // the vertical distance (in mm) between family details and the child line and between the child line and child details (between = and line that children hang from)
-		c.ChildLineDropBelow = 10       // the vertical or horizontal distance (in mm) between the child line and the child details
-		c.ChildLineOffset = 10          // the horizontal distance (in mm) between the start of an individual and the line descending to it
-		c.TextVertSpacing = 10          // vertical spacing between lines of text   (in mm)
-		c.SpouseSeparation = 1          // spacing between husband and wife  (in mm)
-		c.LineWidth = 0.5               // Width of the line (in mm)
-		c.IndividualDetailsWidth = 35
+	// 	// Temporary overrides
+	// 	c.IndividualSpacing = 15        // the horizontal distance between individuals in a family group (in mm)
+	// 	c.IndividualVerticalSpacing = 5 // the vertical distance between individuals in a family group (in mm)
+	// 	c.FamilySpacing = 10            // the horizontal distance between different family groups (in mm)
+	// 	c.IndividualPadding = 2         // the amount of whitespace padding between an individual and any line connecting to it (in mm)
+	// 	c.FamilyDetailsDrop = 10        // the vertical distance (in mm) between family details and the center point of the parents info (between the = and the date of marriage)
+	// 	c.ChildLineDropAbove = 10       // the vertical distance (in mm) between family details and the child line and between the child line and child details (between = and line that children hang from)
+	// 	c.ChildLineDropBelow = 10       // the vertical or horizontal distance (in mm) between the child line and the child details
+	// 	c.ChildLineOffset = 10          // the horizontal distance (in mm) between the start of an individual and the line descending to it
+	// 	c.TextVertSpacing = 10          // vertical spacing between lines of text   (in mm)
+	// 	c.SpouseSeparation = 1          // spacing between husband and wife  (in mm)
+	// 	c.LineWidth = 0.5               // Width of the line (in mm)
+	// 	c.IndividualDetailsWidth = 35
 
-		debug := cc.String("debug")
-		for _, r := range debug {
-			switch r {
-			case 'f':
-				c.DebugFamilyOutline = true
-			case 'i':
-				c.DebugIndividualOutline = true
-			case 'c':
-				c.DebugChildrenOutline = true
-			}
-		}
+	// 	debug := cc.String("debug")
+	// 	for _, r := range debug {
+	// 		switch r {
+	// 		case 'f':
+	// 			c.DebugFamilyOutline = true
+	// 		case 'i':
+	// 			c.DebugIndividualOutline = true
+	// 		case 'c':
+	// 			c.DebugChildrenOutline = true
+	// 		}
+	// 	}
 
-		can := canvas.New(3*420-2*chartopts.margin, 2*297-2*chartopts.margin) // in millimetres
+	// 	can := canvas.New(3*420-2*chartopts.margin, 2*297-2*chartopts.margin) // in millimetres
 
-		if err := c.Draw(root, can); err != nil {
-			return err
-		}
-		can.Fit(chartopts.margin)
-		can.SetZIndex(-10)
-		gc := canvas.NewContext(can)
-		gc.SetFillColor(canvas.White)
-		gc.DrawPath(0, 0, canvas.Rectangle(can.W, can.H))
+	// 	if err := c.Draw(root, can); err != nil {
+	// 		return err
+	// 	}
+	// 	can.Fit(chartopts.margin)
+	// 	can.SetZIndex(-10)
+	// 	gc := canvas.NewContext(can)
+	// 	gc.SetFillColor(canvas.White)
+	// 	gc.DrawPath(0, 0, canvas.Rectangle(can.W, can.H))
 
-		switch chartopts.outputFormat {
-		case "png":
-			return can.WriteFile(chartopts.outputFilename, renderers.PNG())
-		case "svg":
-			opts := svg.DefaultOptions
-			opts.EmbedFonts = false
-			return can.WriteFile(chartopts.outputFilename, renderers.SVG(&opts))
-		case "pdf":
-			return can.WriteFile(chartopts.outputFilename, renderers.PDF())
-		}
+	// 	switch chartopts.outputFormat {
+	// 	case "png":
+	// 		return can.WriteFile(chartopts.outputFilename, renderers.PNG())
+	// 	case "svg":
+	// 		opts := svg.DefaultOptions
+	// 		opts.EmbedFonts = false
+	// 		return can.WriteFile(chartopts.outputFilename, renderers.SVG(&opts))
+	// 	case "pdf":
+	// 		return can.WriteFile(chartopts.outputFilename, renderers.PDF())
+	// 	}
 
-		// fout, err := os.OpenFile(outputFilename, os.O_CREATE|os.O_WRONLY, 0o666)
-		// if err != nil {
-		// 	return fmt.Errorf("Failed writing output image: %w", err)
-		// }
-		// defer fout.Close()
+	// 	// fout, err := os.OpenFile(outputFilename, os.O_CREATE|os.O_WRONLY, 0o666)
+	// 	// if err != nil {
+	// 	// 	return fmt.Errorf("Failed writing output image: %w", err)
+	// 	// }
+	// 	// defer fout.Close()
 
-		// if err = png.Encode(fout, imgOut); err != nil {
-		// 	return fmt.Errorf("Failed encoding output image: %w", err)
-		// }
+	// 	// if err = png.Encode(fout, imgOut); err != nil {
+	// 	// 	return fmt.Errorf("Failed encoding output image: %w", err)
+	// 	// }
 
-	case "dot":
-		root := descend(startPerson, chartopts.generations-1, chartopts.detail)
-		c := NewDotChart()
-		dataOut, err := c.Draw(root)
-		if err != nil {
-			return fmt.Errorf("Failed drawing chart: %w", err)
-		}
-		err = os.WriteFile(chartopts.outputFilename, dataOut, 0o666)
-		if err != nil {
-			return fmt.Errorf("Failed writing output file: %w", err)
-		}
-	default:
+	// case "dot":
+	// 	root := descend(startPerson, chartopts.generations-1, chartopts.detail)
+	// 	c := NewDotChart()
+	// 	dataOut, err := c.Draw(root)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Failed drawing chart: %w", err)
+	// 	}
+	// 	err = os.WriteFile(chartopts.outputFilename, dataOut, 0o666)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Failed writing output file: %w", err)
+	// 	}
+	// default:
 
-		return fmt.Errorf("Unsupported output format '%s'", chartopts.outputFormat)
-	}
+	// 	return fmt.Errorf("Unsupported output format '%s'", chartopts.outputFormat)
+	// }
 
 	return nil
 }
@@ -575,3 +596,33 @@ func formatEventFull(ev model.TimelineEvent) []string {
 // 		}
 // 	}
 // }
+
+type sequence struct {
+	n int
+}
+
+func (s *sequence) next() int {
+	n := s.n
+	s.n++
+	return n
+}
+
+func lineagePerson(lin *gtree.Lineage, p *model.Person, seq *sequence, generations int) *gtree.Person {
+	slog.Info(p.PreferredFullName)
+	tp := &gtree.Person{ID: seq.next(), Details: []string{p.PreferredFullName}}
+	if generations > 0 {
+		for _, f := range p.Families {
+			tf := new(gtree.Family)
+			tp.Families = append(tp.Families, tf)
+			o := f.OtherParent(p)
+			if o != nil {
+				tf.Other = &gtree.Person{ID: seq.next(), Details: []string{o.PreferredFullName}}
+			}
+			for _, c := range f.Children {
+				tf.Children = append(tf.Children, lineagePerson(lin, c, seq, generations-1))
+			}
+		}
+	}
+
+	return tp
+}

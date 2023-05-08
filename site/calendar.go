@@ -92,7 +92,7 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 		eventDays = append(eventDays, evd)
 	}
 	doc.Title(fmt.Sprintf("On this day in %s", monthNames[month]))
-	doc.Section(md.PageLayoutCalendar)
+	doc.Layout(md.PageLayoutCalendar)
 	doc.SetFrontMatterField("month", monthNames[month])
 
 	sort.Slice(eventDays, func(i, j int) bool {

@@ -1,9 +1,9 @@
 package tree
 
 import (
-	// "fmt"
-
+	"container/heap"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -116,7 +116,7 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 			p.UKNationName = c
 		}
 
-		logging.Info("adding place", "name", name, "id", id, "country", p.CountryName.Name)
+		logging.Debug("adding place", "name", name, "id", id, "country", p.CountryName.Name)
 
 		t.Places[id] = p
 	}
@@ -266,8 +266,20 @@ func (t *Tree) Generate(redactLiving bool) error {
 		p.RemoveDuplicateChildren()
 		p.RemoveDuplicateSpouses()
 		t.BuildOlb(p)
+
+		// sort families by date
+		sort.Slice(p.Families, func(a, b int) bool {
+			return p.Families[a].BestStartDate.SortsBefore(p.Families[b].BestStartDate)
+		})
+
 	}
 
+	for _, p := range t.Places {
+		t.TrimPlaceTimeline(p)
+	}
+	for _, s := range t.Sources {
+		t.TrimSourceTimeline(s)
+	}
 	return nil
 }
 
@@ -445,13 +457,13 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 		}
 	}
 
-	if startYear+120 > time.Now().Year() {
-		p.PossiblyAlive = true
-	}
+	// if startYear+120 > time.Now().Year() {
+	// 	logging.Debug("marking person as possibly alive since they were born within 120 years from present", "id", p.ID)
+	// 	p.PossiblyAlive = true
+	// }
 
 	if p.BestDeathlikeEvent != nil {
 		if year, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
-			p.PossiblyAlive = false
 			endYear = year
 		}
 	}
@@ -596,7 +608,7 @@ func (t *Tree) Redact(redactLiving bool) error {
 			}
 		}
 		if p.Redacted || redact {
-			infer.RedactPersonalDetails(p)
+			infer.RedactPersonalDetailsWithDescendants(p)
 		}
 	}
 
@@ -682,6 +694,42 @@ EventLoop:
 	return nil
 }
 
+func (t *Tree) TrimPlaceTimeline(p *model.Place) error {
+	evs := make([]model.TimelineEvent, 0, len(p.Timeline))
+
+EventLoop:
+	for _, ev := range p.Timeline {
+		// Drop all events from redacted people
+		for _, o := range ev.Participants() {
+			if o.Redacted {
+				continue EventLoop
+			}
+		}
+		evs = append(evs, ev)
+	}
+
+	p.Timeline = evs
+	return nil
+}
+
+func (t *Tree) TrimSourceTimeline(s *model.Source) error {
+	evs := make([]model.TimelineEvent, 0, len(s.EventsCiting))
+
+EventLoop:
+	for _, ev := range s.EventsCiting {
+		// Drop all events from redacted people
+		for _, o := range ev.Participants() {
+			if o.Redacted {
+				continue EventLoop
+			}
+		}
+		evs = append(evs, ev)
+	}
+
+	s.EventsCiting = evs
+	return nil
+}
+
 func (t *Tree) SetKeyPerson(p *model.Person) {
 	t.KeyPerson = p
 }
@@ -738,4 +786,133 @@ func descendKeyPersonRelationship(p *model.Person) {
 		sp.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToSpouse(sp)
 		// recurseKeyPersonRelationship(sp)
 	}
+}
+
+func (t *Tree) ListPeopleMatching(m model.PersonMatcher, limit int) []*model.Person {
+	matches := make([]*model.Person, 0, limit)
+	for _, p := range t.People {
+		if m(p) {
+			matches = append(matches, p)
+		}
+		if len(matches) == limit {
+			break
+		}
+	}
+	return matches
+}
+
+func (t *Tree) ListPlacesMatching(m model.PlaceMatcher, limit int) []*model.Place {
+	matches := make([]*model.Place, 0, limit)
+	for _, p := range t.Places {
+		if m(p) {
+			matches = append(matches, p)
+		}
+		if len(matches) == limit {
+			break
+		}
+	}
+	return matches
+}
+
+// Metrics
+
+// In general all metrics exclude redacted people
+
+// NumberOfPeople returns the number of people in the tree.
+// It excludes redacted people.
+func (t *Tree) NumberOfPeople() int {
+	num := 0
+	for _, p := range t.People {
+		if !p.Redacted {
+			num++
+		}
+	}
+	return num
+}
+
+// AncestorSurnameDistribution returns a map of surnames and the number
+// of direct ancestors with that surname
+// It excludes redacted people.
+func (t *Tree) AncestorSurnameDistribution() map[string]int {
+	dist := make(map[string]int)
+	for _, p := range t.People {
+		if p.Redacted {
+			continue
+		}
+		if p.PreferredFamilyName == model.UnknownNamePlaceholder {
+			continue
+		}
+		if p.RelationToKeyPerson.IsDirectAncestor() {
+			dist[p.PreferredFamilyName]++
+		}
+	}
+	return dist
+}
+
+// TreeSurnameDistribution returns a map of surnames and the number
+// of people in the tree with that surname
+// It excludes redacted people.
+func (t *Tree) TreeSurnameDistribution() map[string]int {
+	dist := make(map[string]int)
+	for _, p := range t.People {
+		if p.Redacted {
+			continue
+		}
+		if p.PreferredFamilyName == model.UnknownNamePlaceholder {
+			continue
+		}
+		dist[p.PreferredFamilyName]++
+	}
+	return dist
+}
+
+// OldestPeople returns a list of the oldest people in the tree, sorted by descending age
+// It excludes redacted people.
+func (t *Tree) OldestPeople(limit int) []*model.Person {
+	h := new(PersonWithAgeHeap)
+	heap.Init(h)
+
+	for _, p := range t.People {
+		if p.Redacted {
+			continue
+		}
+		age, ok := p.AgeInYearsAtDeath()
+		if !ok {
+			continue
+		}
+		heap.Push(h, &PersonWithAge{Person: p, Age: age})
+		if h.Len() > limit {
+			heap.Pop(h)
+		}
+	}
+
+	list := make([]*model.Person, h.Len())
+	for i := len(list) - 1; i >= 0; i-- {
+		pa := heap.Pop(h).(*PersonWithAge)
+		list[i] = pa.Person
+	}
+	return list
+}
+
+type PersonWithAge struct {
+	Person *model.Person
+	Age    int
+}
+
+type PersonWithAgeHeap []*PersonWithAge
+
+func (h PersonWithAgeHeap) Len() int           { return len(h) }
+func (h PersonWithAgeHeap) Less(i, j int) bool { return h[i].Age < h[j].Age }
+func (h PersonWithAgeHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *PersonWithAgeHeap) Push(x interface{}) {
+	*h = append(*h, x.(*PersonWithAge))
+}
+
+func (h *PersonWithAgeHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }

@@ -12,7 +12,7 @@ var Flags = []cli.Flag{
 		Name:        "verbose",
 		Aliases:     []string{"v"},
 		Usage:       "Set logging level more verbose to include info level logs",
-		Value:       true,
+		Value:       false,
 		Destination: &Opts.Verbose,
 	},
 

@@ -79,17 +79,13 @@ func Tagify(s string) string {
 }
 
 type Paginator struct {
-	Index      string
-	DirPattern string
+	HugoStyle bool
 
 	Entries []PaginatorEntry
 }
 
 func NewPaginator() *Paginator {
-	return &Paginator{
-		Index:      "index.md",
-		DirPattern: "%02d",
-	}
+	return &Paginator{}
 }
 
 type PaginatorEntry struct {
@@ -115,7 +111,11 @@ func (p *Paginator) AddEntryWithGroup(key string, content string, group string, 
 	})
 }
 
-func (p *Paginator) WritePages(s *Site, baseDir string, section string, title string) error {
+func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title string) error {
+	indexPage := "index.md"
+	if p.HugoStyle {
+		indexPage = "_index.md"
+	}
 	sort.Slice(p.Entries, func(i, j int) bool {
 		if p.Entries[i].Group != p.Entries[j].Group {
 			return p.Entries[i].GroupPriority < p.Entries[j].GroupPriority
@@ -127,7 +127,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 		FirstKey string
 		LastKey  string
 		Content  string
-		Dir      string
+		Name     string
 		Group    string
 	}
 
@@ -135,7 +135,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 
 	maxSize := 4096
 	pg := &Page{
-		Dir: fmt.Sprintf(p.DirPattern, 1),
+		Name: fmt.Sprintf("%02d", 1),
 	}
 	if len(p.Entries) > 0 {
 		pg.Group = p.Entries[0].Group
@@ -145,7 +145,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 			// start a new page and group
 			pages = append(pages, pg)
 			pg = &Page{
-				Dir:   fmt.Sprintf(p.DirPattern, len(pages)+1),
+				Name:  fmt.Sprintf("%02d", len(pages)+1),
 				Group: e.Group,
 			}
 		}
@@ -156,7 +156,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 			}
 			pages = append(pages, pg)
 			pg = &Page{
-				Dir:   fmt.Sprintf(p.DirPattern, len(pages)+1),
+				Name:  fmt.Sprintf("%02d", len(pages)+1),
 				Group: e.Group,
 			}
 		}
@@ -168,62 +168,79 @@ func (p *Paginator) WritePages(s *Site, baseDir string, section string, title st
 	}
 	pages = append(pages, pg)
 
-	for i, pg := range pages {
-		idx := i + 1
+	if len(pages) > 1 {
+
+		for i, pg := range pages {
+			idx := i + 1
+			doc := s.NewDocument()
+			doc.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
+			doc.Layout(layout.String())
+
+			if idx > 1 {
+				doc.SetFrontMatterField(md.MarkdownTagFirstPage, fmt.Sprintf("%02d", 1))
+				if idx > 2 {
+					doc.SetFrontMatterField(md.MarkdownTagPrevPage, fmt.Sprintf("%02d", idx-1))
+				}
+			}
+			if idx < len(pages) {
+				doc.SetFrontMatterField(md.MarkdownTagLastPage, fmt.Sprintf("%02d", len(pages)))
+				if idx < len(pages)-1 {
+					doc.SetFrontMatterField(md.MarkdownTagNextPage, fmt.Sprintf("%02d", idx+1))
+				}
+			}
+
+			doc.SetBody(pg.Content)
+
+			var fname string
+			if p.HugoStyle {
+				fname = pg.Name + ".md"
+			} else {
+				fname = filepath.Join(pg.Name, indexPage)
+			}
+
+			if err := writePage(doc, baseDir, fname); err != nil {
+				return fmt.Errorf("failed to write paginated page: %w", err)
+			}
+		}
+
 		doc := s.NewDocument()
-		doc.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
-		doc.Section(section)
+		doc.Title(title)
+		doc.Layout(layout.String())
 
-		doc.SetFrontMatterField(md.MarkdownTagIndexPage, section)
-		if idx > 1 {
-			doc.SetFrontMatterField(md.MarkdownTagFirstPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, 1)))
-			if idx > 2 {
-				doc.SetFrontMatterField(md.MarkdownTagPrevPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx-1)))
+		var group string
+		var list []string
+		for _, pg := range pages {
+			if pg.Group != group {
+				if len(list) > 0 {
+					doc.Heading3(group)
+					doc.UnorderedList(list)
+					list = list[:0]
+				}
+				group = pg.Group
+			}
+			if pg.FirstKey == pg.LastKey {
+				list = append(list, doc.EncodeLink(pg.FirstKey, pg.Name))
+			} else {
+				list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Name))
 			}
 		}
-		if idx < len(pages) {
-			doc.SetFrontMatterField(md.MarkdownTagLastPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, len(pages))))
-			if idx < len(pages)-1 {
-				doc.SetFrontMatterField(md.MarkdownTagNextPage, filepath.Join(section, fmt.Sprintf(p.DirPattern, idx+1)))
-			}
+
+		if len(list) > 0 {
+			doc.Heading3(group)
+			doc.UnorderedList(list)
 		}
 
-		doc.SetBody(pg.Content)
-
-		if err := writePage(doc, baseDir, filepath.Join(pg.Dir, p.Index)); err != nil {
-			return fmt.Errorf("failed to write paginated page: %w", err)
+		if err := writePage(doc, baseDir, indexPage); err != nil {
+			return fmt.Errorf("failed to write paginated index: %w", err)
+		}
+	} else {
+		doc := s.NewDocument()
+		doc.Title(title)
+		doc.Layout(layout.String())
+		doc.SetBody(pages[0].Content)
+		if err := writePage(doc, baseDir, indexPage); err != nil {
+			return fmt.Errorf("failed to write paginated index: %w", err)
 		}
 	}
-
-	doc := s.NewDocument()
-	doc.Title(title)
-
-	var group string
-	var list []string
-	for _, pg := range pages {
-		if pg.Group != group {
-			if len(list) > 0 {
-				doc.Heading3(group)
-				doc.UnorderedList(list)
-				list = list[:0]
-			}
-			group = pg.Group
-		}
-		if pg.FirstKey == pg.LastKey {
-			list = append(list, doc.EncodeLink(pg.FirstKey, pg.Dir))
-		} else {
-			list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Dir))
-		}
-	}
-
-	if len(list) > 0 {
-		doc.Heading3(group)
-		doc.UnorderedList(list)
-	}
-
-	if err := writePage(doc, baseDir, p.Index); err != nil {
-		return fmt.Errorf("failed to write paginated index: %w", err)
-	}
-
 	return nil
 }

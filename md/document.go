@@ -2,15 +2,22 @@ package md
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
+)
+
+var (
+	safeString    = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	numericString = regexp.MustCompile(`^[0-9]+$`)
 )
 
 const (
 	MarkdownTagTitle     = "title"
 	MarkdownTagSummary   = "summary"
-	MarkdownTagSection   = "section"
+	MarkdownTagLayout    = "layout"
 	MarkdownTagTags      = "tags"
 	MarkdownTagCategory  = "category"
 	MarkdownTagID        = "id"
@@ -50,7 +57,7 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 	tagRanks := map[string]byte{
 		MarkdownTagID:      4,
 		MarkdownTagTitle:   3,
-		MarkdownTagSection: 2,
+		MarkdownTagLayout:  2,
 		MarkdownTagSummary: 1,
 	}
 
@@ -76,11 +83,28 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 		})
 
 		for _, k := range keys {
-			v := b.frontMatter[k]
+			vs := b.frontMatter[k]
 			bw.WriteString(k)
 			bw.WriteString(": ")
-			bw.WriteString(strings.Join(v, ","))
-			bw.WriteString("\n")
+			if len(vs) == 1 {
+				if safeString.MatchString(vs[0]) && !numericString.MatchString(vs[0]) {
+					bw.WriteString(vs[0])
+				} else {
+					bw.WriteString(fmt.Sprintf("%q", vs[0]))
+				}
+				bw.WriteString("\n")
+			} else {
+				bw.WriteString("\n")
+				for _, v := range vs {
+					bw.WriteString("- ")
+					if safeString.MatchString(v) && !numericString.MatchString(v) {
+						bw.WriteString(v)
+					} else {
+						bw.WriteString(fmt.Sprintf("%q", v))
+					}
+					bw.WriteString("\n")
+				}
+			}
 		}
 		bw.WriteString("---\n")
 	}
@@ -114,8 +138,8 @@ func (b *Document) Summary(s string) {
 	b.SetFrontMatterField(MarkdownTagSummary, s)
 }
 
-func (b *Document) Section(s string) {
-	b.SetFrontMatterField(MarkdownTagSection, s)
+func (b *Document) Layout(s string) {
+	b.SetFrontMatterField(MarkdownTagLayout, s)
 }
 
 func (b *Document) ID(s string) {

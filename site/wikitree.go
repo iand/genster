@@ -14,7 +14,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
-	doc.Section(md.PageLayoutPerson)
+	doc.Layout(md.PageLayoutPerson)
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
 	doc.SetFrontMatterField("gender", p.Gender.Noun())

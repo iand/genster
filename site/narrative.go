@@ -957,6 +957,10 @@ func GenerateOlb(p *model.Person) error {
 		clauses = append(clauses, Clause{Text: "twin", Interestingness: 2})
 	}
 
+	if p.DiedInChildbirth {
+		clauses = append(clauses, Clause{Text: "died in childbirth", Interestingness: 2})
+	}
+
 	if p.PhysicalImpairment {
 		clauses = append(clauses, Clause{Text: "physically impaired", Interestingness: 2})
 	}

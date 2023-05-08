@@ -197,7 +197,7 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 				Text:     fmt.Sprintf("Place name does not include a country: %q", name),
 				Context:  "Place in event",
 			})
-		} else if c.Name == "United Kingdom" {
+		} else if c.Name == "United Kingdom" && pl.UKNationName == nil {
 			// This is just my personal preference
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "Name",

@@ -450,6 +450,56 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				case "mentally impaired":
 					p.MentalImpairment = true
 					logger.Debug("found mentally impaired tag, marking as mentally impaired")
+				case "died in childbirth":
+					p.DiedInChildbirth = true
+					logger.Debug("found died in childbirth impaired tag, marking as died in childbirth")
+				case "transcribe death cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  "death event",
+						Goal:     "Transcribe the death certificate",
+						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					})
+				case "transcribe marriage cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  "marriage event",
+						Goal:     "Transcribe the marriage certificate",
+						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					})
+				case "transcribe birth cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  "birth event",
+						Goal:     "Transcribe the birth certificate",
+						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					})
+				case "find death date":
+				case "find birth date":
+				case "find marriage":
+				case "find in census":
+				case "find surname":
+					// handled generically elsewhere
+				case "source baptism":
+					// handled generically elsewhere
+				case "source birth":
+					// handled generically elsewhere
+				case "source burial":
+					// handled generically elsewhere
+				case "source death":
+					// handled generically elsewhere
+				case "source marriage":
+					// handled generically elsewhere
+				case "transcription needed":
+				case "find other children":
+				case "actively researching":
+				case "brick wall":
+				case "dna match":
+					// This person is on your DNA Match List.
+				case "dna connection":
+					// This person is a relative on the path between a DNA Match and a common ancestor.
+				case "common dna ancestor":
+					// This person is a common ancestor between yourself and at least one of your DNA Matches.
 				default:
 					p.Tags = append(p.Tags, tag)
 				}

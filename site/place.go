@@ -14,7 +14,7 @@ func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 	doc := s.NewDocument()
 
 	doc.Title(p.PreferredName)
-	doc.Section(md.PageLayoutPlace)
+	doc.Layout(md.PageLayoutPlace)
 	doc.ID(p.ID)
 	doc.AddTags(CleanTags(p.Tags))
 
