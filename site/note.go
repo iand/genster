@@ -18,6 +18,7 @@ type NoteDoc struct {
 	Type     string
 	Person   string
 	Markdown string
+	Mentions []string
 }
 
 func LoadNotes(dir string) ([]*NoteDoc, error) {
@@ -53,9 +54,10 @@ func ParseNote(fname string, fsys fs.FS) (*NoteDoc, error) {
 	defer f.Close()
 
 	const (
-		seekingHeader = 0
-		readingHeader = 1
-		readingBody   = 2
+		seekingHeader       = 0
+		readingHeader       = 1
+		readingBody         = 2
+		readingMentionsList = 3
 	)
 
 	n := &NoteDoc{
@@ -78,6 +80,13 @@ func ParseNote(fname string, fsys fs.FS) (*NoteDoc, error) {
 			default:
 				return nil, fmt.Errorf("did not find start of header marker '---'")
 			}
+		case readingMentionsList:
+			if strings.HasPrefix(line, "- ") {
+				n.Mentions = append(n.Mentions, line[2:])
+				break
+			}
+			state = readingHeader
+			fallthrough
 
 		case readingHeader:
 			switch line {
@@ -104,6 +113,12 @@ func ParseNote(fname string, fsys fs.FS) (*NoteDoc, error) {
 					n.Author = value
 				case "date":
 					n.Date = value
+				case "mentions":
+					if value != "" {
+						n.Mentions = append(n.Mentions, value)
+					} else {
+						state = readingMentionsList
+					}
 				}
 
 			}

@@ -3,8 +3,9 @@ package model
 type ToDoCategory string
 
 const (
-	ToDoCategoryCitations ToDoCategory = "Citations"
+	ToDoCategoryCitations ToDoCategory = "Citation"
 	ToDoCategoryMissing   ToDoCategory = "Missing Information"
+	ToDoCategoryRecords   ToDoCategory = "Records"
 )
 
 func (c ToDoCategory) String() string {

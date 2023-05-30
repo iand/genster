@@ -76,9 +76,17 @@ func (l *Loader) readAttrs() error {
 	if l.Gedcom.Header.SourceSystem.BusinessName == "Ancestry.com" {
 		for _, hud := range l.Gedcom.Header.SourceSystem.UserDefined {
 			if hud.Tag == "_TREE" {
+				if hud.Value != "" {
+					l.Attrs["ANCESTRY_TREE_NAME"] = hud.Value
+				}
 				for _, tud := range hud.UserDefined {
-					if tud.Tag == "RIN" && tud.Value != "" {
-						l.Attrs["ANCESTRY_TREE_ID"] = tud.Value
+					if tud.Value != "" {
+						switch tud.Tag {
+						case "RIN":
+							l.Attrs["ANCESTRY_TREE_ID"] = tud.Value
+						case "NOTE":
+							l.Attrs["ANCESTRY_TREE_NOTE"] = tud.Value
+						}
 					}
 				}
 			}
@@ -106,6 +114,13 @@ func (l *Loader) readTags() error {
 }
 
 func (l *Loader) Load(t *tree.Tree) error {
+	if name, ok := l.Attrs["ANCESTRY_TREE_NAME"]; ok {
+		t.Name = name
+	}
+	if desc, ok := l.Attrs["ANCESTRY_TREE_NOTE"]; ok {
+		t.Description = desc
+	}
+
 	for _, sr := range l.Gedcom.Source {
 		if err := l.populateSourceFacts(t, sr); err != nil {
 			return fmt.Errorf("source: %w", err)

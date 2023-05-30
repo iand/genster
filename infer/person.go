@@ -17,12 +17,7 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	logging.Debug("redacting person", "id", p.ID, "name", p.PreferredFullName)
 	p.Redacted = true
 	if !p.RedactionKeepsName {
-		p.PreferredFullName = "(living or recently deceased person)"
-		p.PreferredGivenName = "(living or recently deceased person)"
-		p.PreferredFamiliarName = "(living or recently deceased person)"
-		p.PreferredFamilyName = "(living or recently deceased person)"
-		p.PreferredSortName = "(living or recently deceased person)"
-		p.PreferredUniqueName = "(living or recently deceased person)"
+		p.SetAllNames("(living or recently deceased person)")
 		p.NickName = ""
 	}
 	p.Olb = "information withheld to preserve privacy"
@@ -32,11 +27,37 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	p.Occupations = []*model.Occupation{}
 	p.Links = []model.Link{}
 	p.VitalYears = "(?-?)"
+
+	if decade, ok := p.BestBirthlikeEvent.GetDate().DecadeStart(); ok {
+		birthDate := model.WithinDecade(decade)
+		p.SetAllNames("(person born " + birthDate.When() + ")")
+
+		if p.BestDeathlikeEvent != nil {
+			if deathDecade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok && deathDecade != decade {
+				deathDate := model.WithinDecade(deathDecade)
+				p.SetAllNames("(person lived " + birthDate.String() + " to " + deathDate.String() + ")")
+			}
+		}
+	} else {
+		if p.BestDeathlikeEvent != nil {
+			if decade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok {
+				deathDate := model.WithinDecade(decade)
+				p.SetAllNames("(person died " + deathDate.When() + ")")
+			}
+		}
+	}
+
 	p.BestBirthlikeEvent = &model.BirthEvent{
 		GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
 		GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
 	}
-	p.BestDeathlikeEvent = nil
+
+	if p.BestDeathlikeEvent != nil {
+		p.BestDeathlikeEvent = &model.DeathEvent{
+			GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
+			GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
+		}
+	}
 	p.Families = []*model.Family{}
 	p.Children = []*model.Person{}
 

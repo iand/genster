@@ -50,6 +50,18 @@ func AfterYear(y int) *Date {
 	}
 }
 
+func YearRange(l, u int) *Date {
+	return &Date{
+		Date: &gdate.YearRange{Lower: l, Upper: u},
+	}
+}
+
+func WithinDecade(y int) *Date {
+	return &Date{
+		Date: &gdate.YearRange{Lower: y, Upper: y + 9},
+	}
+}
+
 // IsUnknown reports whether d is an Unknown date
 func (d *Date) IsUnknown() bool {
 	if d == nil {
@@ -189,6 +201,19 @@ func (d *Date) WholeYearsUntil(other *Date) (int, bool) {
 	}
 
 	return in.WholeYears()
+}
+
+func (d *Date) DecadeStart() (int, bool) {
+	if d == nil {
+		return 0, false
+	}
+
+	yearer, ok := gdate.AsYear(d.Date)
+	if !ok {
+		return 0, false
+	}
+
+	return (yearer.Year() / 10) * 10, true
 }
 
 func IntervalSince(d *Date) *Interval {

@@ -12,7 +12,8 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
-	doc.Layout(md.PageLayoutPerson)
+	doc.Layout(PageLayoutPerson.String())
+	doc.Category(PageCategoryPerson)
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
 	if p.Redacted {
@@ -31,6 +32,52 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		doc.Summary(p.Olb)
 	}
 	doc.AddTags(CleanTags(p.Tags))
+
+	// determine the feature image
+	if !p.Gender.IsUnknown() {
+		birthYear, hasBirthYear := p.BestBirthDate().Year()
+		deathYear, hasDeathYear := p.BestDeathDate().Year()
+		if hasBirthYear || hasDeathYear {
+			eraYear := 0
+			age := 0
+			if hasBirthYear {
+				eraYear = birthYear+18
+				if hasDeathYear {
+					age = deathYear - birthYear
+					if age < 18 {
+						eraYear = birthYear
+					}
+
+					if age < 15 {
+						doc.SetFrontMatterField("maturity", "child")
+					} else if age < 25 {
+						doc.SetFrontMatterField("maturity", "young")
+					} else if age < 55 {
+						doc.SetFrontMatterField("maturity", "mature")
+					} else {
+						doc.SetFrontMatterField("maturity", "old")
+					}
+				}
+			} else {
+				eraYear = deathYear
+			}
+
+			if eraYear != 0 {
+				if eraYear < 1700 {
+					doc.SetFrontMatterField("era", "1600s")
+				} else if eraYear < 1800 {
+					doc.SetFrontMatterField("era", "1700s")
+				} else if eraYear < 1900 {
+					doc.SetFrontMatterField("era", "1800s")
+				} else if eraYear < 2000 {
+					doc.SetFrontMatterField("era", "1900s")
+				} else {
+					doc.SetFrontMatterField("era", "modern")
+				}
+			}
+
+		}
+	}
 
 	// Render narrative
 	n := &Narrative{
@@ -125,7 +172,12 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 
 	if len(p.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes")
+		mentions := make([]*model.Note, 0)
 		for _, n := range p.ResearchNotes {
+			if !n.PrimaryPerson.SameAs(p) {
+				mentions = append(mentions, n)
+				continue
+			}
 			doc.Heading3(n.Title)
 
 			byline := ""
@@ -144,6 +196,16 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 			}
 			doc.RawMarkdown(n.Markdown)
 		}
+
+		if len(mentions) > 0 {
+			doc.Heading3("Mentioned in the following notes:")
+			ss := make([]string, 0, len(mentions))
+			for _, n := range mentions {
+				ss = append(ss, doc.EncodeModelLink(n.Title, n.PrimaryPerson))
+			}
+			doc.UnorderedList(ss)
+		}
+
 	}
 
 	return doc, nil

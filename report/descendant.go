@@ -22,6 +22,11 @@ var descendantCommand = &cli.Command{
 			Usage:       "GEDCOM file to read from",
 			Destination: &descendantOpts.gedcomFile,
 		},
+		&cli.StringFlag{
+			Name:        "id",
+			Usage:       "Identifier to give this tree (mainly for annotation support)",
+			Destination: &descendantOpts.treeID,
+		},
 		&cli.BoolFlag{
 			Name:        "include-private",
 			Usage:       "Include living people and people who died less than 20 years ago.",
@@ -70,6 +75,7 @@ var descendantCommand = &cli.Command{
 
 var descendantOpts struct {
 	gedcomFile     string
+	treeID         string
 	includePrivate bool
 	configDir      string
 	startPersonID  string
@@ -105,7 +111,7 @@ func descendant(cc *cli.Context) error {
 		return fmt.Errorf("load gedcom: %w", err)
 	}
 
-	t, err := tree.LoadTree(descendantOpts.configDir, l)
+	t, err := tree.LoadTree(descendantOpts.treeID, descendantOpts.configDir, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}
@@ -226,12 +232,12 @@ func formatEventFull(ev model.TimelineEvent) string {
 	details := ev.What()
 	date := ev.GetDate()
 	if !date.IsUnknown() {
-		details = text.JoinSentence(details, date.When())
+		details = text.JoinSentenceParts(details, date.When())
 	}
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		details = text.JoinSentence(details, pl.PlaceType.InAt(), pl.PreferredName)
+		details = text.JoinSentenceParts(details, pl.PlaceType.InAt(), pl.PreferredName)
 	}
 	return details
 }

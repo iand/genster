@@ -29,14 +29,6 @@ const (
 	MarkdownTagIndexPage = "index"
 )
 
-const (
-	PageLayoutPerson     = "person"
-	PageLayoutCalendar   = "calendar"
-	PageLayoutSource     = "source"
-	PageLayoutPlace      = "place"
-	PageLayoutInferences = "inferences"
-)
-
 type LinkBuilder interface {
 	LinkFor(v any) string
 }
@@ -142,12 +134,12 @@ func (b *Document) Layout(s string) {
 	b.SetFrontMatterField(MarkdownTagLayout, s)
 }
 
-func (b *Document) ID(s string) {
-	b.SetFrontMatterField(MarkdownTagID, s)
-}
-
 func (b *Document) Category(s string) {
 	b.SetFrontMatterField(MarkdownTagCategory, s)
+}
+
+func (b *Document) ID(s string) {
+	b.SetFrontMatterField(MarkdownTagID, s)
 }
 
 func (b *Document) BasePath(s string) {

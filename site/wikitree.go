@@ -14,7 +14,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
-	doc.Layout(md.PageLayoutPerson)
+	doc.Layout(PageLayoutPerson.String())
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
 	doc.SetFrontMatterField("gender", p.Gender.Noun())
@@ -39,12 +39,12 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 		birth := p.BestBirthlikeEvent.What()
 		date := p.BestBirthlikeEvent.GetDate()
 		if !date.IsUnknown() {
-			birth = text.JoinSentence(birth, date.String())
+			birth = text.JoinSentenceParts(birth, date.String())
 		}
 
 		pl := p.BestBirthlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			birth = text.JoinSentence(birth, pl.PlaceType.InAt(), pl.PreferredFullName)
+			birth = text.JoinSentenceParts(birth, pl.PlaceType.InAt(), pl.PreferredFullName)
 		}
 
 		doc.Para(text.UpperFirst(birth))
@@ -56,12 +56,12 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 		death := p.BestDeathlikeEvent.What()
 		date := p.BestDeathlikeEvent.GetDate()
 		if !date.IsUnknown() {
-			death = text.JoinSentence(death, date.String())
+			death = text.JoinSentenceParts(death, date.String())
 		}
 
 		pl := p.BestDeathlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			death = text.JoinSentence(death, pl.PlaceType.InAt(), pl.PreferredFullName)
+			death = text.JoinSentenceParts(death, pl.PlaceType.InAt(), pl.PreferredFullName)
 		}
 
 		doc.Para(text.UpperFirst(death))
@@ -114,7 +114,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 		if f.BestStartEvent != nil {
 			pl := f.BestStartEvent.GetPlace()
 			if !pl.IsUnknown() {
-				rel = text.JoinSentence(rel, pl.PlaceType.InAt(), pl.PreferredFullName)
+				rel = text.JoinSentenceParts(rel, pl.PlaceType.InAt(), pl.PreferredFullName)
 			}
 		}
 

@@ -18,9 +18,12 @@ import (
 var _ = slog.Debug
 
 type Tree struct {
+	ID          string
+	Name        string
+	Description string
 	IdentityMap *IdentityMap
 	Gazeteer    *Gazeteer
-	Overrides   *Annotations
+	Annotations *Annotations
 	People      map[string]*model.Person
 	Sources     map[string]*model.Source
 	Places      map[string]*model.Place
@@ -28,11 +31,12 @@ type Tree struct {
 	KeyPerson   *model.Person
 }
 
-func NewTree(m *IdentityMap, g *Gazeteer, o *Annotations) *Tree {
+func NewTree(id string, m *IdentityMap, g *Gazeteer, a *Annotations) *Tree {
 	return &Tree{
+		ID:          id,
 		IdentityMap: m,
 		Gazeteer:    g,
-		Overrides:   o,
+		Annotations: a,
 		People:      make(map[string]*model.Person),
 		Sources:     make(map[string]*model.Source),
 		Places:      make(map[string]*model.Place),
@@ -212,13 +216,15 @@ func (s *Tree) newFamily(id string) *model.Family {
 }
 
 func (t *Tree) Generate(redactLiving bool) error {
-	// Apply any overrides first, they may be redacted after
-	if t.Overrides != nil {
+	// Apply any annotations first, they may be redacted after
+	if t.Annotations != nil {
+		t.Annotations.ApplyTree(t)
+
 		for _, p := range t.People {
-			t.Overrides.ApplyPerson(p)
+			t.Annotations.ApplyPerson(p)
 		}
 		for _, p := range t.Places {
-			t.Overrides.ApplyPlace(p)
+			t.Annotations.ApplyPlace(p)
 		}
 	}
 
@@ -233,6 +239,8 @@ func (t *Tree) Generate(redactLiving bool) error {
 	for _, f := range t.Families {
 		t.InferFamilyRelationships(f)
 	}
+
+	t.BuildRelationsToKeyPerson()
 
 	// Add data to each person
 	for _, p := range t.People {
@@ -254,8 +262,6 @@ func (t *Tree) Generate(redactLiving bool) error {
 	for _, f := range t.Families {
 		t.InferFamilyStartEndDates(f)
 	}
-
-	t.BuildRelationsToKeyPerson()
 
 	// Redact any personal information
 	t.Redact(redactLiving)

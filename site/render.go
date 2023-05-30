@@ -90,28 +90,31 @@ func NewPaginator() *Paginator {
 
 type PaginatorEntry struct {
 	Key           string
+	Title         string
 	Group         string
 	GroupPriority int
 	Content       string
 }
 
-func (p *Paginator) AddEntry(key string, content string) {
+func (p *Paginator) AddEntry(key string, title string, content string) {
 	p.Entries = append(p.Entries, PaginatorEntry{
 		Key:     key,
+		Title:   title,
 		Content: content,
 	})
 }
 
-func (p *Paginator) AddEntryWithGroup(key string, content string, group string, groupPriority int) {
+func (p *Paginator) AddEntryWithGroup(key string, title string, content string, group string, groupPriority int) {
 	p.Entries = append(p.Entries, PaginatorEntry{
 		Key:           key,
+		Title:         title,
 		Group:         group,
 		GroupPriority: groupPriority,
 		Content:       content,
 	})
 }
 
-func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title string) error {
+func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title string, summary string) error {
 	indexPage := "index.md"
 	if p.HugoStyle {
 		indexPage = "_index.md"
@@ -124,11 +127,13 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 	})
 
 	type Page struct {
-		FirstKey string
-		LastKey  string
-		Content  string
-		Name     string
-		Group    string
+		FirstKey   string
+		LastKey    string
+		FirstTitle string
+		LastTitle  string
+		Content    string
+		Name       string
+		Group      string
 	}
 
 	var pages []*Page
@@ -162,9 +167,11 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 		}
 		if len(pg.Content) == 0 {
 			pg.FirstKey = e.Key
+			pg.FirstTitle = e.Title
 		}
 		pg.Content += e.Content
 		pg.LastKey = e.Key
+		pg.LastTitle = e.Title
 	}
 	pages = append(pages, pg)
 
@@ -205,6 +212,9 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 
 		doc := s.NewDocument()
 		doc.Title(title)
+		if summary != "" {
+			doc.Summary(summary)
+		}
 		doc.Layout(layout.String())
 
 		var group string
@@ -219,9 +229,9 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 				group = pg.Group
 			}
 			if pg.FirstKey == pg.LastKey {
-				list = append(list, doc.EncodeLink(pg.FirstKey, pg.Name))
+				list = append(list, doc.EncodeLink(pg.FirstTitle, pg.Name))
 			} else {
-				list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstKey, pg.LastKey), pg.Name))
+				list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstTitle, pg.LastTitle), pg.Name))
 			}
 		}
 
@@ -236,6 +246,9 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 	} else {
 		doc := s.NewDocument()
 		doc.Title(title)
+		if summary != "" {
+			doc.Summary(summary)
+		}
 		doc.Layout(layout.String())
 		doc.SetBody(pages[0].Content)
 		if err := writePage(doc, baseDir, indexPage); err != nil {

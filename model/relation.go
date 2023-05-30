@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 // Relation describes the relationship between the From person and the To
 type Relation struct {
 	From                  *Person
@@ -75,8 +77,12 @@ func (r *Relation) Name() string {
 				return name
 			}
 
-			for i := 2; i < r.FromGenerations; i++ {
-				name = "great " + name
+			if r.FromGenerations < 5 {
+				for i := 2; i < r.FromGenerations; i++ {
+					name = "great " + name
+				}
+			} else {
+				name = fmt.Sprintf("%dx great "+name, r.FromGenerations-2)
 			}
 
 			return name
@@ -101,8 +107,12 @@ func (r *Relation) Name() string {
 				return name
 			}
 
-			for i := 2; i < r.ToGenerations; i++ {
-				name = "great " + name
+			if r.FromGenerations < 5 {
+				for i := 2; i < r.ToGenerations; i++ {
+					name = "great " + name
+				}
+			} else {
+				name = fmt.Sprintf("%dx great "+name, r.FromGenerations-2)
 			}
 
 			return name

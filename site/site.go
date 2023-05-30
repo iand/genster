@@ -30,6 +30,7 @@ const (
 	PageLayoutListSources    PageLayout = "listsources"
 	PageLayoutListSurnames   PageLayout = "listsurnames"
 	PageLayoutCalendar       PageLayout = "calendar"
+	PageLayoutTreeOverview   PageLayout = "treeoverview"
 )
 
 func (p PageLayout) String() string { return string(p) }
@@ -39,6 +40,12 @@ const (
 	PageSectionPlace  = "place"
 	PageSectionSource = "source"
 	PageSectionList   = "list"
+)
+
+const (
+	PageCategoryPerson = "person"
+	PageCategorySource = "source"
+	PageCategoryPlace  = "place"
 )
 
 type Site struct {
@@ -251,20 +258,6 @@ func (s *Site) AssignTags(p *model.Person) error {
 
 	if p.PreferredFamilyName != model.UnknownNamePlaceholder && p.PreferredFamilyName != "" {
 		p.Tags = append(p.Tags, p.PreferredFamilyName)
-	} else {
-		p.Tags = append(p.Tags, "Unknown Surname")
-	}
-
-	if p.PreferredGivenName == model.UnknownNamePlaceholder || p.PreferredGivenName == "" {
-		p.Tags = append(p.Tags, "Unknown Forename")
-	}
-
-	if len(p.Inferences) > 0 {
-		p.Tags = append(p.Tags, "Has Inferences")
-	}
-
-	if len(p.Anomalies) > 0 {
-		p.Tags = append(p.Tags, "Has Anomalies")
 	}
 
 	if p.Pauper {
@@ -320,19 +313,8 @@ func (s *Site) AssignTags(p *model.Person) error {
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("died in %ds", decade))
 	// }
 
-	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() {
-		p.Tags = append(p.Tags, "Unknown Birthdate")
-	}
-	if p.BestDeathlikeEvent == nil || p.BestDeathlikeEvent.GetDate().IsUnknown() {
-		p.Tags = append(p.Tags, "Unknown Deathdate")
-	}
-
 	if p.WikiTreeID != "" {
 		p.Tags = append(p.Tags, "WikiTree")
-	}
-
-	if len(p.ResearchNotes) > 0 {
-		p.Tags = append(p.Tags, "Has Research Notes")
 	}
 
 	return nil
@@ -499,6 +481,11 @@ func (s *Site) NewMarkdownBuilder() MarkdownBuilder {
 }
 
 func (s *Site) ScanPersonForAnomalies(p *model.Person) {
+	var birthEvents []model.TimelineEvent
+	var baptismEvents []model.TimelineEvent
+	var deathEvents []model.TimelineEvent
+	var burialEvents []model.TimelineEvent
+
 	for _, ev := range p.Timeline {
 		if !ev.DirectlyInvolves(p) {
 			continue
@@ -509,6 +496,75 @@ func (s *Site) ScanPersonForAnomalies(p *model.Person) {
 				p.Anomalies = append(p.Anomalies, anom)
 			}
 		}
+
+		switch ev.(type) {
+		case *model.BirthEvent:
+			birthEvents = append(birthEvents, ev)
+		case *model.BaptismEvent:
+			baptismEvents = append(baptismEvents, ev)
+		case *model.DeathEvent:
+			deathEvents = append(deathEvents, ev)
+		case *model.BurialEvent:
+			burialEvents = append(burialEvents, ev)
+		}
+	}
+
+	describeEvents := func(typ string, evs []model.TimelineEvent) string {
+		dates := make(map[string]int)
+		for _, ev := range evs {
+			if ev.GetDate().IsUnknown() {
+				dates["with an unknown date"]++
+			} else {
+				dates["dated "+ev.GetDate().String()]++
+			}
+		}
+		var details []string
+		for dt, count := range dates {
+			if len(details) == 0 {
+				details = append(details, text.CardinalNoun(count)+" "+typ+" "+text.MaybePluralise("event", count)+" "+dt)
+			} else {
+				details = append(details, text.CardinalNoun(count)+" "+dt)
+			}
+		}
+
+		return "This person has " + text.JoinList(details)
+	}
+
+	if len(birthEvents) > 1 {
+		txt := describeEvents("birth", birthEvents)
+		p.Anomalies = append(p.Anomalies, &model.Anomaly{
+			Category: model.AnomalyCategoryEvent,
+			Text:     txt,
+			Context:  "Multiple birth events",
+		})
+	}
+	if len(deathEvents) > 1 {
+		txt := describeEvents("death", deathEvents)
+
+		p.Anomalies = append(p.Anomalies, &model.Anomaly{
+			Category: model.AnomalyCategoryEvent,
+			Text:     txt,
+			Context:  "Multiple death events",
+		})
+	}
+	if len(burialEvents) > 1 {
+		txt := describeEvents("burial", burialEvents)
+
+		p.Anomalies = append(p.Anomalies, &model.Anomaly{
+			Category: model.AnomalyCategoryEvent,
+			Text:     txt,
+			Context:  "Multiple burial events",
+		})
+	}
+	// TODO: mayeb remove this, people can have multiple baptisms
+	if len(baptismEvents) > 1 {
+		txt := describeEvents("baptism", baptismEvents)
+
+		p.Anomalies = append(p.Anomalies, &model.Anomaly{
+			Category: model.AnomalyCategoryEvent,
+			Text:     txt,
+			Context:  "Multiple baptism events",
+		})
 	}
 }
 
@@ -521,8 +577,8 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 			logging.Debug("not writing redacted person to anomalies index", "id", p.ID)
 			continue
 		}
-		categories := make([]string, 0)
-		anomaliesByCategory := make(map[string][]*model.Anomaly)
+		categories := make([]model.AnomalyCategory, 0)
+		anomaliesByCategory := make(map[model.AnomalyCategory][]*model.Anomaly)
 
 		for _, a := range p.Anomalies {
 			a := a // avoid shadowing
@@ -536,7 +592,7 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 			categories = append(categories, a.Category)
 			anomaliesByCategory[a.Category] = []*model.Anomaly{a}
 		}
-		sort.Strings(categories)
+		sort.Slice(categories, func(i, j int) bool { return categories[i] < categories[j] })
 
 		if len(anomaliesByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
@@ -560,12 +616,12 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 			}
 
 			group, groupPriority := groupRelation(p.RelationToKeyPerson)
-			pn.AddEntryWithGroup(p.PreferredSortName, b.Markdown(), group, groupPriority)
+			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown(), group, groupPriority)
 		}
 
 	}
 
-	if err := pn.WritePages(s, baseDir, PageLayoutListAnomalies, "Anomalies"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListAnomalies, "Anomalies", "Anomalies are errors or inconsistencies that have been detected in the underlying data used to generate this site."); err != nil {
 		return err
 	}
 
@@ -598,11 +654,11 @@ func (s *Site) WriteInferenceListPages(root string) error {
 				b.Para(b.EncodeModelLink("View page", p))
 			}
 			b.DefinitionList(items)
-			pn.AddEntry(p.PreferredSortName, b.Markdown())
+			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
 		}
 
 	}
-	if err := pn.WritePages(s, baseDir, PageLayoutListInferences, "Inferences Made"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListInferences, "Inferences Made", "Inferences refer to hints and suggestions that help fill in missing information in the family tree."); err != nil {
 		return err
 	}
 
@@ -645,30 +701,45 @@ func (s *Site) WriteTodoListPages(root string) error {
 			} else {
 				b.Para(b.EncodeModelLink("View page", p))
 			}
+
 			for _, cat := range categories {
 				al := todosByCategory[cat]
-				items := make([]string, 0, len(al))
+				items := make([][2]string, 0, len(al))
 
 				for _, a := range al {
-					line := b.EncodeItalic(a.Context) + ": " + text.StripTerminator(text.LowerFirst(a.Goal))
+					line := text.StripTerminator(text.UpperFirst(a.Goal))
 					if a.Reason != "" {
 						line += " (" + text.LowerFirst(a.Reason) + ")"
 					} else {
 						line = text.FinishSentence(line)
 					}
-					items = append(items, line)
+					items = append(items, [2]string{
+						a.Context,
+						line,
+					})
 				}
-				b.Heading4(cat.String())
-				b.UnorderedList(items)
+				b.DefinitionList(items)
+
+				// for _, a := range al {
+				// 	line := b.EncodeItalic(a.Context) + ": " + text.StripTerminator(text.LowerFirst(a.Goal))
+				// 	if a.Reason != "" {
+				// 		line += " (" + text.LowerFirst(a.Reason) + ")"
+				// 	} else {
+				// 		line = text.FinishSentence(line)
+				// 	}
+				// 	items = append(items, line)
+				// }
+				// b.Heading4(cat.String())
+				// b.UnorderedList(items)
 			}
 
 			group, groupPriority := groupRelation(p.RelationToKeyPerson)
-			pn.AddEntryWithGroup(p.PreferredSortName, b.Markdown(), group, groupPriority)
+			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown(), group, groupPriority)
 		}
 
 	}
 
-	if err := pn.WritePages(s, baseDir, PageLayoutListTodo, "To Do"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListTodo, "To Do", "These suggested tasks and projects are loose ends or incomplete areas in the tree that need further research."); err != nil {
 		return err
 	}
 
@@ -691,10 +762,10 @@ func (s *Site) WritePersonListPages(root string) error {
 			p.Olb,
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(p.PreferredSortName, b.Markdown())
+		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
 
 	}
-	if err := pn.WritePages(s, baseDir, PageLayoutListPeople, "People"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListPeople, "People", "This is a full, alphabetical list of people in the tree."); err != nil {
 		return err
 	}
 	return nil
@@ -711,10 +782,10 @@ func (s *Site) WritePlaceListPages(root string) error {
 			b.EncodeModelLink(p.PreferredUniqueName, p),
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(p.PreferredSortName, b.Markdown())
+		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
 
 	}
-	if err := pn.WritePages(s, baseDir, PageLayoutListPlaces, "Places"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListPlaces, "Places", "This is a full, alphabetical list of places in the tree."); err != nil {
 		return err
 	}
 	return nil
@@ -731,10 +802,10 @@ func (s *Site) WriteSourceListPages(root string) error {
 			b.EncodeModelLink(so.Title, so),
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(so.Title, b.Markdown())
+		pn.AddEntry(so.Title+"~"+so.ID, so.Title, b.Markdown())
 
 	}
-	if err := pn.WritePages(s, baseDir, PageLayoutListSources, "Sources"); err != nil {
+	if err := pn.WritePages(s, baseDir, PageLayoutListSources, "Sources", "This is a full, alphabetical list of sources cited in the tree."); err != nil {
 		return err
 	}
 
@@ -758,9 +829,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	for surname, people := range peopleBySurname {
 		surnames = append(surnames, surname)
-		sort.Slice(people, func(i, j int) bool {
-			return people[i].PreferredSortName < people[j].PreferredSortName
-		})
+		model.SortPeople(people)
 
 		pn := NewPaginator()
 		pn.HugoStyle = s.GenerateHugo
@@ -773,11 +842,11 @@ func (s *Site) WriteSurnameListPages(root string) error {
 				p.Olb,
 			})
 			b.DefinitionList(items)
-			pn.AddEntry(p.PreferredSortName, b.Markdown())
+			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
 		}
 
 		baseDir := filepath.Join(root, s.ListSurnamesDir, slug.Make(surname))
-		if err := pn.WritePages(s, baseDir, PageLayoutListSurnames, surname); err != nil {
+		if err := pn.WritePages(s, baseDir, PageLayoutListSurnames, surname, "This is a full, alphabetical list of people in the tree with the surname '"+surname+"'."); err != nil {
 			return err
 		}
 
@@ -793,6 +862,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	doc := s.NewDocument()
 	doc.Title("Surnames")
+	doc.Summary("This is a full, alphabetical list of the surnames of people in the tree.")
 	doc.Layout(PageLayoutListSurnames.String())
 
 	alist := make([]string, 0, len(ancestorSurnames))
@@ -819,67 +889,133 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 func (s *Site) WriteTreeOverview(root string) error {
 	doc := s.NewDocument()
-	doc.Title("Tree Overview")
+	if s.Tree.Name != "" {
+		doc.Title(s.Tree.Name)
+	} else {
+		doc.Title("Tree Overview")
+	}
+	doc.Layout(PageLayoutTreeOverview.String())
 
 	fname := "index.md"
 	if s.GenerateHugo {
 		fname = "_index.md"
 	}
 
-	if !s.Tree.KeyPerson.IsUnknown() {
-		doc.EmptyPara()
+	desc := s.Tree.Description
 
-		detail := text.JoinSentence("In this family tree,", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson), "acts as the primary reference point, with all relationships defined in relation to", s.Tree.KeyPerson.Gender.ObjectPronoun())
-		detail = text.FormatSentence(detail)
-		doc.Para(text.FormatSentence(detail))
+	if desc != "" {
+		doc.Para(text.FormatSentence(desc))
 	}
 
-	if !s.IncludePrivate {
-		detail := text.JoinSentence("The tree excludes information on people who are possibly alive or who have died within the past twenty years")
-		detail = text.FormatSentence(detail)
-		doc.Para(text.FormatSentence(detail))
-	}
+	peopleDesc := ""
 
 	numberOfPeople := s.Tree.NumberOfPeople()
 	if numberOfPeople > 0 {
-		detail := fmt.Sprintf("There are %d people in this tree", numberOfPeople)
-		doc.Para(text.FormatSentence(detail))
+		doc.EmptyPara()
+		peopleDesc = text.FormatSentence(fmt.Sprintf("There are %d people in this tree", numberOfPeople))
 	}
 
-	ancestorSurnames := flattenByKeyAsc(s.Tree.AncestorSurnameDistribution())
+	ancestorSurnames := flattenByValueDesc(s.Tree.AncestorSurnameDistribution())
 	if len(ancestorSurnames) > 0 {
-		doc.EmptyPara()
-		detail := text.JoinSentence("Ancestral surnames:", joinStringIntTuples(ancestorSurnames))
-		doc.Para(text.FormatSentence(detail))
+		list := make([]string, 12)
+		for i := range ancestorSurnames {
+			if i > 11 {
+				break
+			}
+			list[i] = doc.EncodeLink(ancestorSurnames[i].S, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].S)))
+		}
+		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", doc.EncodeLink("all surnames...", s.ListSurnamesDir))))
 	}
 
-	treeSurnames := flattenByKeyAsc(s.Tree.TreeSurnameDistribution())
-	if len(treeSurnames) > 0 {
+	if peopleDesc != "" {
 		doc.EmptyPara()
-		detail := text.JoinSentence("Tree surnames:", joinStringIntTuples(treeSurnames))
+		doc.Para(peopleDesc)
+	}
+
+	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		return p.Featured
+	}, 8)
+	if len(featuredPeople) > 0 {
+		model.SortPeople(featuredPeople)
+		doc.EmptyPara()
+		doc.Heading2("Featured")
+		items := make([]string, len(featuredPeople))
+		for i, p := range featuredPeople {
+			items[i] = text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb)
+		}
+		doc.UnorderedList(items)
+	}
+
+	puzzlePeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		return p.Puzzle && !p.Featured
+	}, 8)
+	if len(puzzlePeople) > 0 {
+		model.SortPeople(puzzlePeople)
+		doc.EmptyPara()
+		doc.Heading2("Currently puzzling over")
+		items := make([]string, len(puzzlePeople))
+		for i, p := range puzzlePeople {
+			items[i] = text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb)
+		}
+		doc.UnorderedList(items)
+	}
+
+	rnPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if len(p.ResearchNotes) == 0 {
+			return false
+		}
+		for _, pp := range puzzlePeople {
+			if pp.SameAs(p) {
+				return false
+			}
+		}
+		for _, pp := range featuredPeople {
+			if pp.SameAs(p) {
+				return false
+			}
+		}
+		return true
+	}, 3)
+	if len(rnPeople) > 0 {
+		model.SortPeople(rnPeople)
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
+			return p.PreferredFamiliarFullName
+		}, doc))
 		doc.Para(text.FormatSentence(detail))
 	}
 
 	oldestPeople := s.Tree.OldestPeople(3)
 	if len(oldestPeople) > 0 {
 		doc.EmptyPara()
-		detail := text.JoinSentence("Oldest people:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("Oldest people:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
 			age, _ := p.AgeInYearsAtDeath()
-			return fmt.Sprintf("%s (%d years)", p.PreferredUniqueName, age)
+			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
 		}, doc))
 		doc.Para(text.FormatSentence(detail))
 
 	}
 
-	rnPeople := s.Tree.ListPeopleMatching(model.PersonHasResearchNotes(), 3)
-	if len(rnPeople) > 0 {
+	var notes string
+	if !s.Tree.KeyPerson.IsUnknown() {
 		doc.EmptyPara()
-		doc.Heading2("People with research notes")
-		items := make([]string, len(rnPeople))
-		for i, p := range rnPeople {
-			items[i] = doc.EncodeModelLink(p.PreferredUniqueName, p)
-		}
-		doc.UnorderedList(items)
+
+		detail := text.JoinSentenceParts("In this family tree,", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson), "acts as the primary reference point, with all relationships defined in relation to", s.Tree.KeyPerson.Gender.ObjectPronoun())
+		notes = text.JoinSentences(notes, text.FormatSentence(detail))
+		notes = text.JoinSentences(notes, text.FormatSentence(text.JoinSentenceParts("Names suffixed by the", md.DirectAncestorMarker, "symbol indicate direct ancestors")))
+	}
+
+	if !s.IncludePrivate {
+		detail := text.JoinSentenceParts("The tree excludes information on people who are possibly alive or who have died within the past twenty years")
+		notes = text.JoinSentences(notes, text.FormatSentence(detail))
+	}
+
+	if len(notes) > 0 {
+		doc.EmptyPara()
+		doc.Heading3("Notes")
+		doc.Para(text.FormatSentence(notes))
 	}
 
 	if err := writePage(doc, root, fname); err != nil {
@@ -927,6 +1063,17 @@ func flattenByKeyAsc(m map[string]int) []StringIntTuple {
 	}
 
 	sort.Slice(list, func(i, j int) bool { return list[i].S < list[j].S })
+
+	return list
+}
+
+func flattenByValueDesc(m map[string]int) []StringIntTuple {
+	list := make([]StringIntTuple, 0, len(m))
+	for k, v := range m {
+		list = append(list, StringIntTuple{S: k, I: v})
+	}
+
+	sort.Slice(list, func(i, j int) bool { return list[i].I > list[j].I })
 
 	return list
 }

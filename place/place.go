@@ -69,6 +69,9 @@ func (c *PlaceName) SameAs(other *PlaceName) bool {
 	if c == nil || other == nil {
 		return false
 	}
+	if c.Unknown || other.Unknown {
+		return false
+	}
 	return c == other || (c.Name != "" && c.Name == other.Name)
 }
 

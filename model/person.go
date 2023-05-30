@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sort"
+
 	"github.com/iand/gdate"
 )
 
@@ -49,6 +51,8 @@ type Person struct {
 	MentalImpairment   bool         // true if it is known that the person was mentally impaired for the majority of their life
 	DiedInChildbirth   bool         // true if it is known that the person died in childbirth
 	CauseOfDeath       CauseOfDeath // cause of death, if known
+	Featured           bool         // true if this person is to be highlighted as a featured person on the tree overview
+	Puzzle             bool         // true if this person is the centre of a significant puzzle
 
 	Occupations        []*Occupation // list of occupations
 	PrimaryOccupation  string        // simple description of main occupation
@@ -221,6 +225,15 @@ func (p *Person) RemoveDuplicateSpouses() {
 	}
 }
 
+func (p *Person) SetAllNames(name string) {
+	p.PreferredFullName = name
+	p.PreferredGivenName = name
+	p.PreferredFamiliarName = name
+	p.PreferredFamilyName = name
+	p.PreferredSortName = name
+	p.PreferredUniqueName = name
+}
+
 func UnknownPerson() *Person {
 	return &Person{
 		PreferredFullName:         "an unknown person",
@@ -320,6 +333,18 @@ func PersonHasResearchNotes() PersonMatcher {
 	}
 }
 
+func PersonIsFeatured() PersonMatcher {
+	return func(p *Person) bool {
+		return p.Featured
+	}
+}
+
+func PersonIsPuzzle() PersonMatcher {
+	return func(p *Person) bool {
+		return p.Puzzle
+	}
+}
+
 func PersonIsDirectAncestor() PersonMatcher {
 	return func(p *Person) bool {
 		if p.RelationToKeyPerson == nil {
@@ -327,4 +352,10 @@ func PersonIsDirectAncestor() PersonMatcher {
 		}
 		return p.RelationToKeyPerson.IsDirectAncestor()
 	}
+}
+
+func SortPeople(people []*Person) {
+	sort.Slice(people, func(i, j int) bool {
+		return people[i].PreferredSortName < people[j].PreferredSortName
+	})
 }

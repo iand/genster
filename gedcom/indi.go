@@ -77,6 +77,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			})
 		}
 
+		prefName.Surname = strings.ReplaceAll(prefName.Surname, "\\", "/")
+
 		p.PreferredFullName = prefName.Full
 		p.PreferredGivenName = prefName.Given
 
@@ -207,7 +209,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		case "FACT":
 			switch strings.ToUpper(er.Type) {
 			case "OLB":
-				p.Olb = er.Value
+				logger.Debug("setting OLB from fact", "olb", gev.Detail)
+				p.Olb = gev.Detail
 			default:
 				category := factCategoryForType(er.Type)
 
@@ -229,8 +232,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				}
 			}
 		case "EVEN":
-			if strings.ToUpper(er.Type) == "OLB" && p.Olb == "" {
-				p.Olb = er.Value
+			if strings.ToUpper(er.Type) == "OLB" {
+				logger.Debug("setting OLB from event", "olb", gev.Detail)
+				p.Olb = gev.Detail
 			} else {
 				gev.Title = er.Type
 				switch strings.ToLower(er.Type) {
@@ -474,6 +478,41 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						Goal:     "Transcribe the birth certificate",
 						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
 					})
+				case "transcribe army records":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  "army records",
+						Goal:     "Transcribe the army records",
+						Reason:   "A copy of the army records available but they haven't been transcribed to the source citation.",
+					})
+				case "missing birth cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryRecords,
+						Context:  "birth event",
+						Goal:     "Obtain a copy of the birth certificate",
+						Reason:   "The date and place of birth is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+					})
+				case "missing death cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryRecords,
+						Context:  "death event",
+						Goal:     "Obtain a copy of the death certificate",
+						Reason:   "The date and place of death is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+					})
+				case "missing marriage cert":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryRecords,
+						Context:  "marriage event",
+						Goal:     "Obtain a copy of the marriage certificate",
+						Reason:   "The date and place of marriage is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+					})
+				case "find army records":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryRecords,
+						Context:  "military records",
+						Goal:     "Obtain a copy of military records",
+						Reason:   "This person is believed to have served in the military, so a copy of the records can be requested.",
+					})
 				case "find death date":
 				case "find birth date":
 				case "find marriage":
@@ -491,9 +530,19 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				case "source marriage":
 					// handled generically elsewhere
 				case "transcription needed":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  "transcriibe records",
+						Goal:     "Transcribe records",
+						Reason:   "Records are available that have not been transcribed to the source citation.",
+					})
 				case "find other children":
 				case "actively researching":
+					p.Puzzle = true
 				case "brick wall":
+					p.Puzzle = true
+				case "featured":
+					p.Featured = true
 				case "dna match":
 					// This person is on your DNA Match List.
 				case "dna connection":

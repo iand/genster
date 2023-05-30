@@ -13,17 +13,18 @@ func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
 	doc.SuppressCitations = true
 
 	doc.Title(so.Title)
-	doc.Layout(md.PageLayoutSource)
+	doc.Layout(PageLayoutSource.String())
+	doc.Category(PageCategorySource)
 	doc.ID(so.ID)
 	doc.AddTags(CleanTags(so.Tags))
 
 	if so.RepositoryName != "" {
-		para := text.JoinSentence("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
+		para := text.JoinSentenceParts("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
 		doc.Para(text.FormatSentence(para))
 	}
 
 	if so.SearchLink != "" {
-		para := text.JoinSentence("It can be ", doc.EncodeLink("searched online", so.SearchLink))
+		para := text.JoinSentenceParts("It can be ", doc.EncodeLink("searched online", so.SearchLink))
 		doc.Para(text.FormatSentence(para))
 	}
 
@@ -35,9 +36,9 @@ func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
 	} else if len(so.EventsCiting) == 1 {
 		cites = "one piece of evidence cites this source:"
 	} else {
-		cites = text.JoinSentence(text.SmallCardinalNoun(len(so.EventsCiting)), "pieces of evidence cite this source")
+		cites = text.JoinSentenceParts(text.SmallCardinalNoun(len(so.EventsCiting)), "pieces of evidence cite this source")
 		if len(so.EventsCiting) > maxEvents {
-			cites = text.JoinSentence(cites, ", some of which are:")
+			cites = text.JoinSentenceParts(cites, ", some of which are:")
 		} else {
 			cites += ":"
 		}

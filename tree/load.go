@@ -18,7 +18,7 @@ type Loader interface {
 	Load(*Tree) error
 }
 
-func LoadTree(configDir string, loader Loader) (*Tree, error) {
+func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 	var identityMapFilename string
 	var gazeteerFilename string
 	var annotationsFilename string
@@ -47,7 +47,7 @@ func LoadTree(configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load annotations: %w", err)
 	}
 
-	t := NewTree(im, g, a)
+	t := NewTree(id, im, g, a)
 
 	if err := loader.Load(t); err != nil {
 		return nil, fmt.Errorf("load gedcom: %w", err)

@@ -15,6 +15,10 @@ require (
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2
 )
 
+replace (
+github.com/iand/gdate => ../gdate
+)
+
 require (
 	github.com/ByteArena/poly2tri-go v0.0.0-20170716161910-d102ad91854f // indirect
 	github.com/adrg/sysfont v0.1.2 // indirect

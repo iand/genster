@@ -11,6 +11,8 @@ import (
 	"github.com/iand/genster/text"
 )
 
+const DirectAncestorMarker = "★"
+
 type Encoder struct {
 	LinkBuilder       LinkBuilder
 	main              strings.Builder
@@ -38,9 +40,12 @@ func (e *Encoder) WriteMarkdown(w io.Writer) error {
 
 	reftext := e.citations.String()
 	if len(reftext) > 0 {
-		bw.WriteString("## Citations\n")
+		bw.WriteString("<div class=\"footnotes\">\n\n")
+		bw.WriteString("----\n\n")
+		bw.WriteString("#### Citations\n")
 		bw.WriteString("\n")
 		bw.WriteString(reftext)
+		bw.WriteString("</div>\n\n")
 	}
 	return bw.Flush()
 }
@@ -256,12 +261,26 @@ func (b *Encoder) EncodeModelLink(firstText string, m any) string {
 	}
 	url := b.LinkBuilder.LinkFor(m)
 	b.seenLinks[url] = true
+
+	if p, ok := m.(*model.Person); ok {
+		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
+			firstText += DirectAncestorMarker
+		}
+	}
+
 	return b.EncodeLink(firstText, url)
 }
 
 func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
+	suffix := ""
+	if p, ok := m.(*model.Person); ok {
+		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
+			suffix = DirectAncestorMarker
+		}
+	}
+
 	if b.LinkBuilder == nil {
-		return firstText
+		return firstText + suffix
 	}
 
 	url := b.LinkBuilder.LinkFor(m)
@@ -273,11 +292,11 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 
 	if b.seenLinks[url] {
 		// return subsequentText
-		return b.EncodeLink(subsequentText, url)
+		return b.EncodeLink(subsequentText+suffix, url)
 	}
 	b.seenLinks[url] = true
 
-	return b.EncodeLink(firstText, url)
+	return b.EncodeLink(firstText+suffix, url)
 }
 
 func (b *Encoder) EncodeCitation(citation string, detail string, citationID string) string {
@@ -308,7 +327,7 @@ func (b *Encoder) EncodeCitation(citation string, detail string, citationID stri
 	} else {
 		b.citationidx++
 		idx = b.citationidx
-		b.citations.WriteString(fmt.Sprintf("#### %d. %s {#cit_%[1]d}\n", idx, citation))
+		b.citations.WriteString(fmt.Sprintf("##### %d. %s {#cit_%[1]d}\n", idx, citation))
 	}
 
 	return fmt.Sprintf("<sup>[%d](#cit_%[1]d)</sup>", idx)

@@ -72,6 +72,7 @@ func parseColor(s string) (color.Color, error) {
 
 var chartopts struct {
 	gedcomFile    string
+	treeID        string
 	configDir     string
 	keyPersonID   string
 	startPersonID string
@@ -108,6 +109,11 @@ var Command = &cli.Command{
 			Aliases:     []string{"g", "input"},
 			Usage:       "GEDCOM file to read from",
 			Destination: &chartopts.gedcomFile,
+		},
+		&cli.StringFlag{
+			Name:        "id",
+			Usage:       "Identifier to give this tree (mainly for annotation support)",
+			Destination: &chartopts.treeID,
 		},
 		&cli.StringFlag{
 			Name:        "output",
@@ -247,7 +253,7 @@ func chartCmd(cc *cli.Context) error {
 		return fmt.Errorf("load gedcom: %w", err)
 	}
 
-	t, err := tree.LoadTree(chartopts.configDir, l)
+	t, err := tree.LoadTree(chartopts.treeID, chartopts.configDir, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}

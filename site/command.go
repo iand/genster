@@ -24,6 +24,11 @@ var Command = &cli.Command{
 			Destination: &genopts.gedcomFile,
 		},
 		&cli.StringFlag{
+			Name:        "id",
+			Usage:       "Identifier to give this tree",
+			Destination: &genopts.treeID,
+		},
+		&cli.StringFlag{
 			Name:        "site",
 			Aliases:     []string{"s"},
 			Usage:       "Directory in which to write generated site",
@@ -87,6 +92,7 @@ var Command = &cli.Command{
 
 var genopts struct {
 	gedcomFile       string
+	treeID           string
 	rootDir          string
 	keyIndividual    string
 	includePrivate   bool
@@ -112,7 +118,7 @@ func gen(cc *cli.Context) error {
 		return fmt.Errorf("load gedcom: %w", err)
 	}
 
-	t, err := tree.LoadTree(genopts.configDir, l)
+	t, err := tree.LoadTree(genopts.treeID, genopts.configDir, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}
@@ -128,16 +134,29 @@ func gen(cc *cli.Context) error {
 			if nd.Type == "note" && nd.Person != "" {
 				p, ok := t.GetPerson(nd.Person)
 				if !ok {
-					logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
+					// logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
 					continue
 				}
+				note := &model.Note{
+					Title:         nd.Title,
+					Author:        nd.Author,
+					Date:          nd.Date,
+					Markdown:      nd.Markdown,
+					PrimaryPerson: p,
+				}
+
 				logging.Debug("found research note for person", "filename", nd.Filename, "id", nd.Person)
-				p.ResearchNotes = append(p.ResearchNotes, &model.Note{
-					Title:    nd.Title,
-					Author:   nd.Author,
-					Date:     nd.Date,
-					Markdown: nd.Markdown,
-				})
+				p.ResearchNotes = append(p.ResearchNotes, note)
+
+				for _, m := range nd.Mentions {
+					mp, ok := t.GetPerson(m)
+					if !ok {
+						// logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
+						continue
+					}
+					logging.Debug("found research note that mentions person", "filename", nd.Filename, "id", m)
+					mp.ResearchNotes = append(mp.ResearchNotes, note)
+				}
 			}
 		}
 

@@ -16,6 +16,7 @@ import (
 type Annotations struct {
 	person map[string]PersonMeta
 	place  map[string][]PlaceAnnotation
+	tree   map[string][]TreeAnnotation
 }
 
 type PersonMeta struct {
@@ -35,6 +36,13 @@ type PlaceAnnotation struct {
 	Value any
 	Kind  string
 	Fn    placeAnnotaterFunc
+}
+
+type TreeAnnotation struct {
+	Field string
+	Value any
+	Kind  string
+	Fn    treeAnnotaterFunc
 }
 
 func (o *Annotations) Replace(kind string, id string, field string, value any) error {
@@ -64,6 +72,20 @@ func (o *Annotations) Replace(kind string, id string, field string, value any) e
 			o.place = make(map[string][]PlaceAnnotation, 0)
 		}
 		o.place[id] = append(o.place[id], PlaceAnnotation{
+			Fn:    fn,
+			Field: field,
+			Kind:  "replace",
+			Value: value,
+		})
+	case "tree":
+		fn, ok := treeReplacers[field]
+		if !ok {
+			return fmt.Errorf("unsupported override field for tree: %s", field)
+		}
+		if o.tree == nil {
+			o.tree = make(map[string][]TreeAnnotation, 0)
+		}
+		o.tree[id] = append(o.tree[id], TreeAnnotation{
 			Fn:    fn,
 			Field: field,
 			Kind:  "replace",
@@ -148,6 +170,22 @@ func (o *Annotations) ApplyPlace(p *model.Place) error {
 	return nil
 }
 
+func (o *Annotations) ApplyTree(t *Tree) error {
+	anns, ok := o.tree[t.ID]
+	if !ok {
+		return nil
+	}
+
+	for _, ann := range anns {
+		slog.Debug("annotation for tree", "id", t.ID, "field", ann.Field, "value", ann.Value)
+		if err := ann.Fn(t, ann.Value); err != nil {
+			return fmt.Errorf("annotating value of place field %s: %w", ann.Field, err)
+		}
+	}
+
+	return nil
+}
+
 func (a *Annotations) UnmarshalJSON(data []byte) error {
 	r := bytes.NewReader(data)
 	d := json.NewDecoder(r)
@@ -190,6 +228,19 @@ func (a *Annotations) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+
+	for _, oa := range aj.Trees {
+		for f, v := range oa.Replace {
+			if err := a.Replace("tree", oa.ID, f, v); err != nil {
+				return err
+			}
+		}
+		for f, v := range oa.Add {
+			if err := a.Add("tree", oa.ID, f, v); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -197,6 +248,7 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 	aj := &AnnotationsJSON{
 		People: make([]ObjectAnnotationsJSON, 0, len(a.person)),
 		Places: make([]ObjectAnnotationsJSON, 0, len(a.place)),
+		Trees:  make([]ObjectAnnotationsJSON, 0, len(a.tree)),
 	}
 
 	for id, pm := range a.person {
@@ -243,6 +295,28 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		aj.Places = append(aj.Places, oa)
 	}
 	sort.Slice(aj.Places, func(i, j int) bool { return aj.Places[i].ID < aj.Places[j].ID })
+
+	for id, anns := range a.tree {
+		oa := ObjectAnnotationsJSON{
+			ID:      id,
+			Replace: make(map[string]any),
+			Add:     make(map[string]any),
+		}
+
+		for _, ann := range anns {
+			switch ann.Kind {
+			case "replace":
+				oa.Replace[ann.Field] = ann.Value
+			case "add":
+				oa.Add[ann.Field] = ann.Value
+			default:
+				slog.Warn("unsupported annotation kind, not writing to file: " + ann.Kind)
+			}
+		}
+
+		aj.Trees = append(aj.Trees, oa)
+	}
+	sort.Slice(aj.Trees, func(i, j int) bool { return aj.Trees[i].ID < aj.Trees[j].ID })
 
 	return json.Marshal(aj)
 }
@@ -305,8 +379,9 @@ func appendStringOrList(f *[]string, v any) error {
 }
 
 type (
-	personAnnotaterFunc func(p *model.Person, v any) error
-	placeAnnotaterFunc  func(p *model.Place, v any) error
+	personAnnotaterFunc func(*model.Person, any) error
+	placeAnnotaterFunc  func(*model.Place, any) error
+	treeAnnotaterFunc   func(*Tree, any) error
 )
 
 // all possible person replacers. use a map so the names of the overrides could be
@@ -329,12 +404,19 @@ var personReplacers = map[string]personAnnotaterFunc{
 	"childless":     func(p *model.Person, v any) error { return setBool(&p.Childless, v) },
 	"illegitimate":  func(p *model.Person, v any) error { return setBool(&p.Illegitimate, v) },
 	"redacted":      func(p *model.Person, v any) error { return setBool(&p.Redacted, v) },
+	"featured":      func(p *model.Person, v any) error { return setBool(&p.Featured, v) },
 }
 
 // all possible place replacers
 var placeReplacers = map[string]placeAnnotaterFunc{
 	"preferredname": func(p *model.Place, v any) error { return setString(&p.PreferredName, v) },
 	"latlong":       func(p *model.Place, v any) error { return setCoordinates(&p.Latitude, &p.Longitude, v) },
+}
+
+// all possible tree replacers
+var treeReplacers = map[string]treeAnnotaterFunc{
+	"name":        func(t *Tree, v any) error { return setString(&t.Name, v) },
+	"description": func(t *Tree, v any) error { return setString(&t.Description, v) },
 }
 
 // all possible person adders. use a map so the names of the overrides could be
@@ -351,6 +433,7 @@ var placeAdders = map[string]placeAnnotaterFunc{
 type AnnotationsJSON struct {
 	People []ObjectAnnotationsJSON `json:"people,omitempty"`
 	Places []ObjectAnnotationsJSON `json:"places,omitempty"`
+	Trees  []ObjectAnnotationsJSON `json:"trees,omitempty"`
 }
 
 type ObjectAnnotationsJSON struct {

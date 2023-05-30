@@ -267,7 +267,7 @@ func JoinList(strs []string) string {
 	return ret
 }
 
-func JoinSentence(parts ...string) string {
+func JoinSentenceParts(parts ...string) string {
 	var ret string
 	for _, s := range parts {
 		s = strings.TrimSpace(s)
@@ -278,6 +278,21 @@ func JoinSentence(parts ...string) string {
 			ret += " "
 		}
 		ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
+	}
+	return ret
+}
+
+func JoinSentences(ss ...string) string {
+	var ret string
+	for _, s := range ss {
+		s = strings.TrimSpace(s)
+		if len(s) == 0 {
+			continue
+		}
+		if ret != "" {
+			ret += " "
+		}
+		ret += s
 	}
 	return ret
 }
@@ -304,6 +319,9 @@ func CardinalSuffix(n int) string {
 
 func FinishSentence(s string) string {
 	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
 	s = strings.TrimRight(s, ",:;")
 	if !strings.HasSuffix(s, ".") && !strings.HasSuffix(s, "!") && !strings.HasSuffix(s, "?") {
 		return s + "."
@@ -331,6 +349,18 @@ func AppendClause(s, clause string) string {
 
 func AppendAside(s, clause string) string {
 	return AppendClause(s, clause) + ","
+}
+
+func AppendRelated(s, clause string) string {
+	if s == "" {
+		return clause
+	}
+	if clause == "" {
+		return s
+	}
+
+	s = StripTerminator(s)
+	return s + "&mdash;" + LowerFirst(clause)
 }
 
 func StripTerminator(s string) string {
@@ -378,7 +408,7 @@ func ReplaceFirstNumberWithCardinalNoun(s string) string {
 		return s
 	}
 
-	return JoinSentence(matches[1], CardinalNoun(n), matches[3])
+	return JoinSentenceParts(matches[1], CardinalNoun(n), matches[3])
 }
 
 var CommonSentenceStarts = []string{"He", "She", "They", "His", "Her", "Their", "The", "It"}

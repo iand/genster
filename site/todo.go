@@ -56,7 +56,7 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 				Category: model.ToDoCategoryMissing,
 				Context:  "death",
 				Goal:     "Find the person's death or burial date",
-				Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestBirthlikeEvent.GetDate().When()),
+				Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestDeathlikeEvent.GetDate().When()),
 			})
 		}
 	}
