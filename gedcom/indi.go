@@ -78,6 +78,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		}
 
 		prefName.Surname = strings.ReplaceAll(prefName.Surname, "\\", "/")
+		prefName.Full = strings.ReplaceAll(prefName.Full, "\\", "/")
 
 		p.PreferredFullName = prefName.Full
 		p.PreferredGivenName = prefName.Given

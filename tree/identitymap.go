@@ -24,24 +24,24 @@ func (m *IdentityMap) ID(scope string, id string) string {
 	}
 	sm, exists := m.scopes[scope]
 	if !exists {
-		canonical := m.makeID(scope, id)
+		generated := m.makeID(scope, id)
 		m.scopes[scope] = map[string]string{
-			id: canonical,
+			id: generated,
 		}
-		return m.maybeReplace(canonical)
+		return m.findCanonical(generated)
 	}
 
-	canonical, exists := sm[id]
+	generated, exists := sm[id]
 	if !exists {
-		canonical = m.makeID(scope, id)
-		sm[id] = canonical
+		generated = m.makeID(scope, id)
+		sm[id] = generated
 		m.scopes[scope] = sm
 	}
 
-	return m.maybeReplace(canonical)
+	return m.findCanonical(generated)
 }
 
-func (m *IdentityMap) maybeReplace(canonical string) string {
+func (m *IdentityMap) findCanonical(canonical string) string {
 	if m.replacements == nil {
 		return canonical
 	}
@@ -51,24 +51,20 @@ func (m *IdentityMap) maybeReplace(canonical string) string {
 	return canonical
 }
 
-// ReplaceCanonical replaces a canonical identifier with a new one. This can be used to
-// create more friendly canonical identifiers for key people.
-func (m *IdentityMap) ReplaceCanonical(canonical string, replacement string) {
+// AddAlias adds an alias to a canonical identifier.
+// This can be used to create more friendly identifiers.
+func (m *IdentityMap) AddAlias(alias string, canonical string) {
+	if alias == canonical {
+		return
+	}
 	if m.replacements == nil {
 		m.replacements = map[string]string{}
 	}
-	m.replacements[canonical] = replacement
+	m.replacements[alias] = canonical
 }
 
 func (m *IdentityMap) makeID(scope string, id string) string {
 	return identifier.New(scope, id)
-	// h := fnv.New64()
-	// h.Write([]byte(scope))
-	// h.Write([]byte{0x31})
-	// h.Write([]byte(id))
-	// sum := h.Sum(nil)
-
-	// return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum)
 }
 
 func (m *IdentityMap) UnmarshalJSON(data []byte) error {

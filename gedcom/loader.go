@@ -26,14 +26,16 @@ type ModelFinder interface {
 	FindPerson(scope string, id string) *model.Person
 	FindSource(scope string, id string) *model.Source
 	FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place
+	AddAlias(alias string, canonical string)
 }
 
 type Loader struct {
-	ScopeName string
-	Gedcom    *gedcom.Gedcom
-	Attrs     map[string]string
-	Citations map[string]*model.GeneralCitation
-	Tags      map[string]string
+	ScopeName     string
+	Gedcom        *gedcom.Gedcom
+	Attrs         map[string]string
+	Citations     map[string]*model.GeneralCitation
+	Tags          map[string]string
+	SourcesByAPID map[string]*model.Source
 }
 
 func NewLoader(filename string) (*Loader, error) {
@@ -55,11 +57,12 @@ func NewLoader(filename string) (*Loader, error) {
 	sort.SliceStable(g.Media, func(a, b int) bool { return g.Media[a].Xref < g.Media[b].Xref })
 
 	l := &Loader{
-		Gedcom:    g,
-		Attrs:     make(map[string]string),
-		ScopeName: filename,
-		Citations: make(map[string]*model.GeneralCitation),
-		Tags:      make(map[string]string),
+		Gedcom:        g,
+		Attrs:         make(map[string]string),
+		ScopeName:     filename,
+		Citations:     make(map[string]*model.GeneralCitation),
+		Tags:          make(map[string]string),
+		SourcesByAPID: make(map[string]*model.Source),
 	}
 	l.readAttrs()
 	l.readTags()
@@ -245,23 +248,37 @@ func (l *Loader) parseCitationRecords(m ModelFinder, crs []*gedcom.CitationRecor
 }
 
 func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model.GeneralCitation, error) {
-	var id string
+	var citationScopeName, citationScopeID string
+	var sourceScopeName, sourceScopeID string
+
+	if cr.Source != nil && cr.Source.Xref != "" {
+		sourceScopeName = l.ScopeName
+		sourceScopeID = cr.Source.Xref
+
+		citationScopeName = cr.Source.Xref
+		citationScopeID = cr.Page
+	} else if cr.Page != "" {
+		citationScopeName = "Page"
+		citationScopeID = cr.Page
+	}
+
 	// Look for an id that indicates a shared citation
 	ud, found := findFirstUserDefinedTag("_APID", cr.UserDefined)
 	if found && ud.Value != "" {
-		if cr.Page == "" && (cr.Source == nil || cr.Source.Xref == "") {
-			return nil, fmt.Errorf("no source name or citation detail found, but Ancestry ID " + ud.Value + " was cited")
-		}
-		id = identifier.New("_APID", ud.Value)
-	} else {
-		if cr.Source != nil && cr.Source.Xref != "" {
-			id = identifier.New(cr.Source.Xref, cr.Page)
-		} else if cr.Page != "" {
-			id = identifier.New("Page", cr.Page)
-		} else {
-			return nil, fmt.Errorf("no source name or citation detail found")
+		citationScopeName = "_APID"
+		citationScopeID = ud.Value
+
+		matches := reApid.FindStringSubmatch(ud.Value)
+		if len(matches) > 1 {
+			sourceScopeName = "_APID"
+			sourceScopeID = fmt.Sprintf("1,%s::0", matches[1])
 		}
 	}
+
+	if citationScopeName == "" || citationScopeID == "" {
+		return nil, fmt.Errorf("no citation information found to generate id")
+	}
+	id := identifier.New(citationScopeName, citationScopeID)
 
 	cit, ok := l.Citations[id]
 	if ok {
@@ -274,9 +291,14 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 	}
 
 	cit.Detail = cleanCitationDetail(cit.Detail)
+	if cit.Detail == "" {
+		cit.Detail = "no citation details"
+	}
 
-	if cr.Source != nil && cr.Source.Xref != "" {
-		cit.Source = m.FindSource(l.ScopeName, cr.Source.Xref)
+	if sourceScopeName != "" && sourceScopeID != "" {
+		cit.Source = m.FindSource(sourceScopeName, sourceScopeID)
+	} else {
+		logging.Warn("no source found for citation", "id", cit.ID, "detail", cr.Page)
 	}
 
 	if cr.Data.Date != "" {

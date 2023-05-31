@@ -50,7 +50,7 @@ func (t *Tree) GetPerson(id string) (*model.Person, bool) {
 }
 
 func (t *Tree) FindPerson(scope string, sid string) *model.Person {
-	id := t.IdentityMap.ID(scope, sid)
+	id := t.CanonicalID(scope, sid)
 	p, ok := t.People[id]
 	if !ok {
 		p = &model.Person{
@@ -74,7 +74,7 @@ func (t *Tree) GetSource(id string) (*model.Source, bool) {
 }
 
 func (t *Tree) FindSource(scope string, sid string) *model.Source {
-	id := t.IdentityMap.ID(scope, sid)
+	id := t.CanonicalID(scope, sid)
 	so, ok := t.Sources[id]
 	if !ok {
 		so = &model.Source{
@@ -213,6 +213,14 @@ func (s *Tree) newFamily(id string) *model.Family {
 	}
 	s.Families[id] = f
 	return f
+}
+
+func (t *Tree) CanonicalID(scope string, sid string) string {
+	return t.IdentityMap.ID(scope, sid)
+}
+
+func (t *Tree) AddAlias(alias string, canonical string) {
+	t.IdentityMap.AddAlias(alias, canonical)
 }
 
 func (t *Tree) Generate(redactLiving bool) error {
