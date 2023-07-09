@@ -291,14 +291,15 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 	}
 
 	cit.Detail = cleanCitationDetail(cit.Detail)
-	if cit.Detail == "" {
-		cit.Detail = "no citation details"
-	}
 
 	if sourceScopeName != "" && sourceScopeID != "" {
 		cit.Source = m.FindSource(sourceScopeName, sourceScopeID)
 	} else {
-		logging.Warn("no source found for citation", "id", cit.ID, "detail", cr.Page)
+		// ensure we have some citation text
+		if cit.Detail == "" {
+			cit.Detail = "unknown source"
+		}
+		logging.Warn("no source found for citation", "id", cit.ID, "detail", cit.Detail)
 	}
 
 	if cr.Data.Date != "" {

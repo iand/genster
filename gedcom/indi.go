@@ -498,14 +498,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						Category: model.ToDoCategoryRecords,
 						Context:  "death event",
 						Goal:     "Obtain a copy of the death certificate",
-						Reason:   "The date and place of death is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+						Reason:   "The date and place of death is known and it is within the period of Civil Registration, so a copy of the death certificate can be requested.",
 					})
 				case "missing marriage cert":
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryRecords,
 						Context:  "marriage event",
 						Goal:     "Obtain a copy of the marriage certificate",
-						Reason:   "The date and place of marriage is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+						Reason:   "The date and place of marriage is known and it is within the period of Civil Registration, so a copy of the marriage certificate can be requested.",
 					})
 				case "find army records":
 					p.ToDos = append(p.ToDos, &model.ToDo{
@@ -533,7 +533,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				case "transcription needed":
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryCitations,
-						Context:  "transcriibe records",
+						Context:  "transcribe records",
 						Goal:     "Transcribe records",
 						Reason:   "Records are available that have not been transcribed to the source citation.",
 					})
