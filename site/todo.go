@@ -61,6 +61,25 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 		}
 	}
 
+	if p.IsDirectAncestor() {
+		if p.Father.IsUnknown() && !p.Illegitimate {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryMissing,
+				Context:  "father",
+				Goal:     "Find the person's father",
+				Reason:   "No father is known and the person is not known to be illegitimate",
+			})
+		}
+		if p.Mother.IsUnknown() {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryMissing,
+				Context:  "mother",
+				Goal:     "Find the person's mother",
+				Reason:   "No mother is known",
+			})
+		}
+	}
+
 	for _, ev := range p.Timeline {
 		if !ev.DirectlyInvolves(p) {
 			continue
