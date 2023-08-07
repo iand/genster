@@ -234,6 +234,9 @@ func (t *Tree) Generate(redactLiving bool) error {
 		for _, p := range t.Places {
 			t.Annotations.ApplyPlace(p)
 		}
+		for _, p := range t.Sources {
+			t.Annotations.ApplySource(p)
+		}
 	}
 
 	// Add data to each person

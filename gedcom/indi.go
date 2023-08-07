@@ -459,54 +459,54 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					p.DiedInChildbirth = true
 					logger.Debug("found died in childbirth impaired tag, marking as died in childbirth")
 				case "transcribe death cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryCitations,
-						Context:  "death event",
-						Goal:     "Transcribe the death certificate",
-						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryCitations,
+					// 	Context:  "death event",
+					// 	Goal:     "Transcribe the death certificate",
+					// 	Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					// })
 				case "transcribe marriage cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryCitations,
-						Context:  "marriage event",
-						Goal:     "Transcribe the marriage certificate",
-						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryCitations,
+					// 	Context:  "marriage event",
+					// 	Goal:     "Transcribe the marriage certificate",
+					// 	Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					// })
 				case "transcribe birth cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryCitations,
-						Context:  "birth event",
-						Goal:     "Transcribe the birth certificate",
-						Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryCitations,
+					// 	Context:  "birth event",
+					// 	Goal:     "Transcribe the birth certificate",
+					// 	Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
+					// })
 				case "transcribe army records":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryCitations,
-						Context:  "army records",
-						Goal:     "Transcribe the army records",
-						Reason:   "A copy of the army records available but they haven't been transcribed to the source citation.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryCitations,
+					// 	Context:  "army records",
+					// 	Goal:     "Transcribe the army records",
+					// 	Reason:   "A copy of the army records available but they haven't been transcribed to the source citation.",
+					// })
 				case "missing birth cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryRecords,
-						Context:  "birth event",
-						Goal:     "Obtain a copy of the birth certificate",
-						Reason:   "The date and place of birth is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryRecords,
+					// 	Context:  "birth event",
+					// 	Goal:     "Obtain a copy of the birth certificate",
+					// 	Reason:   "The date and place of birth is known and it is within the period of Civil Registration, so a copy of the birth certificate can be requested.",
+					// })
 				case "missing death cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryRecords,
-						Context:  "death event",
-						Goal:     "Obtain a copy of the death certificate",
-						Reason:   "The date and place of death is known and it is within the period of Civil Registration, so a copy of the death certificate can be requested.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryRecords,
+					// 	Context:  "death event",
+					// 	Goal:     "Obtain a copy of the death certificate",
+					// 	Reason:   "The date and place of death is known and it is within the period of Civil Registration, so a copy of the death certificate can be requested.",
+					// })
 				case "missing marriage cert":
-					p.ToDos = append(p.ToDos, &model.ToDo{
-						Category: model.ToDoCategoryRecords,
-						Context:  "marriage event",
-						Goal:     "Obtain a copy of the marriage certificate",
-						Reason:   "The date and place of marriage is known and it is within the period of Civil Registration, so a copy of the marriage certificate can be requested.",
-					})
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryRecords,
+					// 	Context:  "marriage event",
+					// 	Goal:     "Obtain a copy of the marriage certificate",
+					// 	Reason:   "The date and place of marriage is known and it is within the period of Civil Registration, so a copy of the marriage certificate can be requested.",
+					// })
 				case "find army records":
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryRecords,
@@ -538,6 +538,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						Reason:   "Records are available that have not been transcribed to the source citation.",
 					})
 				case "find other children":
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryMissing,
+						Context:  "children",
+						Goal:     "Find other children",
+						Reason:   "One or more children are known but there are possibly others that have not been recorded.",
+					})
 				case "actively researching":
 					p.Puzzle = true
 				case "brick wall":

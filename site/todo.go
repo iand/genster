@@ -66,13 +66,60 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 			continue
 		}
 
-		if len(ev.GetCitations()) == 0 && ev.GetDate().IsFirm() {
-			p.ToDos = append(p.ToDos, &model.ToDo{
-				Category: model.ToDoCategoryCitations,
-				Context:  ev.Type() + " event",
-				Goal:     "Find a source for this event.",
-				Reason:   fmt.Sprintf("event appears to have a firm date %q but no source citation", ev.GetDate().String()),
-			})
+		if ev.GetDate().IsFirm() {
+			if len(ev.GetCitations()) == 0 {
+				p.ToDos = append(p.ToDos, &model.ToDo{
+					Category: model.ToDoCategoryCitations,
+					Context:  ev.Type() + " event",
+					Goal:     "Find a source for this event.",
+					Reason:   fmt.Sprintf("event appears to have a firm date %q but no source citation", ev.GetDate().String()),
+				})
+			}
+
+			// for direct ancestors only
+			if p.IsDirectAncestor() {
+				// if in UK and date >= 1837 look for a GRO citation
+				switch ev.(type) {
+				case *model.BirthEvent, *model.DeathEvent, *model.MarriageEvent:
+					if ev.GetPlace().IsUnknown() || ev.GetPlace().UKNationName.IsUnknown() {
+						break
+					}
+
+					yr, ok := ev.GetDate().Year()
+					if !ok || yr < 1837 {
+						break
+					}
+
+					hasCivilRegistrationCitation := false
+					for _, c := range ev.GetCitations() {
+						if c.Source == nil {
+							continue
+						}
+						if !c.Source.IsCivilRegistration {
+							continue
+						}
+
+						hasCivilRegistrationCitation = true
+						break
+					}
+
+					if !hasCivilRegistrationCitation {
+						var goal string
+						if _, ok := ev.(*model.MarriageEvent); ok {
+							goal = fmt.Sprintf("obtain a copy of the certificate for the marriage in %d", yr)
+						} else {
+							goal = fmt.Sprintf("obtain a copy of the %s certificate", ev.Type())
+						}
+
+						p.ToDos = append(p.ToDos, &model.ToDo{
+							Category: model.ToDoCategoryRecords,
+							Context:  fmt.Sprintf("%s event", ev.Type()),
+							Goal:     goal,
+							Reason:   "the date and place of the event is known and it is within the period of Civil Registration in the United Kingdom, so a copy of the relevant certificate can be requested",
+						})
+					}
+				}
+			}
 		}
 
 		switch ev.(type) {

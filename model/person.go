@@ -83,6 +83,13 @@ func (p *Person) SameAs(other *Person) bool {
 	return p == other || (p.ID != "" && p.ID == other.ID)
 }
 
+func (p *Person) IsDirectAncestor() bool {
+	if p.RelationToKeyPerson == nil {
+		return false
+	}
+	return p.RelationToKeyPerson.IsDirectAncestor()
+}
+
 func (p *Person) AgeInYearsAt(dt *Date) (int, bool) {
 	if p.BestBirthlikeEvent == nil || p.BestBirthlikeEvent.GetDate().IsUnknown() || dt.IsUnknown() {
 		return 0, false
