@@ -66,6 +66,32 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 			continue
 		}
 
+		// births should have more than just census sources
+		if _, ok := ev.(*model.BirthEvent); ok {
+			if len(ev.GetCitations()) > 0 {
+				hasNonCensusBirthCitations := false
+				for _, c := range ev.GetCitations() {
+					if c.Source.IsUnknown() {
+						hasNonCensusBirthCitations = true
+						break
+					}
+					if !c.Source.IsCensus {
+						hasNonCensusBirthCitations = true
+						break
+
+					}
+				}
+				if !hasNonCensusBirthCitations {
+					p.ToDos = append(p.ToDos, &model.ToDo{
+						Category: model.ToDoCategoryCitations,
+						Context:  ev.Type() + " event",
+						Goal:     "Find a non-census source for this event.",
+						Reason:   "census records appear to be the only source of this event but a direct record of birth or baptism is preferred",
+					})
+				}
+			}
+		}
+
 		if ev.GetDate().IsFirm() {
 			if len(ev.GetCitations()) == 0 {
 				p.ToDos = append(p.ToDos, &model.ToDo{
