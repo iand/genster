@@ -37,7 +37,7 @@ func (r *Relation) IsParent() bool {
 	return r.To.SameAs(r.CommonAncestor) && r.FromGenerations == 1
 }
 
-// IsDirectAncestor reports whether the To person is a direct ancestor of the From person
+// IsDirectDescendant reports whether the To person is a direct descendant of the From person
 func (r *Relation) IsDirectDescendant() bool {
 	if r == nil {
 		return false
@@ -51,6 +51,40 @@ func (r *Relation) IsChild() bool {
 		return false
 	}
 	return r.From.SameAs(r.CommonAncestor) && r.ToGenerations == 1
+}
+
+// IsCloseToDirectAncestor reports whether To person is a direct ancestor or a child or spouse of the From person.
+func (r *Relation) IsCloseToDirectAncestor() bool {
+	if r == nil || r.To.IsUnknown() {
+		return false
+	}
+
+	if r.IsDirectAncestor() {
+		return true
+	}
+
+	if !r.To.Father.IsUnknown() {
+		prel := r.ExtendToParent(r.To.Father)
+		if prel.IsDirectAncestor() {
+			return true
+		}
+	}
+
+	if !r.To.Mother.IsUnknown() {
+		prel := r.ExtendToParent(r.To.Mother)
+		if prel.IsDirectAncestor() {
+			return true
+		}
+	}
+
+	// if this person is not a direct relation but is the spouse of one
+	if r.ClosestDirectRelation != nil && r.SpouseRelation.IsSelf() {
+		if r.ClosestDirectRelation.IsDirectAncestor() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Name returns the name of the relation between From and To, in the
@@ -339,20 +373,20 @@ func (r *Relation) ExtendToChild(ch *Person) *Relation {
 }
 
 // ExtendToParent produces a new relationship extended to the parent of the To person
-func (r *Relation) ExtendToParent(ch *Person) *Relation {
+func (r *Relation) ExtendToParent(parent *Person) *Relation {
 	if r.CommonAncestor != nil {
 		if r.CommonAncestor.SameAs(r.To) {
 			return &Relation{
 				From:            r.From,
-				To:              ch,
-				CommonAncestor:  ch,
+				To:              parent,
+				CommonAncestor:  parent,
 				FromGenerations: r.FromGenerations + 1,
 				ToGenerations:   0,
 			}
 		} else {
 			return &Relation{
 				From:            r.From,
-				To:              ch,
+				To:              parent,
 				CommonAncestor:  r.CommonAncestor,
 				FromGenerations: r.FromGenerations,
 				ToGenerations:   r.ToGenerations - 1,
@@ -369,7 +403,7 @@ func (r *Relation) ExtendToParent(ch *Person) *Relation {
 	} else {
 		return &Relation{
 			From: r.From,
-			To:   ch,
+			To:   parent,
 		}
 	}
 }

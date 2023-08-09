@@ -597,11 +597,17 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 		if len(anomaliesByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
 			b.Heading2(p.PreferredUniqueName)
-			if p.EditLink != nil {
-				b.Para(b.EncodeModelLink("View page", p) + " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
-			} else {
-				b.Para(b.EncodeModelLink("View page", p))
+			rel := "unknown relation"
+			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
+				rel = p.RelationToKeyPerson.Name()
 			}
+
+			links := b.EncodeModelLink("View page", p)
+
+			if p.EditLink != nil {
+				links += " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL)
+			}
+			b.Para(text.FormatSentence(rel) + " " + links)
 			for _, cat := range categories {
 				al := anomaliesByCategory[cat]
 				items := make([][2]string, 0, len(al))
@@ -696,11 +702,17 @@ func (s *Site) WriteTodoListPages(root string) error {
 		if len(todosByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
 			b.Heading2(p.PreferredUniqueName)
-			if p.EditLink != nil {
-				b.Para(b.EncodeModelLink("View page", p) + " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
-			} else {
-				b.Para(b.EncodeModelLink("View page", p))
+			rel := "unknown relation"
+			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
+				rel = p.RelationToKeyPerson.Name()
 			}
+
+			links := b.EncodeModelLink("View page", p)
+
+			if p.EditLink != nil {
+				links += " or " + b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL)
+			}
+			b.Para(text.FormatSentence(rel) + " " + links)
 
 			for _, cat := range categories {
 				al := todosByCategory[cat]
@@ -757,9 +769,15 @@ func (s *Site) WritePersonListPages(root string) error {
 		}
 		items := make([][2]string, 0)
 		b := s.NewMarkdownBuilder()
+
+		var rel string
+		if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
+			rel = b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name()))
+		}
+
 		items = append(items, [2]string{
 			b.EncodeModelLink(p.PreferredUniqueName, p),
-			p.Olb,
+			text.JoinSentences(p.Olb, rel),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
@@ -837,9 +855,15 @@ func (s *Site) WriteSurnameListPages(root string) error {
 		for _, p := range people {
 			items := make([][2]string, 0)
 			b := s.NewMarkdownBuilder()
+
+			var rel string
+			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
+				rel = b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name()))
+			}
+
 			items = append(items, [2]string{
 				b.EncodeModelLink(p.PreferredUniqueName, p),
-				p.Olb,
+				text.JoinSentences(p.Olb, rel),
 			})
 			b.DefinitionList(items)
 			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
@@ -1035,12 +1059,15 @@ func groupRelation(rel *model.Relation) (string, int) {
 	} else if rel.IsDirectAncestor() {
 		group = "Direct ancestors"
 		groupPriority = 2
+	} else if rel.IsCloseToDirectAncestor() {
+		group = "Family of ancestors"
+		groupPriority = 3
 	} else if distance < 12 {
 		group = "Distant relations"
-		groupPriority = 3
+		groupPriority = 4
 	} else {
 		group = "Others"
-		groupPriority = 4
+		groupPriority = 5
 	}
 
 	return group, groupPriority

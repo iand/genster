@@ -512,7 +512,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						Category: model.ToDoCategoryRecords,
 						Context:  "military records",
 						Goal:     "Obtain a copy of military records",
-						Reason:   "This person is believed to have served in the military, so a copy of the records can be requested.",
+						Reason:   "This person is believed to have served in the military, so a copy of the records can be requested",
 					})
 				case "find death date":
 				case "find birth date":
@@ -534,15 +534,15 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryCitations,
 						Context:  "transcribe records",
-						Goal:     "Transcribe records",
-						Reason:   "Records are available that have not been transcribed to the source citation.",
+						Goal:     "transcribe records",
+						Reason:   "records are available that have not been transcribed to the source citation",
 					})
 				case "find other children":
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryMissing,
 						Context:  "children",
-						Goal:     "Find other children",
-						Reason:   "One or more children are known but there are possibly others that have not been recorded.",
+						Goal:     "find other children",
+						Reason:   "one or more children are known but there are possibly others that have not been recorded",
 					})
 				case "actively researching":
 					p.Puzzle = true

@@ -84,10 +84,24 @@ func (p *Person) SameAs(other *Person) bool {
 }
 
 func (p *Person) IsDirectAncestor() bool {
+	if p.IsUnknown() {
+		return false
+	}
 	if p.RelationToKeyPerson == nil {
 		return false
 	}
 	return p.RelationToKeyPerson.IsDirectAncestor()
+}
+
+// IsCloseToDirectAncestor reports whether a person is a direct ancestor or a child or spouse of a direct ancestor.
+func (p *Person) IsCloseToDirectAncestor() bool {
+	if p.IsUnknown() {
+		return false
+	}
+	if p.RelationToKeyPerson == nil {
+		return false
+	}
+	return p.RelationToKeyPerson.IsCloseToDirectAncestor()
 }
 
 func (p *Person) AgeInYearsAt(dt *Date) (int, bool) {

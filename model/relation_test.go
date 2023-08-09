@@ -6,15 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func makeSelfRelation() *Relation {
-	return makeGenderedSelfRelation(GenderMale)
-}
-
-func makeGenderedSelfRelation(gender Gender) *Relation {
-	p := &Person{
-		Gender: gender,
-	}
-
+func makeSelfRelationFor(p *Person) *Relation {
 	return &Relation{
 		From:           p,
 		To:             p,
@@ -22,11 +14,28 @@ func makeGenderedSelfRelation(gender Gender) *Relation {
 	}
 }
 
+func makeSelfRelation(id string) *Relation {
+	return makeGenderedSelfRelation(id, GenderMale)
+}
+
+func makeGenderedSelfRelation(id string, gender Gender) *Relation {
+	p := &Person{
+		ID:     id,
+		Gender: gender,
+	}
+	return makeSelfRelationFor(p)
+}
+
 func makeDirectAncestorRelation(path string) *Relation {
+	return makeDirectAncestorRelationFrom(&Person{
+		ID:     "self",
+		Gender: GenderMale,
+	}, path)
+}
+
+func makeDirectAncestorRelationFrom(from *Person, path string) *Relation {
 	rel := &Relation{
-		From: &Person{
-			Gender: GenderMale,
-		},
+		From: from,
 	}
 
 	rel.CommonAncestor = rel.From
@@ -34,6 +43,7 @@ func makeDirectAncestorRelation(path string) *Relation {
 		rel.FromGenerations++
 		if r == 'm' {
 			mother := &Person{
+				ID:     rel.CommonAncestor.ID + "_m",
 				Gender: GenderFemale,
 			}
 			rel.CommonAncestor.Mother = mother
@@ -41,6 +51,7 @@ func makeDirectAncestorRelation(path string) *Relation {
 			rel.CommonAncestor = mother
 		} else {
 			father := &Person{
+				ID:     rel.CommonAncestor.ID + "_f",
 				Gender: GenderMale,
 			}
 			rel.CommonAncestor.Father = father
@@ -107,6 +118,8 @@ func makeGenderedCousinRelation(fromGenerations, toGenerations int, sex Gender) 
 }
 
 func makeSpouseRelation(closestDirectRelation *Relation, spouseRelation *Relation) *Relation {
+	closestDirectRelation.To.Spouses = append(closestDirectRelation.To.Spouses, spouseRelation.From)
+	spouseRelation.From.Spouses = append(spouseRelation.From.Spouses, closestDirectRelation.To)
 	return &Relation{
 		From:                  closestDirectRelation.From,
 		To:                    spouseRelation.To,
@@ -150,14 +163,14 @@ var testRelations = map[string]*Relation{
 	"first cousin three times removed": makeCousinRelation(2, 5),
 	"first cousin four times removed":  makeCousinRelation(2, 6),
 	"second cousin once removed":       makeCousinRelation(3, 2),
-	"husband":                          makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderMale)),
-	"wife":                             makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderFemale)),
-	"spouse":                           makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderUnknown)),
-	"father-in-law":                    makeSpouseRelation(makeSelfRelation(), makeDirectAncestorRelation("f")),
-	"mother-in-law":                    makeSpouseRelation(makeSelfRelation(), makeDirectAncestorRelation("m")),
-	"stepson":                          makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderMale)),
-	"stepdaughter":                     makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderFemale)),
-	"stepchild":                        makeSpouseRelation(makeSelfRelation(), makeDirectDescendentRelation("m", GenderUnknown)),
+	"husband":                          makeSpouseRelation(makeSelfRelation("self"), makeGenderedSelfRelation("husband", GenderMale)),
+	"wife":                             makeSpouseRelation(makeSelfRelation("self"), makeGenderedSelfRelation("wife", GenderFemale)),
+	"spouse":                           makeSpouseRelation(makeSelfRelation("self"), makeGenderedSelfRelation("spouse", GenderUnknown)),
+	"father-in-law":                    makeSpouseRelation(makeSelfRelation("self"), makeDirectAncestorRelation("f")),
+	"mother-in-law":                    makeSpouseRelation(makeSelfRelation("self"), makeDirectAncestorRelation("m")),
+	"stepson":                          makeSpouseRelation(makeSelfRelation("self"), makeDirectDescendentRelation("m", GenderMale)),
+	"stepdaughter":                     makeSpouseRelation(makeSelfRelation("self"), makeDirectDescendentRelation("m", GenderFemale)),
+	"stepchild":                        makeSpouseRelation(makeSelfRelation("self"), makeDirectDescendentRelation("m", GenderUnknown)),
 
 	"brother": {
 		To: &Person{
@@ -198,8 +211,11 @@ var testRelations = map[string]*Relation{
 		ToGenerations:   1,
 	},
 
-	"step-mother": makeSpouseRelation(makeDirectAncestorRelation("f"), makeGenderedSelfRelation(GenderFemale)),
-	"step-father": makeSpouseRelation(makeDirectAncestorRelation("m"), makeGenderedSelfRelation(GenderMale)),
+	"step-mother": makeSpouseRelation(makeDirectAncestorRelation("f"), makeGenderedSelfRelation("wife", GenderFemale)),
+	"step-father": makeSpouseRelation(makeDirectAncestorRelation("m"), makeGenderedSelfRelation("husband", GenderMale)),
+
+	"wife of the grandfather":  makeSpouseRelation(makeDirectAncestorRelation("ff"), makeGenderedSelfRelation("wife", GenderFemale)),
+	"wife of the first cousin": makeSpouseRelation(makeCousinRelation(2, 2), makeGenderedSelfRelation("wife", GenderFemale)),
 }
 
 func TestRelationName(t *testing.T) {
@@ -219,19 +235,23 @@ func TestRelationsViaSpouse(t *testing.T) {
 		want string
 	}{
 		{
-			rel:  makeSpouseRelation(makeGenderedSelfRelation(GenderFemale), makeGenderedSelfRelation(GenderMale)),
+			rel:  makeSpouseRelation(makeGenderedSelfRelation("self", GenderFemale), makeGenderedSelfRelation("husband", GenderMale)),
 			want: "husband",
 		},
 		{
-			rel:  makeSpouseRelation(makeGenderedSelfRelation(GenderMale), makeGenderedSelfRelation(GenderFemale)),
+			rel:  makeSpouseRelation(makeGenderedSelfRelation("self", GenderMale), makeGenderedSelfRelation("wife", GenderFemale)),
 			want: "wife",
 		},
 		{
-			rel:  makeSpouseRelation(makeSelfRelation(), makeGenderedSelfRelation(GenderUnknown)),
+			rel:  makeSpouseRelation(makeSelfRelation("self"), makeGenderedSelfRelation("spouse", GenderUnknown)),
 			want: "spouse",
 		},
+		{
+			rel:  makeSpouseRelation(makeDirectAncestorRelation("ff"), makeGenderedSelfRelation("wife", GenderFemale)),
+			want: "wife of the grandfather",
+		},
 
-		// Judith Margery King is first cousin once removed
+		// TODO: Judith Margery King is first cousin once removed
 
 	}
 
@@ -451,31 +471,29 @@ func TestRelationExtendToSpouse(t *testing.T) {
 		ID: "spouse",
 	}
 
+	spself := makeSelfRelationFor(sp)
+
 	testCases := []struct {
 		rel  *Relation
 		want *Relation
 	}{
 		{
 			rel: self,
-			want: &Relation{
-				From:                  p,
-				To:                    sp,
-				CommonAncestor:        nil,
-				ClosestDirectRelation: self,
-				SpouseRelation: &Relation{
-					From:           sp,
-					To:             sp,
-					CommonAncestor: sp,
-				},
-			},
+		},
+		{
+			rel: makeDirectAncestorRelationFrom(p, "f"),
+		},
+		{
+			rel: makeDirectAncestorRelationFrom(p, "ff"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.rel.Name(), func(t *testing.T) {
 			got := tc.rel.ExtendToSpouse(sp)
+			want := makeSpouseRelation(tc.rel, spself)
 
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(want, got); diff != "" {
 				t.Errorf("ExtendToSpouse() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -581,6 +599,90 @@ func TestRelationExtendToParent(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ExtendToParent() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIsCloseToDirectAncestor(t *testing.T) {
+	testCases := []struct {
+		rel  *Relation
+		want bool
+	}{
+		{
+			rel:  testRelations["father"],
+			want: true,
+		},
+		{
+			rel:  testRelations["mother"],
+			want: true,
+		},
+		{
+			rel:  testRelations["grandfather"],
+			want: true,
+		},
+		{
+			rel:  testRelations["grandmother"],
+			want: true,
+		},
+		{
+			rel:  testRelations["great grandfather"],
+			want: true,
+		},
+		{
+			rel:  testRelations["great grandmother"],
+			want: true,
+		},
+		{
+			rel:  testRelations["child"],
+			want: true,
+		},
+		{
+			rel:  testRelations["spouse"],
+			want: true,
+		},
+		{
+			rel:  testRelations["wife of the grandfather"],
+			want: true,
+		},
+		{
+			rel:  testRelations["grandchild"],
+			want: false,
+		},
+		{
+			rel:  testRelations["great grandchild"],
+			want: false,
+		},
+		{
+			rel:  testRelations["first cousin"],
+			want: false,
+		},
+		{
+			rel:  testRelations["wife of the first cousin"],
+			want: false,
+		},
+		{
+			rel:  testRelations["second cousin"],
+			want: false,
+		},
+		{
+			rel:  testRelations["third cousin"],
+			want: false,
+		},
+		{
+			rel:  testRelations["uncle"],
+			want: false,
+		},
+		{
+			rel:  testRelations["aunt"],
+			want: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.rel.Name(), func(t *testing.T) {
+			got := tc.rel.IsCloseToDirectAncestor()
+			if got != tc.want {
+				t.Errorf("got IsCloseToDirectAncestor()=%v, want %v", got, tc.want)
 			}
 		})
 	}
