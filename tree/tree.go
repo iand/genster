@@ -766,7 +766,7 @@ func (t *Tree) BuildRelationsToKeyPerson() {
 }
 
 func ascendKeyPersonRelationship(p *model.Person) []*model.Person {
-	if p.Father == nil && p.Mother == nil {
+	if p.Father.IsUnknown() && p.Mother.IsUnknown() {
 		// this person is a root of the tree
 		return []*model.Person{p}
 	}
@@ -789,10 +789,9 @@ func ascendKeyPersonRelationship(p *model.Person) []*model.Person {
 
 func descendKeyPersonRelationship(p *model.Person) {
 	for _, ch := range p.Children {
-		if ch.RelationToKeyPerson != nil {
-			continue
+		if ch.RelationToKeyPerson == nil {
+			ch.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToChild(ch)
 		}
-		ch.RelationToKeyPerson = p.RelationToKeyPerson.ExtendToChild(ch)
 		descendKeyPersonRelationship(ch)
 	}
 

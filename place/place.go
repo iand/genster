@@ -76,6 +76,10 @@ func (c *PlaceName) SameAs(other *PlaceName) bool {
 }
 
 func (pn *PlaceName) FindContainerKind(kind PlaceKind) (*PlaceName, bool) {
+	if pn.Kind == kind {
+		return pn, true
+	}
+
 	for _, po := range pn.PartOf {
 		if po.Kind == kind {
 			return po, true

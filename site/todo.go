@@ -121,8 +121,8 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 				})
 			}
 
-			// for direct ancestors and their immediate family only
-			if p.IsCloseToDirectAncestor() {
+			// for direct ancestors only
+			if p.IsDirectAncestor() {
 				// if in UK and date >= 1837 look for a GRO citation
 				switch ev.(type) {
 				case *model.BirthEvent, *model.DeathEvent, *model.MarriageEvent:

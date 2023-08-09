@@ -229,6 +229,58 @@ func TestRelationName(t *testing.T) {
 	}
 }
 
+func TestRelationNameTree(t *testing.T) {
+	id := &Person{ID: "id", Gender: GenderMale}
+	id.RelationToKeyPerson = makeSelfRelationFor(id)
+
+	md := &Person{ID: "md", Gender: GenderMale}
+	md.RelationToKeyPerson = id.RelationToKeyPerson.ExtendToParent(md)
+
+	sd := &Person{ID: "sd", Gender: GenderFemale}
+	sd.RelationToKeyPerson = id.RelationToKeyPerson.ExtendToParent(sd)
+
+	wc := &Person{ID: "wc", Gender: GenderMale}
+	wc.RelationToKeyPerson = sd.RelationToKeyPerson.ExtendToParent(wc)
+
+	fh := &Person{ID: "fh", Gender: GenderFemale}
+	fh.RelationToKeyPerson = sd.RelationToKeyPerson.ExtendToParent(fh)
+
+	sc := &Person{ID: "sc", Gender: GenderFemale}
+	sc.RelationToKeyPerson = wc.RelationToKeyPerson.ExtendToChild(sc)
+
+	jc := &Person{ID: "jc", Gender: GenderMale}
+	jc.RelationToKeyPerson = wc.RelationToKeyPerson.ExtendToChild(jc)
+
+	jwh := &Person{ID: "jwh", Gender: GenderMale}
+	jwh.RelationToKeyPerson = fh.RelationToKeyPerson.ExtendToParent(jwh)
+
+	jh := &Person{ID: "jh", Gender: GenderMale}
+	jh.RelationToKeyPerson = jwh.RelationToKeyPerson.ExtendToChild(jh)
+
+	testCases := []struct {
+		p    *Person
+		want string
+	}{
+		{id, "same person as"},
+		{md, "father"},
+		{sd, "mother"},
+		{wc, "grandfather"},
+		{fh, "grandmother"},
+		{sc, "aunt"},
+		{jc, "uncle"},
+		{jwh, "great grandfather"},
+		{jh, "great uncle"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.p.ID, func(t *testing.T) {
+			got := tc.p.RelationToKeyPerson.Name()
+			if got != tc.want {
+				t.Errorf("got %s, wanted %s", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRelationsViaSpouse(t *testing.T) {
 	testCases := []struct {
 		rel  *Relation
