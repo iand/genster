@@ -11,6 +11,7 @@ type Source struct {
 	Tags                []string
 	IsCivilRegistration bool // indicates whether this source holds civil registration records such as births marriages and deaths
 	IsCensus            bool // indicates whether this source holds census records
+	IsUnreliable        bool // indicates whether this source is of dubious reliability
 }
 
 func (s *Source) IsUnknown() bool {

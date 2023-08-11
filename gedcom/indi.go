@@ -14,7 +14,10 @@ import (
 	"github.com/iand/genster/model"
 )
 
-var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
+var (
+	reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
+	reGedcomTag = regexp.MustCompile(`^[_A-Z][A-Z]+$`)
+)
 
 func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord) error {
 	p := m.FindPerson(l.ScopeName, in.Xref)
@@ -38,7 +41,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			strings.Contains(prefName.Full, " ") &&
 			!stringOneOf(prefName.Full, "Mary Ann") {
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
-				Category: "Name",
+				Category: model.AnomalyCategoryName,
 				Text:     fmt.Sprintf("Person has no surname but full name %q contains more than one word.", prefName.Full),
 				Context:  "Person's name",
 			})
@@ -48,7 +51,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			prefName.Surname = model.UnknownNamePlaceholder
 			prefName.Full += model.UnknownNamePlaceholder
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
-				Category: "Name",
+				Category: model.AnomalyCategoryName,
 				Text:     "Person has no surname, should replace with -?-.",
 				Context:  "Person's name",
 			})
@@ -56,13 +59,13 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 
 		if reUppercase.MatchString(prefName.Full) {
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
-				Category: "Name",
+				Category: model.AnomalyCategoryName,
 				Text:     "Person's name is all uppercase, should change to proper case.",
 				Context:  "Person's name",
 			})
 		} else if reUppercase.MatchString(prefName.Surname) {
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
-				Category: "Name",
+				Category: model.AnomalyCategoryName,
 				Text:     "Person's surname is all uppercase, should change to proper case.",
 				Context:  "Person's name",
 			})
@@ -71,7 +74,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		if prefName.Given == "" {
 			prefName.Given = model.UnknownNamePlaceholder
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
-				Category: "Name",
+				Category: model.AnomalyCategoryName,
 				Text:     "Person has no given name, should replace with -?-.",
 				Context:  "Person's name",
 			})
@@ -104,6 +107,31 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 
 	events := append([]*gedcom.EventRecord{}, in.Event...)
 	events = append(events, in.Attribute...)
+
+	for _, ud := range in.UserDefined {
+		switch ud.Tag {
+		case "_MILT": // ancestry military event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "_EMPLOY": // ancestry employment event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "_DEST": // ancestry destination event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "_MILTID": // ancestry military ID fact
+			events = append(events, l.parseUserDefinedAsEvent("FACT", ud))
+		case "_MDCL": // ancestry medical event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "MARR": // ancestry individual marriage event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "ADDR": // ancestry address event
+			events = append(events, l.parseUserDefinedAsEvent("EVEN", ud))
+		case "_WLNK": // ancestry web link
+			// not an event
+		case "_MTTAG": // ancestry tag
+			// not an event
+		default:
+			logger.Warn("found user defined tag that might be an event", "xref", in.Xref, "tag", ud.Tag, "value", ud.Value)
+		}
+	}
 
 	// collect occupation events and attempt to consolidate them later
 	occupationEvents := make([]model.GeneralEvent, 0)
@@ -138,10 +166,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 
 		giv := model.GeneralIndividualEvent{
 			Principal: p,
-		}
-
-		if p.ID == "S5CIY3MFEIPTK" {
-			logging.Dump(er.Citation)
 		}
 
 		var citanoms []*model.Anomaly
@@ -188,6 +212,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				GeneralIndividualEvent: giv,
 			}
 
+		case "WILL":
+			ev = &model.WillEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+
 		case "RESI":
 			// This might be an ancestry census event
 			censusDate, isCensus := maybeFixCensusDate(er)
@@ -213,23 +243,26 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				logger.Debug("setting OLB from fact", "olb", gev.Detail)
 				p.Olb = gev.Detail
 			default:
-				category := factCategoryForType(er.Type)
-
-				if er.Value != "" {
-					p.MiscFacts = append(p.MiscFacts, model.Fact{
-						Category:  category,
-						Detail:    er.Value,
-						Citations: gev.Citations,
-					})
-				}
-				for _, n := range er.Note {
-					cits, anoms := l.parseCitationRecords(m, n.Citation)
-					p.MiscFacts = append(p.MiscFacts, model.Fact{
-						Category:  category,
-						Detail:    n.Note,
-						Citations: cits,
-					})
-					p.Anomalies = append(p.Anomalies, anoms...)
+				category, ok := factCategoryForType(er.Type)
+				if ok {
+					if er.Value != "" {
+						p.MiscFacts = append(p.MiscFacts, model.Fact{
+							Category:  category,
+							Detail:    er.Value,
+							Citations: gev.Citations,
+						})
+					}
+					for _, n := range er.Note {
+						cits, anoms := l.parseCitationRecords(m, n.Citation)
+						p.MiscFacts = append(p.MiscFacts, model.Fact{
+							Category:  category,
+							Detail:    n.Note,
+							Citations: cits,
+						})
+						p.Anomalies = append(p.Anomalies, anoms...)
+					}
+				} else {
+					logger.Warn("unhandled fact", "xref", in.Xref, "tag", er.Tag, "type", er.Type, "value", er.Value)
 				}
 			}
 		case "EVEN":
@@ -278,26 +311,45 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					// 	GeneralEvent:           gev,
 					// 	GeneralIndividualEvent: giv,
 					// }
-					ev = &model.IndividualNarrativeEvent{
-						GeneralEvent:           gev,
-						GeneralIndividualEvent: giv,
+					if reGedcomTag.MatchString(er.Type) {
+						switch er.Type {
+						case "MARR": // for ancestry this is a marriage that is not linked to a second person
+							p.Anomalies = append(p.Anomalies, &model.Anomaly{
+								Category: model.AnomalyCategoryEvent,
+								Text:     fmt.Sprintf("The marriage event dated %s is not linked to a second person. Update it to reference the spouse.", er.Date),
+								Context:  "Marriage event",
+							})
+						case "_MILT": // ancestry generic military event
+							p.Anomalies = append(p.Anomalies, &model.Anomaly{
+								Category: model.AnomalyCategoryEvent,
+								Text:     "A generic military event was found, remove it or replace with a descriptive custom event",
+								Context:  "Generic military event",
+							})
+						default:
+							logger.Warn("unhandled custom event", "xref", in.Xref, "tag", er.Tag, "type", er.Type, "date", er.Date, "value", er.Value)
+						}
+						// ev = &model.PlaceholderIndividualEvent{
+						// 	GeneralEvent:           gev,
+						// 	GeneralIndividualEvent: giv,
+						// 	ExtraInfo:              fmt.Sprintf("Unknown custom event (Xref=%s, Tag=%s, Type=%s, Value=%s)", in.Xref, er.Tag, er.Type, er.Value),
+						// }
+					} else {
+						ev = &model.IndividualNarrativeEvent{
+							GeneralEvent:           gev,
+							GeneralIndividualEvent: giv,
+						}
 					}
-
-					// ev = &model.PlaceholderIndividualEvent{
-					// 	GeneralEvent:           gev,
-					// 	GeneralIndividualEvent: giv,
-					// 	ExtraInfo:              fmt.Sprintf("Unknown individual event (Xref=%s, Tag=%s, Type=%s, Value=%s)", in.Xref, er.Tag, er.Type, er.Value),
-					// }
 				}
 			}
 		case "OCCU":
 			occupationEvents = append(occupationEvents, gev)
 		default:
-			ev = &model.PlaceholderIndividualEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-				ExtraInfo:              fmt.Sprintf("Unknown individual event (Xref=%s, Tag=%s, Value=%s)", in.Xref, er.Tag, er.Value),
-			}
+			logger.Warn("unhandled individual event", "xref", in.Xref, "tag", er.Tag, "type", er.Type, "value", er.Value)
+			// ev = &model.PlaceholderIndividualEvent{
+			// 	GeneralEvent:           gev,
+			// 	GeneralIndividualEvent: giv,
+			// 	ExtraInfo:              fmt.Sprintf("Unknown custom event (Xref=%s, Tag=%s, Type=%s, Value=%s)", in.Xref, er.Tag, er.Type, er.Value),
+			// }
 
 		}
 
@@ -635,12 +687,14 @@ func anyNonEmpty(ss ...string) bool {
 	return false
 }
 
-func factCategoryForType(ty string) string {
+func factCategoryForType(ty string) (string, bool) {
 	switch strings.ToUpper(ty) {
 	case "AKA":
-		return model.FactCategoryAKA
+		return model.FactCategoryAKA, true
+	case "_MILTID":
+		return model.FactCategoryMilitaryServiceNumber, true
 	default:
-		return ty
+		return "", false
 	}
 }
 
@@ -781,4 +835,103 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 	// Relation to Head: Seaman A B
 
 	ce.Detail = v
+}
+
+// parseUserDefinedAsEvent converts a user defined tag to an event record
+//
+// Converts something like:
+// 1 _MILT
+// 2 DATE Aug 1799
+// 2 SOUR @S506536161@
+// 3 PAGE Piece 2197, 1798 - 1799
+// 3 DATA
+// 4 DATE 1798 - 1799
+// 2 NOTE William was recorded as a sargeant in Capt Lamonte's Company
+//
+// Into
+// 1 EVEN
+// 2 TYPE Enlisted in Military
+// 2 DATE 28 Jul 1799
+// 2 SOUR @S506536161@
+// 3 PAGE Piece 2197, 1798 - 1799
+// 3 DATA
+// 4 DATE 1798 - 1799
+func (l *Loader) parseUserDefinedAsEvent(tag string, ud gedcom.UserDefinedTag) *gedcom.EventRecord {
+	evr := &gedcom.EventRecord{
+		Tag:   tag,
+		Type:  ud.Tag,
+		Value: ud.Value,
+	}
+
+	for _, ud2 := range ud.UserDefined {
+		switch ud2.Tag {
+		case "DATE":
+			evr.Date = ud2.Value
+		case "NOTE":
+			evr.Note = append(evr.Note, &gedcom.NoteRecord{Note: ud2.Value})
+		case "PLAC":
+			evr.Place = gedcom.PlaceRecord{Name: ud2.Value}
+		case "OBJE":
+			mr, ok := l.MediaRecordsByXref[stripXref(ud2.Value)]
+			if !ok {
+				logging.Warn("unknown media record", "parent_tag", ud.Tag, "tag", ud2.Tag, "xref", ud2.Value)
+				continue
+			}
+			evr.Media = append(evr.Media, mr)
+		case "SOUR":
+			sr, ok := l.SourceRecordsByXref[stripXref(ud2.Value)]
+			if !ok {
+				logging.Warn("unknown source record", "parent_tag", ud.Tag, "tag", ud2.Tag, "xref", ud2.Value)
+				continue
+			}
+
+			cr := &gedcom.CitationRecord{
+				Source: sr,
+			}
+			for _, ud3 := range ud2.UserDefined {
+				switch ud3.Tag {
+				case "PAGE":
+					cr.Page = ud3.Value
+				case "_APID":
+					cr.UserDefined = append(cr.UserDefined, gedcom.UserDefinedTag{
+						Tag:   ud3.Tag,
+						Value: ud3.Value,
+					})
+				case "OBJE":
+					mr, ok := l.MediaRecordsByXref[stripXref(ud3.Value)]
+					if !ok {
+						logging.Warn("unknown media record", "parent_tag", ud2.Tag, "tag", ud3.Tag, "xref", ud3.Value)
+						continue
+					}
+					cr.Media = append(cr.Media, mr)
+				case "DATA":
+					for _, ud4 := range ud3.UserDefined {
+						switch ud4.Tag {
+						case "DATE":
+							cr.Data.Date = ud4.Value
+						case "TEXT":
+							cr.Data.Text = append(cr.Data.Text, ud4.Value)
+						case "WWW":
+							cr.Data.UserDefined = append(cr.Data.UserDefined, gedcom.UserDefinedTag{
+								Tag:   ud3.Tag,
+								Value: ud3.Value,
+							})
+						default:
+							logging.Warn("unhandled tag when converting user defined to event", "parent_tag", ud3.Tag, "tag", ud4.Tag, "value", ud4.Value)
+						}
+					}
+
+				default:
+					logging.Warn("unhandled tag when converting user defined to event", "parent_tag", ud2.Tag, "tag", ud3.Tag, "value", ud3.Value)
+				}
+			}
+
+			evr.Citation = append(evr.Citation, cr)
+		default:
+			logging.Warn("unhandled tag when converting user defined to event", "parent_tag", ud.Tag, "tag", ud2.Tag, "value", ud2.Value)
+
+		}
+	}
+
+	return evr
 }

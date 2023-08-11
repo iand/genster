@@ -396,6 +396,21 @@ func (e *ProbateEvent) Type() string             { return "probate" }
 func (e *ProbateEvent) ShortDescription() string { return e.abbrev("prob") }
 func (e *ProbateEvent) What() string             { return "had probate granted" }
 
+// WillEvent represents the writing of a will by a person in their timeline
+type WillEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*WillEvent)(nil)
+	_ IndividualTimelineEvent = (*WillEvent)(nil)
+)
+
+func (e *WillEvent) Type() string             { return "will" }
+func (e *WillEvent) ShortDescription() string { return e.abbrev("will") }
+func (e *WillEvent) What() string             { return "wrote will" }
+
 // ResidenceRecordedEvent represents the event of a person's occupation being recorded / noted
 type ResidenceRecordedEvent struct {
 	GeneralEvent

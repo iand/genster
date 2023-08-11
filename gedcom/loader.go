@@ -30,12 +30,14 @@ type ModelFinder interface {
 }
 
 type Loader struct {
-	ScopeName     string
-	Gedcom        *gedcom.Gedcom
-	Attrs         map[string]string
-	Citations     map[string]*model.GeneralCitation
-	Tags          map[string]string
-	SourcesByAPID map[string]*model.Source
+	ScopeName           string
+	Gedcom              *gedcom.Gedcom
+	Attrs               map[string]string
+	Citations           map[string]*model.GeneralCitation
+	Tags                map[string]string
+	SourcesByAPID       map[string]*model.Source
+	SourceRecordsByXref map[string]*gedcom.SourceRecord
+	MediaRecordsByXref  map[string]*gedcom.MediaRecord
 }
 
 func NewLoader(filename string) (*Loader, error) {
@@ -57,12 +59,14 @@ func NewLoader(filename string) (*Loader, error) {
 	sort.SliceStable(g.Media, func(a, b int) bool { return g.Media[a].Xref < g.Media[b].Xref })
 
 	l := &Loader{
-		Gedcom:        g,
-		Attrs:         make(map[string]string),
-		ScopeName:     filename,
-		Citations:     make(map[string]*model.GeneralCitation),
-		Tags:          make(map[string]string),
-		SourcesByAPID: make(map[string]*model.Source),
+		Gedcom:              g,
+		Attrs:               make(map[string]string),
+		ScopeName:           filename,
+		Citations:           make(map[string]*model.GeneralCitation),
+		Tags:                make(map[string]string),
+		SourcesByAPID:       make(map[string]*model.Source),
+		SourceRecordsByXref: make(map[string]*gedcom.SourceRecord),
+		MediaRecordsByXref:  make(map[string]*gedcom.MediaRecord),
 	}
 	l.readAttrs()
 	l.readTags()
@@ -123,6 +127,13 @@ func (l *Loader) Load(t *tree.Tree) error {
 	if desc, ok := l.Attrs["ANCESTRY_TREE_NOTE"]; ok {
 		t.Description = desc
 	}
+
+	for _, mr := range l.Gedcom.Media {
+		if err := l.populateMediaFacts(t, mr); err != nil {
+			return fmt.Errorf("media: %w", err)
+		}
+	}
+	slog.Info(fmt.Sprintf("loaded %d media records", len(l.Gedcom.Media)))
 
 	for _, sr := range l.Gedcom.Source {
 		if err := l.populateSourceFacts(t, sr); err != nil {

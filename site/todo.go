@@ -41,6 +41,13 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 			Goal:     "Find the person's birth or baptism date",
 			Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestBirthlikeEvent.GetDate().When()),
 		})
+	} else if p.BestBirthlikeEvent != nil && !p.BestBirthlikeEvent.GetDate().IsFirm() {
+		p.ToDos = append(p.ToDos, &model.ToDo{
+			Category: model.ToDoCategoryMissing,
+			Context:  "birth",
+			Goal:     "Find a firm date for the person's birth or baptism",
+			Reason:   fmt.Sprintf("Only the approximate date %q is known", p.BestBirthlikeEvent.GetDate().When()),
+		})
 	}
 
 	if !p.PossiblyAlive {
@@ -57,6 +64,13 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 				Context:  "death",
 				Goal:     "Find the person's death or burial date",
 				Reason:   fmt.Sprintf("No date is known but it is inferred to be %s", p.BestDeathlikeEvent.GetDate().When()),
+			})
+		} else if p.BestDeathlikeEvent != nil && !p.BestDeathlikeEvent.GetDate().IsFirm() {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryMissing,
+				Context:  "death",
+				Goal:     "Find a firm date for the person's death or burial",
+				Reason:   fmt.Sprintf("Only the approximate date %q is known", p.BestDeathlikeEvent.GetDate().When()),
 			})
 		}
 	}
@@ -85,34 +99,67 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 			continue
 		}
 
-		// births should have more than just census sources
-		if _, ok := ev.(*model.BirthEvent); ok {
-			if len(ev.GetCitations()) > 0 {
-				hasNonCensusBirthCitations := false
-				for _, c := range ev.GetCitations() {
-					if c.Source.IsUnknown() {
-						hasNonCensusBirthCitations = true
-						break
-					}
-					if !c.Source.IsCensus {
-						hasNonCensusBirthCitations = true
-						break
+		// TODO: will transcription
 
-					}
-				}
-				if !hasNonCensusBirthCitations {
+		hasCitations := len(ev.GetCitations()) > 0
+		unreliableCitations := 0
+		censusCitations := 0
+		civilRegistrationCitations := 0
+		transcribedCitations := 0
+		for _, c := range ev.GetCitations() {
+			if c.Source.IsUnknown() {
+				continue
+			}
+			if len(c.TranscriptionText) > 0 {
+				transcribedCitations++
+			}
+			if c.Source.IsCensus {
+				censusCitations++
+			}
+			if c.Source.IsCivilRegistration {
+				civilRegistrationCitations++
+				if len(c.TranscriptionText) == 0 {
 					p.ToDos = append(p.ToDos, &model.ToDo{
 						Category: model.ToDoCategoryCitations,
 						Context:  ev.Type() + " event",
-						Goal:     "Find a non-census source for this event.",
-						Reason:   "census records appear to be the only source of this event but a direct record of birth or baptism is preferred",
+						Goal:     "Transcribe the civil registration document.",
+						Reason:   "a citation for a civil registration certificate was found but it had no attached transcription",
 					})
 				}
+			}
+			if c.Source.IsUnreliable {
+				unreliableCitations++
+			}
+		}
+
+		hasOnlyCensusCitations := hasCitations && censusCitations == len(ev.GetCitations())
+		hasOnlyUnreliableCitations := hasCitations && unreliableCitations == len(ev.GetCitations())
+		hasCivilRegistrationCitation := civilRegistrationCitations > 0
+		hasTranscribedCitation := transcribedCitations > 0
+
+		if hasOnlyUnreliableCitations {
+			p.ToDos = append(p.ToDos, &model.ToDo{
+				Category: model.ToDoCategoryCitations,
+				Context:  ev.Type() + " event",
+				Goal:     "Find a more reliable source for this event.",
+				Reason:   "all sources for this event are deemed unreliable",
+			})
+		}
+
+		// births should have more than just census sources
+		if _, ok := ev.(*model.BirthEvent); ok {
+			if hasOnlyCensusCitations {
+				p.ToDos = append(p.ToDos, &model.ToDo{
+					Category: model.ToDoCategoryCitations,
+					Context:  ev.Type() + " event",
+					Goal:     "Find a non-census source for this event.",
+					Reason:   "census records appear to be the only source of this event but a direct record of birth or baptism is preferred",
+				})
 			}
 		}
 
 		if ev.GetDate().IsFirm() {
-			if len(ev.GetCitations()) == 0 {
+			if !hasCitations {
 				p.ToDos = append(p.ToDos, &model.ToDo{
 					Category: model.ToDoCategoryCitations,
 					Context:  ev.Type() + " event",
@@ -132,19 +179,6 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 
 					yr, ok := ev.GetDate().Year()
 					if !ok || yr < 1837 {
-						break
-					}
-
-					hasCivilRegistrationCitation := false
-					for _, c := range ev.GetCitations() {
-						if c.Source == nil {
-							continue
-						}
-						if !c.Source.IsCivilRegistration {
-							continue
-						}
-
-						hasCivilRegistrationCitation = true
 						break
 					}
 
@@ -177,6 +211,40 @@ func (s *Site) ScanPersonTodos(p *model.Person) []*model.ToDo {
 					Reason:   fmt.Sprintf("event has a date %q but the place is unknown", ev.GetDate().String()),
 				})
 			}
+		case *model.WillEvent:
+			if !hasCitations {
+				p.ToDos = append(p.ToDos, &model.ToDo{
+					Category: model.ToDoCategoryCitations,
+					Context:  ev.Type() + " event",
+					Goal:     "Find a source for this will.",
+					Reason:   "there are no source citations for the will",
+				})
+			}
+			if !hasTranscribedCitation {
+				p.ToDos = append(p.ToDos, &model.ToDo{
+					Category: model.ToDoCategoryMissing,
+					Context:  ev.Type() + " event",
+					Goal:     "Transcribe the will.",
+					Reason:   "a citation for a will was found but it had no attached transcription",
+				})
+			}
+			// case *model.ProbateEvent:
+			// 	if !hasCitations {
+			// 		p.ToDos = append(p.ToDos, &model.ToDo{
+			// 			Category: model.ToDoCategoryCitations,
+			// 			Context:  ev.Type() + " event",
+			// 			Goal:     "Find a source for this event.",
+			// 			Reason:   "there are no source citations for the will",
+			// 		})
+			// 	}
+			// 	if !hasTranscribedCitation {
+			// 		p.ToDos = append(p.ToDos, &model.ToDo{
+			// 			Category: model.ToDoCategoryMissing,
+			// 			Context:  ev.Type() + " event",
+			// 			Goal:     "Transcribe the probate document.",
+			// 			Reason:   "a citation for a will was found but it had no attached transcription",
+			// 		})
+			// 	}
 		}
 	}
 

@@ -510,6 +510,7 @@ var sourceReplacers = map[string]sourceAnnotaterFunc{
 	"repositorylink":      func(s *model.Source, v any) error { return setString(&s.RepositoryLink, v) },
 	"iscivilregistration": func(s *model.Source, v any) error { return setBool(&s.IsCivilRegistration, v) },
 	"iscensus":            func(s *model.Source, v any) error { return setBool(&s.IsCensus, v) },
+	"isunreliable":        func(s *model.Source, v any) error { return setBool(&s.IsUnreliable, v) },
 }
 
 // all possible tree replacers

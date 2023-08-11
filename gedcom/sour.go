@@ -16,6 +16,8 @@ func (l *Loader) populateSourceFacts(m ModelFinder, sr *gedcom.SourceRecord) err
 	scope := l.ScopeName
 	scopeID := sr.Xref
 
+	l.SourceRecordsByXref[sr.Xref] = sr
+
 	ud, found := findFirstUserDefinedTag("_APID", sr.UserDefined)
 	if found && ud.Value != "" {
 		scope = "_APID"

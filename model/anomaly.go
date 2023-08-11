@@ -5,6 +5,7 @@ type AnomalyCategory string
 const (
 	AnomalyCategoryCitation AnomalyCategory = "Citation"
 	AnomalyCategoryEvent    AnomalyCategory = "Event"
+	AnomalyCategoryName     AnomalyCategory = "Name"
 )
 
 func (c AnomalyCategory) String() string {

@@ -107,7 +107,7 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 			PreferredFullName:   cleanName,
 			PreferredSortName:   cleanName,
 			PlaceType:           model.PlaceTypeUnknown,
-			Kind:                place.PlaceKindUnknown,
+			Kind:                pn.Kind,
 			CountryName:         place.UnknownPlaceName(),
 			UKNationName:        place.UnknownPlaceName(),
 		}
