@@ -41,14 +41,16 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 			eraYear := 0
 			age := 0
 			if hasBirthYear {
-				eraYear = birthYear+18
+				eraYear = birthYear + 18
 				if hasDeathYear {
 					age = deathYear - birthYear
 					if age < 18 {
 						eraYear = birthYear
 					}
 
-					if age < 15 {
+					if age < 3 {
+						doc.SetFrontMatterField("maturity", "infant")
+					} else if age < 15 {
 						doc.SetFrontMatterField("maturity", "child")
 					} else if age < 25 {
 						doc.SetFrontMatterField("maturity", "young")
