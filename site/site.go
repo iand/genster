@@ -320,13 +320,6 @@ func (s *Site) AssignTags(p *model.Person) error {
 	return nil
 }
 
-func personid(p *model.Person) string {
-	if p == nil {
-		return "nil"
-	}
-	return p.ID
-}
-
 func (s *Site) BuildCalendar() error {
 	monthEvents := make(map[int]map[model.TimelineEvent]struct{})
 
@@ -1103,13 +1096,4 @@ func flattenByValueDesc(m map[string]int) []StringIntTuple {
 	sort.Slice(list, func(i, j int) bool { return list[i].I > list[j].I })
 
 	return list
-}
-
-func joinStringIntTuples(l []StringIntTuple) string {
-	ss := make([]string, len(l))
-	for i := range l {
-		ss[i] = l[i].String()
-	}
-
-	return text.JoinList(ss)
 }

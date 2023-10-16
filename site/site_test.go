@@ -85,7 +85,7 @@ func TestNormalizePlaceName(t *testing.T) {
 		if name == "" {
 			name = tc.input
 		}
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			got := normalizePlaceName(tc.input)
 			if got != tc.want {
 				t.Errorf("got %q, wanted %q", got, tc.want)

@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
-	reGedcomTag = regexp.MustCompile(`^[_A-Z][A-Z]+$`)
+	reUppercase     = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
+	reParanthesised = regexp.MustCompile(`^\((.+)\)$`)
+	reGedcomTag     = regexp.MustCompile(`^[_A-Z][A-Z]+$`)
 )
 
 func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord) error {
@@ -89,7 +90,17 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		p.PreferredFamilyName = prefName.Surname
 		p.PreferredSortName = prefName.Surname + ", " + prefName.Given
 		if prefName.Suffix != "" {
-			p.PreferredSortName += " " + prefName.Suffix
+			if matches := reParanthesised.FindStringSubmatch(prefName.Suffix); len(matches) == 2 {
+				// suffix is paranthesised which is a convention for prominent tags
+				tags := strings.Split(matches[1], ",")
+				for _, tag := range tags {
+					p.Tags = append(p.Tags, strings.TrimSpace(tag))
+				}
+				// remove the suffix
+				p.PreferredFullName = strings.TrimSpace(p.PreferredFullName[:len(p.PreferredFullName)-len(prefName.Suffix)])
+			} else {
+				p.PreferredSortName += " " + prefName.Suffix
+			}
 		}
 		p.PreferredUniqueName = prefName.Full
 		p.NickName = prefName.Nickname
