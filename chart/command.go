@@ -276,6 +276,7 @@ func chartCmd(cc *cli.Context) error {
 	}
 
 	// Find the root of the tree, i.e. the earliest ancester we want to show on the tree
+	// assume id is a genster id first
 	startPerson, ok := t.GetPerson(chartopts.startPersonID)
 	if !ok {
 		startPerson = t.FindPerson(l.ScopeName, chartopts.startPersonID)
@@ -287,8 +288,10 @@ func chartCmd(cc *cli.Context) error {
 	lay.Reflow()
 	lay.SizeCanvas()
 
-	s, _ := gtree.SVG(lay)
-
+	s, err := gtree.SVG(lay)
+	if err != nil {
+		return fmt.Errorf("render SVG: %w", err)
+	}
 	fmt.Println(s)
 
 	if chartopts.outputFilename != "" {
