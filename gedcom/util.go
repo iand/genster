@@ -41,9 +41,7 @@ func parseURL(u string) *model.Link {
 func refineHostName(h string) string {
 	h = strings.ToLower(h)
 
-	if strings.HasPrefix(h, "www.") {
-		h = h[4:]
-	}
+	h = strings.TrimPrefix(h, "www.")
 
 	// Check against some well known hostnames
 	// TODO: read well known hostnames from config

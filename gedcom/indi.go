@@ -172,7 +172,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			Date:   &model.Date{Date: dt},
 			Place:  pl,
 			Detail: detail,
-			Title:  fmt.Sprintf("%s", er.Tag),
+			Title:  er.Tag,
 		}
 
 		giv := model.GeneralIndividualEvent{
@@ -676,26 +676,6 @@ func findFirstUserDefinedTag(tag string, uds []gedcom.UserDefinedTag) (gedcom.Us
 	}
 
 	return gedcom.UserDefinedTag{}, false
-}
-
-func findAllUserDefinedTagValues(tag string, uds []gedcom.UserDefinedTag) []string {
-	var vals []string
-	for _, ud := range uds {
-		if ud.Tag == tag {
-			vals = append(vals, ud.Value)
-		}
-	}
-
-	return vals
-}
-
-func anyNonEmpty(ss ...string) bool {
-	for _, s := range ss {
-		if s != "" {
-			return true
-		}
-	}
-	return false
 }
 
 func factCategoryForType(ty string) (string, bool) {

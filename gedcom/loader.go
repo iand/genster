@@ -320,9 +320,7 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 		}
 	}
 
-	for _, s := range cr.Data.Text {
-		cit.TranscriptionText = append(cit.TranscriptionText, s)
-	}
+	cit.TranscriptionText = append(cit.TranscriptionText, cr.Data.Text...)
 
 	wwws := findUserDefinedTags(cr.Data.UserDefined, "WWW", false)
 	if len(wwws) > 0 {
