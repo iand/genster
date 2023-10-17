@@ -128,40 +128,6 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 	return p
 }
 
-func (t *Tree) findPlaceFromGazeteer(name string, gp GazeteerPlace) *model.Place {
-	p, ok := t.Places[gp.id]
-	if !ok {
-		p = &model.Place{
-			ID: gp.id,
-			// Page:                fmt.Sprintf(s.PlacePagePattern, gp.id),
-			OriginalText:        name,
-			PreferredName:       gp.name,
-			PreferredUniqueName: gp.name,
-			PreferredFullName:   gp.name,
-			PreferredSortName:   gp.name,
-			PlaceType:           model.PlaceTypeUnknown,
-			Kind:                gp.kind,
-		}
-
-		if gp.parentID != "" {
-			parentgp, ok := t.Gazeteer.LookupPlace(gp.parentID)
-			if ok {
-				parent := t.findPlaceFromGazeteer(parentgp.name, parentgp)
-				if !parent.IsUnknown() {
-					p.Parent = parent
-					p.PreferredFullName = gp.name + ", " + parent.PreferredFullName
-					p.PreferredUniqueName = gp.name + ", " + parent.PreferredUniqueName
-				}
-			} else {
-				logging.Warn("parent id not found in gazeteer", "parent_id", gp.parentID, "id", gp.id)
-			}
-		}
-
-		t.Places[gp.id] = p
-	}
-	return p
-}
-
 func (t *Tree) FindFamily(father *model.Person, mother *model.Person) *model.Family {
 	fatherID := father.ID
 	if father.IsUnknown() {
