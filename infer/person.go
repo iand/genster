@@ -274,8 +274,8 @@ func InferPersonGeneralFacts(p *model.Person) error {
 				p.BornInWorkhouse = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,
-					Value:  fmt.Sprintf("born in workhouse"),
-					Reason: fmt.Sprintf("place of birth appears to contains the word workhouse"),
+					Value:  "born in workhouse",
+					Reason: "place of birth appears to contains the word workhouse",
 				}
 				p.Inferences = append(p.Inferences, inf)
 			}
@@ -289,8 +289,8 @@ func InferPersonGeneralFacts(p *model.Person) error {
 				p.DiedInWorkhouse = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,
-					Value:  fmt.Sprintf("died in workhouse"),
-					Reason: fmt.Sprintf("place of death appears to contains the word workhouse"),
+					Value:  "died in workhouse",
+					Reason: "place of death appears to contains the word workhouse",
 				}
 				p.Inferences = append(p.Inferences, inf)
 			}
@@ -298,8 +298,8 @@ func InferPersonGeneralFacts(p *model.Person) error {
 				p.Pauper = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,
-					Value:  fmt.Sprintf("pauper"),
-					Reason: fmt.Sprintf("detail of death appears to contains the word pauper"),
+					Value:  "pauper",
+					Reason: "detail of death appears to contains the word pauper",
 				}
 				p.Inferences = append(p.Inferences, inf)
 			}
@@ -326,7 +326,7 @@ func InferPersonCauseOfDeath(p *model.Person) error {
 			inf := model.Inference{
 				Type:   model.InferenceTypeCauseOfDeath,
 				Value:  string(p.CauseOfDeath),
-				Reason: fmt.Sprintf("detail of death event contains the word suicide"),
+				Reason: "detail of death event contains the word suicide",
 			}
 			p.Inferences = append(p.Inferences, inf)
 		} else if reLostAtSea.MatchString(p.BestDeathlikeEvent.GetDetail()) {
@@ -334,7 +334,7 @@ func InferPersonCauseOfDeath(p *model.Person) error {
 			inf := model.Inference{
 				Type:   model.InferenceTypeCauseOfDeath,
 				Value:  string(p.CauseOfDeath),
-				Reason: fmt.Sprintf("detail of death event contains the words lost at sea"),
+				Reason: "detail of death event contains the words lost at sea",
 			}
 			p.Inferences = append(p.Inferences, inf)
 		} else if reDrowning.MatchString(p.BestDeathlikeEvent.GetDetail()) {
@@ -342,7 +342,7 @@ func InferPersonCauseOfDeath(p *model.Person) error {
 			inf := model.Inference{
 				Type:   model.InferenceTypeCauseOfDeath,
 				Value:  string(p.CauseOfDeath),
-				Reason: fmt.Sprintf("detail of death event contains the words drowned or drowning"),
+				Reason: "detail of death event contains the words drowned or drowning",
 			}
 			p.Inferences = append(p.Inferences, inf)
 		} else {
