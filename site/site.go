@@ -485,9 +485,7 @@ func (s *Site) ScanPersonForAnomalies(p *model.Person) {
 		}
 		anoms := ScanTimelineEventForAnomalies(ev)
 		if len(anoms) > 0 {
-			for _, anom := range anoms {
-				p.Anomalies = append(p.Anomalies, anom)
-			}
+			p.Anomalies = append(p.Anomalies, anoms...)
 		}
 
 		switch ev.(type) {
@@ -932,14 +930,14 @@ func (s *Site) WriteTreeOverview(root string) error {
 		peopleDesc = text.FormatSentence(fmt.Sprintf("There are %d people in this tree", numberOfPeople))
 	}
 
-	ancestorSurnames := flattenByValueDesc(s.Tree.AncestorSurnameDistribution())
+	ancestorSurnames := FlattenMapByValueDesc(s.Tree.AncestorSurnameDistribution())
 	if len(ancestorSurnames) > 0 {
 		list := make([]string, 12)
 		for i := range ancestorSurnames {
 			if i > 11 {
 				break
 			}
-			list[i] = doc.EncodeLink(ancestorSurnames[i].S, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].S)))
+			list[i] = doc.EncodeLink(ancestorSurnames[i].K, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].K)))
 		}
 		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
 		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
@@ -1066,34 +1064,39 @@ func groupRelation(rel *model.Relation) (string, int) {
 	return group, groupPriority
 }
 
-type StringIntTuple struct {
-	S string
-	I int
+type simplevalue interface {
+	~int64 | ~float64 | ~string | ~int
 }
 
-func (t *StringIntTuple) String() string {
-	return fmt.Sprintf("%s (%d)", t.S, t.I)
+type Tuple[K simplevalue, V simplevalue] struct {
+	K K
+	V V
 }
 
-// flattenByKeyAsc flattens the map and sorts by the key ascending
-func flattenByKeyAsc(m map[string]int) []StringIntTuple {
-	list := make([]StringIntTuple, 0, len(m))
+func (t *Tuple[K, V]) String() string {
+	return fmt.Sprintf("%v (%v)", t.K, t.V)
+}
+
+// FlattenMapByKeyAsc flattens a map into a slice of Tuples
+func FlattenMap[M ~map[K]V, K simplevalue, V simplevalue](m M) []Tuple[K, V] {
+	list := make([]Tuple[K, V], 0, len(m))
 	for k, v := range m {
-		list = append(list, StringIntTuple{S: k, I: v})
+		list = append(list, Tuple[K, V]{K: k, V: v})
 	}
-
-	sort.Slice(list, func(i, j int) bool { return list[i].S < list[j].S })
 
 	return list
 }
 
-func flattenByValueDesc(m map[string]int) []StringIntTuple {
-	list := make([]StringIntTuple, 0, len(m))
-	for k, v := range m {
-		list = append(list, StringIntTuple{S: k, I: v})
-	}
+// FlattenMapByKeyAsc flattens a map and sorts by the key ascending
+func FlattenMapByKeyAsc[M ~map[K]V, K simplevalue, V simplevalue](m M) []Tuple[K, V] {
+	list := FlattenMap(m)
+	sort.Slice(list, func(i, j int) bool { return list[i].K < list[j].K })
+	return list
+}
 
-	sort.Slice(list, func(i, j int) bool { return list[i].I > list[j].I })
-
+// FlattenMapByValueDesc flattens a map and sorts by the value descending
+func FlattenMapByValueDesc[M ~map[K]V, K simplevalue, V simplevalue](m M) []Tuple[K, V] {
+	list := FlattenMap(m)
+	sort.Slice(list, func(i, j int) bool { return list[i].V > list[j].V })
 	return list
 }

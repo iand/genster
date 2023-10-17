@@ -196,7 +196,6 @@ var _ ExtendedMarkdownBuilder = (*WikiTreeEncoder)(nil)
 type WikiTreeEncoder struct {
 	main strings.Builder
 
-	citations   strings.Builder
 	citationidx int
 	citationMap map[string]int
 }
