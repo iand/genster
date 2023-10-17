@@ -103,7 +103,7 @@ func descendant(cc *cli.Context) error {
 	case 3:
 		detailFn = detailLevel3
 	default:
-		return fmt.Errorf("Unsupported detail level: %d", descendantOpts.detail)
+		return fmt.Errorf("unsupported detail level: %d", descendantOpts.detail)
 	}
 
 	l, err := gedcom.NewLoader(descendantOpts.gedcomFile)
@@ -129,7 +129,7 @@ func descendant(cc *cli.Context) error {
 
 	startPerson, ok := t.GetPerson(descendantOpts.startPersonID)
 	if !ok {
-		keyIndividual = t.FindPerson(l.ScopeName, descendantOpts.startPersonID)
+		startPerson = t.FindPerson(l.ScopeName, descendantOpts.startPersonID)
 	}
 
 	printDescendants(startPerson, "", 1, detailFn, descendantOpts.compact, descendantOpts.generations)
