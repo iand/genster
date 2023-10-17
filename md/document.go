@@ -56,11 +56,6 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 	if len(b.frontMatter) > 0 {
 		bw.WriteString("---\n")
 
-		type rankedKey struct {
-			key  string
-			rank int
-		}
-
 		keys := make([]string, 0, len(b.frontMatter))
 		for k := range b.frontMatter {
 			keys = append(keys, k)

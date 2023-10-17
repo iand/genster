@@ -113,7 +113,7 @@ func (b *Encoder) Heading4(s string) {
 
 func (b *Encoder) EncodeHeading4(s string) string {
 	buf := new(strings.Builder)
-	b.writeHeading3(buf, s)
+	b.writeHeading4(buf, s)
 	return buf.String()
 }
 
