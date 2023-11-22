@@ -84,6 +84,8 @@ type Site struct {
 	WikiTreeDir         string
 	WikiTreePagePattern string
 	WikiTreeFilePattern string
+
+	SkippedPersonPages map[string]bool // map of person pages that should not be generated
 }
 
 func NewSite(baseURL string, t *tree.Tree) *Site {
@@ -125,6 +127,8 @@ func NewSite(baseURL string, t *tree.Tree) *Site {
 		ListPlacesDir:     path.Join(PageSectionList, "places"),
 		ListSourcesDir:    path.Join(PageSectionList, "sources"),
 		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
+
+		SkippedPersonPages: make(map[string]bool),
 	}
 
 	return s
@@ -429,6 +433,9 @@ func writePage(doc *md.Document, root string, fname string) error {
 func (s *Site) LinkFor(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
+		if s.SkippedPersonPages[vt.ID] {
+			return ""
+		}
 		if vt.Redacted {
 			return ""
 		}
@@ -564,6 +571,9 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 	pn := NewPaginator()
 	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
 		if p.Redacted {
 			logging.Debug("not writing redacted person to anomalies index", "id", p.ID)
 			continue
@@ -630,6 +640,9 @@ func (s *Site) WriteInferenceListPages(root string) error {
 	pn := NewPaginator()
 	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
 		if p.Redacted {
 			logging.Debug("not writing redacted person to inference index", "id", p.ID)
 			continue
@@ -667,6 +680,9 @@ func (s *Site) WriteTodoListPages(root string) error {
 	pn := NewPaginator()
 	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
 		if p.Redacted {
 			logging.Debug("not writing redacted person to todo index", "id", p.ID)
 			continue
@@ -754,6 +770,9 @@ func (s *Site) WritePersonListPages(root string) error {
 	pn := NewPaginator()
 	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
 		if p.Redacted {
 			logging.Debug("not writing redacted person to person index", "id", p.ID)
 			continue
@@ -824,6 +843,9 @@ func (s *Site) WriteSourceListPages(root string) error {
 func (s *Site) WriteSurnameListPages(root string) error {
 	peopleBySurname := make(map[string][]*model.Person)
 	for _, p := range s.Tree.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
 		if p.Redacted {
 			logging.Debug("not writing redacted person to surname index", "id", p.ID)
 			continue
@@ -978,6 +1000,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 	}
 
 	rnPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
 		if len(p.ResearchNotes) == 0 {
 			return false
 		}

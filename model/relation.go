@@ -87,6 +87,15 @@ func (r *Relation) IsCloseToDirectAncestor() bool {
 	return false
 }
 
+// HasCommonAncestor reports whether the From and To person have a common ancestor, including
+// if the To person is a direct ancestor of the From person
+func (r *Relation) HasCommonAncestor() bool {
+	if r == nil {
+		return false
+	}
+	return !r.CommonAncestor.IsUnknown()
+}
+
 // Name returns the name of the relation between From and To, in the
 // form that "To is the Name() of From"
 func (r *Relation) Name() string {

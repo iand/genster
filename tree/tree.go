@@ -783,6 +783,23 @@ func (t *Tree) ListPeopleMatching(m model.PersonMatcher, limit int) []*model.Per
 	return matches
 }
 
+// ApplyPeopleMatching applies fn to each person that matches m until fn returns false or an error
+// which is returned if encountered
+func (t *Tree) ApplyPeopleMatching(m model.PersonMatcher, fn model.PersonActionFunc) error {
+	for _, p := range t.People {
+		if m(p) {
+			ok, err := fn(p)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
 func (t *Tree) ListPlacesMatching(m model.PlaceMatcher, limit int) []*model.Place {
 	matches := make([]*model.Place, 0, limit)
 	for _, p := range t.Places {

@@ -40,7 +40,7 @@ type Person struct {
 	Unknown            bool         // true if this person is known to have existed but no other information is known
 	Unmarried          bool         // true if it is known that the person did not marry
 	Childless          bool         // true if it is known that the person did not have any children
-	Illegitimate       bool         // true if it is known that the person was born illlegitimately
+	Illegitimate       bool         // true if it is known that the person was born illegitimately
 	BornInWorkhouse    bool         // true if the birth place of the person was a workhouse
 	DiedInWorkhouse    bool         // true if the death place of the person was a workhouse
 	Pauper             bool         // true if the person was, at some stage, noted as a pauper
@@ -372,6 +372,33 @@ func PersonIsDirectAncestor() PersonMatcher {
 			return false
 		}
 		return p.RelationToKeyPerson.IsDirectAncestor()
+	}
+}
+
+func PersonIsNotDirectAncestor() PersonMatcher {
+	return func(p *Person) bool {
+		if p.RelationToKeyPerson == nil {
+			return true
+		}
+		return !p.RelationToKeyPerson.IsDirectAncestor()
+	}
+}
+
+func PersonHasCommonAncestor() PersonMatcher {
+	return func(p *Person) bool {
+		if p.RelationToKeyPerson == nil {
+			return false
+		}
+		return p.RelationToKeyPerson.HasCommonAncestor()
+	}
+}
+
+func PersonDoesNotHaveCommonAncestor() PersonMatcher {
+	return func(p *Person) bool {
+		if p.RelationToKeyPerson == nil {
+			return true
+		}
+		return !p.RelationToKeyPerson.HasCommonAncestor()
 	}
 }
 
