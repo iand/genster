@@ -31,6 +31,7 @@ const (
 	PageLayoutListSurnames   PageLayout = "listsurnames"
 	PageLayoutCalendar       PageLayout = "calendar"
 	PageLayoutTreeOverview   PageLayout = "treeoverview"
+	PageLayoutChartAncestors PageLayout = "chartancestors"
 )
 
 func (p PageLayout) String() string { return string(p) }
@@ -40,6 +41,7 @@ const (
 	PageSectionPlace  = "place"
 	PageSectionSource = "source"
 	PageSectionList   = "list"
+	PageSectionChart  = "chart"
 )
 
 const (
@@ -74,6 +76,8 @@ type Site struct {
 	ListPlacesDir     string
 	ListSourcesDir    string
 	ListSurnamesDir   string
+
+	ChartAncestorsDir string
 
 	IncludePrivate     bool
 	TimelineExperiment bool
@@ -127,6 +131,8 @@ func NewSite(baseURL string, t *tree.Tree) *Site {
 		ListPlacesDir:     path.Join(PageSectionList, "places"),
 		ListSourcesDir:    path.Join(PageSectionList, "sources"),
 		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
+
+		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
 
 		SkippedPersonPages: make(map[string]bool),
 	}
@@ -236,6 +242,10 @@ func (s *Site) WritePages(root string) error {
 
 	if err := s.WriteTreeOverview(root); err != nil {
 		return fmt.Errorf("write tree overview: %w", err)
+	}
+
+	if err := s.WriteAncestorChart(root); err != nil {
+		return fmt.Errorf("write ancestor chart: %w", err)
 	}
 
 	return nil
@@ -971,6 +981,10 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Para(peopleDesc)
 	}
 
+	doc.EmptyPara()
+	doc.Para(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson)))
+
+	// Featured people
 	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
 		return p.Featured
 	}, 8)
@@ -985,6 +999,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.UnorderedList(items)
 	}
 
+	// Currently puzzling over
 	puzzlePeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
 		return p.Puzzle && !p.Featured
 	}, 8)
@@ -999,6 +1014,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.UnorderedList(items)
 	}
 
+	// People with research notes
 	rnPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
 		if s.LinkFor(p) == "" {
 			return false
@@ -1027,6 +1043,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Para(text.FormatSentence(detail))
 	}
 
+	// Oldest people
 	oldestPeople := s.Tree.OldestPeople(3)
 	if len(oldestPeople) > 0 {
 		doc.EmptyPara()
@@ -1060,6 +1077,107 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	if err := writePage(doc, root, fname); err != nil {
 		return fmt.Errorf("write page: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Site) WriteAncestorChart(root string) error {
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	generations := 8
+	ancestors := s.Tree.Ancestors(s.Tree.KeyPerson, generations)
+
+	doc := s.NewDocument()
+	doc.Title("Ancestors of " + s.Tree.KeyPerson.PreferredFamiliarFullName)
+	doc.Summary(text.JoinSentenceParts("This is a full list of ancestors of", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson)))
+	doc.Layout(PageLayoutChartAncestors.String())
+
+	g := 0
+	doc.Heading3("Generation 1")
+
+	doc.Para(text.JoinSentenceParts("1.", doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson))))
+	for i := range ancestors {
+		ig := -1
+		idx := i + 2
+		for idx > 0 {
+			idx >>= 1
+			ig++
+		}
+		if ig != g {
+			g = ig
+			if g == 1 {
+				doc.Heading3("Generation 2: Parents")
+			} else if g == 2 {
+				doc.Heading3("Generation 3: Grandparents")
+			} else if g == 3 {
+				doc.Heading3("Generation 4: Great-Grandparents")
+			} else if g == 4 {
+				doc.Heading3("Generation 5: Great-Great-Grandparents")
+			} else {
+				doc.Heading3(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2))
+			}
+		}
+		if ancestors[i] != nil {
+			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i]))))
+
+			var adds []string
+			// if ancestors[i].PrimaryOccupation != "" {
+			// 	adds = append(adds, ancestors[i].PrimaryOccupation)
+			// }
+			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
+				adds = append(adds, WhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
+			}
+			if ancestors[i].BestDeathlikeEvent != nil && !ancestors[i].BestDeathlikeEvent.GetDate().IsUnknown() {
+				adds = append(adds, WhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc))
+			}
+
+			detail = text.AppendClause(detail, text.JoinList(adds))
+			doc.Para(detail)
+		} else {
+
+			name := "Not known"
+			// Odd numbers are female, even numbers are male.
+			// The child of entry n is found at (n-2)/2 if n is even and (n-3)/2 if n is odd.
+
+			if i%2 == 0 {
+				// male
+				lb := (i - 2) / 2
+				if lb >= 0 && ancestors[lb] != nil {
+					name += " (father of " + ancestors[lb].PreferredFullName + ")"
+				} else {
+					lb = (lb - 2) / 2
+					if lb >= 0 && ancestors[lb] != nil {
+						name += " (grandfather of " + ancestors[lb].PreferredFullName + ")"
+					} else {
+						name += " (male)"
+					}
+				}
+			} else {
+				// female
+				lb := (i - 3) / 2
+				if lb >= 0 && ancestors[lb] != nil {
+					name += " (mother of " + ancestors[lb].PreferredFullName + ")"
+				} else {
+					lb = (lb - 2) / 2
+					if lb >= 0 && ancestors[lb] != nil {
+						name += " (grandmother of " + ancestors[lb].PreferredFullName + ")"
+					} else {
+						name += " (female)"
+					}
+				}
+			}
+
+			doc.Para(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name))
+		}
+	}
+
+	baseDir := filepath.Join(root, s.ChartAncestorsDir)
+	if err := writePage(doc, baseDir, fname); err != nil {
+		return fmt.Errorf("failed to write ancestor overview: %w", err)
 	}
 
 	return nil

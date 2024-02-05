@@ -255,6 +255,12 @@ func (t *Tree) Generate(redactLiving bool) error {
 			return p.Families[a].BestStartDate.SortsBefore(p.Families[b].BestStartDate)
 		})
 
+		// sort children in families by birthlike date
+		for _, f := range p.Families {
+			sort.Slice(f.Children, func(a, b int) bool {
+				return f.Children[a].BestBirthDate().SortsBefore(f.Children[b].BestBirthDate())
+			})
+		}
 	}
 
 	for _, p := range t.Places {
@@ -891,6 +897,72 @@ func (t *Tree) OldestPeople(limit int) []*model.Person {
 		list[i] = pa.Person
 	}
 	return list
+}
+
+// Ancestors returns the ancestors of p. The returned list is ordered such that the
+// father of entry n is found at (n+2)*2-2, the mother of entry n is found at (n+2)*2-1
+// The list will always contain 2^n entries, with unknown ancestors left as nil at the
+// appropriate index.
+// Odd numbers are female, even numbers are male.
+// The child of entry n is found at (n-2)/2 if n is even and (n-3)/2 if n is odd.
+// 0: father
+// 1: mother
+// 2: father's father
+// 3: father's mother
+// 4: mother's father
+// 5: mother's mother
+// 6: father's father's father
+// 7: father's father's mother
+// 8: father's mother's father
+// 9: father's mother's mother
+// 10: mother's father's father
+// 11: mother's father's mother
+// 12: mother's mother's father
+// 13: mother's mother's mother
+// 14: father's father's father's father
+// 15: father's father's father's mother
+// 16: father's father's mother's father
+// 17: father's father's mother's mother
+// 18: father's mother's father's father
+// 19: father's mother's father's mother
+// 20: father's mother's mother's father
+// 21: father's mother's mother's mother
+// 22: mother's father's father's father
+// 23: mother's father's father's mother
+// 24: mother's father's mother's father
+// 25: mother's father's mother's mother
+// 26: mother's mother's father's father
+// 27: mother's mother's father's mother
+// 28: mother's mother's mother's father
+// 29: mother's mother's mother's mother
+func (t *Tree) Ancestors(p *model.Person, generations int) []*model.Person {
+	n := 0
+	f := 2
+	for i := 0; i < generations; i++ {
+		n += f
+		f *= 2
+	}
+	a := make([]*model.Person, n)
+
+	a[0] = p.Father
+	a[1] = p.Mother
+	for idx := 0; idx < n; idx++ {
+		if a[idx] == nil {
+			continue
+		}
+		if a[idx].Father != nil {
+			if (idx+2)*2-2 < n {
+				a[(idx+2)*2-2] = a[idx].Father
+			}
+		}
+		if a[idx].Mother != nil {
+			if (idx+2)*2-1 < n {
+				a[(idx+2)*2-1] = a[idx].Mother
+			}
+		}
+	}
+
+	return a
 }
 
 type PersonWithAge struct {

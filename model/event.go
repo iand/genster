@@ -22,11 +22,13 @@ type TimelineEvent interface {
 	SortsBefore(other TimelineEvent) bool
 }
 
+// GeneralPartyEvent is a timeline event involving one individual.
 type IndividualTimelineEvent interface {
 	TimelineEvent
 	GetPrincipal() *Person
 }
 
+// PartyTimelineEvent is a timeline event involving two parties.
 type PartyTimelineEvent interface {
 	TimelineEvent
 	GetParty1() *Person
@@ -39,8 +41,6 @@ func SortTimelineEvents(evs []TimelineEvent) {
 		return evs[i].SortsBefore(evs[j])
 	})
 }
-
-// var _ TimelineEvent = (*GeneralEvent)(nil)
 
 type GeneralEvent struct {
 	Date      *Date
@@ -119,6 +119,7 @@ func (e *GeneralEvent) SortsBefore(other TimelineEvent) bool {
 	return e.Date.SortsBefore(other.GetDate())
 }
 
+// GeneralPartyEvent is a general event involving one individual.
 type GeneralIndividualEvent struct {
 	Principal *Person
 }
@@ -135,6 +136,7 @@ func (e *GeneralIndividualEvent) Participants() []*Person {
 	return []*Person{e.Principal}
 }
 
+// GeneralPartyEvent is a general event involving two principal parties.
 type GeneralPartyEvent struct {
 	Party1 *Person
 	Party2 *Person
@@ -172,7 +174,7 @@ type POV struct {
 	Place  *Place  // the place in which the observing is taking place
 }
 
-// PlaceholderEvent represents an event that has not been interpreted and is a placeholder until the necessary
+// PlaceholderIndividualEvent represents an event involving one individual that has not been interpreted and is a placeholder until the necessary
 // processing has been written.
 type PlaceholderIndividualEvent struct {
 	GeneralEvent
@@ -184,7 +186,7 @@ func (e *PlaceholderIndividualEvent) GetTitle() string {
 	return e.ExtraInfo
 }
 
-// PlaceholderPartyEvent represents an event that has not been interpreted and is a placeholder until the necessary
+// PlaceholderPartyEvent represents an event involving two parties that has not been interpreted and is a placeholder until the necessary
 // processing has been written.
 type PlaceholderPartyEvent struct {
 	GeneralEvent
@@ -227,11 +229,6 @@ var (
 	_ TimelineEvent           = (*BaptismEvent)(nil)
 	_ IndividualTimelineEvent = (*BaptismEvent)(nil)
 )
-
-// func (e *BaptismEvent) EncodeTitle(enc InlineMarkdownEncoder, obs *POV) string {
-// 	return EventTitle(e, enc, obs)
-// 	// return e.withCitations(simpleEventTitle("baptised", "Baptised", e.Principal, obs.Person, e.Date, e.Place), enc)
-// }
 
 // DeathEvent represents the death of a person in their timeline
 type DeathEvent struct {
@@ -440,7 +437,7 @@ var (
 )
 
 func (e *MarriageEvent) Type() string             { return "marriage" }
-func (e *MarriageEvent) ShortDescription() string { return e.abbrev("marr") }
+func (e *MarriageEvent) ShortDescription() string { return e.abbrev("m") }
 func (e *MarriageEvent) What() string             { return "married" }
 
 // MarriageLicenseEvent represents the event where two people obtain a license to marry

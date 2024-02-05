@@ -74,6 +74,7 @@ func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {
 	return enc.EncodeLink(text, u)
 }
 
+// EncodePeopleListInline encodes a list of people as a comma separated list
 func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) string, enc InlineEncoder) string {
 	ss := make([]string, len(ps))
 	for i := range ps {
