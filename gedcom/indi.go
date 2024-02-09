@@ -277,23 +277,28 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				}
 			}
 		case "EVEN":
-			if strings.ToUpper(er.Type) == "OLB" {
-				logger.Debug("setting OLB from event", "olb", gev.Detail)
+			ty := strings.ToUpper(er.Type)
+			switch ty {
+			case "OLB":
+				logger.Debug("setting olb from event", "olb", gev.Detail)
 				p.Olb = gev.Detail
-			} else {
+			case "PRIMARY OCCUPATION":
+				logger.Debug("setting primary occupation from fact", "occupation", gev.Detail)
+				p.PrimaryOccupation = gev.Detail
+			default:
 				gev.Title = er.Type
-				switch strings.ToLower(er.Type) {
-				case "narrative":
+				switch ty {
+				case "NARRATIVE":
 					ev = &model.IndividualNarrativeEvent{
 						GeneralEvent:           gev,
 						GeneralIndividualEvent: giv,
 					}
-				case "arrival":
+				case "ARRIVAL":
 					ev = &model.ArrivalEvent{
 						GeneralEvent:           gev,
 						GeneralIndividualEvent: giv,
 					}
-				case "departure":
+				case "DEPARTURE":
 					ev = &model.DepartureEvent{
 						GeneralEvent:           gev,
 						GeneralIndividualEvent: giv,
@@ -453,6 +458,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	// Add ancestry links
 	if id, ok := l.Attrs["ANCESTRY_TREE_ID"]; ok {
 		personID := strings.TrimPrefix(in.Xref, "I")
+		// Feb 2024: ancestry replaced all leading _ with -
+		if strings.HasPrefix(personID, "_") {
+			personID = "-" + personID[1:]
+		}
 		// TODO: support other ancestry sites
 		p.EditLink = &model.Link{
 			Title: "Edit details at ancestry.co.uk",

@@ -14,6 +14,10 @@ type Relation struct {
 	SpouseRelation *Relation // the relationship of the To person to the spouse of the ClosestDirectRelation
 }
 
+func (r *Relation) IsUnknown() bool {
+	return r == nil
+}
+
 func (r *Relation) IsSelf() bool {
 	if r == nil {
 		return false

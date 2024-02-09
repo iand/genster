@@ -673,6 +673,14 @@ func GenerateOlb(p *model.Person) error {
 	if p.Olb != "" {
 		return nil
 	}
+
+	const (
+		Mundane     = 1
+		Interesting = 2
+		Unusual     = 3
+		Unique      = 4
+	)
+
 	log := false
 	logger := slog.With("id", p.ID, "name", p.PreferredFullName)
 
@@ -887,6 +895,10 @@ func GenerateOlb(p *model.Person) error {
 
 	var clauses []Clause
 
+	if p.PrimaryOccupation != "" {
+		clauses = append(clauses, Clause{Text: p.PrimaryOccupation, Interestingness: Unique})
+	}
+
 	hasIllegitimateClause := false
 	if p.Illegitimate && p.Father.IsUnknown() {
 		clause := "illegitimate"
@@ -895,12 +907,12 @@ func GenerateOlb(p *model.Person) error {
 		}
 
 		hasIllegitimateClause = true
-		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+		clauses = append(clauses, Clause{Text: clause, Interestingness: Interesting})
 	}
 
 	// Intro statement
 	if p.NickName != "" {
-		clauses = append(clauses, Clause{Text: "known as " + p.NickName, Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "known as " + p.NickName, Interestingness: Interesting})
 	}
 
 	// Statement about birth
@@ -912,15 +924,15 @@ func GenerateOlb(p *model.Person) error {
 
 	if p.BornInWorkhouse {
 		if p.DiedInWorkhouse {
-			clauses = append(clauses, Clause{Text: "born and died in workhouse", Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "born and died in workhouse", Interestingness: Interesting})
 		} else {
-			clauses = append(clauses, Clause{Text: "born in workhouse", Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "born in workhouse", Interestingness: Interesting})
 		}
 	} else if bf.CountryOfBirth != nil && !nonNotableCountries[bf.CountryOfBirth.Name] {
 		if bf.BirthYear%3 == 1 {
-			clauses = append(clauses, Clause{Text: bf.CountryOfBirth.Adjective + "-born", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: bf.CountryOfBirth.Adjective + "-born", Interestingness: Mundane})
 		} else {
-			clauses = append(clauses, Clause{Text: "born in " + bf.CountryOfBirth.Name, Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "born in " + bf.CountryOfBirth.Name, Interestingness: Mundane})
 		}
 	} else if bf.BirthYearDesc != "" {
 		clauses = append(clauses, Clause{Text: bf.BirthYearDesc, Interestingness: 0})
@@ -947,34 +959,34 @@ func GenerateOlb(p *model.Person) error {
 		}
 
 		if p.Mother.IsUnknown() && !p.Father.IsUnknown() {
-			clauses = append(clauses, Clause{Text: "mother unknown", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "mother unknown", Interestingness: Mundane})
 		} else if p.Father.IsUnknown() && !p.Mother.IsUnknown() {
-			clauses = append(clauses, Clause{Text: "father unknown", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "father unknown", Interestingness: Mundane})
 		}
 	}
 
 	if p.Twin {
-		clauses = append(clauses, Clause{Text: "twin", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "twin", Interestingness: Interesting})
 	}
 
 	if p.DiedInChildbirth {
-		clauses = append(clauses, Clause{Text: "died in childbirth", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "died in childbirth", Interestingness: Unusual})
 	}
 
 	if p.PhysicalImpairment {
-		clauses = append(clauses, Clause{Text: "physically impaired", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "physically impaired", Interestingness: Unusual})
 	}
 
 	if p.MentalImpairment {
-		clauses = append(clauses, Clause{Text: "mentally impaired", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "mentally impaired", Interestingness: Unusual})
 	}
 
 	if p.Deaf {
-		clauses = append(clauses, Clause{Text: "deaf", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "deaf", Interestingness: Unusual})
 	}
 
 	if p.Blind {
-		clauses = append(clauses, Clause{Text: "blind", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "blind", Interestingness: Unusual})
 	}
 
 	parentDeathDesc := func(age int) string {
@@ -988,11 +1000,11 @@ func GenerateOlb(p *model.Person) error {
 	}
 
 	if bf.OrphanedAtAge > -1 && bf.OrphanedAtAge < 18 {
-		clauses = append(clauses, Clause{Text: "orphaned " + parentDeathDesc(bf.OrphanedAtAge), Interestingness: 3})
+		clauses = append(clauses, Clause{Text: "orphaned " + parentDeathDesc(bf.OrphanedAtAge), Interestingness: Unusual})
 	} else if bf.AgeAtDeathOfMother > -1 && bf.AgeAtDeathOfMother < 18 {
-		clauses = append(clauses, Clause{Text: "mother died " + parentDeathDesc(bf.AgeAtDeathOfMother), Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "mother died " + parentDeathDesc(bf.AgeAtDeathOfMother), Interestingness: Interesting})
 	} else if bf.AgeAtDeathOfFather > -1 && bf.AgeAtDeathOfFather < 18 {
-		clauses = append(clauses, Clause{Text: "father died " + parentDeathDesc(bf.AgeAtDeathOfFather), Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "father died " + parentDeathDesc(bf.AgeAtDeathOfFather), Interestingness: Interesting})
 	}
 
 	// Statement about families and children
@@ -1002,38 +1014,38 @@ func GenerateOlb(p *model.Person) error {
 	}
 
 	if p.Childless && bf.AgeAtDeath > 18 {
-		clauses = append(clauses, Clause{Text: "had no children", Interestingness: 1})
+		clauses = append(clauses, Clause{Text: "had no children", Interestingness: Mundane})
 	} else if p.Gender.IsFemale() || bf.NumberOfChildren == 0 {
 		if bf.IllegitimateChildren == 1 {
-			clauses = append(clauses, Clause{Text: "had one child with an unknown father", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "had one child with an unknown father", Interestingness: Mundane})
 		} else if bf.IllegitimateChildren > 1 {
-			clauses = append(clauses, Clause{Text: "had " + text.SmallCardinalNoun(bf.IllegitimateChildren) + " children with unknown fathers", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "had " + text.SmallCardinalNoun(bf.IllegitimateChildren) + " children with unknown fathers", Interestingness: Mundane})
 		}
 
 		if p.Unmarried && bf.AgeAtDeath > 18 {
-			clauses = append(clauses, Clause{Text: "never married", Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "never married", Interestingness: Interesting})
 		} else if bf.NumberOfMarriages > 0 {
 			if bf.AgeAtFirstMarriage > 0 && bf.AgeAtFirstMarriage < 18 {
 				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
-					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName + " at " + strconv.Itoa(bf.AgeAtFirstMarriage), Interestingness: 2})
+					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName + " at " + strconv.Itoa(bf.AgeAtFirstMarriage), Interestingness: Interesting})
 				} else if bf.NumberOfMarriages == 2 {
-					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then later remarried", Interestingness: 2})
+					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then later remarried", Interestingness: Interesting})
 				} else {
-					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then " + text.SmallCardinalNoun(bf.NumberOfMarriages-1) + " more times", Interestingness: 2})
+					clauses = append(clauses, Clause{Text: "married at " + strconv.Itoa(bf.AgeAtFirstMarriage) + " then " + text.SmallCardinalNoun(bf.NumberOfMarriages-1) + " more times", Interestingness: Interesting})
 				}
 			} else {
 				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
-					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName, Interestingness: 1})
+					clauses = append(clauses, Clause{Text: "married " + bf.Spouses[0].PreferredFamiliarFullName, Interestingness: Mundane})
 				} else {
-					clauses = append(clauses, Clause{Text: "married " + text.MultiplicativeAdverb(bf.NumberOfMarriages), Interestingness: 2})
+					clauses = append(clauses, Clause{Text: "married " + text.MultiplicativeAdverb(bf.NumberOfMarriages), Interestingness: Interesting})
 				}
 			}
 		}
 
 		if legitimateChildren == 1 {
-			clauses = append(clauses, Clause{Text: "had one child", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "had one child", Interestingness: Mundane})
 		} else if legitimateChildren > 1 {
-			clauses = append(clauses, Clause{Text: fmt.Sprintf("had %s children", text.SmallCardinalNoun(legitimateChildren)), Interestingness: 1})
+			clauses = append(clauses, Clause{Text: fmt.Sprintf("had %s children", text.SmallCardinalNoun(legitimateChildren)), Interestingness: Mundane})
 		}
 	} else {
 		// male or has no children
@@ -1058,91 +1070,90 @@ func GenerateOlb(p *model.Person) error {
 			clause += " with " + text.SmallCardinalNoun(bf.NumberOfMarriages) + " wives"
 		}
 
-		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+		clauses = append(clauses, Clause{Text: clause, Interestingness: Interesting})
 
 		if bf.IllegitimateChildren > 0 {
 			if bf.IllegitimateChildren == bf.NumberOfChildren {
 				if bf.IllegitimateChildren == 2 {
-					clauses = append(clauses, Clause{Text: "both with unknown mothers", Interestingness: 1})
+					clauses = append(clauses, Clause{Text: "both with unknown mothers", Interestingness: Mundane})
 				} else if bf.IllegitimateChildren > 2 {
-					clauses = append(clauses, Clause{Text: "all with unknown mothers", Interestingness: 2})
+					clauses = append(clauses, Clause{Text: "all with unknown mothers", Interestingness: Interesting})
 				}
 			} else {
-				clauses = append(clauses, Clause{Text: text.SmallCardinalNoun(bf.IllegitimateChildren) + " with unknown mothers", Interestingness: 1})
+				clauses = append(clauses, Clause{Text: text.SmallCardinalNoun(bf.IllegitimateChildren) + " with unknown mothers", Interestingness: Mundane})
 			}
 		}
 	}
 
 	if bf.NumberOfMarriages == 1 && bf.AgeAtFirstSpouseDeath > 0 && bf.AgeAtFirstSpouseDeath < 40 {
 		if p.Gender.IsFemale() {
-			clauses = append(clauses, Clause{Text: "widowed at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "widowed at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: Interesting})
 		} else {
-			clauses = append(clauses, Clause{Text: "widower at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "widower at " + strconv.Itoa(bf.AgeAtFirstSpouseDeath), Interestingness: Interesting})
 		}
 	}
 
 	if bf.NumberOfDivorces > 0 {
 		if bf.NumberOfDivorces < bf.NumberOfMarriages {
-			clauses = append(clauses, Clause{Text: "divorced " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "divorced " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: Mundane})
 		} else if bf.NumberOfDivorces == bf.NumberOfMarriages && bf.NumberOfDivorces == 1 {
-			clauses = append(clauses, Clause{Text: "later divorced", Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "later divorced", Interestingness: Mundane})
 		}
 	}
 
 	if bf.NumberOfAnnulments > 0 {
 		log = true
 		if bf.NumberOfAnnulments < bf.NumberOfMarriages {
-			clauses = append(clauses, Clause{Text: "anulled " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: 1})
+			clauses = append(clauses, Clause{Text: "anulled " + text.MultiplicativeAdverb(bf.NumberOfDivorces), Interestingness: Mundane})
 		} else if bf.NumberOfAnnulments == bf.NumberOfMarriages && bf.NumberOfAnnulments == 1 {
-			clauses = append(clauses, Clause{Text: "later anulled", Interestingness: 2})
+			clauses = append(clauses, Clause{Text: "later anulled", Interestingness: Interesting})
 		}
 	}
 
 	if bf.TravelEvents > 4 {
-		clauses = append(clauses, Clause{Text: "travelled widely", Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "travelled widely", Interestingness: Interesting})
 	} else if !bf.CountryOfDeath.IsUnknown() && !bf.CountryOfBirth.IsUnknown() && !bf.CountryOfDeath.SameAs(bf.CountryOfBirth) {
-		clauses = append(clauses, Clause{Text: "travelled to " + bf.CountryOfDeath.Name, Interestingness: 2})
+		clauses = append(clauses, Clause{Text: "travelled to " + bf.CountryOfDeath.Name, Interestingness: Interesting})
 	}
 
-	// TODO: occupation
 	// TODO: suicide
 	// TODO: imprisoned
 	// TODO: deported
 
 	if p.Pauper {
-		clauses = append(clauses, Clause{Text: "pauper", Interestingness: 1})
+		clauses = append(clauses, Clause{Text: "pauper", Interestingness: Mundane})
 	}
 
 	// Statement about death
 	if bf.AgeAtDeath == 0 {
-		clauses = append(clauses, Clause{Text: bf.DeathType + " as an infant", Interestingness: 1})
+		clauses = append(clauses, Clause{Text: bf.DeathType + " as an infant", Interestingness: Mundane})
 	} else if bf.AgeAtDeath > 0 && bf.AgeAtDeath < 10 {
-		clauses = append(clauses, Clause{Text: bf.DeathType + " as a child", Interestingness: 1})
+		clauses = append(clauses, Clause{Text: bf.DeathType + " as a child", Interestingness: Mundane})
 	} else if bf.AgeAtDeath >= 10 && bf.AgeAtDeath < 30 {
-		clauses = append(clauses, Clause{Text: fmt.Sprintf("%s before %s %s", bf.DeathType, p.Gender.SubjectPronounWithLink(), strconv.Itoa(bf.AgeAtDeath+1)), Interestingness: 2})
+		clauses = append(clauses, Clause{Text: fmt.Sprintf("%s before %s %s", bf.DeathType, p.Gender.SubjectPronounWithLink(), strconv.Itoa(bf.AgeAtDeath+1)), Interestingness: Interesting})
 	} else if bf.AgeAtDeath > 90 && bf.Suicide {
-		clauses = append(clauses, Clause{Text: fmt.Sprintf("lived to %s", strconv.Itoa(bf.AgeAtDeath)), Interestingness: 2})
+		clauses = append(clauses, Clause{Text: fmt.Sprintf("lived to %s", strconv.Itoa(bf.AgeAtDeath)), Interestingness: Interesting})
 	} else if p.DiedInWorkhouse && !p.BornInWorkhouse {
 		clause := bf.DeathType + " in poverty"
 		if bf.AgeAtDeath > 0 {
 			clause += " at the age of " + strconv.Itoa(bf.AgeAtDeath)
 		}
-		clauses = append(clauses, Clause{Text: clause, Interestingness: 2})
+		clauses = append(clauses, Clause{Text: clause, Interestingness: Interesting})
 
 	} else if bf.DeathYear != 0 {
 		clause := bf.DeathType + " " + bf.DeathYearDesc
 		if bf.AgeAtDeath > 0 {
 			clause += " at the age of " + strconv.Itoa(bf.AgeAtDeath)
 		}
-		clauses = append(clauses, Clause{Text: clause, Interestingness: 1})
+		clauses = append(clauses, Clause{Text: clause, Interestingness: Mundane})
 	}
 
 	if p.CauseOfDeath == model.CauseOfDeathLostAtSea {
-		clauses = append(clauses, Clause{Text: "lost at sea", Interestingness: 3})
+		clauses = append(clauses, Clause{Text: "lost at sea", Interestingness: Unusual})
 	} else if p.CauseOfDeath == model.CauseOfDeathKilledInAction {
-		clauses = append(clauses, Clause{Text: "killed in action", Interestingness: 3})
+		clauses = append(clauses, Clause{Text: "killed in action", Interestingness: Unusual})
 	} else if p.CauseOfDeath == model.CauseOfDeathDrowned {
-		clauses = append(clauses, Clause{Text: "drowned", Interestingness: 3})
+		clauses = append(clauses, Clause{Text: "drowned", Interestingness: Unusual})
 	}
 
 	if len(clauses) == 0 {

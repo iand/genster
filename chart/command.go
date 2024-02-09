@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -21,6 +22,12 @@ import (
 )
 
 func checkFlags(cc *cli.Context) error {
+	switch chartopts.chartType {
+	case "descendant":
+	case "ancestor":
+	default:
+		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
+	}
 	return nil
 }
 
@@ -35,15 +42,18 @@ func parseColor(s string) (color.Color, error) {
 
 var chartopts struct {
 	gedcomFile    string
+	chartType     string
 	treeID        string
 	configDir     string
 	keyPersonID   string
 	startPersonID string
+	title         string
+	fontScale     float64
 
 	outputFilename string
 	outputFormat   string
 	descendantId   string
-	descendants    int
+	generations    int
 	detail         int
 	directOnly     bool
 }
@@ -58,6 +68,12 @@ var Command = &cli.Command{
 			Aliases:     []string{"g", "input"},
 			Usage:       "GEDCOM file to read from",
 			Destination: &chartopts.gedcomFile,
+		},
+		&cli.StringFlag{
+			Name:        "type",
+			Aliases:     []string{"t"},
+			Usage:       "Type of chart to produce, descendant or ancestor",
+			Destination: &chartopts.chartType,
 		},
 		&cli.StringFlag{
 			Name:        "id",
@@ -80,11 +96,16 @@ var Command = &cli.Command{
 			Usage:       "Identifier of the key individual",
 			Destination: &chartopts.keyPersonID,
 		},
+		&cli.StringFlag{
+			Name:        "title",
+			Usage:       "Title to add to chart",
+			Destination: &chartopts.title,
+		},
 		&cli.IntFlag{
-			Name:        "desc",
-			Usage:       "number of descendant generations to draw",
+			Name:        "gen",
+			Usage:       "number of generations to draw",
 			Value:       2,
-			Destination: &chartopts.descendants,
+			Destination: &chartopts.generations,
 		},
 		&cli.IntFlag{
 			Name:        "detail",
@@ -94,15 +115,21 @@ var Command = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:        "direct",
-			Usage:       "only show children of direct ancestors",
+			Usage:       "only show children of direct ancestors (for descendant charts)",
 			Value:       false,
 			Destination: &chartopts.directOnly,
+		},
+		&cli.Float64Flag{
+			Name:        "font-scale",
+			Usage:       "scale all fonts by this factor",
+			Value:       1.0,
+			Destination: &chartopts.fontScale,
 		},
 		&cli.StringFlag{
 			Name:        "config",
 			Aliases:     []string{"c"},
 			Value:       tree.DefaultConfigDir(),
-			Usage:       "Path to the folder where config should be stored.",
+			Usage:       "Path to the folder where tree config can be found.",
 			Destination: &chartopts.configDir,
 		},
 	}, logging.Flags...),
@@ -152,125 +179,62 @@ func chartCmd(cc *cli.Context) error {
 		// not a genster id, so look for a gedcom id
 		startPerson = t.FindPerson(l.ScopeName, chartopts.startPersonID)
 	}
-
-	var personDetailFn func(*model.Person) []string
-	var familyDetailFn func(*model.Family) []string
-	switch chartopts.detail {
-	case 0:
-		personDetailFn = func(p *model.Person) []string {
-			name := p.PreferredFullName
-			if p.IsDirectAncestor() {
-				name += "★"
-			}
-			return []string{name}
-		}
-		familyDetailFn = func(p *model.Family) []string {
-			return []string{}
-		}
-	case 1:
-		personDetailFn = func(p *model.Person) []string {
-			var details []string
-			name := p.PreferredFullName
-			if p.IsDirectAncestor() {
-				name += "★"
-			}
-			details = append(details, name)
-			details = append(details, p.VitalYears)
-			return details
-		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			startYear, ok := f.BestStartDate.Year()
-			if ok {
-				details = append(details, fmt.Sprintf("%d", startYear))
-			}
-			return details
-		}
-	case 2:
-		personDetailFn = func(p *model.Person) []string {
-			var details []string
-			name := p.PreferredFullName
-			if p.IsDirectAncestor() {
-				name += "★"
-			}
-			details = append(details, name)
-			if p.BestBirthlikeEvent != nil {
-				details = append(details, p.BestBirthlikeEvent.ShortDescription())
-			}
-			if p.BestDeathlikeEvent != nil {
-				details = append(details, p.BestDeathlikeEvent.ShortDescription())
-			}
-
-			return details
-		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				details = append(details, f.BestStartEvent.ShortDescription())
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, f.BestEndEvent.ShortDescription())
-			}
-			return details
-		}
-	case 3:
-		personDetailFn = func(p *model.Person) []string {
-			var details []string
-			name := p.PreferredFullName
-			if p.IsDirectAncestor() {
-				name += "★"
-			}
-			details = append(details, name)
-			if p.PrimaryOccupation != "" {
-				details = append(details, p.PrimaryOccupation)
-			}
-			if p.BestBirthlikeEvent != nil {
-				if p.BestBirthlikeEvent.GetPlace().IsUnknown() {
-					details = append(details, p.BestBirthlikeEvent.ShortDescription())
-				} else {
-					details = append(details, p.BestBirthlikeEvent.ShortDescription()+", "+p.BestBirthlikeEvent.GetPlace().PreferredName)
-				}
-			}
-			if p.BestDeathlikeEvent != nil {
-				if p.BestDeathlikeEvent.GetPlace().IsUnknown() {
-					details = append(details, p.BestDeathlikeEvent.ShortDescription())
-				} else {
-					details = append(details, p.BestDeathlikeEvent.ShortDescription()+", "+p.BestDeathlikeEvent.GetPlace().PreferredName)
-				}
-			}
-
-			return details
-		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				if f.BestStartEvent.GetPlace().IsUnknown() {
-					details = append(details, f.BestStartEvent.ShortDescription())
-				} else {
-					details = append(details, f.BestStartEvent.ShortDescription()+", "+f.BestStartEvent.GetPlace().PreferredName)
-				}
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, f.BestEndEvent.ShortDescription())
-				if f.BestEndEvent.GetPlace().IsUnknown() {
-					details = append(details, f.BestEndEvent.ShortDescription())
-				} else {
-					details = append(details, f.BestEndEvent.ShortDescription()+", "+f.BestEndEvent.GetPlace().PreferredName)
-				}
-			}
-			return details
-		}
-	default:
-		return fmt.Errorf("unsupported detail level: %d", chartopts.detail)
-
+	if startPerson.IsUnknown() {
+		return fmt.Errorf("person with id %s not found", chartopts.startPersonID)
 	}
 
-	lin := new(gtree.Lineage)
-	lin.Root = descendants(startPerson, new(sequence), chartopts.descendants, chartopts.directOnly, personDetailFn, familyDetailFn)
-	opts := gtree.DefaultLayoutOptions()
-	lay := gtree.NewLayout(opts)
-	lay.AddLineage(lin)
-	lay.Reflow()
+	var lay gtree.Layout
+	switch chartopts.chartType {
+	case "descendant":
+		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.directOnly)
+		if err != nil {
+			return fmt.Errorf("build descendant chart: %w", err)
+		}
+
+		ch.Title = chartopts.title
+		if ch.Title == "" {
+			ch.Title = "Descendants of " + startPerson.PreferredUniqueName
+		}
+		ch.Notes = []string{}
+
+		ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+		if !keyPerson.IsUnknown() {
+			ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+keyPerson.PreferredFamiliarFullName+")")
+		}
+
+		opts := gtree.DefaultLayoutOptions()
+		lay = ch.Layout(opts)
+	case "ancestor":
+		ch, err := BuildAncestorChart(t, startPerson, chartopts.detail, chartopts.generations)
+		if err != nil {
+			return fmt.Errorf("build ancestor chart: %w", err)
+		}
+
+		ch.Title = chartopts.title
+		if ch.Title == "" {
+			ch.Title = "Ancestors of " + startPerson.PreferredUniqueName
+		}
+		ch.Notes = []string{}
+
+		ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+
+		opts := gtree.DefaultAncestorLayoutOptions()
+
+		opts.TitleFontSize = scaleFont(opts.TitleFontSize, chartopts.fontScale)
+		opts.TitleLineHeight = scaleFont(opts.TitleLineHeight, chartopts.fontScale)
+		opts.NoteFontSize = scaleFont(opts.NoteFontSize, chartopts.fontScale)
+		opts.NoteLineHeight = scaleFont(opts.NoteLineHeight, chartopts.fontScale)
+		opts.HeadingFontSize = scaleFont(opts.HeadingFontSize, chartopts.fontScale)
+		opts.HeadingLineHeight = scaleFont(opts.HeadingLineHeight, chartopts.fontScale)
+		opts.DetailFontSize = scaleFont(opts.DetailFontSize, chartopts.fontScale)
+		opts.DetailLineHeight = scaleFont(opts.DetailLineHeight, chartopts.fontScale)
+
+		lay = ch.Layout(opts)
+
+	default:
+		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
+
+	}
 
 	s, err := gtree.SVG(lay)
 	if err != nil {
@@ -297,4 +261,12 @@ func (s *sequence) next() int {
 	n := s.n
 	s.n++
 	return n
+}
+
+func scaleFont(v gtree.Pixel, factor float64) gtree.Pixel {
+	v = gtree.Pixel(float64(v) * factor)
+	if v < 6 {
+		v = 6
+	}
+	return v
 }

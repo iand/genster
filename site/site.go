@@ -2,18 +2,22 @@ package site
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gosimple/slug"
+	"github.com/iand/genster/chart"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
+	"github.com/iand/gtree"
 )
 
 type PageLayout string
@@ -32,6 +36,7 @@ const (
 	PageLayoutCalendar       PageLayout = "calendar"
 	PageLayoutTreeOverview   PageLayout = "treeoverview"
 	PageLayoutChartAncestors PageLayout = "chartancestors"
+	PageLayoutChartTrees     PageLayout = "charttrees"
 )
 
 func (p PageLayout) String() string { return string(p) }
@@ -78,6 +83,7 @@ type Site struct {
 	ListSurnamesDir   string
 
 	ChartAncestorsDir string
+	ChartTreesDir     string
 
 	IncludePrivate     bool
 	TimelineExperiment bool
@@ -133,6 +139,7 @@ func NewSite(baseURL string, t *tree.Tree) *Site {
 		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
 
 		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
+		ChartTreesDir:     path.Join(PageSectionChart, "trees"),
 
 		SkippedPersonPages: make(map[string]bool),
 	}
@@ -244,9 +251,13 @@ func (s *Site) WritePages(root string) error {
 		return fmt.Errorf("write tree overview: %w", err)
 	}
 
-	if err := s.WriteAncestorChart(root); err != nil {
+	if err := s.WriteChartAncestors(root); err != nil {
 		return fmt.Errorf("write ancestor chart: %w", err)
 	}
+
+	// if err := s.WriteChartTrees(root); err != nil {
+	// 	return fmt.Errorf("write chart trees: %w", err)
+	// }
 
 	return nil
 }
@@ -1082,7 +1093,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	return nil
 }
 
-func (s *Site) WriteAncestorChart(root string) error {
+func (s *Site) WriteChartAncestors(root string) error {
 	fname := "index.md"
 	if s.GenerateHugo {
 		fname = "_index.md"
@@ -1125,9 +1136,9 @@ func (s *Site) WriteAncestorChart(root string) error {
 			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i]))))
 
 			var adds []string
-			// if ancestors[i].PrimaryOccupation != "" {
-			// 	adds = append(adds, ancestors[i].PrimaryOccupation)
-			// }
+			if ancestors[i].PrimaryOccupation != "" {
+				adds = append(adds, ancestors[i].PrimaryOccupation)
+			}
 			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
 				adds = append(adds, WhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
 			}
@@ -1180,6 +1191,105 @@ func (s *Site) WriteAncestorChart(root string) error {
 		return fmt.Errorf("failed to write ancestor overview: %w", err)
 	}
 
+	return nil
+}
+
+func (s *Site) WriteChartTrees(root string) error {
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	generations := 8
+	ancestors := s.Tree.Ancestors(s.Tree.KeyPerson, generations)
+
+	doc := s.NewDocument()
+	doc.Title("Family Trees")
+	doc.Summary(text.JoinSentenceParts("This is a list of family trees generated for various people"))
+	doc.Layout(PageLayoutChartTrees.String())
+
+	// index 14-29 are great-great grandparents, only produce chart if they have no known parents
+	for i := 14; i <= 29; i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+
+		if ancestors[i].Father != nil || ancestors[i].Mother != nil {
+			continue
+		}
+
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 2); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+	}
+
+	// index 30-61 are great-great-great grandparents, only produce chart if they have no known parents, but at a greater depth
+	for i := 30; i <= 61; i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+
+		if ancestors[i].Father != nil || ancestors[i].Mother != nil {
+			continue
+		}
+
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 3); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+	}
+
+	// produce chart for each member of a later generation
+	for i := 62; i < len(ancestors); i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 4); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+	}
+
+	baseDir := filepath.Join(root, s.ChartTreesDir)
+	if err := writePage(doc, baseDir, fname); err != nil {
+		return fmt.Errorf("failed to write chart trees index: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) error {
+	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true)
+	if err != nil {
+		return fmt.Errorf("build lineage: %w", err)
+	}
+
+	ch.Title = "Descendants of " + p.PreferredUniqueName
+	ch.Notes = []string{}
+	ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+	if !s.Tree.KeyPerson.IsUnknown() {
+		ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+s.Tree.KeyPerson.PreferredFamiliarFullName+")")
+	}
+
+	opts := gtree.DefaultLayoutOptions()
+	lay := ch.Layout(opts)
+
+	svg, err := gtree.SVG(lay)
+	if err != nil {
+		return fmt.Errorf("render SVG: %w", err)
+	}
+	f, err := CreateFile(fname)
+	if err != nil {
+		return fmt.Errorf("create SVG file: %w", err)
+	}
+	defer f.Close()
+	if err = os.WriteFile(fname, []byte(svg), 0o666); err != nil {
+		return fmt.Errorf("write svg: %w", err)
+	}
 	return nil
 }
 

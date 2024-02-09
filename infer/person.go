@@ -26,7 +26,7 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	p.Timeline = []model.TimelineEvent{}
 	p.Occupations = []*model.Occupation{}
 	p.Links = []model.Link{}
-	p.VitalYears = "(?-?)"
+	p.VitalYears = "-?-"
 
 	if decade, ok := p.BestBirthlikeEvent.GetDate().DecadeStart(); ok {
 		birthDate := model.WithinDecade(decade)

@@ -568,14 +568,24 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 
 func (t *Tree) RefinePersonOccupations(p *model.Person) error {
 	// TODO: move from gedcom import to here
+	// NOTE: PrimaryOccupation is set from Gedcom FACT type Occupation
+	// if len(p.Occupations) == 0 {
+	// 	return nil
+	// }
+	// if len(p.Occupations) == 1 {
+	// 	logging.Warn("setting primary occupation", "id", p.ID, "primary", p.Occupations[0].Detail)
+	// 	p.PrimaryOccupation = p.Occupations[0].Detail
 
-	if len(p.Occupations) == 0 {
-		return nil
-	}
-	if len(p.Occupations) == 1 {
-		p.PrimaryOccupation = p.Occupations[0].Detail
-		return nil
-	}
+	// 	return nil
+	// }
+	// if len(p.Occupations) > 1 {
+	// 	var occs []string
+	// 	for i := range p.Occupations {
+	// 		occs = append(occs, p.Occupations[i].Detail)
+	// 	}
+	// 	logging.Warn("not setting primary occupation", "id", p.ID, "occupations", strings.Join(occs, "|"))
+
+	// }
 
 	return nil
 }
