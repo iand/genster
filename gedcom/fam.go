@@ -5,12 +5,13 @@ import (
 
 	"github.com/iand/gdate"
 	"github.com/iand/gedcom"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
-	"golang.org/x/exp/slog"
 )
 
 func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) error {
-	slog.Debug("populating from family record", "xref", fr.Xref)
+	logger := logging.With("source", "family", "xref", fr.Xref)
+	logger.Debug("populating from family record")
 
 	// Ignore step parent families
 	frels := findUserDefinedTags(fr.UserDefined, "_FREL", false)
@@ -94,7 +95,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 			Title:  fmt.Sprintf("%s event %s", er.Tag, dt.Occurrence()),
 		}
 		var anoms []*model.Anomaly
-		gev.Citations, anoms = l.parseCitationRecords(m, er.Citation)
+		gev.Citations, anoms = l.parseCitationRecords(m, er.Citation, logger)
 		for _, anom := range anoms {
 			if fatherPresent {
 				father.Anomalies = append(father.Anomalies, anom)

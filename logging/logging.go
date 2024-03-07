@@ -1,10 +1,11 @@
 package logging
 
 import (
+	"log/slog"
+
 	"github.com/iand/pontium/hlog"
 	"github.com/kortschak/utter"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/exp/slog"
 )
 
 var Flags = []cli.Flag{
@@ -59,11 +60,12 @@ func Setup() {
 }
 
 var (
-	Debug = slog.Debug
-	Info  = slog.Info
-	Warn  = slog.Warn
-	Error = slog.Error
-	With  = slog.With
+	Default = slog.Default
+	Debug   = slog.Debug
+	Info    = slog.Info
+	Warn    = slog.Warn
+	Error   = slog.Error
+	With    = slog.With
 )
 
 func Dump(v any) {

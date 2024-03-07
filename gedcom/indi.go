@@ -181,7 +181,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 
 		var citanoms []*model.Anomaly
 		if len(er.Citation) > 0 {
-			gev.Citations, citanoms = l.parseCitationRecords(m, er.Citation)
+			gev.Citations, citanoms = l.parseCitationRecords(m, er.Citation, logger)
 		}
 
 		var ev model.TimelineEvent
@@ -264,7 +264,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						})
 					}
 					for _, n := range er.Note {
-						cits, anoms := l.parseCitationRecords(m, n.Citation)
+						cits, anoms := l.parseCitationRecords(m, n.Citation, logger)
 						p.MiscFacts = append(p.MiscFacts, model.Fact{
 							Category:  category,
 							Detail:    n.Note,
@@ -551,6 +551,13 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					// 	Goal:     "Transcribe the birth certificate",
 					// 	Reason:   "A copy of the certificate is available but it hasn't been transcribed to the source citation.",
 					// })
+				case "transcribe will":
+					// p.ToDos = append(p.ToDos, &model.ToDo{
+					// 	Category: model.ToDoCategoryCitations,
+					// 	Context:  "will event",
+					// 	Goal:     "Transcribe the will",
+					// 	Reason:   "A copy of the will is available but it hasn't been transcribed to the source citation.",
+					// })
 				case "transcribe army records":
 					// p.ToDos = append(p.ToDos, &model.ToDo{
 					// 	Category: model.ToDoCategoryCitations,
@@ -628,6 +635,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					// This person is a relative on the path between a DNA Match and a common ancestor.
 				case "common dna ancestor":
 					// This person is a common ancestor between yourself and at least one of your DNA Matches.
+				case "lost at sea":
+					p.CauseOfDeath = model.CauseOfDeathLostAtSea
+				case "killed in action":
+					p.CauseOfDeath = model.CauseOfDeathKilledInAction
 				default:
 					p.Tags = append(p.Tags, tag)
 				}

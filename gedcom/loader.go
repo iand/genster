@@ -3,6 +3,7 @@ package gedcom
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"sort"
@@ -15,7 +16,6 @@ import (
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"github.com/iand/genster/tree"
-	"golang.org/x/exp/slog"
 )
 
 var _ = logging.Debug
@@ -30,8 +30,7 @@ type ModelFinder interface {
 }
 
 type Loader struct {
-	ScopeName           string
-	Gedcom              *gedcom.Gedcom
+	DB                  *grampsxml.Database
 	Attrs               map[string]string
 	Citations           map[string]*model.GeneralCitation
 	Tags                map[string]string
@@ -133,28 +132,28 @@ func (l *Loader) Load(t *tree.Tree) error {
 			return fmt.Errorf("media: %w", err)
 		}
 	}
-	slog.Info(fmt.Sprintf("loaded %d media records", len(l.Gedcom.Media)))
+	logging.Info(fmt.Sprintf("loaded %d media records", len(l.Gedcom.Media)))
 
 	for _, sr := range l.Gedcom.Source {
 		if err := l.populateSourceFacts(t, sr); err != nil {
 			return fmt.Errorf("source: %w", err)
 		}
 	}
-	slog.Info(fmt.Sprintf("loaded %d source records", len(l.Gedcom.Source)))
+	logging.Info(fmt.Sprintf("loaded %d source records", len(l.Gedcom.Source)))
 
 	for _, in := range l.Gedcom.Individual {
 		if err := l.populatePersonFacts(t, in); err != nil {
 			return fmt.Errorf("person: %w", err)
 		}
 	}
-	slog.Info(fmt.Sprintf("loaded %d individual records", len(l.Gedcom.Individual)))
+	logging.Info(fmt.Sprintf("loaded %d individual records", len(l.Gedcom.Individual)))
 
 	for _, fr := range l.Gedcom.Family {
 		if err := l.populateFamilyFacts(t, fr); err != nil {
 			return fmt.Errorf("family: %w", err)
 		}
 	}
-	slog.Info(fmt.Sprintf("loaded %d family records", len(l.Gedcom.Family)))
+	logging.Info(fmt.Sprintf("loaded %d family records", len(l.Gedcom.Family)))
 
 	return nil
 }
@@ -162,7 +161,7 @@ func (l *Loader) Load(t *tree.Tree) error {
 func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*model.Place, []*model.Anomaly) {
 	var name string
 	var anomalies []*model.Anomaly
-	if len(er.Address.Address) > 0 {
+	if len(er.Address.Address) > 0 && (er.Address.Address[0].Full != "" || er.Address.Address[0].Line1 != "") {
 		// just use first address for now
 		// TODO: handle multiple addresses
 		full := er.Address.Address[0].Full
@@ -239,57 +238,119 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, er *gedcom.EventRecord) (*mode
 	}
 }
 
-func (l *Loader) parseCitationRecords(m ModelFinder, crs []*gedcom.CitationRecord) ([]*model.GeneralCitation, []*model.Anomaly) {
+func (l *Loader) parseCitationRecords(m ModelFinder, crs []*gedcom.CitationRecord, logger *slog.Logger) ([]*model.GeneralCitation, []*model.Anomaly) {
 	cits := make([]*model.GeneralCitation, 0)
 	anomalies := make([]*model.Anomaly, 0)
 	for _, cr := range crs {
-		cit, err := l.parseCitation(m, cr)
+		pc, err := l.parseCitation(m, cr, logger)
 		if err != nil {
 			anomalies = append(anomalies, &model.Anomaly{
 				Category: "GEDCOM",
 				Text:     err.Error(),
 				Context:  "Citation",
 			})
-			logging.Warn("skipping citation with no source", "error", err.Error())
+			logger.Warn("skipping citation with no source", "error", err.Error())
 			continue
 		}
-		cits = append(cits, cit)
+		cits = append(cits, pc)
 	}
 	return cits, anomalies
 }
 
-func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model.GeneralCitation, error) {
-	var citationScopeName, citationScopeID string
-	var sourceScopeName, sourceScopeID string
+// 2024-02-26 Ancestry have replaced _APID in family marriage ciations into separate
+// idenfifiers for the husband's citation and the wife's citation
+//
+// An example of the new IDs
+//
+//	0 @F4@ FAM
+//	1 HUSB @I192525701960@
+//	1 WIFE @I192525702042@
+//	1 CHIL @I192525702043@
+//	1 CHIL @I192525702044@
+//	1 MARR
+//	2 DATE 23 Oct 1836
+//	2 PLAC Huddersfield, Yorkshire, England
+//	2 SOUR @S556044042@
+//	3 PAGE West Yorkshire Archive Service; Leeds, Yorkshire, England; Reference Number: WDP32/31
+//	3 _HPID 1,2253::5644507
+//	3 _WPID 1,2253::16776616
+//
+// The source is the marriage register:
+//
+// The citation view for the husband (Charles Spencer):
+// https://www.ancestry.co.uk/discoveryui-content/view/5644507:2253
+//
+// The citation view for the wife (Mary Ann Hayley):
+// https://www.ancestry.co.uk/discoveryui-content/view/16776616:2253
+//
+// Previously this was
+//
+//	0 @F4@ FAM
+//	1 HUSB @I192525701960@
+//	1 WIFE @I192525702042@
+//	1 CHIL @I192525702043@
+//	1 CHIL @I192525702044@
+//	1 MARR
+//	2 DATE 23 Oct 1836
+//	2 PLAC Huddersfield, Yorkshire, England
+//	2 SOUR @S556044042@
+//	3 PAGE West Yorkshire Archive Service; Leeds, Yorkshire, England; Reference Number: WDP32/31
+//	3 _APID 1,2253::5644507
+func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord, logger *slog.Logger) (*model.GeneralCitation, error) {
+	type scope struct {
+		name string
+		id   string
+	}
 
+	var sourceScope scope
+	var citationScope scope
+
+	// Find the most specific identifuing informaion that can be used to lookup or generate the citation id
 	if cr.Source != nil && cr.Source.Xref != "" {
-		sourceScopeName = l.ScopeName
-		sourceScopeID = cr.Source.Xref
+		sourceScope.name = l.ScopeName
+		sourceScope.id = cr.Source.Xref
 
-		citationScopeName = cr.Source.Xref
-		citationScopeID = cr.Page
+		citationScope.name = cr.Source.Xref
+		citationScope.id = cr.Page
 	} else if cr.Page != "" {
-		citationScopeName = "Page"
-		citationScopeID = cr.Page
+		citationScope.name = "Page"
+		citationScope.id = cr.Page
 	}
 
 	// Look for an id that indicates a shared citation
 	ud, found := findFirstUserDefinedTag("_APID", cr.UserDefined)
 	if found && ud.Value != "" {
-		citationScopeName = "_APID"
-		citationScopeID = ud.Value
-
-		matches := reApid.FindStringSubmatch(ud.Value)
-		if len(matches) > 1 {
-			sourceScopeName = "_APID"
-			sourceScopeID = fmt.Sprintf("1,%s::0", matches[1])
+		citationScope.name = "_APID"
+		citationScope.id = ud.Value
+	} else {
+		udh, found := findFirstUserDefinedTag("_HPID", cr.UserDefined)
+		if found && udh.Value != "" {
+			citationScope.name = "_HPID"
+			citationScope.id = udh.Value
+		} else {
+			udw, found := findFirstUserDefinedTag("_WPID", cr.UserDefined)
+			if found && udw.Value != "" {
+				citationScope.name = "_WPID"
+				citationScope.id = udw.Value
+			}
 		}
 	}
 
-	if citationScopeName == "" || citationScopeID == "" {
+	// If no source ID given in gedcom but an ancestry ID was found then use that as source
+	// identifier
+	if sourceScope.id == "" && citationScope.id != "" {
+		matches := reApid.FindStringSubmatch(citationScope.id)
+		if len(matches) > 1 {
+			sourceScope.name = "_APID"
+			sourceScope.id = fmt.Sprintf("1,%s::0", matches[1])
+		}
+
+	}
+
+	if citationScope.name == "" || citationScope.id == "" {
 		return nil, fmt.Errorf("no citation information found to generate id")
 	}
-	id := identifier.New(citationScopeName, citationScopeID)
+	id := identifier.New(citationScope.name, citationScope.id)
 
 	cit, ok := l.Citations[id]
 	if ok {
@@ -303,14 +364,14 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord) (*model
 
 	cit.Detail = cleanCitationDetail(cit.Detail)
 
-	if sourceScopeName != "" && sourceScopeID != "" {
-		cit.Source = m.FindSource(sourceScopeName, sourceScopeID)
+	if sourceScope.name != "" && sourceScope.id != "" {
+		cit.Source = m.FindSource(sourceScope.name, sourceScope.id)
 	} else {
 		// ensure we have some citation text
 		if cit.Detail == "" {
 			cit.Detail = "unknown source"
 		}
-		logging.Warn("no source found for citation", "id", cit.ID, "detail", cit.Detail)
+		logger.Warn("no source found for citation", "source_name", sourceScope.name, "source_id", sourceScope.id, "cit_id", cit.ID, "detail", cit.Detail)
 	}
 
 	if cr.Data.Date != "" {

@@ -646,6 +646,33 @@ func (s *DeathStatement) NarrativeSequence() int {
 	return NarrativeSequenceDeath
 }
 
+type CensusStatement struct {
+	Principal *model.Person
+	Event     *model.CensusEvent
+}
+
+var _ Statement = (*CensusStatement)(nil)
+
+func (s *CensusStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+	year, _ := s.Event.GetDate().Year()
+
+	enc.Para(fmt.Sprintf("census %d", year))
+
+	enc.Para(fmt.Sprintf("%+v", s.Event.Entries))
+}
+
+func (s *CensusStatement) Start() *model.Date {
+	return s.Event.GetDate()
+}
+
+func (s *CensusStatement) End() *model.Date {
+	return s.Event.GetDate()
+}
+
+func (s *CensusStatement) NarrativeSequence() int {
+	return NarrativeSequenceLifeStory
+}
+
 // UTILITY
 
 func ChooseFrom(n int, alternatives ...string) string {

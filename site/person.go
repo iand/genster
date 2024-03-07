@@ -96,6 +96,12 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 			if tev != p.BestBirthlikeEvent {
 				intro.Baptisms = append(intro.Baptisms, tev)
 			}
+		case *model.CensusEvent:
+			n.Statements = append(n.Statements, &CensusStatement{
+				Principal: p,
+				Event:     tev,
+			})
+
 		}
 	}
 	if len(intro.Baptisms) > 0 {
