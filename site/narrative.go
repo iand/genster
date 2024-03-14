@@ -149,15 +149,15 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 		nintro.Text = nintro.TimeBased
 		nintro.DateInferred = true
 		if nintro.Text == "" {
-			nintro.Text = ChooseFrom(sequenceInNarrative, "", "", "then ")
+			// nintro.Text = ChooseFrom(sequenceInNarrative, "", "", "then ")
 			nintro.Text += nintro.NameBased
 			nintro.DateInferred = false
 		} else if nintro.NameBased != "" {
 			nintro.Text = text.AppendClause(nintro.Text, nintro.NameBased)
 		}
 		nintro.Text = text.UpperFirst(nintro.Text)
-		nintro.NameBased = text.UpperFirst(nintro.NameBased)
-		nintro.TimeBased = text.UpperFirst(nintro.TimeBased)
+		nintro.NameBased = nintro.NameBased
+		nintro.TimeBased = nintro.TimeBased
 
 		s.RenderDetail(sequenceInNarrative, &nintro, b, nil)
 		b.EmptyPara()
@@ -654,11 +654,35 @@ type CensusStatement struct {
 var _ Statement = (*CensusStatement)(nil)
 
 func (s *CensusStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+	ce, found := s.Event.Entry(s.Principal)
+	if !found {
+		return
+	}
 	year, _ := s.Event.GetDate().Year()
+	if ce.Narrative != "" {
+		detail := fmt.Sprintf("in the %d census", year)
+		detail = text.JoinSentences(detail, ce.Narrative)
+		detail = enc.EncodeWithCitations(detail, s.Event.GetCitations())
+		detail = text.FormatSentence(detail)
+		enc.Para(detail)
+		return
+	}
+	// TODO: construct narrative of census
 
-	enc.Para(fmt.Sprintf("census %d", year))
+	// detail := fmt.Sprintf("in the %d census", year)
+	// detail = text.JoinSentences(detail, intro.NameBased)
+	// detail = enc.EncodeWithCitations(detail, s.Event.GetCitations())
+	// detail = text.FormatSentence(detail)
+	// enc.Para(detail)
 
-	enc.Para(fmt.Sprintf("%+v", s.Event.Entries))
+	// year, _ := s.Event.GetDate().Year()
+	// enc.Para(fmt.Sprintf("census %d", year))
+	// for _, ce := range s.Event.Entries {
+	// 	enc.Para(fmt.Sprintf("%+v\n", ce))
+	// }
+	// if s.Event.Detail != "" {
+	// 	enc.Para(s.Event.Detail)
+	// }
 }
 
 func (s *CensusStatement) Start() *model.Date {

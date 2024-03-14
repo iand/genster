@@ -49,6 +49,7 @@ type GeneralEvent struct {
 	Detail    string
 	Citations []*GeneralCitation
 	Inferred  bool
+	Narrative string // hand written narrative, if any
 }
 
 func (e *GeneralEvent) GetDate() *Date {
@@ -77,6 +78,10 @@ func (e *GeneralEvent) GetTitle() string {
 
 func (e *GeneralEvent) GetDetail() string {
 	return e.Detail
+}
+
+func (e *GeneralEvent) GetNarrative() string {
+	return e.Narrative
 }
 
 func (e *GeneralEvent) GetCitations() []*GeneralCitation {
@@ -329,12 +334,15 @@ type CensusEvent struct {
 type CensusEntry struct {
 	Principal      *Person
 	RelationToHead CensusEntryRelation // cleaned
+	Name           string              // as recorded
 	Sex            string              // as recorded
 	MaritalStatus  CensusEntryMaritalStatus
 	Age            string // as recorded
 	Occupation     string // as recorded
-	PlaceOfBirth   *Place
+	PlaceOfBirth   string // as recorded
+	Impairment     string // as recorded (deaf and dumb, blind, imbecile etc)
 	Detail         string // any remaining unparsed detail
+	Narrative      string // hand written narrative, if any
 }
 
 func (e *CensusEvent) Type() string             { return "census" }

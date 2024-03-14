@@ -90,6 +90,18 @@ func (t *Tree) GetPlace(id string) (*model.Place, bool) {
 	return p, ok
 }
 
+func (t *Tree) FindPlace(scope string, sid string) *model.Place {
+	id := t.CanonicalID(scope, sid)
+	pl, ok := t.Places[id]
+	if !ok {
+		pl = &model.Place{
+			ID: id,
+		}
+		t.Places[id] = pl
+	}
+	return pl
+}
+
 func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place {
 	id := t.Gazeteer.ID(name, hints...)
 	p, ok := t.Places[id]
@@ -128,7 +140,7 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 	return p
 }
 
-func (t *Tree) FindFamily(father *model.Person, mother *model.Person) *model.Family {
+func (t *Tree) FindFamilyByParents(father *model.Person, mother *model.Person) *model.Family {
 	fatherID := father.ID
 	if father.IsUnknown() {
 		fatherID = "unknown"
@@ -295,7 +307,7 @@ func (t *Tree) AddFamilies(p *model.Person) error {
 		if p.Mother.IsUnknown() {
 			parentFamily = t.FindFamilyOneParent(p.Father, p)
 		} else {
-			parentFamily = t.FindFamily(p.Father, p.Mother)
+			parentFamily = t.FindFamilyByParents(p.Father, p.Mother)
 		}
 	}
 	parentFamily.Children = append(parentFamily.Children, p)
@@ -322,7 +334,7 @@ func (t *Tree) AddFamilies(p *model.Person) error {
 			return
 		}
 
-		marriageFamily := t.FindFamily(father, mother)
+		marriageFamily := t.FindFamilyByParents(father, mother)
 		marriageFamily.Bond = model.FamilyBondMarried
 		marriageFamily.Timeline = append(marriageFamily.Timeline, ev)
 		marriageFamily.BestStartEvent = ev

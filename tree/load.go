@@ -16,6 +16,7 @@ func DefaultConfigDir() string {
 
 type Loader interface {
 	Load(*Tree) error
+	Scope() string
 }
 
 func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {

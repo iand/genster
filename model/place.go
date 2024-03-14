@@ -16,7 +16,7 @@ type Place struct {
 	PreferredSortName   string          // name organised for sorting, generally as a reverse hierarchy of country, region, locality
 	Parent              *Place          // the parent of this place in the administrative hierarchy
 	PlaceType           PlaceType       // the type of place, such as "village", "town", "parish"
-	Kind                place.PlaceKind // the type of place, such as "village", "town", "parish"
+	Kind                place.PlaceKind // the kind of place
 	Timeline            []TimelineEvent
 	Unknown             bool    // true if this place is known to have existed but no other information is known
 	Links               []Link  // list of links to more information relevant to this place

@@ -30,7 +30,8 @@ type ModelFinder interface {
 }
 
 type Loader struct {
-	DB                  *grampsxml.Database
+	ScopeName           string
+	Gedcom              *gedcom.Gedcom
 	Attrs               map[string]string
 	Citations           map[string]*model.GeneralCitation
 	Tags                map[string]string
@@ -75,6 +76,10 @@ func NewLoader(filename string) (*Loader, error) {
 	}
 
 	return l, nil
+}
+
+func (l *Loader) Scope() string {
+	return l.ScopeName
 }
 
 func (l *Loader) readAttrs() error {
@@ -305,7 +310,7 @@ func (l *Loader) parseCitation(m ModelFinder, cr *gedcom.CitationRecord, logger 
 	var sourceScope scope
 	var citationScope scope
 
-	// Find the most specific identifuing informaion that can be used to lookup or generate the citation id
+	// Find the most specific identifying informaion that can be used to lookup or generate the citation id
 	if cr.Source != nil && cr.Source.Xref != "" {
 		sourceScope.name = l.ScopeName
 		sourceScope.id = cr.Source.Xref

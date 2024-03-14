@@ -6,6 +6,7 @@ import (
 
 	"github.com/iand/genster/debug"
 	"github.com/iand/genster/gedcom"
+	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
@@ -22,6 +23,11 @@ var Command = &cli.Command{
 			Aliases:     []string{"g"},
 			Usage:       "GEDCOM file to read from",
 			Destination: &genopts.gedcomFile,
+		},
+		&cli.StringFlag{
+			Name:        "gramps",
+			Usage:       "Gramps xml file to read from",
+			Destination: &genopts.grampsFile,
 		},
 		&cli.StringFlag{
 			Name:        "id",
@@ -98,6 +104,7 @@ var Command = &cli.Command{
 
 var genopts struct {
 	gedcomFile       string
+	grampsFile       string
 	treeID           string
 	rootDir          string
 	keyIndividual    string
@@ -116,13 +123,21 @@ var genopts struct {
 func gen(cc *cli.Context) error {
 	logging.Setup()
 
-	if genopts.gedcomFile == "" {
-		return fmt.Errorf("no gedcom file specified")
-	}
+	var l tree.Loader
+	var err error
 
-	l, err := gedcom.NewLoader(genopts.gedcomFile)
-	if err != nil {
-		return fmt.Errorf("load gedcom: %w", err)
+	if genopts.gedcomFile != "" {
+		l, err = gedcom.NewLoader(genopts.gedcomFile)
+		if err != nil {
+			return fmt.Errorf("load gedcom: %w", err)
+		}
+	} else if genopts.grampsFile != "" {
+		l, err = gramps.NewLoader(genopts.grampsFile)
+		if err != nil {
+			return fmt.Errorf("load gedcom: %w", err)
+		}
+	} else {
+		return fmt.Errorf("no gedcom or gramps file specified")
 	}
 
 	t, err := tree.LoadTree(genopts.treeID, genopts.configDir, l)
@@ -177,7 +192,7 @@ func gen(cc *cli.Context) error {
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)
 	if !ok {
-		keyIndividual = t.FindPerson(l.ScopeName, genopts.keyIndividual)
+		keyIndividual = t.FindPerson(l.Scope(), genopts.keyIndividual)
 	}
 
 	t.SetKeyPerson(keyIndividual)
@@ -198,7 +213,7 @@ func gen(cc *cli.Context) error {
 	case "common":
 		logging.Info("only generating pages for people with common ancestors")
 		s.Tree.ApplyPeopleMatching(model.PersonDoesNotHaveCommonAncestor(), skipPage)
-	case "all":
+	case "any":
 		break
 	default:
 		return fmt.Errorf("unsupported relation option: %s", genopts.relation)
