@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"container/heap"
 	"fmt"
 	"sort"
 	"strings"
@@ -18,29 +17,35 @@ import (
 var _ = slog.Debug
 
 type Tree struct {
-	ID          string
-	Name        string
-	Description string
-	IdentityMap *IdentityMap
-	Gazeteer    *Gazeteer
-	Annotations *Annotations
-	People      map[string]*model.Person
-	Sources     map[string]*model.Source
-	Places      map[string]*model.Place
-	Families    map[string]*model.Family
-	KeyPerson   *model.Person
+	ID           string
+	Name         string
+	Description  string
+	IdentityMap  *IdentityMap
+	Gazeteer     *Gazeteer
+	Annotations  *Annotations
+	People       map[string]*model.Person
+	Citations    map[string]*model.GeneralCitation
+	Sources      map[string]*model.Source
+	Repositories map[string]*model.Repository
+	Places       map[string]*model.Place
+	Families     map[string]*model.Family
+	MediaObjects map[string]*model.MediaObject
+	KeyPerson    *model.Person
 }
 
 func NewTree(id string, m *IdentityMap, g *Gazeteer, a *Annotations) *Tree {
 	return &Tree{
-		ID:          id,
-		IdentityMap: m,
-		Gazeteer:    g,
-		Annotations: a,
-		People:      make(map[string]*model.Person),
-		Sources:     make(map[string]*model.Source),
-		Places:      make(map[string]*model.Place),
-		Families:    make(map[string]*model.Family),
+		ID:           id,
+		IdentityMap:  m,
+		Gazeteer:     g,
+		Annotations:  a,
+		People:       make(map[string]*model.Person),
+		Citations:    make(map[string]*model.GeneralCitation),
+		Sources:      make(map[string]*model.Source),
+		Repositories: make(map[string]*model.Repository),
+		Places:       make(map[string]*model.Place),
+		Families:     make(map[string]*model.Family),
+		MediaObjects: make(map[string]*model.MediaObject),
 	}
 }
 
@@ -56,16 +61,34 @@ func (t *Tree) FindPerson(scope string, sid string) *model.Person {
 		p = &model.Person{
 			ID: id,
 		}
-		p.BestBirthlikeEvent = &model.BirthEvent{
-			GeneralEvent: model.GeneralEvent{Date: model.UnknownDate()},
-			GeneralIndividualEvent: model.GeneralIndividualEvent{
-				Principal: p,
-			},
-		}
+		// p.BestBirthlikeEvent = &model.BirthEvent{
+		// 	GeneralEvent: model.GeneralEvent{Date: model.UnknownDate()},
+		// 	GeneralIndividualEvent: model.GeneralIndividualEvent{
+		// 		Principal: p,
+		// 	},
+		// }
 
 		t.People[id] = p
 	}
 	return p
+}
+
+func (t *Tree) GetCitation(id string) (*model.GeneralCitation, bool) {
+	c, ok := t.Citations[id]
+	return c, ok
+}
+
+func (t *Tree) FindCitation(scope string, sid string) (*model.GeneralCitation, bool) {
+	id := t.CanonicalID(scope, sid)
+	c, ok := t.Citations[id]
+	if !ok {
+		c = &model.GeneralCitation{
+			ID: id,
+		}
+		t.Citations[id] = c
+		return c, false
+	}
+	return c, true
 }
 
 func (t *Tree) GetSource(id string) (*model.Source, bool) {
@@ -83,6 +106,18 @@ func (t *Tree) FindSource(scope string, sid string) *model.Source {
 		t.Sources[id] = so
 	}
 	return so
+}
+
+func (t *Tree) FindRepository(scope string, sid string) *model.Repository {
+	id := t.CanonicalID(scope, sid)
+	re, ok := t.Repositories[id]
+	if !ok {
+		re = &model.Repository{
+			ID: id,
+		}
+		t.Repositories[id] = re
+	}
+	return re
 }
 
 func (t *Tree) GetPlace(id string) (*model.Place, bool) {
@@ -193,6 +228,19 @@ func (s *Tree) newFamily(id string) *model.Family {
 	return f
 }
 
+func (t *Tree) FindMediaObject(path string) *model.MediaObject {
+	id := t.CanonicalID("mediaobject", path)
+	mo, ok := t.MediaObjects[id]
+	if !ok {
+		mo = &model.MediaObject{
+			ID:          id,
+			SrcFilePath: path,
+		}
+		t.MediaObjects[id] = mo
+	}
+	return mo
+}
+
 func (t *Tree) CanonicalID(scope string, sid string) string {
 	return t.IdentityMap.ID(scope, sid)
 }
@@ -257,6 +305,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 
 	for _, p := range t.People {
 		t.TrimPersonTimeline(p)
+		t.CrossReferenceCitations(p)
 		p.RemoveDuplicateFamilies()
 		p.RemoveDuplicateChildren()
 		p.RemoveDuplicateSpouses()
@@ -280,6 +329,10 @@ func (t *Tree) Generate(redactLiving bool) error {
 	}
 	for _, s := range t.Sources {
 		t.TrimSourceTimeline(s)
+	}
+	for _, c := range t.Citations {
+		t.TrimCitationPeopleCited(c)
+		t.TrimCitationEventsCited(c)
 	}
 	return nil
 }
@@ -677,7 +730,7 @@ EventLoop:
 			continue
 		}
 
-		// Drop all events from redacted people
+		// Drop all events from excluded and redacted people
 		for _, o := range ev.Participants() {
 			if o.Redacted {
 				continue EventLoop
@@ -701,7 +754,7 @@ EventLoop:
 		evs = append(evs, ev)
 	}
 
-	p.Timeline = evs
+	p.Timeline = model.CollapseEventList(evs)
 	return nil
 }
 
@@ -710,8 +763,8 @@ func (t *Tree) TrimPlaceTimeline(p *model.Place) error {
 
 EventLoop:
 	for _, ev := range p.Timeline {
-		// Drop all events from redacted people
 		for _, o := range ev.Participants() {
+			// Drop all events from redacted people
 			if o.Redacted {
 				continue EventLoop
 			}
@@ -719,7 +772,7 @@ EventLoop:
 		evs = append(evs, ev)
 	}
 
-	p.Timeline = evs
+	p.Timeline = model.CollapseEventList(evs)
 	return nil
 }
 
@@ -728,8 +781,9 @@ func (t *Tree) TrimSourceTimeline(s *model.Source) error {
 
 EventLoop:
 	for _, ev := range s.EventsCiting {
-		// Drop all events from redacted people
+		// count number of non excluded people involved in event
 		for _, o := range ev.Participants() {
+			// Drop all events from redacted people
 			if o.Redacted {
 				continue EventLoop
 			}
@@ -737,7 +791,54 @@ EventLoop:
 		evs = append(evs, ev)
 	}
 
-	s.EventsCiting = evs
+	s.EventsCiting = model.CollapseEventList(evs)
+	return nil
+}
+
+func (t *Tree) CrossReferenceCitations(p *model.Person) {
+	if p.Redacted {
+		return
+	}
+EventLoop:
+	for _, ev := range p.Timeline {
+		// Skip all events from redacted people
+		for _, o := range ev.Participants() {
+			if o.Redacted {
+				continue EventLoop
+			}
+		}
+
+		for _, cit := range ev.GetCitations() {
+			cit.EventsCited = append(cit.EventsCited, ev)
+		}
+
+	}
+
+	for _, n := range p.KnownNames {
+		for _, cit := range n.Citations {
+			cit.PeopleCited = append(cit.PeopleCited, p)
+		}
+	}
+}
+
+func (t *Tree) TrimCitationPeopleCited(c *model.GeneralCitation) error {
+	if len(c.PeopleCited) < 2 {
+		return nil
+	}
+	res := make([]*model.Person, 0, len(c.PeopleCited))
+	seen := make(map[*model.Person]bool, len(c.PeopleCited))
+	for _, p := range c.PeopleCited {
+		if !seen[p] {
+			res = append(res, p)
+			seen[p] = true
+		}
+	}
+	c.PeopleCited = res
+	return nil
+}
+
+func (t *Tree) TrimCitationEventsCited(c *model.GeneralCitation) error {
+	c.EventsCited = model.CollapseEventList(c.EventsCited)
 	return nil
 }
 
@@ -839,173 +940,4 @@ func (t *Tree) ListPlacesMatching(m model.PlaceMatcher, limit int) []*model.Plac
 		}
 	}
 	return matches
-}
-
-// Metrics
-
-// In general all metrics exclude redacted people
-
-// NumberOfPeople returns the number of people in the tree.
-// It excludes redacted people.
-func (t *Tree) NumberOfPeople() int {
-	num := 0
-	for _, p := range t.People {
-		if !p.Redacted {
-			num++
-		}
-	}
-	return num
-}
-
-// AncestorSurnameDistribution returns a map of surnames and the number
-// of direct ancestors with that surname
-// It excludes redacted people.
-func (t *Tree) AncestorSurnameDistribution() map[string]int {
-	dist := make(map[string]int)
-	for _, p := range t.People {
-		if p.Redacted {
-			continue
-		}
-		if p.PreferredFamilyName == model.UnknownNamePlaceholder {
-			continue
-		}
-		if p.RelationToKeyPerson.IsDirectAncestor() {
-			dist[p.PreferredFamilyName]++
-		}
-	}
-	return dist
-}
-
-// TreeSurnameDistribution returns a map of surnames and the number
-// of people in the tree with that surname
-// It excludes redacted people.
-func (t *Tree) TreeSurnameDistribution() map[string]int {
-	dist := make(map[string]int)
-	for _, p := range t.People {
-		if p.Redacted {
-			continue
-		}
-		if p.PreferredFamilyName == model.UnknownNamePlaceholder {
-			continue
-		}
-		dist[p.PreferredFamilyName]++
-	}
-	return dist
-}
-
-// OldestPeople returns a list of the oldest people in the tree, sorted by descending age
-// It excludes redacted people.
-func (t *Tree) OldestPeople(limit int) []*model.Person {
-	h := new(PersonWithAgeHeap)
-	heap.Init(h)
-
-	for _, p := range t.People {
-		if p.Redacted {
-			continue
-		}
-		age, ok := p.AgeInYearsAtDeath()
-		if !ok {
-			continue
-		}
-		heap.Push(h, &PersonWithAge{Person: p, Age: age})
-		if h.Len() > limit {
-			heap.Pop(h)
-		}
-	}
-
-	list := make([]*model.Person, h.Len())
-	for i := len(list) - 1; i >= 0; i-- {
-		pa := heap.Pop(h).(*PersonWithAge)
-		list[i] = pa.Person
-	}
-	return list
-}
-
-// Ancestors returns the ancestors of p. The returned list is ordered such that the
-// father of entry n is found at (n+2)*2-2, the mother of entry n is found at (n+2)*2-1
-// The list will always contain 2^n entries, with unknown ancestors left as nil at the
-// appropriate index.
-// Odd numbers are female, even numbers are male.
-// The child of entry n is found at (n-2)/2 if n is even and (n-3)/2 if n is odd.
-// 0: father
-// 1: mother
-// 2: father's father
-// 3: father's mother
-// 4: mother's father
-// 5: mother's mother
-// 6: father's father's father
-// 7: father's father's mother
-// 8: father's mother's father
-// 9: father's mother's mother
-// 10: mother's father's father
-// 11: mother's father's mother
-// 12: mother's mother's father
-// 13: mother's mother's mother
-// 14: father's father's father's father
-// 15: father's father's father's mother
-// 16: father's father's mother's father
-// 17: father's father's mother's mother
-// 18: father's mother's father's father
-// 19: father's mother's father's mother
-// 20: father's mother's mother's father
-// 21: father's mother's mother's mother
-// 22: mother's father's father's father
-// 23: mother's father's father's mother
-// 24: mother's father's mother's father
-// 25: mother's father's mother's mother
-// 26: mother's mother's father's father
-// 27: mother's mother's father's mother
-// 28: mother's mother's mother's father
-// 29: mother's mother's mother's mother
-func (t *Tree) Ancestors(p *model.Person, generations int) []*model.Person {
-	n := 0
-	f := 2
-	for i := 0; i < generations; i++ {
-		n += f
-		f *= 2
-	}
-	a := make([]*model.Person, n)
-
-	a[0] = p.Father
-	a[1] = p.Mother
-	for idx := 0; idx < n; idx++ {
-		if a[idx] == nil {
-			continue
-		}
-		if a[idx].Father != nil {
-			if (idx+2)*2-2 < n {
-				a[(idx+2)*2-2] = a[idx].Father
-			}
-		}
-		if a[idx].Mother != nil {
-			if (idx+2)*2-1 < n {
-				a[(idx+2)*2-1] = a[idx].Mother
-			}
-		}
-	}
-
-	return a
-}
-
-type PersonWithAge struct {
-	Person *model.Person
-	Age    int
-}
-
-type PersonWithAgeHeap []*PersonWithAge
-
-func (h PersonWithAgeHeap) Len() int           { return len(h) }
-func (h PersonWithAgeHeap) Less(i, j int) bool { return h[i].Age < h[j].Age }
-func (h PersonWithAgeHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *PersonWithAgeHeap) Push(x interface{}) {
-	*h = append(*h, x.(*PersonWithAge))
-}
-
-func (h *PersonWithAgeHeap) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
 }

@@ -12,12 +12,13 @@ type Crop struct {
 	Height int
 }
 
-type MediaObject interface{}
-
-type JpegImage struct {
-	FileSize int
-	Width    int
-	Height   int
+type MediaObject struct {
+	ID          string
+	SrcFilePath string
+	FileName    string
+	FileSize    int
+	MediaType   string
+	Width       int
+	Height      int
+	Citations   []*GeneralCitation
 }
-
-var _ MediaObject = (*JpegImage)(nil)

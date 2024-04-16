@@ -34,6 +34,28 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuild
 	return nil
 }
 
+func WhoWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
+	var title string
+	switch tev := ev.(type) {
+	case model.IndividualTimelineEvent:
+		title = enc.EncodeModelLink(tev.GetPrincipal().PreferredFullName, tev.GetPrincipal())
+	case model.PartyTimelineEvent:
+		title = enc.EncodeModelLink(tev.GetParty1().PreferredFullName, tev.GetParty1()) + " and " + enc.EncodeModelLink(tev.GetParty2().PreferredFullName, tev.GetParty2())
+	}
+
+	title = text.JoinSentenceParts(title, ev.What())
+	date := ev.GetDate()
+	if !date.IsUnknown() {
+		title = text.JoinSentenceParts(title, date.When())
+	}
+
+	pl := ev.GetPlace()
+	if !pl.IsUnknown() {
+		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	}
+	return title
+}
+
 func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
 	title := ev.What()
 	date := ev.GetDate()
@@ -67,8 +89,9 @@ func AgeWhenWhere(ev model.IndividualTimelineEvent, enc ExtendedInlineEncoder) s
 }
 
 type TimelineEntryFormatter struct {
-	pov *model.POV
-	enc ExtendedMarkdownEncoder
+	pov      *model.POV
+	enc      ExtendedMarkdownEncoder
+	omitDate bool
 }
 
 func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
@@ -134,7 +157,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	}
 
 	includeAge := true
-	if date.IsUnknown() {
+	if t.omitDate || date.IsUnknown() {
 		includeAge = false
 	}
 	switch ev.(type) {
@@ -178,7 +201,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	}
 
 	// Add date if known
-	if !date.IsUnknown() {
+	if !t.omitDate && !date.IsUnknown() {
 		title += " " + date.When()
 	}
 
@@ -250,7 +273,7 @@ func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEve
 	}
 
 	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
@@ -270,7 +293,7 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 	}
 
 	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
@@ -292,7 +315,7 @@ func (t *TimelineEntryFormatter) arrivalEventTitle(seq int, ev *model.ArrivalEve
 	}
 
 	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
@@ -311,7 +334,7 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 	}
 
 	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
@@ -355,7 +378,7 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.PartyTimel
 	}
 
 	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 

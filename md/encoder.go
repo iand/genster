@@ -15,8 +15,8 @@ const DirectAncestorMarker = "★"
 
 type Encoder struct {
 	LinkBuilder       LinkBuilder
-	main              strings.Builder
-	citations         strings.Builder
+	maintext          strings.Builder
+	citetext          strings.Builder
 	citationidx       int
 	citationMap       map[string]int
 	seenLinks         map[string]bool
@@ -35,10 +35,10 @@ func (e *Encoder) Markdown() string {
 
 func (e *Encoder) WriteMarkdown(w io.Writer) error {
 	bw := bufio.NewWriter(w)
-	bw.WriteString(e.main.String())
+	bw.WriteString(e.maintext.String())
 	bw.WriteString("\n")
 
-	reftext := e.citations.String()
+	reftext := e.citetext.String()
 	if len(reftext) > 0 {
 		bw.WriteString("<div class=\"footnotes\">\n\n")
 		bw.WriteString("----\n\n")
@@ -51,16 +51,16 @@ func (e *Encoder) WriteMarkdown(w io.Writer) error {
 }
 
 func (e *Encoder) SetBody(s string) {
-	e.main = strings.Builder{}
-	e.main.WriteString(s)
+	e.maintext = strings.Builder{}
+	e.maintext.WriteString(s)
 }
 
 func (e *Encoder) RawMarkdown(s string) {
-	e.main.WriteString(s)
+	e.maintext.WriteString(s)
 }
 
 func (e *Encoder) Heading1(s string) {
-	e.writeHeading1(&e.main, s)
+	e.writeHeading1(&e.maintext, s)
 }
 
 func (e *Encoder) EncodeHeading1(s string) string {
@@ -76,7 +76,7 @@ func (e *Encoder) writeHeading1(buf io.StringWriter, s string) {
 }
 
 func (b *Encoder) Heading2(s string) {
-	b.writeHeading2(&b.main, s)
+	b.writeHeading2(&b.maintext, s)
 }
 
 func (b *Encoder) EncodeHeading2(s string) string {
@@ -92,7 +92,7 @@ func (b *Encoder) writeHeading2(buf io.StringWriter, s string) {
 }
 
 func (b *Encoder) Heading3(s string) {
-	b.writeHeading3(&b.main, s)
+	b.writeHeading3(&b.maintext, s)
 }
 
 func (b *Encoder) EncodeHeading3(s string) string {
@@ -108,7 +108,7 @@ func (b *Encoder) writeHeading3(buf io.StringWriter, s string) {
 }
 
 func (b *Encoder) Heading4(s string) {
-	b.writeHeading3(&b.main, s)
+	b.writeHeading4(&b.maintext, s)
 }
 
 func (b *Encoder) EncodeHeading4(s string) string {
@@ -124,7 +124,7 @@ func (b *Encoder) writeHeading4(buf io.StringWriter, s string) {
 }
 
 func (b *Encoder) Para(s string) {
-	b.writePara(&b.main, s)
+	b.writePara(&b.maintext, s)
 }
 
 func (b *Encoder) EncodePara(s string) string {
@@ -139,7 +139,7 @@ func (b *Encoder) writePara(buf io.StringWriter, s string) {
 }
 
 func (b *Encoder) EmptyPara() {
-	b.writeEmptyPara(&b.main)
+	b.writeEmptyPara(&b.maintext)
 }
 
 func (b *Encoder) EncodeEmptyPara() string {
@@ -153,7 +153,7 @@ func (b *Encoder) writeEmptyPara(buf io.StringWriter) {
 }
 
 func (b *Encoder) BlockQuote(s string) {
-	b.writeBlockQuote(&b.main, s)
+	b.writeBlockQuote(&b.maintext, s)
 }
 
 func (b *Encoder) EncodeBlockQuote(s string) string {
@@ -184,7 +184,7 @@ func (b *Encoder) EncodeBold(s string) string {
 }
 
 func (b *Encoder) UnorderedList(items []string) {
-	b.writeUnorderedList(&b.main, items)
+	b.writeUnorderedList(&b.maintext, items)
 }
 
 func (b *Encoder) EncodeUnorderedList(items []string) string {
@@ -200,7 +200,7 @@ func (b *Encoder) writeUnorderedList(buf io.StringWriter, items []string) {
 }
 
 func (b *Encoder) OrderedList(items []string) {
-	b.writeOrderedList(&b.main, items)
+	b.writeOrderedList(&b.maintext, items)
 }
 
 func (b *Encoder) EncodeOrderedList(items []string) string {
@@ -216,7 +216,7 @@ func (b *Encoder) writeOrderedList(buf io.StringWriter, items []string) {
 }
 
 func (b *Encoder) DefinitionList(items [][2]string) {
-	b.writeDefinitionList(&b.main, items)
+	b.writeDefinitionList(&b.maintext, items)
 }
 
 func (b *Encoder) EncodeDefinitionList(items [][2]string) string {
@@ -315,22 +315,22 @@ func (b *Encoder) EncodeCitation(citation string, detail string, citationID stri
 			b.citationidx++
 			idx = b.citationidx
 			b.citationMap[citationID] = idx
-			b.citations.WriteString("\n")
-			b.citations.WriteString(fmt.Sprintf("##### %d. %s {#cit_%[1]d}\n", idx, citation))
-			b.citations.WriteString("\n")
-			if detail != "" {
-				b.citations.WriteString(detail)
-				b.citations.WriteString("\n")
-			}
+			// b.citations.WriteString("\n")
+			b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, citation))
+			// b.citations.WriteString("\n")
+			// if detail != "" {
+			// 	b.citations.WriteString(detail)
+			// 	b.citations.WriteString("\n")
+			// }
 		}
 
 	} else {
 		b.citationidx++
 		idx = b.citationidx
-		b.citations.WriteString(fmt.Sprintf("##### %d. %s {#cit_%[1]d}\n", idx, citation))
+		b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, citation))
 	}
 
-	return fmt.Sprintf("<sup>[%d](#cit_%[1]d)</sup>", idx)
+	return fmt.Sprintf("[^cit_%d]", idx)
 }
 
 func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
@@ -345,52 +345,23 @@ func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitati
 }
 
 func (b *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
-	var heading string
 	var detail string
 
-	if c.Source != nil && c.Source.Title != "" {
-		heading = c.Source.Title
-		if c.Detail != "" {
-			if !strings.HasSuffix(heading, ".") && !strings.HasSuffix(heading, "!") && !strings.HasSuffix(heading, "?") {
-				heading += "; "
-			}
-			heading += b.EncodePara(c.Detail)
-		}
-		heading = text.FinishSentence(heading)
-		heading += " (" + b.EncodeModelLink("source", c.Source) + ")"
+	heading := c.String()
 
-		// heading = enc.EncodeModelLink(text.FinishSentence(c.Source.Title), c.Source, false)
-		// if c.Detail != "" {
-		// 	detail = enc.EncodePara(cleanCitationDetail(c.Detail))
-		// }
+	if c.ID != "" && len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0 {
+		heading += " (" + b.EncodeModelLink("more details...", c) + ")"
 	} else {
-		heading = c.Detail
-		detail = ""
-	}
-
-	if c.URL != nil {
-		detail += b.EncodeEmptyPara()
-		detail += b.EncodePara("View at " + b.EncodeLink(c.URL.Title, c.URL.URL))
-	}
-
-	if len(c.TranscriptionText) > 0 {
-		for _, t := range c.TranscriptionText {
-			detail += b.EncodeBlockQuote(t)
-			detail += b.EncodeBlockQuote("")
-		}
-		if !c.TranscriptionDate.IsUnknown() {
-			detail += b.EncodeBlockQuote("-- transcribed " + c.TranscriptionDate.When())
+		if c.URL != nil {
+			heading += text.FinishSentence(b.EncodePara("View at " + b.EncodeLink(c.URL.Title, c.URL.URL)))
 		}
 	}
-
-	// for _, m := range c.Media {
-	// }
 
 	return b.EncodeCitation(heading, detail, c.ID)
 }
 
 func (b *Encoder) Pre(s string) {
-	b.writePre(&b.main, s)
+	b.writePre(&b.maintext, s)
 }
 
 func (b *Encoder) EncodePre(s string) string {
@@ -403,4 +374,12 @@ func (b *Encoder) writePre(buf io.StringWriter, s string) {
 	buf.WriteString("<pre>\n")
 	buf.WriteString(html.EscapeString(s))
 	buf.WriteString("</pre>\n")
+}
+
+func (b *Encoder) Image(alt string, link string) {
+	b.writeImage(&b.maintext, alt, link)
+}
+
+func (b *Encoder) writeImage(buf io.StringWriter, alt string, link string) {
+	buf.WriteString(fmt.Sprintf("![%s](%s)\n", alt, link))
 }

@@ -414,7 +414,7 @@ var (
 
 func (e *WillEvent) Type() string             { return "will" }
 func (e *WillEvent) ShortDescription() string { return e.abbrev("will") }
-func (e *WillEvent) What() string             { return "wrote will" }
+func (e *WillEvent) What() string             { return "wrote a will" }
 
 // ResidenceRecordedEvent represents the event of a person's occupation being recorded / noted
 type ResidenceRecordedEvent struct {
@@ -597,3 +597,53 @@ var (
 	_ TimelineEvent      = (*PartyNarrativeEvent)(nil)
 	_ PartyTimelineEvent = (*PartyNarrativeEvent)(nil)
 )
+
+type EventMatcher func(TimelineEvent) bool
+
+// FilterEventList returns a new slice that includes only the events that match the
+// supplied EventMatcher
+func FilterEventList(evs []TimelineEvent, include EventMatcher) []TimelineEvent {
+	switch len(evs) {
+	case 0:
+		return []TimelineEvent{}
+	case 1:
+		if include(evs[0]) {
+			return []TimelineEvent{evs[0]}
+		}
+		return []TimelineEvent{}
+	default:
+		l := make([]TimelineEvent, 0, len(evs))
+		for _, ev := range evs {
+			if include(ev) {
+				l = append(l, ev)
+			}
+		}
+		return l
+	}
+}
+
+// CollapseEventList returns a new slice that includes only unique events
+func CollapseEventList(evs []TimelineEvent) []TimelineEvent {
+	switch len(evs) {
+	case 0:
+		return []TimelineEvent{}
+	case 1:
+		return []TimelineEvent{evs[0]}
+	case 2:
+		if evs[0] == evs[1] {
+			return []TimelineEvent{evs[0]}
+		}
+		return []TimelineEvent{evs[0], evs[1]}
+	default:
+		seen := make(map[TimelineEvent]bool)
+		l := make([]TimelineEvent, 0, len(evs))
+		for _, ev := range evs {
+			if seen[ev] {
+				continue
+			}
+			seen[ev] = true
+			l = append(l, ev)
+		}
+		return l
+	}
+}

@@ -274,7 +274,7 @@ func JoinSentenceParts(parts ...string) string {
 		if len(s) == 0 {
 			continue
 		}
-		if ret != "" {
+		if ret != "" && s != ":" {
 			ret += " "
 		}
 		ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
@@ -285,7 +285,8 @@ func JoinSentenceParts(parts ...string) string {
 func JoinSentences(ss ...string) string {
 	var ret string
 	for _, s := range ss {
-		s = strings.TrimSpace(s)
+		s = FormatSentence(s)
+		// s = strings.TrimSpace(s)
 		if len(s) == 0 {
 			continue
 		}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/adrg/strutil"
 	"github.com/adrg/strutil/metrics"
-	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/grampsxml"
@@ -22,6 +21,10 @@ var (
 func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error {
 	id := pval(gp.ID, gp.Handle)
 	p := m.FindPerson(l.ScopeName, id)
+
+	if gp.ID != nil {
+		p.GrampsID = *gp.ID
+	}
 
 	logger := logging.With("id", p.ID)
 	logger.Debug("populating from person record", "handle", gp.Handle)
@@ -37,10 +40,17 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		// TODO support multiple names with dates
 		var name *grampsxml.Name
 		for _, n := range gp.Name {
-			if n.Alt == nil || *n.Alt == false {
+			if name == nil && !pval(n.Alt, false) {
 				name = &n
-				break
 			}
+			oname := &model.Name{
+				Name: formatName(n),
+			}
+			if len(n.Citationref) > 0 {
+				oname.Citations, _ = l.parseCitationRecords(m, n.Citationref, logger)
+			}
+
+			p.KnownNames = append(p.KnownNames, oname)
 		}
 		// If none are marked as preferred then choose first
 		if name == nil {
@@ -150,12 +160,69 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		p.Gender = model.GenderUnknown
 	}
 
+	pgcs, _ := l.parseCitationRecords(m, gp.Citationref, logger)
+
+	for _, pgc := range pgcs {
+		if pgc.Source == nil {
+			continue
+		}
+		if strings.HasPrefix(pgc.Detail, "https://www.ancestry.co.uk/family-tree/person/") {
+			if p.EditLink == nil {
+				p.EditLink = &model.Link{
+					Title: "Edit details at ancestry.co.uk",
+					URL:   pgc.Detail,
+				}
+				continue
+			}
+			p.Links = append(p.Links, model.Link{
+				Title: "Family tree at ancestry.co.uk",
+				URL:   pgc.Detail,
+			})
+		}
+	}
+
+	// Add attributes
+	for _, att := range gp.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping attribute marked as private", "type", att.Type)
+			continue
+		}
+		switch strings.ToLower(att.Type) {
+		case "ancestry url":
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryAttribute,
+				Text:     "Person has 'ancestry url' attribute",
+				Context:  "Attribute",
+			}
+			p.Anomalies = append(p.Anomalies, anom)
+
+			if p.EditLink == nil {
+				p.EditLink = &model.Link{
+					Title: "Edit details at ancestry.co.uk",
+					URL:   att.Value,
+				}
+			}
+		case "wikitree id":
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryAttribute,
+				Text:     "Person has 'wikitree id' attribute",
+				Context:  "Attribute",
+			}
+			p.Anomalies = append(p.Anomalies, anom)
+			p.WikiTreeID = att.Value
+		case "illegitimate":
+			p.Illegitimate = true
+		case "unmarried", "never married":
+			p.Unmarried = true
+		case "childless":
+			p.Childless = true
+		default:
+			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
+		}
+	}
+
 	// collect occupation events and attempt to consolidate them later
 	occupationEvents := make([]model.GeneralEvent, 0)
-
-	dp := &gdate.Parser{
-		AssumeGROQuarter: true,
-	}
 
 	for _, er := range gp.Eventref {
 		role := pval(er.Role, "unknown")
@@ -171,21 +238,21 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 		pl, planoms := l.findPlaceForEvent(m, grev)
 
-		var dt gdate.Date
-		var err error
-		if grev.Dateval != nil {
-			dt, err = dp.Parse(grev.Dateval.Val)
-			if err != nil {
-				return fmt.Errorf("date: %w", err)
+		dt, err := EventDate(grev)
+		if err != nil {
+			logger.Warn("could not parse event date", "error", err.Error(), "hlink", er.Hlink)
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryEvent,
+				Text:     err.Error(),
+				Context:  "Event date",
 			}
-		} else {
-			logger.Warn("could not parse event date", "hlink", er.Hlink)
-			continue
+			p.Anomalies = append(p.Anomalies, anom)
 
+			continue
 		}
 
 		gev := model.GeneralEvent{
-			Date:   &model.Date{Date: dt},
+			Date:   dt,
 			Place:  pl,
 			Detail: "", // TODO: notes
 			Title:  pval(grev.Description, ""),
@@ -205,6 +272,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		switch pval(grev.Type, "unknown") {
 		case "Birth":
 			ev = &model.BirthEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "Baptism":
+			ev = &model.BaptismEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
@@ -229,6 +301,21 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "Probate":
+			ev = &model.ProbateEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "Will":
+			ev = &model.WillEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		// case "Property":
+		// 	ev = &model.PropertyEvent{
+		// 		GeneralEvent:           gev,
+		// 		GeneralIndividualEvent: giv,
+		// 	}
 		case "Occupation":
 			occupationEvents = append(occupationEvents, gev)
 
@@ -322,6 +409,32 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 			}
 		}
+	}
+
+	// Add notes
+	for _, nr := range gp.Noteref {
+		n, ok := l.NotesByHandle[nr.Hlink]
+		if !ok {
+			continue
+		}
+		if pval(n.Priv, false) {
+			logger.Debug("skipping person note marked as private", "handle", n.Handle)
+			continue
+		}
+
+		switch strings.ToLower(n.Type) {
+		case "person note", "research":
+			p.ResearchNotes = append(p.ResearchNotes, &model.Note{
+				Title:         "",
+				Author:        "",
+				Date:          "",
+				Markdown:      n.Text,
+				PrimaryPerson: p,
+			})
+		default:
+			// ignore note
+		}
+
 	}
 
 	return nil
@@ -594,4 +707,31 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 	// Relation to Head: Seaman A B
 
 	ce.Detail = v
+}
+
+func formatName(n grampsxml.Name) string {
+	if n.Display != nil && *n.Display != "" {
+		return *n.Display
+	}
+
+	name := ""
+
+	if n.First != nil && *n.First != "" {
+		name = *n.First
+	} else {
+		name = model.UnknownNamePlaceholder
+	}
+
+	switch len(n.Surname) {
+	case 0:
+		name += " " + model.UnknownNamePlaceholder
+	case 1:
+		name += " " + n.Surname[0].Surname
+	default:
+		name += " " + n.Surname[0].Surname
+		// TODO: multiple surnames
+	}
+	name = strings.ReplaceAll(name, "-?-", model.UnknownNamePlaceholder)
+
+	return name
 }

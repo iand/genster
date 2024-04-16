@@ -3,80 +3,161 @@ package site
 import (
 	// "fmt"
 
+	"slices"
+
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 )
 
-func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
+func RenderSourcePage(s *Site, c *model.GeneralCitation) (*md.Document, error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 
-	doc.Title(so.Title)
+	// doc.Title(so.Title)
 	doc.Layout(PageLayoutSource.String())
 	doc.Category(PageCategorySource)
-	doc.ID(so.ID)
-	doc.AddTags(CleanTags(so.Tags))
+	doc.ID(c.ID)
+	// doc.AddTags(CleanTags(so.Tags))
 
-	if so.RepositoryName != "" {
-		para := text.JoinSentenceParts("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
-		doc.Para(text.FormatSentence(para))
+	// if so.RepositoryName != "" {
+	// 	para := text.JoinSentenceParts("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
+	// 	doc.Para(text.FormatSentence(para))
+	// }
+
+	// if so.SearchLink != "" {
+	// 	para := text.JoinSentenceParts("It can be ", doc.EncodeLink("searched online", so.SearchLink))
+	// 	doc.Para(text.FormatSentence(para))
+	// }
+
+	title := ""
+	if c.Source != nil && c.Source.Title != "" {
+		title = c.Source.Title
+	} else {
+		title = c.Detail
+	}
+	doc.Heading1(title)
+
+	if c.Detail != "" {
+		doc.Para(c.Detail)
 	}
 
-	if so.SearchLink != "" {
-		para := text.JoinSentenceParts("It can be ", doc.EncodeLink("searched online", so.SearchLink))
-		doc.Para(text.FormatSentence(para))
+	for _, mo := range c.MediaObjects {
+		doc.EmptyPara()
+		doc.Image(mo.ID, s.LinkFor(mo))
 	}
 
-	const maxEvents = 20
+	if len(c.TranscriptionText) > 0 {
+		if len(c.TranscriptionText) == 1 {
+			doc.Heading3("Transcription")
+		} else {
+			doc.Heading3("Transcriptions")
+		}
+		for _, t := range c.TranscriptionText {
+			if t.Formatted {
+				doc.Pre(t.Text)
+				doc.Pre("")
+			} else {
+				doc.BlockQuote(t.Text)
+				doc.BlockQuote("")
+
+			}
+		}
+		if !c.TranscriptionDate.IsUnknown() {
+			doc.BlockQuote("-- transcribed " + c.TranscriptionDate.When())
+		}
+	}
+
+	peopleInCitations := make(map[*model.Person]bool)
 
 	var cites string
-	if len(so.EventsCiting) == 0 {
-		cites = "no evidence cites this source."
-	} else if len(so.EventsCiting) == 1 {
-		cites = "one piece of evidence cites this source:"
-	} else {
-		cites = text.JoinSentenceParts(text.SmallCardinalNoun(len(so.EventsCiting)), "pieces of evidence cite this source")
-		if len(so.EventsCiting) > maxEvents {
-			cites = text.JoinSentenceParts(cites, ", some of which are:")
-		} else {
-			cites += ":"
+
+	events := make([]string, 0, len(c.EventsCited))
+	for _, ev := range c.EventsCited {
+		events = append(events, WhoWhatWhenWhere(ev, doc))
+		for _, p := range ev.Participants() {
+			peopleInCitations[p] = true
 		}
 	}
-	doc.EmptyPara()
-	doc.Para(text.UpperFirst(cites))
 
-	fmtr := &TimelineEntryFormatter{
-		pov: &model.POV{},
-		enc: doc,
+	people := make([]string, 0, len(c.PeopleCited))
+	for _, p := range c.PeopleCited {
+		if peopleInCitations[p] {
+			continue
+		}
+		people = append(people, doc.EncodeModelLink(p.PreferredFullName, p))
 	}
 
-	events := make([][2]string, 0, len(so.EventsCiting))
-	for i, ev := range so.EventsCiting {
-		if i == maxEvents {
-			break
-		}
-		citation := ""
-		for _, c := range ev.GetCitations() {
-			if c.Source != so {
-				continue
+	if len(events) > 0 || len(people) > 0 {
+		doc.Heading3("Other Information")
+
+		if len(events) > 0 {
+			if len(c.EventsCited) == 1 {
+				cites = "one event has been derived from this evidence:"
+			} else {
+				cites = text.JoinSentenceParts(text.SmallCardinalNoun(len(c.EventsCited)), "events have been derived from this evidence:")
 			}
-			citation = c.Detail
-			break
+			doc.EmptyPara()
+			doc.Para(text.FormatSentence(cites))
+
+			doc.UnorderedList(events)
 		}
 
-		title := fmtr.Title(i, ev)
-		detail := ""
-		if citation != "" {
-			detail = "cites " + citation
+		if len(people) > 0 {
+			var peopleIntro string
+			var otherClause string
+			if len(peopleInCitations) > 0 {
+				otherClause = "other"
+			}
+			var evidenceClause string
+			if len(cites) == 0 {
+				evidenceClause = "in this evidence"
+			}
+
+			// peopleIntro = text.JoinSentenceParts("no", otherClause, "people are mentioned", evidenceClause)
+			if len(people) == 1 {
+				peopleIntro = text.JoinSentenceParts("one", otherClause, "person is mentioned", evidenceClause)
+			} else {
+				peopleIntro = text.JoinSentenceParts(text.SmallCardinalNoun(len(people)), otherClause, "people are mentioned", evidenceClause, ":")
+			}
+
+			doc.EmptyPara()
+			doc.Para(text.UpperFirst(peopleIntro))
+			slices.Sort(people)
+			doc.UnorderedList(people)
 		}
-		events = append(events, [2]string{
-			title,
-			detail,
-		})
+
 	}
 
-	doc.DefinitionList(events)
+	doc.Heading3("Full Citation")
+	doc.Para(text.FinishSentence(c.String()))
+
+	if c.Source != nil && len(c.Source.RepositoryRefs) > 0 {
+		repos := make([]string, 0, len(c.Source.RepositoryRefs))
+		for _, rr := range c.Source.RepositoryRefs {
+			// 	rr := c.Source.RepositoryRefs[0]
+
+			s := ""
+			if rr.Repository.ShortName != "" {
+				s += rr.Repository.ShortName
+			} else {
+				s += rr.Repository.Name
+			}
+			if rr.CallNo != "" {
+				s += ". " + rr.CallNo
+			}
+
+			if s != "" {
+				repos = append(repos, s)
+			}
+		}
+
+		if len(repos) > 0 {
+			doc.EmptyPara()
+			doc.Para("Obtainable from:")
+			doc.UnorderedList(repos)
+		}
+	}
 
 	return doc, nil
 }

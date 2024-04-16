@@ -28,12 +28,18 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	p.Links = []model.Link{}
 	p.VitalYears = "-?-"
 
-	if decade, ok := p.BestBirthlikeEvent.GetDate().DecadeStart(); ok {
-		birthDate := model.WithinDecade(decade)
+	var birthDecade int
+	var hasBirthDecade bool
+	if p.BestBirthlikeEvent != nil {
+		birthDecade, hasBirthDecade = p.BestBirthlikeEvent.GetDate().DecadeStart()
+	}
+
+	if hasBirthDecade {
+		birthDate := model.WithinDecade(birthDecade)
 		p.SetAllNames("(person born " + birthDate.When() + ")")
 
 		if p.BestDeathlikeEvent != nil {
-			if deathDecade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok && deathDecade != decade {
+			if deathDecade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok && deathDecade != birthDecade {
 				deathDate := model.WithinDecade(deathDecade)
 				p.SetAllNames("(person lived " + birthDate.String() + " to " + deathDate.String() + ")")
 			}

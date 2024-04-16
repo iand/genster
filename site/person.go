@@ -93,15 +93,16 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	for _, ev := range p.Timeline {
 		switch tev := ev.(type) {
 		case *model.BaptismEvent:
-			if tev != p.BestBirthlikeEvent {
+			if tev.DirectlyInvolves(p) {
 				intro.Baptisms = append(intro.Baptisms, tev)
 			}
 		case *model.CensusEvent:
-			n.Statements = append(n.Statements, &CensusStatement{
-				Principal: p,
-				Event:     tev,
-			})
-
+			if tev.DirectlyInvolves(p) {
+				n.Statements = append(n.Statements, &CensusStatement{
+					Principal: p,
+					Event:     tev,
+				})
+			}
 		}
 	}
 	if len(intro.Baptisms) > 0 {
@@ -134,6 +135,10 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 
 	if p.WikiTreeID != "" {
 		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)
+	}
+
+	if p.GrampsID != "" {
+		doc.SetFrontMatterField("grampsid", p.GrampsID)
 	}
 
 	t := &model.Timeline{

@@ -20,6 +20,7 @@ type Person struct {
 	PreferredSortName         string    // name organised for sorting, generally as surname, forenames
 	PreferredUniqueName       string    // a name with additional uniquely identifying information such as years of birth and death or a numeric identifier
 	NickName                  string    // a name other than their given name that the are known by
+	KnownNames                []*Name   // list of all known names
 	Olb                       string    // One line bio
 	Gender                    Gender    // male, female or unknown
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
@@ -54,11 +55,13 @@ type Person struct {
 	Featured           bool         // true if this person is to be highlighted as a featured person on the tree overview
 	Puzzle             bool         // true if this person is the centre of a significant puzzle
 
-	Occupations        []*Occupation // list of occupations
-	PrimaryOccupation  string        // simple description of main occupation
-	EditLink           *Link         // link to a page that can be used to edit the details of this person
-	WikiTreeID         string        // the wikitree id of this person
-	Links              []Link        // list of links to more information relevant to this person
+	Occupations       []*Occupation // list of occupations
+	PrimaryOccupation string        // simple description of main occupation
+	EditLink          *Link         // link to a page that can be used to edit the details of this person
+	WikiTreeID        string        // the wikitree id of this person
+	GrampsID          string        // the gramps id of this person
+	Links             []Link        // list of links to more information relevant to this person
+
 	Redacted           bool          // true if the person's details should be redacted
 	RedactionKeepsName bool          // true if this person's name should be kept during redaction
 	Inferences         []Inference   // list of inferences made
@@ -402,8 +405,39 @@ func PersonDoesNotHaveCommonAncestor() PersonMatcher {
 	}
 }
 
+func PersonIsCloseToDirectAncestor() PersonMatcher {
+	return func(p *Person) bool {
+		if p.RelationToKeyPerson == nil {
+			return true
+		}
+		return p.RelationToKeyPerson.IsCloseToDirectAncestor()
+	}
+}
+
 func SortPeople(people []*Person) {
 	sort.Slice(people, func(i, j int) bool {
 		return people[i].PreferredSortName < people[j].PreferredSortName
 	})
+}
+
+// FilterPersonList returns a new slice that includes only the people that match the
+// supplied PersonMatcher
+func FilterPersonList(people []*Person, include PersonMatcher) []*Person {
+	switch len(people) {
+	case 0:
+		return []*Person{}
+	case 1:
+		if include(people[0]) {
+			return []*Person{people[0]}
+		}
+		return []*Person{}
+	default:
+		l := make([]*Person, 0, len(people))
+		for _, p := range people {
+			if include(p) {
+				l = append(l, p)
+			}
+		}
+		return l
+	}
 }

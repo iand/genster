@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"github.com/iand/genster/text"
@@ -229,7 +230,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	detail = text.FinishSentence(detail)
 
 	// Insert baptism here if there is only one, otherwise leave for a new para
-	if len(s.Baptisms) == 1 {
+	if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent {
 		bapDetail := AgeWhenWhere(s.Baptisms[0], enc)
 		if bapDetail != "" {
 			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
@@ -254,6 +255,10 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 
 		var bapDetail string
 		for i, bev := range s.Baptisms {
+			logging.Debug("adding baptism event to narrative intro statement", "id", s.Principal.ID, "bev", bev, "BestBirthlikeEvent", s.Principal.BestBirthlikeEvent)
+			if s.Baptisms[i] == s.Principal.BestBirthlikeEvent {
+				continue
+			}
 			evDetail := ""
 			if i == 0 {
 				evDetail += "was baptised"
@@ -293,7 +298,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 
-	var detail string
+	detail := intro.Text
 
 	action := ""
 	switch s.Family.Bond {
@@ -342,26 +347,32 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 		if s.Family.BestStartEvent != nil {
 			detail += enc.EncodeWithCitations(event, s.Family.BestStartEvent.GetCitations())
 		} else {
-			detail += event
+			detail += " " + event
 		}
 	}
 
 	if len(s.Family.Children) == 0 {
 		// single parents already dealt with
 		if s.Principal.Childless {
-			detail += ". They had no children."
-		} else {
-			detail += ". They had no known children."
+			detail = text.JoinSentences(detail, "they had no children")
 		}
 	} else {
 		sort.Slice(s.Family.Children, func(i, j int) bool {
-			return s.Family.Children[i].BestBirthlikeEvent.GetDate().SortsBefore(s.Family.Children[j].BestBirthlikeEvent.GetDate())
+			var d1, d2 *model.Date
+			if s.Family.Children[i].BestBirthlikeEvent != nil {
+				d1 = s.Family.Children[i].BestBirthlikeEvent.GetDate()
+			}
+			if s.Family.Children[j].BestBirthlikeEvent != nil {
+				d2 = s.Family.Children[j].BestBirthlikeEvent.GetDate()
+			}
+
+			return d1.SortsBefore(d2)
 		})
 
 		children := make([]string, len(s.Family.Children))
 		for j := range s.Family.Children {
 			children[j] = enc.EncodeModelLink(s.Family.Children[j].PreferredGivenName, s.Family.Children[j])
-			if !s.Family.Children[j].BestBirthlikeEvent.GetDate().IsUnknown() {
+			if s.Family.Children[j].BestBirthlikeEvent != nil && !s.Family.Children[j].BestBirthlikeEvent.GetDate().IsUnknown() {
 				children[j] += fmt.Sprintf(" (%s)", s.Family.Children[j].BestBirthlikeEvent.ShortDescription())
 			}
 		}
@@ -420,7 +431,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 	if !endDate.IsUnknown() {
 		switch s.Family.EndReason {
 		case model.FamilyEndReasonDivorce:
-			end += "They divorced " + endDate.When() + "."
+			end += "they divorced " + endDate.When()
 		case model.FamilyEndReasonDeath:
 			if s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried {
 				if !s.EndedWithDeathOf(s.Principal) {
@@ -431,23 +442,23 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 						leavingWidow = " leaving her a widow"
 					}
 					end += ChooseFrom(seq,
-						other.PreferredFamiliarName+" died "+endDate.When()+".",
-						other.PreferredFamiliarName+" died "+endDate.When()+leavingWidow+".",
-						"However, "+endDate.When()+", "+other.PreferredFamiliarName+" died.",
-						"However, "+endDate.When()+", "+other.PreferredFamiliarName+" died "+leavingWidow+".",
+						other.PreferredFamiliarName+" died "+endDate.When(),
+						other.PreferredFamiliarName+" died "+endDate.When()+leavingWidow,
+						"however, "+endDate.When()+", "+other.PreferredFamiliarName+" died",
+						"however, "+endDate.When()+", "+other.PreferredFamiliarName+" died "+leavingWidow,
 					)
 				}
 			}
 		case model.FamilyEndReasonUnknown:
 			// TODO: format FamilyEndReasonUnknown
-			end += " unknown " + endDate.When()
+			end += "the marriage ended in " + endDate.When()
 		}
 	}
 	if end != "" {
-		detail += " " + end
+		detail = text.JoinSentences(detail, end)
 	}
 
-	enc.Para(intro.Text + detail)
+	enc.Para(detail)
 }
 
 func (s *FamilyStatement) Start() *model.Date {
@@ -863,7 +874,7 @@ func GenerateOlb(p *model.Person) error {
 		if bf.NumberOfSiblings > 0 && bf.BirthYear > 0 {
 			bf.PositionInFamily = 1
 			for _, ch := range p.Mother.Children {
-				if ch.BestBirthlikeEvent.GetDate().IsUnknown() {
+				if ch.BestBirthlikeEvent == nil || ch.BestBirthlikeEvent.GetDate().IsUnknown() {
 					bf.PositionInFamily = -1
 					break
 				}

@@ -68,7 +68,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 	}
 
 	encodeWikiTreeLink := func(p *model.Person) string {
-		return doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreePagePattern, p.ID))
+		return doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID))
 	}
 
 	doc.EmptyPara()
@@ -403,7 +403,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if !hasExcludedTranscriptionSource(c) {
 		if len(c.TranscriptionText) > 0 {
 			for _, t := range c.TranscriptionText {
-				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(text.StripNewlines(t))+`"`)
+				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(text.StripNewlines(t.Text))+`"`)
 			}
 		}
 	}

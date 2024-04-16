@@ -2,6 +2,7 @@ package site
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -9,7 +10,7 @@ import (
 func CreateFile(fname string) (*os.File, error) {
 	path := filepath.Dir(fname)
 
-	if err := os.MkdirAll(path, 0777); err != nil {
+	if err := os.MkdirAll(path, 0o777); err != nil {
 		return nil, fmt.Errorf("create path: %w", err)
 	}
 
@@ -19,4 +20,28 @@ func CreateFile(fname string) (*os.File, error) {
 	}
 
 	return f, nil
+}
+
+func CopyFile(dst, src string) error {
+	if dst == src {
+		return fmt.Errorf("can't copy onto same file")
+	}
+
+	fsrc, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open source file: %w", err)
+	}
+	defer fsrc.Close()
+
+	fdst, err := CreateFile(dst)
+	if err != nil {
+		return fmt.Errorf("create destination file: %w", err)
+	}
+	defer fdst.Close()
+
+	if _, err := io.Copy(fdst, fsrc); err != nil {
+		return fmt.Errorf("copy: %w", err)
+	}
+
+	return nil
 }

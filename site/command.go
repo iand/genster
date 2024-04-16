@@ -30,6 +30,11 @@ var Command = &cli.Command{
 			Destination: &genopts.grampsFile,
 		},
 		&cli.StringFlag{
+			Name:        "gramps-dbname",
+			Usage:       "Name of the gramps database, used to keep IDs consistent between versions of the same database",
+			Destination: &genopts.grampsDatabaseName,
+		},
+		&cli.StringFlag{
 			Name:        "id",
 			Usage:       "Identifier to give this tree",
 			Destination: &genopts.treeID,
@@ -37,8 +42,13 @@ var Command = &cli.Command{
 		&cli.StringFlag{
 			Name:        "site",
 			Aliases:     []string{"s"},
-			Usage:       "Directory in which to write generated site",
+			Usage:       "Directory in which to write generated site", // usually the hugo content folder
 			Destination: &genopts.rootDir,
+		},
+		&cli.StringFlag{
+			Name:        "media",
+			Usage:       "Directory in which to copy media files", // usually the hugo static folder
+			Destination: &genopts.mediaDir,
 		},
 		&cli.StringFlag{
 			Name:        "basepath",
@@ -103,21 +113,23 @@ var Command = &cli.Command{
 }
 
 var genopts struct {
-	gedcomFile       string
-	grampsFile       string
-	treeID           string
-	rootDir          string
-	keyIndividual    string
-	includePrivate   bool
-	configDir        string
-	notesDir         string
-	basePath         string
-	inspect          string
-	generateWikiTree bool
-	generateHugo     bool
-	verbose          bool
-	veryverbose      bool
-	relation         string
+	gedcomFile         string
+	grampsFile         string
+	grampsDatabaseName string
+	treeID             string
+	rootDir            string
+	mediaDir           string
+	keyIndividual      string
+	includePrivate     bool
+	configDir          string
+	notesDir           string
+	basePath           string
+	inspect            string
+	generateWikiTree   bool
+	generateHugo       bool
+	verbose            bool
+	veryverbose        bool
+	relation           string
 }
 
 func gen(cc *cli.Context) error {
@@ -132,7 +144,7 @@ func gen(cc *cli.Context) error {
 			return fmt.Errorf("load gedcom: %w", err)
 		}
 	} else if genopts.grampsFile != "" {
-		l, err = gramps.NewLoader(genopts.grampsFile)
+		l, err = gramps.NewLoader(genopts.grampsFile, genopts.grampsDatabaseName)
 		if err != nil {
 			return fmt.Errorf("load gedcom: %w", err)
 		}
@@ -184,10 +196,9 @@ func gen(cc *cli.Context) error {
 
 	}
 
-	s := NewSite(genopts.basePath, t)
+	s := NewSite(genopts.basePath, genopts.generateHugo, t)
 	s.IncludePrivate = genopts.includePrivate
 	s.GenerateWikiTree = genopts.generateWikiTree
-	s.GenerateHugo = genopts.generateHugo
 
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)
@@ -201,8 +212,10 @@ func gen(cc *cli.Context) error {
 		return fmt.Errorf("generate: %w", err)
 	}
 
+	inclusionFunc := func(*model.Person) bool { return true }
+
 	skipPage := func(p *model.Person) (bool, error) {
-		s.SkippedPersonPages[p.ID] = true
+		// s.SkippedPersonPages[p.ID] = true
 		return true, nil
 	}
 
@@ -210,14 +223,18 @@ func gen(cc *cli.Context) error {
 	case "direct":
 		logging.Info("only generating pages for direct ancestors")
 		s.Tree.ApplyPeopleMatching(model.PersonIsNotDirectAncestor(), skipPage)
+		inclusionFunc = model.PersonIsDirectAncestor()
 	case "common":
 		logging.Info("only generating pages for people with common ancestors")
-		s.Tree.ApplyPeopleMatching(model.PersonDoesNotHaveCommonAncestor(), skipPage)
+		// s.Tree.ApplyPeopleMatching(model.PersonDoesNotHaveCommonAncestor(), skipPage)
+		inclusionFunc = model.PersonHasCommonAncestor()
 	case "any":
 		break
 	default:
 		return fmt.Errorf("unsupported relation option: %s", genopts.relation)
 	}
+
+	s.BuildPublishSet(inclusionFunc)
 
 	if genopts.inspect != "" {
 		if strings.HasPrefix(genopts.inspect, "person/") {
@@ -232,8 +249,8 @@ func gen(cc *cli.Context) error {
 		}
 	}
 
-	if genopts.rootDir != "" {
-		if err := s.WritePages(genopts.rootDir); err != nil {
+	if genopts.rootDir != "" && genopts.mediaDir != "" {
+		if err := s.WritePages(genopts.rootDir, genopts.mediaDir); err != nil {
 			return fmt.Errorf("write pages: %w", err)
 		}
 	}

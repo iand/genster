@@ -7,6 +7,20 @@ import (
 	"github.com/iand/genster/text"
 )
 
+type MarkdownDoc interface {
+	ExtendedMarkdownBuilder
+	SetFrontMatterField(k, v string)
+	Title(s string)
+	Summary(s string)
+	Layout(s string)
+	Category(s string)
+	ID(s string)
+	AddTag(s string)
+	AddTags(ss []string)
+	ResetSeenLinks()
+	RawMarkdown(s string)
+}
+
 type ExtendedMarkdownBuilder interface {
 	ExtendedMarkdownEncoder
 	MarkdownBuilder

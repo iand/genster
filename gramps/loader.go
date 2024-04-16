@@ -1,8 +1,11 @@
 package gramps
 
 import (
+	"bufio"
+	"compress/gzip"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 
@@ -18,9 +21,12 @@ var startsWithNumber = regexp.MustCompile(`^[1-9]`)
 
 type ModelFinder interface {
 	FindPerson(scope string, id string) *model.Person
+	FindCitation(scope string, id string) (*model.GeneralCitation, bool)
 	FindSource(scope string, id string) *model.Source
+	FindRepository(scope string, id string) *model.Repository
 	FindPlace(name string, id string) *model.Place
 	FindFamilyByParents(father *model.Person, mother *model.Person) *model.Family
+	FindMediaObject(path string) *model.MediaObject
 	AddAlias(alias string, canonical string)
 }
 
@@ -41,20 +47,20 @@ type Loader struct {
 	censusEvents         map[string]*model.CensusEvent
 }
 
-func NewLoader(filename string) (*Loader, error) {
-	data, err := os.ReadFile(filename)
+func NewLoader(filename string, databaseName string) (*Loader, error) {
+	db, err := openGrampsDB(filename)
 	if err != nil {
 		return nil, fmt.Errorf("open gramps file: %w", err)
 	}
 
-	var db grampsxml.Database
-	if err := xml.Unmarshal(data, &db); err != nil {
-		return nil, fmt.Errorf("unmarshal gramps xml: %w", err)
+	scope := filename
+	if databaseName != "" {
+		scope = databaseName
 	}
 
 	l := &Loader{
-		DB:                   &db,
-		ScopeName:            filename,
+		DB:                   db,
+		ScopeName:            scope,
 		TagsByHandle:         make(map[string]*grampsxml.Tag),
 		EventsByHandle:       make(map[string]*grampsxml.Event),
 		PeopleByHandle:       make(map[string]*grampsxml.Person),
@@ -70,12 +76,6 @@ func NewLoader(filename string) (*Loader, error) {
 	}
 
 	l.indexObjects()
-	// l.readTags()
-
-	// if id, ok := l.Attrs["ANCESTRY_TREE_ID"]; ok {
-	// 	l.ScopeName = fmt.Sprintf("ANCESTRY_TREE_%s", id)
-	// }
-
 	return l, nil
 }
 
@@ -181,6 +181,20 @@ func (l *Loader) Load(t *tree.Tree) error {
 	// }
 	// logging.Info(fmt.Sprintf("loaded %d source records", len(l.Gedcom.Source)))
 
+	for _, o := range l.DB.Objects.Object {
+		if err := l.populateObjectFacts(t, &o); err != nil {
+			return fmt.Errorf("object: %w", err)
+		}
+	}
+	logging.Info(fmt.Sprintf("loaded %d object records", len(l.DB.Objects.Object)))
+
+	for _, p := range l.DB.Repositories.Repository {
+		if err := l.populateRepositoryFacts(t, &p); err != nil {
+			return fmt.Errorf("repository: %w", err)
+		}
+	}
+	logging.Info(fmt.Sprintf("loaded %d repository records", len(l.DB.Repositories.Repository)))
+
 	for _, p := range l.DB.Sources.Source {
 		if err := l.populateSourceFacts(t, &p); err != nil {
 			return fmt.Errorf("source: %w", err)
@@ -212,9 +226,43 @@ func (l *Loader) Load(t *tree.Tree) error {
 	return nil
 }
 
+func openGrampsDB(fname string) (*grampsxml.Database, error) {
+	f, err := os.Open(fname)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	br := bufio.NewReader(f)
+	b, err := br.Peek(2)
+	if err != nil {
+		return nil, fmt.Errorf("peeking leading bytes: %w", err)
+	}
+
+	var r io.Reader = br
+	if b[0] == 31 && b[1] == 139 {
+		r, err = gzip.NewReader(r)
+		if err != nil {
+			return nil, fmt.Errorf("reading gzip: %w", err)
+		}
+	}
+
+	var db grampsxml.Database
+	dec := xml.NewDecoder(r)
+	if err := dec.Decode(&db); err != nil {
+		return nil, fmt.Errorf("unmarshal xml: %w", err)
+	}
+
+	return &db, nil
+}
+
 func pval[T any](v *T, def T) T {
 	if v == nil {
 		return def
 	}
 	return *v
+}
+
+func p[T any](v T) *T {
+	return &v
 }
