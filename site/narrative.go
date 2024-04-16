@@ -229,11 +229,33 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	}
 	detail = text.FinishSentence(detail)
 
+	// Twin association?
+	twinClause := false
+	if len(s.Principal.Associations) > 0 {
+		for _, as := range s.Principal.Associations {
+			if as.Kind != model.AssociationKindTwin {
+				continue
+			}
+			twinLink := enc.EncodeModelLink(as.Other.PreferredFamiliarName, as.Other)
+
+			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", s.Principal.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations))
+			twinClause = true
+			break
+		}
+	}
+
 	// Insert baptism here if there is only one, otherwise leave for a new para
 	if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent {
 		bapDetail := AgeWhenWhere(s.Baptisms[0], enc)
 		if bapDetail != "" {
-			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
+
+			if twinClause {
+				detail = text.JoinSentenceParts(detail, "and")
+			} else {
+				detail = text.JoinSentenceParts(detail, text.FinishSentence(detail), text.UpperFirst(s.Principal.Gender.SubjectPronoun()))
+			}
+
+			detail = text.JoinSentenceParts(detail, "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
 			detail = text.FinishSentence(detail)
 		}
 

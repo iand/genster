@@ -43,8 +43,11 @@ func RenderSourcePage(s *Site, c *model.GeneralCitation) (*md.Document, error) {
 	}
 
 	for _, mo := range c.MediaObjects {
-		doc.EmptyPara()
-		doc.Image(mo.ID, s.LinkFor(mo))
+		link := s.LinkFor(mo)
+		if link != "" {
+			doc.EmptyPara()
+			doc.Image(mo.ID, s.LinkFor(mo))
+		}
 	}
 
 	if len(c.TranscriptionText) > 0 {

@@ -53,7 +53,7 @@ func (g Gender) ChildNoun() string {
 	}
 }
 
-// RelationToParentNoun returns the general noun to use for parent relation: son/daughter or child if sex is unknown  (this person is the ___ of their parent)
+// RelationToParentNoun returns the general noun to use for parent relation: son/daughter or child if gender is unknown  (this person is the ___ of their parent)
 func (g Gender) RelationToParentNoun() string {
 	switch g {
 	case GenderMale:
@@ -65,7 +65,7 @@ func (g Gender) RelationToParentNoun() string {
 	}
 }
 
-// RelationToChildrenNoun returns the general noun to use for child relation: father/mother or parent if sex is unknown  (this person is the ___ of their child)
+// RelationToChildrenNoun returns the general noun to use for child relation: father/mother or parent if gender is unknown  (this person is the ___ of their child)
 func (g Gender) RelationToChildrenNoun() string {
 	switch g {
 	case GenderMale:
@@ -77,7 +77,7 @@ func (g Gender) RelationToChildrenNoun() string {
 	}
 }
 
-// RelationToSpouseNoun returns the general noun to use for spouse relation: husband/wife or spouse if sex is unknown  (this person is the ___ of their spouse)
+// RelationToSpouseNoun returns the general noun to use for spouse relation: husband/wife or spouse if gender is unknown  (this person is the ___ of their spouse)
 func (g Gender) RelationToSpouseNoun() string {
 	switch g {
 	case GenderMale:
@@ -97,6 +97,18 @@ func (g Gender) RelationToSpouseNounPlural() string {
 		return "wives"
 	default:
 		return "spouses"
+	}
+}
+
+// RelationToSpouseNoun returns the general noun to use for sibling relation: brother/sister or sibling if gender is unknown  (this person is the ___ of their sibling)
+func (g Gender) RelationToSiblingNoun() string {
+	switch g {
+	case GenderMale:
+		return "brother"
+	case GenderFemale:
+		return "sister"
+	default:
+		return "sibling"
 	}
 }
 

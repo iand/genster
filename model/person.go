@@ -68,6 +68,7 @@ type Person struct {
 	Anomalies          []*Anomaly    // list of anomalies detected
 	ToDos              []*ToDo       // list of todos detected
 	MiscFacts          []Fact        // miscellaneous facts
+	Associations       []Association // general associations with other people such as godparent or twin
 	FeatureImage       *FeatureImage // an image that can be used to represent the person
 	ResearchNotes      []*Note       // research notes associated with this person
 }

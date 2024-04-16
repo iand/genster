@@ -10,3 +10,15 @@ type Fact struct {
 	Detail    string
 	Citations []*GeneralCitation
 }
+
+type AssociationKind string
+
+const (
+	AssociationKindTwin AssociationKind = "twin"
+)
+
+type Association struct {
+	Kind      AssociationKind
+	Other     *Person
+	Citations []*GeneralCitation
+}

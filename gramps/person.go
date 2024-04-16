@@ -437,6 +437,31 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 	}
 
+	// Add associations
+	for _, pr := range gp.Personref {
+		ap, ok := l.PeopleByHandle[pr.Hlink]
+		if !ok {
+			continue
+		}
+		id := pval(ap.ID, ap.Handle)
+		other := m.FindPerson(l.ScopeName, id)
+
+		switch strings.ToLower(pr.Rel) {
+		case "twin":
+			assoc := model.Association{
+				Kind:  model.AssociationKindTwin,
+				Other: other,
+			}
+			if len(pr.Citationref) > 0 {
+				assoc.Citations, _ = l.parseCitationRecords(m, pr.Citationref, logger)
+			}
+
+			p.Associations = append(p.Associations, assoc)
+		default:
+			logger.Warn("unhandled person reference relation", "handle", gp.Handle, "rel", pr.Rel)
+		}
+	}
+
 	return nil
 }
 
