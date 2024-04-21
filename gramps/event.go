@@ -2,6 +2,7 @@ package gramps
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/model"
@@ -56,8 +57,20 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 	// - Regular
 	// - Estimated
 	// - Calculated
-	if dv.Quality != nil && *dv.Quality != "Regular" {
-		return nil, fmt.Errorf("Quality not supported")
+
+	var deriv model.DateDerivation
+	if dv.Quality != nil {
+		switch strings.ToLower(*dv.Quality) {
+		case "regular":
+			deriv = model.DateDerivationStandard
+		case "estimated":
+			deriv = model.DateDerivationEstimated
+		case "calculated":
+			deriv = model.DateDerivationCalculated
+		default:
+			return nil, fmt.Errorf("quality value %q not supported", *dv.Quality)
+
+		}
 	}
 
 	dp := &gdate.Parser{}
@@ -99,7 +112,10 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 		break
 	}
 
-	return &model.Date{Date: dt}, nil
+	return &model.Date{
+		Date:       dt,
+		Derivation: deriv,
+	}, nil
 }
 
 func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
@@ -117,8 +133,19 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 	// - Regular
 	// - Estimated
 	// - Calculated
-	if dr.Quality != nil && *dr.Quality != "Regular" {
-		return nil, fmt.Errorf("Quality not supported")
+	var deriv model.DateDerivation
+	if dr.Quality != nil {
+		switch strings.ToLower(*dr.Quality) {
+		case "regular":
+			deriv = model.DateDerivationStandard
+		case "estimated":
+			deriv = model.DateDerivationEstimated
+		case "calculated":
+			deriv = model.DateDerivationCalculated
+		default:
+			return nil, fmt.Errorf("quality value %q not supported", *dr.Quality)
+
+		}
 	}
 
 	// Currently only support quarter ranges
@@ -155,6 +182,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 					Y: mystart.Y,
 					Q: 1,
 				},
+				Derivation: deriv,
 			}, nil
 		} else if mystart.M == 4 && mystop.M == 6 {
 			return &model.Date{
@@ -163,6 +191,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 					Y: mystart.Y,
 					Q: 2,
 				},
+				Derivation: deriv,
 			}, nil
 		} else if mystart.M == 7 && mystop.M == 9 {
 			return &model.Date{
@@ -171,6 +200,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 					Y: mystart.Y,
 					Q: 3,
 				},
+				Derivation: deriv,
 			}, nil
 		} else if mystart.M == 10 && mystop.M == 12 {
 			return &model.Date{
@@ -179,6 +209,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 					Y: mystart.Y,
 					Q: 4,
 				},
+				Derivation: deriv,
 			}, nil
 		}
 	}

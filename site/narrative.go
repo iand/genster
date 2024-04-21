@@ -252,7 +252,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			if twinClause {
 				detail = text.JoinSentenceParts(detail, "and")
 			} else {
-				detail = text.JoinSentenceParts(detail, text.FinishSentence(detail), text.UpperFirst(s.Principal.Gender.SubjectPronoun()))
+				detail = text.JoinSentenceParts(text.FinishSentence(detail), text.UpperFirst(s.Principal.Gender.SubjectPronoun()))
 			}
 
 			detail = text.JoinSentenceParts(detail, "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))

@@ -43,16 +43,18 @@ func WhoWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string 
 		title = enc.EncodeModelLink(tev.GetParty1().PreferredFullName, tev.GetParty1()) + " and " + enc.EncodeModelLink(tev.GetParty2().PreferredFullName, tev.GetParty2())
 	}
 
-	title = text.JoinSentenceParts(title, ev.What())
-	date := ev.GetDate()
-	if !date.IsUnknown() {
-		title = text.JoinSentenceParts(title, date.When())
-	}
+	title = text.JoinSentenceParts(title, WhatWhenWhere(ev, enc))
 
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
+	// title = text.JoinSentenceParts(title, ev.What())
+	// date := ev.GetDate()
+	// if !date.IsUnknown() {
+	// 	title = text.JoinSentenceParts(title, date.When())
+	// }
+
+	// pl := ev.GetPlace()
+	// if !pl.IsUnknown() {
+	// 	title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	// }
 	return title
 }
 
@@ -60,6 +62,10 @@ func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
 	title := ev.What()
 	date := ev.GetDate()
 	if !date.IsUnknown() {
+		qual := date.Derivation.Qualifier()
+		if qual != "" {
+			title = text.JoinSentenceParts(qual, "to have been", title)
+		}
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
@@ -151,9 +157,14 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	principal := ev.GetPrincipal()
 	date := ev.GetDate()
 
-	inference := ""
+	qual := ""
 	if ev.IsInferred() {
-		inference = "inferred to have"
+		qual = "inferred to have"
+	} else if !t.omitDate && !date.IsUnknown() {
+		qual = date.Derivation.Qualifier()
+		if qual != "" {
+			qual += " to have"
+		}
 	}
 
 	includeAge := true
@@ -172,7 +183,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	// Add person info if known and not the pov person
 	if !principal.IsUnknown() {
 		if principal.SameAs(t.pov.Person) {
-			title = text.JoinSentenceParts(title, inference, ev.What())
+			title = text.JoinSentenceParts(title, qual, ev.What())
 			// add their age, if its not their earliest event
 			if includeAge {
 				if ev != t.pov.Person.BestBirthlikeEvent {
@@ -184,7 +195,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 		} else {
 			// This is someone else's event
 			obsContext := t.observerContext(ev)
-			title = text.JoinSentenceParts(title, obsContext, inference, ev.What())
+			title = text.JoinSentenceParts(title, obsContext, qual, ev.What())
 			// add their age, if its not their earliest event
 			if includeAge {
 				if ev != ev.GetPrincipal().BestBirthlikeEvent {
@@ -202,7 +213,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 
 	// Add date if known
 	if !t.omitDate && !date.IsUnknown() {
-		title += " " + date.When()
+		title = text.JoinSentenceParts(title, date.When())
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {

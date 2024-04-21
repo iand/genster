@@ -8,7 +8,27 @@ import (
 )
 
 type Date struct {
-	Date gdate.Date
+	Date       gdate.Date
+	Derivation DateDerivation
+}
+
+type DateDerivation int
+
+const (
+	DateDerivationStandard   DateDerivation = 0 // date is as given in source
+	DateDerivationEstimated  DateDerivation = 1 // date was estimated from typical values (such as year of birth estimated from marriage)
+	DateDerivationCalculated DateDerivation = 2 // date was calculated from another date (such as date of birth calculated using age at death)
+)
+
+func (d DateDerivation) Qualifier() string {
+	switch d {
+	case DateDerivationEstimated:
+		return "estimated"
+	case DateDerivationCalculated:
+		return "calculated"
+	default:
+		return ""
+	}
 }
 
 func UnknownDate() *Date {
@@ -72,9 +92,14 @@ func (d *Date) IsUnknown() bool {
 	return ok
 }
 
-// IsEstimated reports whether d is a firm date or range of dates
+// IsEstimated reports whether d is a firm date or date range. Imprecise or estimated
+// dates return false.
 func (d *Date) IsFirm() bool {
 	if d == nil {
+		return false
+	}
+
+	if d.Derivation != DateDerivationStandard {
 		return false
 	}
 
@@ -91,7 +116,12 @@ func (d *Date) String() string {
 		return "unknown"
 	}
 
-	return d.Date.String()
+	qual := d.Derivation.Qualifier()
+	if qual != "" {
+		qual += " "
+	}
+
+	return qual + d.Date.String()
 }
 
 func (d *Date) When() string {
