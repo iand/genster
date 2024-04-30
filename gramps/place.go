@@ -20,7 +20,9 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	case "Country":
 		pl.PlaceType = model.PlaceTypeCountry
 	case "Building":
-		pl.PlaceType = model.PlaceTypeAddress
+		pl.PlaceType = model.PlaceTypeBuilding
+	case "Street":
+		pl.PlaceType = model.PlaceTypeStreet
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
@@ -69,7 +71,11 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 					pl.PreferredFullName += ", " + po.PreferredFullName
 				}
 				if po.PreferredUniqueName != "" {
-					pl.PreferredUniqueName += ", " + po.PreferredUniqueName
+					if po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding {
+						pl.PreferredUniqueName += ", " + po.PreferredUniqueName
+					} else {
+						pl.PreferredUniqueName += ", " + po.PreferredName
+					}
 				}
 				if po.PreferredSortName != "" {
 					pl.PreferredSortName = po.PreferredSortName + ", " + pl.PreferredSortName

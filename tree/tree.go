@@ -473,21 +473,21 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 			case *model.BurialEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.BurialEvent); ok {
 					if tev.Date.SortsBefore(bev.Date) {
-						p.BestDeathlikeEvent = ev
+						p.BestDeathlikeEvent = tev
 					}
 				} else if p.BestDeathlikeEvent == nil {
 					// use event only if no better event
-					p.BestDeathlikeEvent = ev
+					p.BestDeathlikeEvent = tev
 				}
 
 			case *model.CremationEvent:
 				if bev, ok := p.BestDeathlikeEvent.(*model.CremationEvent); ok {
 					if tev.Date.SortsBefore(bev.Date) {
-						p.BestDeathlikeEvent = ev
+						p.BestDeathlikeEvent = tev
 					}
 				} else if p.BestDeathlikeEvent == nil {
 					// use event only if no better event
-					p.BestDeathlikeEvent = ev
+					p.BestDeathlikeEvent = tev
 				}
 
 			case *model.ProbateEvent:

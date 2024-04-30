@@ -105,7 +105,7 @@ var Command = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "relation",
-			Usage:       "Only include people who are related to the key person. One of 'direct' (must be a direct ancestor), 'common' (must have a common ancestor) or 'any' (any relation). Ignored if no key person is specified.",
+			Usage:       "Only generate pages for people who are related to the key person. One of 'direct' (must be a direct ancestor), 'common' (must have a common ancestor) or 'any' (any relation). Ignored if no key person is specified.",
 			Value:       "any",
 			Destination: &genopts.relation,
 		},
@@ -214,19 +214,12 @@ func gen(cc *cli.Context) error {
 
 	inclusionFunc := func(*model.Person) bool { return true }
 
-	skipPage := func(p *model.Person) (bool, error) {
-		// s.SkippedPersonPages[p.ID] = true
-		return true, nil
-	}
-
 	switch genopts.relation {
 	case "direct":
 		logging.Info("only generating pages for direct ancestors")
-		s.Tree.ApplyPeopleMatching(model.PersonIsNotDirectAncestor(), skipPage)
 		inclusionFunc = model.PersonIsDirectAncestor()
 	case "common":
 		logging.Info("only generating pages for people with common ancestors")
-		// s.Tree.ApplyPeopleMatching(model.PersonDoesNotHaveCommonAncestor(), skipPage)
 		inclusionFunc = model.PersonHasCommonAncestor()
 	case "any":
 		break

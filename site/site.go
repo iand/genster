@@ -18,6 +18,7 @@ const (
 	PageLayoutPerson         PageLayout = "person"
 	PageLayoutPlace          PageLayout = "place"
 	PageLayoutSource         PageLayout = "source"
+	PageLayoutCitation       PageLayout = "citation"
 	PageLayoutListInferences PageLayout = "listinferences"
 	PageLayoutListAnomalies  PageLayout = "listanomalies"
 	PageLayoutListTodo       PageLayout = "listtodo"
@@ -34,18 +35,20 @@ const (
 func (p PageLayout) String() string { return string(p) }
 
 const (
-	PageSectionPerson = "person"
-	PageSectionPlace  = "place"
-	PageSectionSource = "source"
-	PageSectionList   = "list"
-	PageSectionChart  = "chart"
-	PageSectionMedia  = "media"
+	PageSectionPerson   = "person"
+	PageSectionPlace    = "place"
+	PageSectionCitation = "citation"
+	PageSectionSource   = "source"
+	PageSectionList     = "list"
+	PageSectionChart    = "chart"
+	PageSectionMedia    = "media"
 )
 
 const (
-	PageCategoryPerson = "person"
-	PageCategorySource = "source"
-	PageCategoryPlace  = "place"
+	PageCategoryPerson   = "person"
+	PageCategoryCitation = "citation"
+	PageCategorySource   = "source"
+	PageCategoryPlace    = "place"
 )
 
 type Site struct {
@@ -59,6 +62,9 @@ type Site struct {
 	SourceDir           string
 	SourceLinkPattern   string
 	SourceFilePattern   string
+	CitationDir         string
+	CitationLinkPattern string
+	CitationFilePattern string
 	FamilyLinkPattern   string
 	CalendarLinkPattern string
 	FamilyFilePattern   string
@@ -114,6 +120,10 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		SourceDir:         PageSectionSource,
 		SourceLinkPattern: path.Join(baseURL, PageSectionSource, "/%s/"),
 		SourceFilePattern: path.Join(PageSectionSource, "/%s/", indexPage),
+
+		CitationDir:         PageSectionCitation,
+		CitationLinkPattern: path.Join(baseURL, PageSectionCitation, "/%s/"),
+		CitationFilePattern: path.Join(PageSectionCitation, "/%s/", indexPage),
 
 		FamilyLinkPattern: path.Join(baseURL, "family/%s/"),
 		FamilyFilePattern: path.Join("/family/%s/", indexPage),
@@ -345,9 +355,12 @@ func (s *Site) LinkFor(v any) string {
 		if _, ok := s.PublishSet.Citations[vt.ID]; !ok {
 			return ""
 		}
+		return fmt.Sprintf(s.CitationLinkPattern, vt.ID)
+	case *model.Source:
+		if _, ok := s.PublishSet.Sources[vt.ID]; !ok {
+			return ""
+		}
 		return fmt.Sprintf(s.SourceLinkPattern, vt.ID)
-	// case *model.Source:
-	// 	return fmt.Sprintf(s.SourceLinkPattern, vt.ID)
 	case *model.Family:
 		if _, ok := s.PublishSet.Families[vt.ID]; !ok {
 			return ""

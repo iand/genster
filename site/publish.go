@@ -64,14 +64,28 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		if s.LinkFor(c) == "" {
 			continue
 		}
-		d, err := RenderSourcePage(s, c)
+		d, err := RenderCitationPage(s, c)
 		if err != nil {
-			return fmt.Errorf("render source page: %w", err)
+			return fmt.Errorf("render citation page: %w", err)
 		}
-		if err := writePage(d, contentDir, fmt.Sprintf(s.SourceFilePattern, c.ID)); err != nil {
-			return fmt.Errorf("write source page: %w", err)
+		if err := writePage(d, contentDir, fmt.Sprintf(s.CitationFilePattern, c.ID)); err != nil {
+			return fmt.Errorf("write citation page: %w", err)
 		}
 	}
+
+	// Not publishing sources at this time
+	// for _, so := range s.PublishSet.Sources {
+	// 	if s.LinkFor(so) == "" {
+	// 		continue
+	// 	}
+	// 	d, err := RenderSourcePage(s, so)
+	// 	if err != nil {
+	// 		return fmt.Errorf("render source page: %w", err)
+	// 	}
+	// 	if err := writePage(d, contentDir, fmt.Sprintf(s.SourceFilePattern, so.ID)); err != nil {
+	// 		return fmt.Errorf("write source page: %w", err)
+	// 	}
+	// }
 
 	for _, mo := range s.PublishSet.MediaObjects {
 		// TODO: redaction
@@ -124,9 +138,10 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		return fmt.Errorf("write place list pages: %w", err)
 	}
 
-	if err := s.WriteSourceListPages(contentDir); err != nil {
-		return fmt.Errorf("write source list pages: %w", err)
-	}
+	// Not publishing sources at this time
+	// if err := s.WriteSourceListPages(contentDir); err != nil {
+	// 	return fmt.Errorf("write source list pages: %w", err)
+	// }
 
 	if err := s.WriteSurnameListPages(contentDir); err != nil {
 		return fmt.Errorf("write surname list pages: %w", err)
@@ -729,10 +744,10 @@ func (s *Site) WriteChartAncestors(root string) error {
 				adds = append(adds, ancestors[i].PrimaryOccupation)
 			}
 			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, WhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
 			}
 			if ancestors[i].BestDeathlikeEvent != nil && !ancestors[i].BestDeathlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, WhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc))
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc))
 			}
 
 			detail = text.AppendClause(detail, text.JoinList(adds))

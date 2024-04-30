@@ -312,6 +312,10 @@ func InferPersonGeneralFacts(p *model.Person) error {
 		}
 	}
 
+	if yrs, ok := p.AgeInYearsAtDeath(); ok && yrs < 18 {
+		p.DiedYoung = true
+	}
+
 	return nil
 }
 

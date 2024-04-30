@@ -34,66 +34,6 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuild
 	return nil
 }
 
-func WhoWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
-	var title string
-	switch tev := ev.(type) {
-	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(tev.GetPrincipal().PreferredFullName, tev.GetPrincipal())
-	case model.PartyTimelineEvent:
-		title = enc.EncodeModelLink(tev.GetParty1().PreferredFullName, tev.GetParty1()) + " and " + enc.EncodeModelLink(tev.GetParty2().PreferredFullName, tev.GetParty2())
-	}
-
-	title = text.JoinSentenceParts(title, WhatWhenWhere(ev, enc))
-
-	// title = text.JoinSentenceParts(title, ev.What())
-	// date := ev.GetDate()
-	// if !date.IsUnknown() {
-	// 	title = text.JoinSentenceParts(title, date.When())
-	// }
-
-	// pl := ev.GetPlace()
-	// if !pl.IsUnknown() {
-	// 	title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	// }
-	return title
-}
-
-func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
-	title := ev.What()
-	date := ev.GetDate()
-	if !date.IsUnknown() {
-		qual := date.Derivation.Qualifier()
-		if qual != "" {
-			title = text.JoinSentenceParts(qual, "to have been", title)
-		}
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
-	return title
-}
-
-func AgeWhenWhere(ev model.IndividualTimelineEvent, enc ExtendedInlineEncoder) string {
-	title := ""
-
-	date := ev.GetDate()
-	if !date.IsUnknown() {
-		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok {
-			title = text.JoinSentenceParts(title, AgeQualifier(age))
-		}
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
-	return title
-}
-
 type TimelineEntryFormatter struct {
 	pov      *model.POV
 	enc      ExtendedMarkdownEncoder

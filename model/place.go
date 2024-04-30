@@ -75,9 +75,11 @@ func UnknownPlace() *Place {
 type PlaceType string
 
 const (
-	PlaceTypeUnknown = "place"
-	PlaceTypeAddress = "address"
-	PlaceTypeCountry = "country"
+	PlaceTypeUnknown  = "place"
+	PlaceTypeAddress  = "address"
+	PlaceTypeCountry  = "country"
+	PlaceTypeBuilding = "building"
+	PlaceTypeStreet   = "street"
 )
 
 func (p PlaceType) String() string {
@@ -86,7 +88,9 @@ func (p PlaceType) String() string {
 
 func (p PlaceType) InAt() string {
 	switch p {
-	case PlaceTypeAddress:
+	case PlaceTypeAddress, PlaceTypeBuilding:
+		return "at"
+	case PlaceTypeStreet:
 		return "at"
 	default:
 		return "in"

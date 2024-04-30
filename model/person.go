@@ -26,17 +26,18 @@ type Person struct {
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
 	Father                    *Person
 	Mother                    *Person
-	Spouses                   []*Person     // list of people this person was in a relationship with
-	Children                  []*Person     // list of people this person was considered a parent to
-	Families                  []*Family     // list of families this person participated in as a parent
-	VitalYears                string        // best guess at year of birth and death in yyyy-yyyy format
-	BestBirthlikeEvent        TimelineEvent // event that best represents the person's birth
-	BestDeathlikeEvent        TimelineEvent // event that best represents the person's death
+	Spouses                   []*Person               // list of people this person was in a relationship with
+	Children                  []*Person               // list of people this person was considered a parent to
+	Families                  []*Family               // list of families this person participated in as a parent
+	VitalYears                string                  // best guess at year of birth and death in yyyy-yyyy format
+	BestBirthlikeEvent        IndividualTimelineEvent // event that best represents the person's birth
+	BestDeathlikeEvent        IndividualTimelineEvent // event that best represents the person's death
 	Timeline                  []TimelineEvent
 	BeingTense                string // tense to use when refering to person: 'is' if they are possibly alive, 'was' if they are dead
 
 	Historic      bool // true if this person lived in a period more than a lifespan before the present (more than 120 years ago)
 	PossiblyAlive bool // true if this person is possibly still alive, false if they are known to be dead or are historic
+	DiedYoung     bool // true if this person died before adulthood
 
 	Unknown            bool         // true if this person is known to have existed but no other information is known
 	Unmarried          bool         // true if it is known that the person did not marry

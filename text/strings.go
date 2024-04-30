@@ -396,6 +396,24 @@ func MaybePluralise(s string, quantity int) string {
 	return s
 }
 
+func MaybeWasVerb(verb string) string {
+	switch verb {
+	case "born", "baptised", "buried", "cremated":
+		return "was " + verb
+	default:
+		return verb
+	}
+}
+
+func MaybeHaveBeenVerb(verb string) string {
+	switch verb {
+	case "born", "baptised", "buried", "cremated":
+		return "have been " + verb
+	default:
+		return "have " + verb
+	}
+}
+
 var containsIsolatedNumber = regexp.MustCompile(`^(.*)\b([0-9]+)\b(.*)$`)
 
 func ReplaceFirstNumberWithCardinalNoun(s string) string {

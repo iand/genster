@@ -69,7 +69,7 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 		case *model.MarriageEvent:
 			evd.text = doc.EncodeModelLink(tev.Party1.PreferredUniqueName, tev.Party1) + " and " + doc.EncodeModelLink(tev.Party2.PreferredUniqueName, tev.Party2) + " were married."
 		default:
-			evd.text = WhatWhenWhere(tev, doc)
+			evd.text = EventWhatWhenWhere(tev, doc)
 		}
 
 		if tev, ok := ev.(model.IndividualTimelineEvent); ok {
