@@ -194,18 +194,22 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// TODO: position in family
 
 	// Prose parentage
-	parentage := text.LowerFirst(s.Principal.Gender.RelationToParentNoun()) + " of "
+	parentUnknownDetail := ""
+	parentDetail := ""
+	parentageDetailPrefix := "the " + text.LowerFirst(s.Principal.Gender.RelationToParentNoun()) + " of "
 	if s.Principal.Father.IsUnknown() {
 		if s.Principal.Mother.IsUnknown() {
-			parentage += "unknown parents"
+			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"
 		} else {
-			parentage += enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
+			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " father is not known"
+			parentDetail = parentageDetailPrefix + enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
 		}
 	} else {
 		if s.Principal.Mother.IsUnknown() {
-			parentage += enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father)
+			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " mother is not known"
+			parentDetail = parentageDetailPrefix + enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father)
 		} else {
-			parentage += enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father) + " and " + enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
+			parentDetail = parentageDetailPrefix + enc.EncodeModelLinkDedupe(s.Principal.Father.PreferredUniqueName, s.Principal.Father.PreferredFamiliarName, s.Principal.Father) + " and " + enc.EncodeModelLinkDedupe(s.Principal.Mother.PreferredUniqueName, s.Principal.Mother.PreferredFamiliarName, s.Principal.Mother)
 		}
 	}
 
@@ -215,16 +219,26 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	detail := s.Principal.PreferredGivenName
 
 	if s.Principal.NickName != "" {
-		detail += " (known as " + s.Principal.NickName + ")"
+		detail = text.JoinSentenceParts(detail, "(known as ", s.Principal.NickName, ")")
 	}
 
-	detail += " was "
+	// detail += " "
 	if birth != "" {
-		detail += birth + ", the " + parentage
+		detail = text.JoinSentenceParts(detail, birth)
+		if parentDetail != "" {
+			detail = text.AppendClause(detail, parentDetail)
+		}
 	} else {
-		detail += "the " + parentage
+		if parentDetail != "" {
+			detail = text.JoinSentenceParts(detail, parentDetail)
+		}
 	}
 	detail = text.FinishSentence(detail)
+
+	if parentUnknownDetail != "" {
+		detail = text.JoinSentences(detail, parentUnknownDetail)
+		detail = text.FinishSentence(detail)
+	}
 
 	// Twin association?
 	twinClause := false

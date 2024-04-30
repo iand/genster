@@ -45,27 +45,26 @@ func WhoWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string 
 }
 
 func EventWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
-	return WhatWhenWhere(InferredWhat(ev.What(), ev.IsInferred()), ev.GetDate(), ev.GetPlace(), enc)
+	return WhatWhenWhere(InferredWhat(ev.What(), ev), ev.GetDate(), ev.GetPlace(), enc)
 }
 
-func InferredWhat(what string, inferred bool) string {
-	if inferred {
+func InferredWhat(what string, ev model.TimelineEvent) string {
+	if ev.IsInferred() {
 		return "is inferred to " + text.MaybeHaveBeenVerb(what)
-	} else {
-		return text.MaybeWasVerb(what)
 	}
-}
 
-func WhatWhenWhere(what string, dt *model.Date, pl *model.Place, enc ExtendedInlineEncoder) string {
-	title := ""
-	if !dt.IsUnknown() {
-		qual := dt.Derivation.Qualifier()
+	if !ev.GetDate().IsUnknown() {
+		qual := ev.GetDate().Derivation.Qualifier()
 		if qual != "" {
-			title = text.JoinSentenceParts(qual, "to have been")
+			return "is " + qual + " to " + text.MaybeHaveBeenVerb(what)
 		}
 	}
 
-	return text.JoinSentenceParts(title, what, WhenWhere(dt, pl, enc))
+	return text.MaybeWasVerb(what)
+}
+
+func WhatWhenWhere(what string, dt *model.Date, pl *model.Place, enc ExtendedInlineEncoder) string {
+	return text.JoinSentenceParts(what, WhenWhere(dt, pl, enc))
 }
 
 func WhenWhere(dt *model.Date, pl *model.Place, enc ExtendedInlineEncoder) string {
@@ -246,7 +245,7 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 
 	if bap != nil {
 		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(bap.What(), bap.IsInferred()), bap.GetDate(), bap.GetPlace(), precedingEvent, enc))
+			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(bap.What(), bap), bap.GetDate(), bap.GetPlace(), precedingEvent, enc))
 			summary = text.FinishSentence(summary)
 			precedingEvent = nil
 		} else {
@@ -291,7 +290,7 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 		case model.CauseOfDeathSuicide:
 			deathWhat = "died by suicide"
 		}
-		deathWhat = InferredWhat(deathWhat, death.IsInferred())
+		deathWhat = InferredWhat(deathWhat, death)
 
 		if age, ok := p.AgeInYearsAt(death.GetDate()); ok {
 			if age <= 1 {
@@ -335,14 +334,14 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 		}
 
 		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(burial.What(), burial.IsInferred()), burial.GetDate(), burial.GetPlace(), precedingEvent, enc))
+			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(burial.What(), burial), burial.GetDate(), burial.GetPlace(), precedingEvent, enc))
 			summary = text.FinishSentence(summary)
 			precedingEvent = nil
 		} else {
 			if !firstEvent {
 				summary = text.JoinSentenceParts(summary, text.UpperFirst(p.Gender.SubjectPronoun()))
 			}
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(WhatWhenWhere(InferredWhat(burial.What(), burial.IsInferred()), burial.GetDate(), burial.GetPlace(), enc), burial.GetCitations()))
+			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(EventWhatWhenWhere(burial, enc), burial.GetCitations()))
 			if burialAdditional != "" {
 				summary = text.JoinSentenceParts(summary, burialAdditional)
 				summary = text.FinishSentence(summary)
