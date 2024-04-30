@@ -165,9 +165,16 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		}
 	}
 
-	if len(p.MiscFacts) > 0 {
-		doc.EmptyPara()
+	if len(p.MiscFacts) > 0 || len(p.KnownNames) > 1 {
 		doc.Heading2("Other Information")
+		if len(p.KnownNames) > 1 {
+			doc.EmptyPara()
+			doc.Para("Other names and variations")
+			if err := RenderNames(p.KnownNames, doc); err != nil {
+				return nil, fmt.Errorf("render names: %w", err)
+			}
+		}
+		doc.EmptyPara()
 		if err := RenderFacts(p.MiscFacts, pov, doc); err != nil {
 			return nil, fmt.Errorf("render facts: %w", err)
 		}

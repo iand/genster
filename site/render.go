@@ -73,3 +73,15 @@ func Tagify(s string) string {
 	s = strings.Join(parts, "-")
 	return s
 }
+
+func RenderNames(names []*model.Name, enc ExtendedMarkdownBuilder) error {
+	enc.EmptyPara()
+
+	namelist := make([]string, 0, len(names))
+	for _, n := range names {
+		namelist = append(namelist, enc.EncodeWithCitations(n.Name, n.Citations))
+	}
+
+	enc.UnorderedList(namelist)
+	return nil
+}
