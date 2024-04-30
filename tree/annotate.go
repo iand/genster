@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 
 	"github.com/flopp/go-coordsparser"
 	"github.com/iand/genster/model"
-	"golang.org/x/exp/slog"
 )
 
 type Annotations struct {

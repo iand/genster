@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/place"
-	"golang.org/x/exp/slog"
 )
 
 var ErrInvalidPlaceName = errors.New("invalid place name")

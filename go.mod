@@ -14,7 +14,6 @@ require (
 	github.com/iand/pontium v0.1.0
 	github.com/kortschak/utter v1.5.0
 	github.com/urfave/cli/v2 v2.24.4
-	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2
 )
 
 require (
@@ -23,4 +22,5 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.7.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 )

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/iand/genster/identifier"
-	"golang.org/x/exp/slog"
 )
 
 type IdentityMap struct {

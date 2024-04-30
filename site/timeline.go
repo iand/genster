@@ -2,10 +2,10 @@ package site
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
-	"golang.org/x/exp/slog"
 )
 
 func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuilder) error {

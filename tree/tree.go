@@ -2,6 +2,7 @@ package tree
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
-	"golang.org/x/exp/slog"
 )
 
 var _ = slog.Debug
