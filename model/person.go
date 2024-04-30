@@ -26,6 +26,7 @@ type Person struct {
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
 	Father                    *Person
 	Mother                    *Person
+	ParentFamily              *Family                 // the family that this person is a child in
 	Spouses                   []*Person               // list of people this person was in a relationship with
 	Children                  []*Person               // list of people this person was considered a parent to
 	Families                  []*Family               // list of families this person participated in as a parent

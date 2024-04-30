@@ -157,6 +157,67 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 	return detail
 }
 
+func PositionInFamily(p *model.Person) string {
+	if p.ParentFamily == nil {
+		return ""
+	}
+	if p.ParentFamily.Father.IsUnknown() && p.ParentFamily.Mother.IsUnknown() {
+		return ""
+	}
+
+	if len(p.ParentFamily.Children) == 0 {
+		return ""
+	}
+
+	var children []*model.Person
+	if p.ParentFamily.Father.IsUnknown() {
+		children = p.ParentFamily.Mother.Children
+	} else if p.ParentFamily.Mother.IsUnknown() {
+		children = p.ParentFamily.Father.Children
+	} else {
+		children = p.ParentFamily.Children
+	}
+
+	if len(children) == 1 {
+		return "only " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	olderSameGender := 0
+	youngerSameGender := 0
+	olderSameGenderSurvived := 0
+	childOlder := true
+	for _, c := range children {
+		if c.SameAs(p) {
+			childOlder = false
+			continue
+		}
+		if c.Gender == p.Gender {
+			if childOlder {
+				olderSameGender++
+				if !c.DiedYoung {
+					olderSameGenderSurvived++
+				}
+			} else {
+				youngerSameGender++
+			}
+		}
+	}
+
+	if olderSameGender == 0 {
+		return "eldest " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	if youngerSameGender == 0 {
+		return "youngest " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	if olderSameGenderSurvived != olderSameGender {
+		return text.OrdinalNoun(olderSameGenderSurvived+1) + " surviving " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	return text.OrdinalNoun(olderSameGender+1) + " " + text.LowerFirst(p.Gender.RelationToParentNoun())
+}
+
 // func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
 // 	title := ""
 // 	date := ev.GetDate()

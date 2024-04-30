@@ -196,7 +196,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// Prose parentage
 	parentUnknownDetail := ""
 	parentDetail := ""
-	parentageDetailPrefix := "the " + text.LowerFirst(s.Principal.Gender.RelationToParentNoun()) + " of "
+	parentageDetailPrefix := "the " + PositionInFamily(s.Principal) + " of "
 	if s.Principal.Father.IsUnknown() {
 		if s.Principal.Mother.IsUnknown() {
 			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"
@@ -216,7 +216,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// ---------------------------------------
 	// Build detail
 	// ---------------------------------------
-	detail := s.Principal.PreferredGivenName
+	detail := ""
 
 	if s.Principal.NickName != "" {
 		detail = text.JoinSentenceParts(detail, "(known as ", s.Principal.NickName, ")")
@@ -233,11 +233,15 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 			detail = text.JoinSentenceParts(detail, parentDetail)
 		}
 	}
-	detail = text.FinishSentence(detail)
+	if detail == "" {
+		detail = text.FormatSentence(text.JoinSentenceParts("nothing is known about the early life of", s.Principal.PreferredGivenName))
+	} else {
+		detail = text.FormatSentence(text.JoinSentenceParts(s.Principal.PreferredGivenName, detail))
 
-	if parentUnknownDetail != "" {
-		detail = text.JoinSentences(detail, parentUnknownDetail)
-		detail = text.FinishSentence(detail)
+		if parentUnknownDetail != "" {
+			detail = text.JoinSentences(detail, parentUnknownDetail)
+			detail = text.FinishSentence(detail)
+		}
 	}
 
 	// Twin association?

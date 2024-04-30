@@ -322,6 +322,11 @@ func (t *Tree) Generate(redactLiving bool) error {
 				return f.Children[a].BestBirthDate().SortsBefore(f.Children[b].BestBirthDate())
 			})
 		}
+
+		// Sort all chiildren of person
+		sort.Slice(p.Children, func(a, b int) bool {
+			return p.Children[a].BestBirthDate().SortsBefore(p.Children[b].BestBirthDate())
+		})
 	}
 
 	for _, p := range t.Places {
@@ -411,7 +416,12 @@ func (t *Tree) AddFamilies(p *model.Person) error {
 }
 
 func (t *Tree) InferFamilyRelationships(f *model.Family) error {
-	// for _, c := range f.Children {
+	for _, c := range f.Children {
+		if c.ParentFamily != nil {
+			logging.Warn("person already has a parent family", "id", c.ID)
+		}
+		c.ParentFamily = f
+	}
 	// 	if c.ID == "LUEW7HLX2PMWC" {
 	// 		fmt.Printf("Found LUEW7HLX2PMWC, father is %q, family father is %q, mother is %q, family mother is %q\n", personid(c.Father), personid(f.Father), personid(c.Mother), personid(f.Mother))
 	// 	}
