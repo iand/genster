@@ -11,7 +11,7 @@ require (
 	github.com/iand/gedcom v0.2.0
 	github.com/iand/grampsxml v0.0.0-20240314105040-9221c4f0d0d7
 	github.com/iand/gtree v0.0.0-20240416134904-ca666f06677c
-	github.com/iand/pontium v0.1.0
+	github.com/iand/pontium v0.3.14
 	github.com/kortschak/utter v1.5.0
 	github.com/urfave/cli/v2 v2.24.4
 )
@@ -22,5 +22,5 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.7.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 )
