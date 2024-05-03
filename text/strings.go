@@ -396,9 +396,16 @@ func MaybePluralise(s string, quantity int) string {
 	return s
 }
 
+func MaybePossessiveSuffix(s string) string {
+	if strings.HasSuffix(s, "s") {
+		return s + "'"
+	}
+	return s + "'s"
+}
+
 func MaybeWasVerb(verb string) string {
 	switch verb {
-	case "born", "baptised", "buried", "cremated":
+	case "born", "baptised", "buried", "cremated", "executed", "lost at sea", "killed in action":
 		return "was " + verb
 	default:
 		return verb
@@ -406,12 +413,11 @@ func MaybeWasVerb(verb string) string {
 }
 
 func MaybeHaveBeenVerb(verb string) string {
-	switch verb {
-	case "born", "baptised", "buried", "cremated":
-		return "have been " + verb
-	default:
-		return "have " + verb
+	st := MaybeWasVerb(verb)
+	if strings.HasPrefix(st, "was ") {
+		return "have been " + st[4:]
 	}
+	return "have " + st
 }
 
 var containsIsolatedNumber = regexp.MustCompile(`^(.*)\b([0-9]+)\b(.*)$`)

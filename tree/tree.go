@@ -533,16 +533,16 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 	}
 
 	if startYear == 0 && endYear == 0 {
-		p.VitalYears = "-?-"
+		p.VitalYears = model.UnknownDateRangePlaceholder
 	} else if startYear != 0 && endYear == 0 {
-		p.VitalYears = fmt.Sprintf("%d-", startYear)
+		p.VitalYears = fmt.Sprintf("%d–", startYear)
 		if !p.PossiblyAlive {
 			p.VitalYears += "?"
 		}
 	} else if startYear == 0 && endYear != 0 {
-		p.VitalYears = fmt.Sprintf("?-%d", endYear)
+		p.VitalYears = fmt.Sprintf("?–%d", endYear)
 	} else {
-		p.VitalYears = fmt.Sprintf("%d-%d", startYear, endYear)
+		p.VitalYears = fmt.Sprintf("%d–%d", startYear, endYear)
 	}
 
 	if p.PossiblyAlive {
@@ -624,20 +624,41 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 }
 
 func (t *Tree) RefinePersonNames(p *model.Person) error {
-	if p.NickName != "" {
-		p.PreferredFamiliarName = p.NickName
+	if p.PreferredFullName == model.UnknownNamePlaceholder+" "+model.UnknownNamePlaceholder {
+		if p.NickName != "" {
+			p.PreferredFullName = p.NickName
+			p.PreferredGivenName = p.NickName
+			p.PreferredFamiliarName = p.NickName
+			p.PreferredFamiliarFullName = p.NickName
+			p.PreferredFamilyName = p.NickName
+			p.PreferredSortName = p.NickName
+			p.PreferredUniqueName = p.NickName
+		} else {
+			p.PreferredFullName = "an unidentified person"
+			p.PreferredGivenName = "unidentified"
+			p.PreferredFamiliarName = "unidentified"
+			p.PreferredFamiliarFullName = "unidentified"
+			p.PreferredFamilyName = "unidentified"
+			p.PreferredSortName = "unidentified person"
+			p.PreferredUniqueName = "an unidentified person"
+		}
 	} else {
-		givenParts := strings.Split(p.PreferredGivenName, " ")
-		p.PreferredFamiliarName = givenParts[0]
-	}
-	p.PreferredFamiliarFullName = p.PreferredFamiliarName + " " + p.PreferredFamilyName
+		if p.NickName != "" {
+			p.PreferredFamiliarName = p.NickName
+		} else {
+			givenParts := strings.Split(p.PreferredGivenName, " ")
+			p.PreferredFamiliarName = givenParts[0]
+		}
+		p.PreferredFamiliarFullName = p.PreferredFamiliarName + " " + p.PreferredFamilyName
 
-	// Adjust names to include vital years
-	if p.VitalYears != "" {
-		p.PreferredUniqueName = fmt.Sprintf("%s (%s)", p.PreferredFullName, p.VitalYears)
-		p.PreferredSortName = fmt.Sprintf("%s (%s)", p.PreferredSortName, p.VitalYears)
+		// Adjust names to include vital years
+		if p.VitalYears != "" {
+			if p.VitalYears != model.UnknownDateRangePlaceholder {
+				p.PreferredUniqueName = fmt.Sprintf("%s (%s)", p.PreferredFullName, p.VitalYears)
+			}
+			p.PreferredSortName = fmt.Sprintf("%s (%s)", p.PreferredSortName, p.VitalYears)
+		}
 	}
-
 	return nil
 }
 

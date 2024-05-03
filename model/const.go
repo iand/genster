@@ -78,15 +78,34 @@ func (c CensusEntryMaritalStatus) String() string {
 	return string(c)
 }
 
-type CauseOfDeath string
+type ModeOfDeath string
 
 const (
-	CauseOfDeathSuicide        CauseOfDeath = "suicide"
-	CauseOfDeathLostAtSea      CauseOfDeath = "lost at sea"
-	CauseOfDeathKilledInAction CauseOfDeath = "killed in action"
-	CauseOfDeathDrowned        CauseOfDeath = "drowned"
+	ModeOfDeathNatural        ModeOfDeath = ""
+	ModeOfDeathSuicide        ModeOfDeath = "suicide"
+	ModeOfDeathLostAtSea      ModeOfDeath = "lost at sea"
+	ModeOfDeathKilledInAction ModeOfDeath = "killed in action"
+	ModeOfDeathDrowned        ModeOfDeath = "drowned"
+	ModeOfDeathExecuted       ModeOfDeath = "executed"
 )
 
-func (c CauseOfDeath) String() string {
-	return string(c)
+func (m ModeOfDeath) What() string {
+	switch m {
+
+	case ModeOfDeathNatural:
+		return "died"
+	case ModeOfDeathSuicide:
+		return "died by own hand"
+	case ModeOfDeathLostAtSea:
+		return ""
+	case ModeOfDeathKilledInAction:
+		return ""
+	case ModeOfDeathDrowned:
+		return ""
+	case ModeOfDeathExecuted:
+		return ""
+
+	default:
+		return string(m)
+	}
 }

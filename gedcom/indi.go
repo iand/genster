@@ -636,9 +636,15 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				case "common dna ancestor":
 					// This person is a common ancestor between yourself and at least one of your DNA Matches.
 				case "lost at sea":
-					p.CauseOfDeath = model.CauseOfDeathLostAtSea
+					p.ModeOfDeath = model.ModeOfDeathLostAtSea
 				case "killed in action":
-					p.CauseOfDeath = model.CauseOfDeathKilledInAction
+					p.ModeOfDeath = model.ModeOfDeathKilledInAction
+				case "suicide":
+					p.ModeOfDeath = model.ModeOfDeathSuicide
+				case "drowned":
+					p.ModeOfDeath = model.ModeOfDeathDrowned
+				case "executed", "execution":
+					p.ModeOfDeath = model.ModeOfDeathExecuted
 				default:
 					p.Tags = append(p.Tags, tag)
 				}

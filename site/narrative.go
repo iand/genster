@@ -281,7 +281,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	// ---------------------------------------
 	if !s.SuppressRelation {
 		if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
-			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is the " + s.Principal.RelationToKeyPerson.Name() + " of " + enc.EncodeModelLinkDedupe(s.Principal.RelationToKeyPerson.From.PreferredFamiliarFullName, s.Principal.RelationToKeyPerson.From.PreferredFamiliarName, s.Principal.RelationToKeyPerson.From)
+			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is " + enc.EncodeModelLink(text.MaybePossessiveSuffix(s.Principal.RelationToKeyPerson.From.PreferredFamiliarName), s.Principal.RelationToKeyPerson.From) + " " + s.Principal.RelationToKeyPerson.Name()
 		}
 	}
 
@@ -544,30 +544,32 @@ var _ Statement = (*DeathStatement)(nil)
 func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
 	var detail string
 
-	evDetail := ""
 	bev := s.Principal.BestDeathlikeEvent
-	switch bev.(type) {
-	case *model.DeathEvent:
-		if bev.IsInferred() {
-			evDetail = text.JoinSentenceParts(evDetail, "is inferred to have died")
-		} else {
-			evDetail = text.JoinSentenceParts(evDetail, "died")
-		}
-	case *model.BurialEvent:
-		if bev.IsInferred() {
-			evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been buried")
-		} else {
-			evDetail = text.JoinSentenceParts(evDetail, "was buried")
-		}
-	case *model.CremationEvent:
-		if bev.IsInferred() {
-			evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been cremated")
-		} else {
-			evDetail = text.JoinSentenceParts(evDetail, "was cremated")
-		}
-	default:
-		panic("unhandled deathlike event in DeathStatement")
-	}
+
+	evDetail := DeathWhat(bev, s.Principal.ModeOfDeath)
+
+	// switch bev.(type) {
+	// case *model.DeathEvent:
+	// 	if bev.IsInferred() {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have died")
+	// 	} else {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "died")
+	// 	}
+	// case *model.BurialEvent:
+	// 	if bev.IsInferred() {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been buried")
+	// 	} else {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "was buried")
+	// 	}
+	// case *model.CremationEvent:
+	// 	if bev.IsInferred() {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been cremated")
+	// 	} else {
+	// 		evDetail = text.JoinSentenceParts(evDetail, "was cremated")
+	// 	}
+	// default:
+	// 	panic("unhandled deathlike event in DeathStatement")
+	// }
 
 	if !bev.GetDate().IsUnknown() {
 		if age, ok := s.Principal.AgeInYearsAt(bev.GetDate()); ok {
@@ -614,10 +616,16 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 	}
 	detail += enc.EncodeWithCitations(evDetail, bev.GetCitations())
 
+	if s.Principal.CauseOfDeath != nil {
+		detail = text.FinishSentence(detail)
+		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(s.Principal.CauseOfDeath.Detail, s.Principal.CauseOfDeath.Citations)))
+	}
+
 	additionalDetailFromDeathEvent := EventNarrativeDetail(bev)
 
 	if additionalDetailFromDeathEvent != "" {
-		detail += ". " + additionalDetailFromDeathEvent
+		detail = text.FinishSentence(detail)
+		detail = text.JoinSentenceParts(detail, additionalDetailFromDeathEvent)
 	}
 
 	funerals := []model.TimelineEvent{}
@@ -676,7 +684,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Extend
 
 	}
 
-	detail += "."
+	detail = text.FinishSentence(detail)
 
 	if len(s.Principal.Families) > 0 {
 		sort.Slice(s.Principal.Families, func(i, j int) bool {

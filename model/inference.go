@@ -1,10 +1,10 @@
 package model
 
 const (
-	InferenceTypeYearOfBirth  = "Year of birth"
-	InferenceTypeYearOfDeath  = "Year of death"
-	InferenceTypeCauseOfDeath = "Cause of death"
-	InferenceTypeGeneralFact  = "General fact"
+	InferenceTypeYearOfBirth = "Year of birth"
+	InferenceTypeYearOfDeath = "Year of death"
+	InferenceTypeModeOfDeath = "Mode of death"
+	InferenceTypeGeneralFact = "General fact"
 )
 
 type Inference struct {

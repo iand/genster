@@ -54,9 +54,15 @@ func InferredWhat(what string, ev model.TimelineEvent) string {
 	}
 
 	if !ev.GetDate().IsUnknown() {
-		qual := ev.GetDate().Derivation.Qualifier()
-		if qual != "" {
-			return "is " + qual + " to " + text.MaybeHaveBeenVerb(what)
+		switch ev.GetDate().Derivation {
+		case model.DateDerivationEstimated:
+			what = text.MaybeWasVerb(what)
+			if strings.HasPrefix(what, "was ") {
+				return "was probably " + what[4:]
+			}
+			return "probably " + what
+		case model.DateDerivationCalculated:
+			return "is calculated to " + text.MaybeHaveBeenVerb(what)
 		}
 	}
 
@@ -105,6 +111,7 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 	}
 
 	if !dt.IsUnknown() {
+		suppressDate := false
 		intervalDesc := ""
 		in := preceding.GetDate().IntervalUntil(dt)
 		y, m, d, ok := in.YMD()
@@ -112,11 +119,14 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 			if y == 0 {
 				if m == 0 {
 					if d == 0 {
-						intervalDesc = "shortly after"
+						intervalDesc = "the same day"
+						suppressDate = true
 					} else if d == 1 {
 						intervalDesc = "the next day"
+						suppressDate = true
 					} else if d == 2 {
 						intervalDesc = "two days later"
+						suppressDate = true
 					} else if d < 7 {
 						intervalDesc = "a few days later"
 					} else if d < 10 {
@@ -147,7 +157,9 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 			detail = text.JoinSentenceParts(detail, intervalDesc)
 		}
 
-		detail = text.JoinSentenceParts(detail, dt.When())
+		if !suppressDate {
+			detail = text.JoinSentenceParts(detail, dt.When())
+		}
 	}
 
 	if !pl.IsUnknown() && !preceding.GetPlace().SameAs(pl) {
@@ -155,6 +167,37 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 	}
 
 	return detail
+}
+
+func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string {
+	var modeWhat string
+	switch mode {
+	case model.ModeOfDeathLostAtSea:
+		modeWhat = "lost at sea"
+	case model.ModeOfDeathKilledInAction:
+		modeWhat = "killed in action"
+	case model.ModeOfDeathDrowned:
+		modeWhat = "drowned"
+	case model.ModeOfDeathSuicide:
+		modeWhat = "died by suicide"
+	case model.ModeOfDeathExecuted:
+		modeWhat = "executed"
+	}
+
+	if modeWhat == "" {
+		return InferredWhat(ev.What(), ev)
+	}
+
+	switch ev.(type) {
+	case *model.DeathEvent:
+		return InferredWhat(modeWhat, ev)
+	case *model.BurialEvent:
+		return text.JoinSentenceParts(text.MaybeWasVerb(modeWhat), "and", InferredWhat(ev.What(), ev))
+	case *model.CremationEvent:
+		return text.JoinSentenceParts(text.MaybeWasVerb(modeWhat), "and", InferredWhat(ev.What(), ev))
+	default:
+		panic("unhandled deathlike event in DeathWhat")
+	}
 }
 
 func PositionInFamily(p *model.Person) string {
@@ -233,6 +276,10 @@ func PositionInFamily(p *model.Person) string {
 
 func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 	name := p.PreferredGivenName
+	if p.Redacted {
+		return enc.EncodeItalic(name)
+	}
+
 	if enc.EncodeModelLink("", p) == "" {
 		name = enc.EncodeItalic(name)
 	}
@@ -340,18 +387,23 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 
 	deathAdditional := ""
 	if death != nil {
-		deathWhat := death.What()
-		switch p.CauseOfDeath {
-		case model.CauseOfDeathLostAtSea:
+		var deathWhat string
+		switch p.ModeOfDeath {
+		case model.ModeOfDeathLostAtSea:
 			deathWhat = "lost at sea"
-		case model.CauseOfDeathKilledInAction:
+		case model.ModeOfDeathKilledInAction:
 			deathWhat = "killed in action"
-		case model.CauseOfDeathDrowned:
+		case model.ModeOfDeathDrowned:
 			deathWhat = "drowned"
-		case model.CauseOfDeathSuicide:
+		case model.ModeOfDeathSuicide:
 			deathWhat = "died by suicide"
+		case model.ModeOfDeathExecuted:
+			deathWhat = "executed"
+		default:
+			deathWhat = death.What()
 		}
-		deathWhat = InferredWhat(deathWhat, death)
+
+		deathWhat = DeathWhat(death, p.ModeOfDeath)
 
 		if age, ok := p.AgeInYearsAt(death.GetDate()); ok {
 			if age <= 1 {
@@ -520,7 +572,7 @@ func GenerateOlb(p *model.Person) error {
 					bf.AgeAtDeath = age
 				}
 			}
-			if p.CauseOfDeath == model.CauseOfDeathSuicide {
+			if p.ModeOfDeath == model.ModeOfDeathSuicide {
 				bf.Suicide = true
 			}
 
@@ -904,12 +956,15 @@ func GenerateOlb(p *model.Person) error {
 		clauses = append(clauses, Clause{Text: clause, Interestingness: Mundane})
 	}
 
-	if p.CauseOfDeath == model.CauseOfDeathLostAtSea {
+	switch p.ModeOfDeath {
+	case model.ModeOfDeathLostAtSea:
 		clauses = append(clauses, Clause{Text: "lost at sea", Interestingness: Unusual})
-	} else if p.CauseOfDeath == model.CauseOfDeathKilledInAction {
+	case model.ModeOfDeathKilledInAction:
 		clauses = append(clauses, Clause{Text: "killed in action", Interestingness: Unusual})
-	} else if p.CauseOfDeath == model.CauseOfDeathDrowned {
+	case model.ModeOfDeathDrowned:
 		clauses = append(clauses, Clause{Text: "drowned", Interestingness: Unusual})
+	case model.ModeOfDeathExecuted:
+		clauses = append(clauses, Clause{Text: "executed", Interestingness: Unique})
 	}
 
 	if len(clauses) == 0 {

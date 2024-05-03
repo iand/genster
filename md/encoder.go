@@ -42,7 +42,7 @@ func (e *Encoder) WriteMarkdown(w io.Writer) error {
 	if len(reftext) > 0 {
 		bw.WriteString("<div class=\"footnotes\">\n\n")
 		bw.WriteString("----\n\n")
-		bw.WriteString("#### Citations\n")
+		bw.WriteString("#### Citations and notes\n")
 		bw.WriteString("\n")
 		bw.WriteString(reftext)
 		bw.WriteString("</div>\n\n")
@@ -291,8 +291,8 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 	}
 
 	if b.seenLinks[url] {
-		// return subsequentText
-		return b.EncodeLink(subsequentText+suffix, url)
+		return subsequentText
+		// return b.EncodeLink(subsequentText+suffix, url)
 	}
 	b.seenLinks[url] = true
 

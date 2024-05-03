@@ -90,18 +90,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			return fmt.Errorf("multiple surnames not supported yet (person id: %s)", pval(gp.ID, gp.Handle))
 		}
 
-		// if prefName.Surname == "" &&
-		// 	strings.Contains(prefName.Full, " ") &&
-		// 	!stringOneOf(prefName.Full, "Mary Ann") {
-		// 	p.Anomalies = append(p.Anomalies, &model.Anomaly{
-		// 		Category: model.AnomalyCategoryName,
-		// 		Text:     fmt.Sprintf("Person has no surname but full name %q contains more than one word.", prefName.Full),
-		// 		Context:  "Person's name",
-		// 	})
-		// }
-
 		prefName.given = strings.ReplaceAll(prefName.given, "-?-", model.UnknownNamePlaceholder)
 		prefName.surname = strings.ReplaceAll(prefName.surname, "-?-", model.UnknownNamePlaceholder)
+
 		prefName.call = prefName.given
 		prefName.suffix = pval(name.Suffix, "")
 		prefName.nick = pval(name.Nick, "")
@@ -120,17 +111,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		}
 
 		if prefName.suffix != "" {
-			if matches := reParanthesised.FindStringSubmatch(prefName.suffix); len(matches) == 2 {
-				// suffix is paranthesised which is a convention for prominent tags
-				tags := strings.Split(matches[1], ",")
-				for _, tag := range tags {
-					p.Tags = append(p.Tags, strings.TrimSpace(tag))
-				}
-				// remove the suffix
-				p.PreferredFullName = strings.TrimSpace(p.PreferredFullName[:len(p.PreferredFullName)-len(prefName.suffix)])
-			} else {
-				p.PreferredSortName += " " + prefName.suffix
-			}
+			p.PreferredSortName += " " + prefName.suffix
 		}
 
 		p.PreferredUniqueName = p.PreferredFullName
@@ -216,6 +197,25 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Unmarried = true
 		case "childless":
 			p.Childless = true
+		case "cause of death":
+			codcits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			p.CauseOfDeath = model.ParseCauseOfDeathFact(att.Value, codcits)
+		case "mode of death":
+			switch strings.ToLower(att.Value) {
+			case "suicide":
+				p.ModeOfDeath = model.ModeOfDeathSuicide
+			case "lost at sea":
+				p.ModeOfDeath = model.ModeOfDeathLostAtSea
+			case "killed in action":
+				p.ModeOfDeath = model.ModeOfDeathKilledInAction
+			case "drowned":
+				p.ModeOfDeath = model.ModeOfDeathDrowned
+			case "executed", "execution":
+				p.ModeOfDeath = model.ModeOfDeathExecuted
+			default:
+				logger.Warn("unhandled mode of death attribute", "type", att.Type, "value", att.Value)
+			}
+
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
 		}

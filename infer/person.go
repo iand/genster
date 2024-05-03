@@ -16,10 +16,8 @@ func RedactPersonalDetailsWithDescendants(p *model.Person) {
 func RedactPersonalDetails(p *model.Person) (bool, error) {
 	logging.Debug("redacting person", "id", p.ID, "name", p.PreferredFullName)
 	p.Redacted = true
-	if !p.RedactionKeepsName {
-		p.SetAllNames("(living or recently deceased person)")
-		p.NickName = ""
-	}
+	p.RedactNames("(living or recently deceased person)")
+
 	p.Olb = "information withheld to preserve privacy"
 	p.Gender = model.GenderUnknown
 	p.Tags = []string{}
@@ -36,19 +34,19 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 
 	if hasBirthDecade {
 		birthDate := model.WithinDecade(birthDecade)
-		p.SetAllNames("(person born " + birthDate.When() + ")")
+		p.RedactNames("(person born " + birthDate.When() + ")")
 
 		if p.BestDeathlikeEvent != nil {
 			if deathDecade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok && deathDecade != birthDecade {
 				deathDate := model.WithinDecade(deathDecade)
-				p.SetAllNames("(person lived " + birthDate.String() + " to " + deathDate.String() + ")")
+				p.RedactNames("(person lived " + birthDate.String() + " to " + deathDate.String() + ")")
 			}
 		}
 	} else {
 		if p.BestDeathlikeEvent != nil {
 			if decade, ok := p.BestDeathlikeEvent.GetDate().DecadeStart(); ok {
 				deathDate := model.WithinDecade(decade)
-				p.SetAllNames("(person died " + deathDate.When() + ")")
+				p.RedactNames("(person died " + deathDate.When() + ")")
 			}
 		}
 	}
@@ -326,32 +324,35 @@ var (
 )
 
 func InferPersonCauseOfDeath(p *model.Person) error {
+	if p.CauseOfDeath != nil {
+		return nil
+	}
 	if p.BestDeathlikeEvent != nil {
 		detail := strings.TrimSpace(p.BestDeathlikeEvent.GetDetail())
 		if detail == "" {
 			return nil
 		}
 		if reSuicide.MatchString(p.BestDeathlikeEvent.GetDetail()) {
-			p.CauseOfDeath = model.CauseOfDeathSuicide
+			p.ModeOfDeath = model.ModeOfDeathSuicide
 			inf := model.Inference{
-				Type:   model.InferenceTypeCauseOfDeath,
-				Value:  string(p.CauseOfDeath),
+				Type:   model.InferenceTypeModeOfDeath,
+				Value:  string(model.ModeOfDeathSuicide),
 				Reason: "detail of death event contains the word suicide",
 			}
 			p.Inferences = append(p.Inferences, inf)
 		} else if reLostAtSea.MatchString(p.BestDeathlikeEvent.GetDetail()) {
-			p.CauseOfDeath = model.CauseOfDeathLostAtSea
+			p.ModeOfDeath = model.ModeOfDeathLostAtSea
 			inf := model.Inference{
-				Type:   model.InferenceTypeCauseOfDeath,
-				Value:  string(p.CauseOfDeath),
+				Type:   model.InferenceTypeModeOfDeath,
+				Value:  string(model.ModeOfDeathLostAtSea),
 				Reason: "detail of death event contains the words lost at sea",
 			}
 			p.Inferences = append(p.Inferences, inf)
 		} else if reDrowning.MatchString(p.BestDeathlikeEvent.GetDetail()) {
-			p.CauseOfDeath = model.CauseOfDeathDrowned
+			p.ModeOfDeath = model.ModeOfDeathDrowned
 			inf := model.Inference{
-				Type:   model.InferenceTypeCauseOfDeath,
-				Value:  string(p.CauseOfDeath),
+				Type:   model.InferenceTypeModeOfDeath,
+				Value:  string(model.ModeOfDeathDrowned),
 				Reason: "detail of death event contains the words drowned or drowning",
 			}
 			p.Inferences = append(p.Inferences, inf)

@@ -219,17 +219,18 @@ func (s *Site) AssignTags(p *model.Person) error {
 		p.Tags = append(p.Tags, "Illegitimate")
 	}
 
-	switch p.CauseOfDeath {
-	case model.CauseOfDeathSuicide:
+	switch p.ModeOfDeath {
+	case model.ModeOfDeathSuicide:
 		p.Tags = append(p.Tags, "Died by suicide")
-	case model.CauseOfDeathLostAtSea:
+	case model.ModeOfDeathLostAtSea:
 		p.Tags = append(p.Tags, "Lost at sea")
-	case model.CauseOfDeathKilledInAction:
+	case model.ModeOfDeathKilledInAction:
 		p.Tags = append(p.Tags, "Killed in action")
-	case model.CauseOfDeathDrowned:
+	case model.ModeOfDeathDrowned:
 		p.Tags = append(p.Tags, "Drowned")
+	case model.ModeOfDeathExecuted:
+		p.Tags = append(p.Tags, "Executed")
 	}
-
 	// if y, ok := gdate.AsYear(ev.Date); ok {
 	// 	decade := (y.Year() / 10) * 10
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("born in %ds", decade))

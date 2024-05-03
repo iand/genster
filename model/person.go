@@ -6,7 +6,10 @@ import (
 	"github.com/iand/gdate"
 )
 
-const UnknownNamePlaceholder = "–?–" // en dashes, sorts after other names
+const (
+	UnknownNamePlaceholder      = "–?–" // en dashes, sorts after other names
+	UnknownDateRangePlaceholder = "–?–"
+)
 
 type Person struct {
 	ID string // canonical identifier
@@ -40,22 +43,23 @@ type Person struct {
 	PossiblyAlive bool // true if this person is possibly still alive, false if they are known to be dead or are historic
 	DiedYoung     bool // true if this person died before adulthood
 
-	Unknown            bool         // true if this person is known to have existed but no other information is known
-	Unmarried          bool         // true if it is known that the person did not marry
-	Childless          bool         // true if it is known that the person did not have any children
-	Illegitimate       bool         // true if it is known that the person was born illegitimately
-	BornInWorkhouse    bool         // true if the birth place of the person was a workhouse
-	DiedInWorkhouse    bool         // true if the death place of the person was a workhouse
-	Pauper             bool         // true if the person was, at some stage, noted as a pauper
-	Twin               bool         // true if it is known that the person was a twin
-	Blind              bool         // true if it is known that the person was blind for the majority of their life
-	Deaf               bool         // true if it is known that the person was deaf for the majority of their life
-	PhysicalImpairment bool         // true if it is known that the person was physically impaired for the majority of their life
-	MentalImpairment   bool         // true if it is known that the person was mentally impaired for the majority of their life
-	DiedInChildbirth   bool         // true if it is known that the person died in childbirth
-	CauseOfDeath       CauseOfDeath // cause of death, if known
-	Featured           bool         // true if this person is to be highlighted as a featured person on the tree overview
-	Puzzle             bool         // true if this person is the centre of a significant puzzle
+	Unknown            bool        // true if this person is known to have existed but no other information is known
+	Unmarried          bool        // true if it is known that the person did not marry
+	Childless          bool        // true if it is known that the person did not have any children
+	Illegitimate       bool        // true if it is known that the person was born illegitimately
+	BornInWorkhouse    bool        // true if the birth place of the person was a workhouse
+	DiedInWorkhouse    bool        // true if the death place of the person was a workhouse
+	Pauper             bool        // true if the person was, at some stage, noted as a pauper
+	Twin               bool        // true if it is known that the person was a twin
+	Blind              bool        // true if it is known that the person was blind for the majority of their life
+	Deaf               bool        // true if it is known that the person was deaf for the majority of their life
+	PhysicalImpairment bool        // true if it is known that the person was physically impaired for the majority of their life
+	MentalImpairment   bool        // true if it is known that the person was mentally impaired for the majority of their life
+	DiedInChildbirth   bool        // true if it is known that the person died in childbirth
+	ModeOfDeath        ModeOfDeath // mode of death, if known
+	CauseOfDeath       *Fact       // cause of death, if known
+	Featured           bool        // true if this person is to be highlighted as a featured person on the tree overview
+	Puzzle             bool        // true if this person is the centre of a significant puzzle
 
 	Occupations       []*Occupation // list of occupations
 	PrimaryOccupation string        // simple description of main occupation
@@ -252,13 +256,19 @@ func (p *Person) RemoveDuplicateSpouses() {
 	}
 }
 
-func (p *Person) SetAllNames(name string) {
+func (p *Person) RedactNames(name string) {
+	if p.RedactionKeepsName {
+		return
+	}
 	p.PreferredFullName = name
 	p.PreferredGivenName = name
 	p.PreferredFamiliarName = name
+	p.PreferredFamiliarFullName = name
 	p.PreferredFamilyName = name
 	p.PreferredSortName = name
 	p.PreferredUniqueName = name
+	p.NickName = ""
+	p.KnownNames = p.KnownNames[:0]
 }
 
 func UnknownPerson() *Person {
