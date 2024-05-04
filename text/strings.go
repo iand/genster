@@ -298,6 +298,17 @@ func JoinSentences(ss ...string) string {
 	return ret
 }
 
+func AppendSentence(base, s string) string {
+	s = FormatSentence(s)
+	if len(base) == 0 {
+		return s
+	}
+	if !strings.HasSuffix(base, " ") {
+		base += " "
+	}
+	return base + s
+}
+
 func CardinalWithUnit(n int, singular string, plural string) string {
 	if n == 1 {
 		return "one " + singular

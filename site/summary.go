@@ -73,6 +73,13 @@ func WhatWhenWhere(what string, dt *model.Date, pl *model.Place, enc ExtendedInl
 	return text.JoinSentenceParts(what, WhenWhere(dt, pl, enc))
 }
 
+func WhatWhere(what string, pl *model.Place, enc ExtendedInlineEncoder) string {
+	if !pl.IsUnknown() {
+		what = text.JoinSentenceParts(what, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+	}
+	return what
+}
+
 func WhenWhere(dt *model.Date, pl *model.Place, enc ExtendedInlineEncoder) string {
 	title := ""
 	if !dt.IsUnknown() {

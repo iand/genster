@@ -737,9 +737,10 @@ func (s *CensusStatement) RenderDetail(seq int, intro *NarrativeIntro, enc Exten
 	}
 	year, _ := s.Event.GetDate().Year()
 	if ce.Narrative != "" {
-		detail := fmt.Sprintf("in the %d census", year)
-		detail = text.JoinSentences(detail, ce.Narrative)
+		detail := WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc) // fmt.Sprintf("in the %d census", year)
+		detail = text.JoinSentenceParts(intro.NameBased, detail)
 		detail = enc.EncodeWithCitations(detail, s.Event.GetCitations())
+		detail = text.AppendSentence(text.FinishSentence(detail), text.FinishSentence(ce.Narrative))
 		detail = text.FormatSentence(detail)
 		enc.Para(detail)
 		return
