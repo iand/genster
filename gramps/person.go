@@ -195,7 +195,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Illegitimate = true
 		case "unmarried", "never married":
 			p.Unmarried = true
-		case "childless":
+		case "childless", "died without issue":
 			p.Childless = true
 		case "cause of death":
 			codcits, _ := l.parseCitationRecords(m, att.Citationref, logger)
@@ -218,6 +218,21 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
+		}
+	}
+
+	// Add tags
+	for _, tref := range gp.Tagref {
+		tag, ok := l.TagsByHandle[tref.Hlink]
+		if !ok {
+			logger.Warn("could not find tag", "hlink", tref.Hlink)
+			continue
+		}
+		switch strings.ToLower(tag.Name) {
+		case "puzzle":
+			p.Puzzle = true
+		case "featured":
+			p.Featured = true
 		}
 	}
 

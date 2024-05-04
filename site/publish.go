@@ -601,6 +601,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	// Featured people
 	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
 		return p.Featured
 	}, 8)
 	if len(featuredPeople) > 0 {
@@ -616,6 +619,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	// Currently puzzling over
 	puzzlePeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
 		return p.Puzzle && !p.Featured
 	}, 8)
 	if len(puzzlePeople) > 0 {

@@ -220,9 +220,16 @@ func PositionInFamily(p *model.Person) string {
 	} else {
 		children = p.ParentFamily.Children
 	}
+	if len(children) == 0 {
+		return ""
+	}
 
 	if len(children) == 1 {
 		return "only " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	if children[0].SameAs(p) {
+		return "first child"
 	}
 
 	olderSameGender := 0
@@ -261,19 +268,6 @@ func PositionInFamily(p *model.Person) string {
 	return text.OrdinalNoun(olderSameGender+1) + " " + text.LowerFirst(p.Gender.RelationToParentNoun())
 }
 
-// func WhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
-// 	title := ""
-// 	date := ev.GetDate()
-// 	if !date.IsUnknown() {
-// 		qual := date.Derivation.Qualifier()
-// 		if qual != "" {
-// 			title = text.JoinSentenceParts(qual, "to have been")
-// 		}
-// 	}
-
-// 	return text.JoinSentenceParts(title, ev.What(), WhenWhere(ev, enc))
-// }
-
 func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 	name := p.PreferredGivenName
 	if p.Redacted {
@@ -301,6 +295,9 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 		case *model.BirthEvent:
 			birth = tev
 			for _, ev := range p.Timeline {
+				if !ev.DirectlyInvolves(p) {
+					continue
+				}
 				if bev, ok := ev.(*model.BaptismEvent); ok {
 					if bap == nil || bev.GetDate().SortsBefore(bap.GetDate()) {
 						bap = bev
@@ -317,6 +314,9 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 		case *model.DeathEvent:
 			death = tev
 			for _, ev := range p.Timeline {
+				if !ev.DirectlyInvolves(p) {
+					continue
+				}
 				if bev, ok := ev.(*model.BurialEvent); ok {
 					if burial == nil || bev.GetDate().SortsBefore(burial.GetDate()) {
 						burial = bev
@@ -474,6 +474,16 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 	// }
 
 	summary = text.FinishSentence(summary)
+
+	finalDetail := ""
+	if p.Unmarried {
+		finalDetail = "never married"
+	}
+
+	if finalDetail != "" {
+		summary += " " + text.FinishSentence(text.UpperFirst(p.Gender.SubjectPronoun())+" "+finalDetail)
+	}
+
 	return summary
 }
 
