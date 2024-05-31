@@ -48,6 +48,10 @@ func EventWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) strin
 	return WhatWhenWhere(InferredWhat(ev.What(), ev), ev.GetDate(), ev.GetPlace(), enc)
 }
 
+func EventWhatWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
+	return WhatWhere(InferredWhat(ev.What(), ev), ev.GetPlace(), enc)
+}
+
 func InferredWhat(what string, ev model.TimelineEvent) string {
 	if ev.IsInferred() {
 		return "is inferred to " + text.MaybeHaveBeenVerb(what)
@@ -75,7 +79,7 @@ func WhatWhenWhere(what string, dt *model.Date, pl *model.Place, enc ExtendedInl
 
 func WhatWhere(what string, pl *model.Place, enc ExtendedInlineEncoder) string {
 	if !pl.IsUnknown() {
-		what = text.JoinSentenceParts(what, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return what
 }
@@ -87,7 +91,7 @@ func WhenWhere(dt *model.Date, pl *model.Place, enc ExtendedInlineEncoder) strin
 	}
 
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -105,7 +109,7 @@ func AgeWhenWhere(ev model.IndividualTimelineEvent, enc ExtendedInlineEncoder) s
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -170,7 +174,7 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 	}
 
 	if !pl.IsUnknown() && !preceding.GetPlace().SameAs(pl) {
-		detail = text.JoinSentenceParts(detail, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		detail = text.JoinSentenceParts(detail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
 	return detail
@@ -205,6 +209,30 @@ func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string 
 	default:
 		panic("unhandled deathlike event in DeathWhat")
 	}
+}
+
+// WhoFormalDoing returns a persons unique or full name with their occupation as an aside if known.
+func WhoFormalDoing(p *model.Person, dt *model.Date, enc ExtendedInlineEncoder) string {
+	detail := enc.EncodeModelLinkDedupe(p.PreferredUniqueName, p.PreferredFamiliarFullName, p)
+
+	occ := p.OccupationAt(dt)
+	if !occ.IsUnknown() {
+		detail += ", " + occ.String() + ","
+	}
+
+	return detail
+}
+
+// WhoDoing returns a persons full or familiar name with their occupation as an aside if known.
+func WhoDoing(p *model.Person, dt *model.Date, enc ExtendedInlineEncoder) string {
+	detail := enc.EncodeModelLinkDedupe(p.PreferredFamiliarFullName, p.PreferredFamiliarName, p)
+
+	occ := p.OccupationAt(dt)
+	if !occ.IsUnknown() {
+		detail += ", " + occ.String() + ","
+	}
+
+	return detail
 }
 
 func PositionInFamily(p *model.Person) string {
@@ -275,27 +303,35 @@ func PositionInFamily(p *model.Person) string {
 	return text.OrdinalNoun(olderSameGender+1) + " " + text.LowerFirst(p.Gender.RelationToParentNoun())
 }
 
-func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
-	name := p.PreferredGivenName
-	if p.Redacted {
-		return enc.EncodeItalic(name)
-	}
+func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, includeBirthDate bool) string {
+	// intro := IntroGenerator{
+	// 	POV: &model.POV{
+	// 		Person: p,
+	// 	},
+	// }
 
-	if enc.EncodeModelLink("", p) == "" {
-		name = enc.EncodeItalic(name)
-	}
+	summary := ""
+	if name != "" {
+		if p.Redacted {
+			return enc.EncodeItalic(name)
+		}
 
-	summary := enc.EncodeModelLink(name, p)
+		if enc.EncodeModelLink("", p) == "" {
+			name = enc.EncodeItalic(name)
+		}
 
-	// Intro statement
-	if p.NickName != "" {
-		summary = text.JoinSentenceParts(summary, fmt.Sprintf("(known as %s)", p.NickName))
+		summary = enc.EncodeModelLink(name, p)
+
+		// Intro statement
+		if p.NickName != "" {
+			summary = text.JoinSentenceParts(summary, fmt.Sprintf("(known as %s)", p.NickName))
+		}
 	}
 
 	var birth *model.BirthEvent
 	var bap *model.BaptismEvent
 	var death *model.DeathEvent
-	var burial *model.BurialEvent // TODO: cremation
+	var burial model.IndividualTimelineEvent // TODO: cremation
 
 	if p.BestBirthlikeEvent != nil {
 		switch tev := p.BestBirthlikeEvent.(type) {
@@ -319,12 +355,19 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 	if p.BestDeathlikeEvent != nil {
 		switch tev := p.BestDeathlikeEvent.(type) {
 		case *model.DeathEvent:
-			death = tev
+			// Don't include inferred deaths in summary
+			if !tev.IsInferred() {
+				death = tev
+			}
 			for _, ev := range p.Timeline {
 				if !ev.DirectlyInvolves(p) {
 					continue
 				}
 				if bev, ok := ev.(*model.BurialEvent); ok {
+					if burial == nil || bev.GetDate().SortsBefore(burial.GetDate()) {
+						burial = bev
+					}
+				} else if bev, ok := ev.(*model.CremationEvent); ok {
 					if burial == nil || bev.GetDate().SortsBefore(burial.GetDate()) {
 						burial = bev
 					}
@@ -347,7 +390,11 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 	firstEvent := true
 	var precedingEvent model.IndividualTimelineEvent
 	if birth != nil {
-		summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(EventWhatWhenWhere(birth, enc), birth.GetCitations()))
+		if includeBirthDate {
+			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(text.StripWasIs(EventWhatWhenWhere(birth, enc)), birth.GetCitations()))
+		} else {
+			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(text.StripWasIs(EventWhatWhere(birth, enc)), birth.GetCitations()))
+		}
 		precedingEvent = birth
 		// Try to complete the sentence
 		if birthAdditional != "" {
@@ -360,7 +407,7 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder) string {
 
 	if bap != nil {
 		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(bap.What(), bap), bap.GetDate(), bap.GetPlace(), precedingEvent, enc))
+			summary = text.JoinSentenceParts(summary, "and", enc.EncodeWithCitations(text.StripWasIs(FollowingWhatWhenWhere(InferredWhat(bap.What(), bap), bap.GetDate(), bap.GetPlace(), precedingEvent, enc)), bap.GetCitations()))
 			summary = text.FinishSentence(summary)
 			precedingEvent = nil
 		} else {

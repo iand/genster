@@ -368,6 +368,9 @@ func (s *Site) LinkFor(v any) string {
 		}
 		return fmt.Sprintf(s.FamilyLinkPattern, vt.ID)
 	case *model.Place:
+		if vt.PlaceType == model.PlaceTypeCategory {
+			return ""
+		}
 		if _, ok := s.PublishSet.Places[vt.ID]; !ok {
 			return ""
 		}

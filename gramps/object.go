@@ -16,6 +16,8 @@ func (l *Loader) populateObjectFacts(m ModelFinder, gob *grampsxml.Object) error
 		ext = "jpg"
 	case "image/png":
 		ext = "png"
+	case "image/gif":
+		ext = "gif"
 	default:
 		return fmt.Errorf("unsupported media type: %v", mo.MediaType)
 	}

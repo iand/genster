@@ -148,7 +148,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	occupationEvents := make([]model.GeneralEvent, 0)
 
 	dp := &gdate.Parser{
-		AssumeGROQuarter: true,
+		ReckoningLocation: gdate.EnglandAndWales,
+		AssumeGROQuarter:  true,
 	}
 
 	for _, er := range events {
@@ -418,7 +419,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					StartDate:   gev.GetDate(),
 					EndDate:     gev.GetDate(),
 					Place:       gev.Place,
-					Title:       "Occupation",
+					Name:        "Occupation",
 					Detail:      gev.Detail,
 					Citations:   gev.Citations,
 					Occurrences: 1,
@@ -443,7 +444,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 						StartDate:   gev.GetDate(),
 						EndDate:     gev.GetDate(),
 						Place:       gev.Place,
-						Title:       "Occupation",
+						Name:        "Occupation",
 						Detail:      gev.Detail,
 						Citations:   gev.Citations,
 						Occurrences: 1,

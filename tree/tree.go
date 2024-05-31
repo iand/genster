@@ -175,6 +175,15 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 	return p
 }
 
+func (t *Tree) FindFamily(scope string, sid string) *model.Family {
+	id := t.CanonicalID(scope, sid)
+	f, ok := t.Families[id]
+	if !ok {
+		f = t.newFamily(id)
+	}
+	return f
+}
+
 func (t *Tree) FindFamilyByParents(father *model.Person, mother *model.Person) *model.Family {
 	fatherID := father.ID
 	if father.IsUnknown() {
@@ -268,7 +277,6 @@ func (t *Tree) Generate(redactLiving bool) error {
 	// Add data to each person
 	for _, p := range t.People {
 		t.PropagateParents(p)
-		t.AddFamilies(p)
 	}
 
 	// Need to make sure all parents and children are linked first
@@ -323,9 +331,14 @@ func (t *Tree) Generate(redactLiving bool) error {
 			})
 		}
 
-		// Sort all chiildren of person
+		// Sort all children of person
 		sort.Slice(p.Children, func(a, b int) bool {
 			return p.Children[a].BestBirthDate().SortsBefore(p.Children[b].BestBirthDate())
+		})
+
+		// Sort all occupations of person
+		sort.Slice(p.Occupations, func(a, b int) bool {
+			return p.Occupations[a].Date.SortsBefore(p.Occupations[b].Date)
 		})
 	}
 
@@ -349,69 +362,6 @@ func (t *Tree) PropagateParents(p *model.Person) error {
 	if !p.Mother.IsUnknown() {
 		p.Mother.Children = append(p.Mother.Children, p)
 	}
-	return nil
-}
-
-func (t *Tree) AddFamilies(p *model.Person) error {
-	var parentFamily *model.Family
-	if p.Father.IsUnknown() {
-		if p.Mother.IsUnknown() {
-			// no known mother or father
-			return nil
-		} else {
-			parentFamily = t.FindFamilyOneParent(p.Mother, p)
-		}
-	} else {
-		if p.Mother.IsUnknown() {
-			parentFamily = t.FindFamilyOneParent(p.Father, p)
-		} else {
-			parentFamily = t.FindFamilyByParents(p.Father, p.Mother)
-		}
-	}
-	parentFamily.Children = append(parentFamily.Children, p)
-
-	sortMaleFemale := func(p1 *model.Person, p2 *model.Person) (*model.Person, *model.Person, bool) {
-		if p1.Gender == model.GenderMale && p2.Gender == model.GenderFemale {
-			return p1, p2, true
-		}
-		if p1.Gender == model.GenderFemale && p2.Gender == model.GenderMale {
-			return p2, p1, true
-		}
-
-		return p1, p2, false
-	}
-
-	addMarriage := func(t *Tree, ev model.PartyTimelineEvent) {
-		p1 := ev.GetParty1()
-		p2 := ev.GetParty2()
-		if p1.IsUnknown() || p2.IsUnknown() {
-			return
-		}
-		father, mother, ok := sortMaleFemale(p1, p2)
-		if !ok {
-			return
-		}
-
-		marriageFamily := t.FindFamilyByParents(father, mother)
-		marriageFamily.Bond = model.FamilyBondMarried
-		marriageFamily.Timeline = append(marriageFamily.Timeline, ev)
-		marriageFamily.BestStartEvent = ev
-		marriageFamily.BestStartDate = ev.GetDate()
-	}
-
-	for _, ev := range p.Timeline {
-		switch tev := ev.(type) {
-		case *model.MarriageEvent:
-			addMarriage(t, tev)
-		case *model.MarriageLicenseEvent:
-			addMarriage(t, tev)
-		case *model.MarriageBannsEvent:
-			addMarriage(t, tev)
-		case *model.DivorceEvent:
-		case *model.AnnulmentEvent:
-		}
-	}
-
 	return nil
 }
 
@@ -591,8 +541,15 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 		// Set family start date to the be about person's birth if it is better than the current start date
 		if p.BestBirthlikeEvent != nil {
 			if f.BestStartDate == nil || p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate) {
+				_, isBirth := p.BestBirthlikeEvent.(*model.BirthEvent)
+
+				if isBirth && (f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) {
+					f.BestStartDate = p.BestBirthlikeEvent.GetDate()
+					return
+				}
+
 				if yr, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
-					f.BestStartDate = model.AboutYear(yr)
+					f.BestStartDate = model.BeforeYear(yr)
 				}
 			}
 		}
@@ -763,7 +720,7 @@ EventLoop:
 
 		// Drop all events from excluded and redacted people
 		for _, o := range ev.Participants() {
-			if o.Redacted {
+			if o.Person.Redacted {
 				continue EventLoop
 			}
 		}
@@ -796,7 +753,7 @@ EventLoop:
 	for _, ev := range p.Timeline {
 		for _, o := range ev.Participants() {
 			// Drop all events from redacted people
-			if o.Redacted {
+			if o.Person.Redacted {
 				continue EventLoop
 			}
 		}
@@ -815,7 +772,7 @@ EventLoop:
 		// count number of non excluded people involved in event
 		for _, o := range ev.Participants() {
 			// Drop all events from redacted people
-			if o.Redacted {
+			if o.Person.Redacted {
 				continue EventLoop
 			}
 		}
@@ -834,7 +791,7 @@ EventLoop:
 	for _, ev := range p.Timeline {
 		// Skip all events from redacted people
 		for _, o := range ev.Participants() {
-			if o.Redacted {
+			if o.Person.Redacted {
 				continue EventLoop
 			}
 		}

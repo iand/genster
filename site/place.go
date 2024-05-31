@@ -16,16 +16,22 @@ func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 	doc.Title(p.PreferredName)
 	doc.Layout(PageLayoutPlace.String())
 	doc.Category(PageCategoryPlace)
+	doc.SetFrontMatterField("placetype", p.PlaceType.String())
+	doc.SetFrontMatterField("buildingkind", p.BuildingKind.String())
 	doc.ID(p.ID)
 	doc.AddTags(CleanTags(p.Tags))
 
-	desc := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
+	name := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
 
 	if !p.Parent.IsUnknown() {
-		desc += " in " + doc.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
+		name += " in " + doc.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
 	}
 
-	doc.Para(text.FinishSentence(desc))
+	doc.Para(doc.EncodeItalic(text.FinishSentence(name)))
+
+	if p.Description != "" {
+		doc.Para(text.FinishSentence(p.Description))
+	}
 
 	t := &model.Timeline{
 		Events: p.Timeline,

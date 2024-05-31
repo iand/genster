@@ -3,9 +3,11 @@ package gramps
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 	"github.com/iand/grampsxml"
 )
 
@@ -16,13 +18,36 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	logger := logging.With("id", pl.ID)
 	logger.Debug("populating from place record", "handle", gp.Handle)
 
-	switch gp.Type {
-	case "Country":
+	switch strings.ToLower(gp.Type) {
+	case "country":
 		pl.PlaceType = model.PlaceTypeCountry
-	case "Building":
+	case "building":
 		pl.PlaceType = model.PlaceTypeBuilding
-	case "Street":
+	case "street":
 		pl.PlaceType = model.PlaceTypeStreet
+	case "ship":
+		pl.PlaceType = model.PlaceTypeShip
+	case "category":
+		pl.PlaceType = model.PlaceTypeCategory
+	case "register office":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindRegisterOffice
+		pl.Singular = true
+	case "workhouse":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindWorkhouse
+		pl.Singular = true
+	case "church":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindChurch
+	case "farm":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindFarm
+	case "cemetery":
+		pl.PlaceType = model.PlaceTypeBurialGround
+	case "hospital":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindHospital
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
@@ -34,10 +59,24 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		pl.PreferredSortName = "unknown place"
 	} else {
 		// TODO: support multiple place names
-		pl.PreferredName = gp.Pname[0].Value
-		pl.PreferredFullName = gp.Pname[0].Value
-		pl.PreferredUniqueName = gp.Pname[0].Value
-		pl.PreferredSortName = gp.Pname[0].Value
+		name := strings.TrimSpace(gp.Pname[0].Value)
+
+		if pl.PlaceType == model.PlaceTypeBuilding {
+			if text.StartsWithNumeral(name) {
+				pl.Numbered = true
+			} else {
+				if strings.HasPrefix(strings.ToLower(name), "the ") {
+					pl.Singular = true
+				} else if pl.Singular {
+					name = "The " + name
+				}
+			}
+		}
+
+		pl.PreferredName = name
+		pl.PreferredFullName = name
+		pl.PreferredUniqueName = name
+		pl.PreferredSortName = name
 	}
 
 	if gp.Coord != nil {
@@ -53,6 +92,16 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		}
 	}
 
+	for _, gnr := range gp.Noteref {
+		gn, ok := l.NotesByHandle[gnr.Hlink]
+		if !ok {
+			continue
+		}
+		if gn.Type == "Place Note" {
+			pl.Description = gn.Text
+		}
+	}
+
 	if len(gp.Placeref) > 0 {
 		for _, pr := range gp.Placeref {
 			paro, ok := l.PlacesByHandle[pr.Hlink]
@@ -65,16 +114,42 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 				}
 			}
 			po := m.FindPlace(l.ScopeName, pval(paro.ID, paro.Handle))
-			if !po.IsUnknown() {
-				pl.Parent = po
+			if !po.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding) {
+				// combine into a single place
+				if po.PreferredName != "" {
+					pl.PreferredName += " " + po.PreferredName
+				}
 				if po.PreferredFullName != "" {
-					pl.PreferredFullName += ", " + po.PreferredFullName
+					pl.PreferredFullName += " " + po.PreferredFullName
 				}
 				if po.PreferredUniqueName != "" {
 					if po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += ", " + po.PreferredUniqueName
+						pl.PreferredUniqueName += " " + po.PreferredUniqueName
 					} else {
-						pl.PreferredUniqueName += ", " + po.PreferredName
+						pl.PreferredUniqueName += " " + po.PreferredName
+					}
+				}
+				if po.PreferredSortName != "" {
+					pl.PreferredSortName = po.PreferredSortName + " " + pl.PreferredSortName
+				}
+				po = po.Parent
+			}
+
+			if !po.IsUnknown() && po.PlaceType != model.PlaceTypeCategory {
+				connector := ", "
+				if pl.Singular {
+					connector = " " + po.InAt() + " "
+				}
+
+				pl.Parent = po
+				if po.PreferredFullName != "" {
+					pl.PreferredFullName += connector + po.PreferredFullName
+				}
+				if po.PreferredUniqueName != "" {
+					if po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding {
+						pl.PreferredUniqueName += connector + po.PreferredUniqueName
+					} else {
+						pl.PreferredUniqueName += connector + po.PreferredName
 					}
 				}
 				if po.PreferredSortName != "" {

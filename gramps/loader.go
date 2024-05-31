@@ -25,6 +25,7 @@ type ModelFinder interface {
 	FindSource(scope string, id string) *model.Source
 	FindRepository(scope string, id string) *model.Repository
 	FindPlace(name string, id string) *model.Place
+	FindFamily(scope string, id string) *model.Family
 	FindFamilyByParents(father *model.Person, mother *model.Person) *model.Family
 	FindMediaObject(path string) *model.MediaObject
 	AddAlias(alias string, canonical string)

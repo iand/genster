@@ -122,7 +122,7 @@ func DumpPerson(p *model.Person) error {
 			if i > 0 {
 				fmt.Println()
 			}
-			fmt.Println("  Title:", o.Title)
+			fmt.Println("  Title:", o.Name)
 			fmt.Println("  Detail:", o.Detail)
 			fmt.Println("  Occurrences:", o.Occurrences)
 			fmt.Println("  StartDate:", ObjectTitle(o.StartDate))

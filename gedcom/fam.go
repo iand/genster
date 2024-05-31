@@ -7,6 +7,7 @@ import (
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/tree"
 )
 
 func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) error {
@@ -106,8 +107,8 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		}
 
 		gpe := model.GeneralPartyEvent{
-			Party1: father,
-			Party2: mother,
+			Party1: &model.EventParticipant{Person: father, Role: model.EventRoleHusband},
+			Party2: &model.EventParticipant{Person: mother, Role: model.EventRoleWife},
 		}
 
 		var ev model.TimelineEvent
@@ -165,6 +166,69 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 			}
 		}
 
+	}
+
+	return nil
+}
+
+func (l *Loader) buildFamilies(t *tree.Tree, p *model.Person) error {
+	var parentFamily *model.Family
+	if p.Father.IsUnknown() {
+		if p.Mother.IsUnknown() {
+			// no known mother or father
+			return nil
+		} else {
+			parentFamily = t.FindFamilyOneParent(p.Mother, p)
+		}
+	} else {
+		if p.Mother.IsUnknown() {
+			parentFamily = t.FindFamilyOneParent(p.Father, p)
+		} else {
+			parentFamily = t.FindFamilyByParents(p.Father, p.Mother)
+		}
+	}
+	parentFamily.Children = append(parentFamily.Children, p)
+
+	sortMaleFemale := func(p1 *model.Person, p2 *model.Person) (*model.Person, *model.Person, bool) {
+		if p1.Gender == model.GenderMale && p2.Gender == model.GenderFemale {
+			return p1, p2, true
+		}
+		if p1.Gender == model.GenderFemale && p2.Gender == model.GenderMale {
+			return p2, p1, true
+		}
+
+		return p1, p2, false
+	}
+
+	addMarriage := func(t *tree.Tree, ev model.PartyTimelineEvent) {
+		p1 := ev.GetParty1()
+		p2 := ev.GetParty2()
+		if p1.IsUnknown() || p2.IsUnknown() {
+			return
+		}
+		father, mother, ok := sortMaleFemale(p1, p2)
+		if !ok {
+			return
+		}
+
+		marriageFamily := t.FindFamilyByParents(father, mother)
+		marriageFamily.Bond = model.FamilyBondMarried
+		marriageFamily.Timeline = append(marriageFamily.Timeline, ev)
+		marriageFamily.BestStartEvent = ev
+		marriageFamily.BestStartDate = ev.GetDate()
+	}
+
+	for _, ev := range p.Timeline {
+		switch tev := ev.(type) {
+		case *model.MarriageEvent:
+			addMarriage(t, tev)
+		case *model.MarriageLicenseEvent:
+			addMarriage(t, tev)
+		case *model.MarriageBannsEvent:
+			addMarriage(t, tev)
+		case *model.DivorceEvent:
+		case *model.AnnulmentEvent:
+		}
 	}
 
 	return nil

@@ -67,7 +67,7 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 		case *model.BurialEvent:
 			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was buried."
 		case *model.MarriageEvent:
-			evd.text = doc.EncodeModelLink(tev.Party1.PreferredUniqueName, tev.Party1) + " and " + doc.EncodeModelLink(tev.Party2.PreferredUniqueName, tev.Party2) + " were married."
+			evd.text = doc.EncodeModelLink(tev.Party1.Person.PreferredUniqueName, tev.Party1) + " and " + doc.EncodeModelLink(tev.Party2.Person.PreferredUniqueName, tev.Party2) + " were married."
 		default:
 			evd.text = EventWhatWhenWhere(tev, doc)
 		}

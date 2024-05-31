@@ -93,17 +93,19 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 			continue
 		}
 
-		var ext string
-		switch mo.MediaType {
-		case "image/jpeg":
-			ext = "jpg"
-		case "image/png":
-			ext = "png"
-		default:
-			return fmt.Errorf("unsupported media type: %v", mo.MediaType)
-		}
+		// var ext string
+		// switch mo.MediaType {
+		// case "image/jpeg":
+		// 	ext = "jpg"
+		// case "image/png":
+		// 	ext = "png"
+		// case "image/gif":
+		// 	ext = "gif"
+		// default:
+		// 	return fmt.Errorf("unsupported media type: %v", mo.MediaType)
+		// }
 
-		fname := filepath.Join(mediaDir, fmt.Sprintf("%s/%s.%s", s.MediaDir, mo.ID, ext))
+		fname := filepath.Join(mediaDir, fmt.Sprintf("%s/%s", s.MediaDir, mo.FileName))
 
 		if err := CopyFile(fname, mo.SrcFilePath); err != nil {
 			return fmt.Errorf("copy media object: %w", err)
@@ -991,6 +993,12 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 			ps.Events[p.BestDeathlikeEvent] = true
 		}
 
+		if p.CauseOfDeath != nil {
+			for _, c := range p.CauseOfDeath.Citations {
+				ps.Citations[c.ID] = c
+			}
+		}
+
 		for _, n := range p.KnownNames {
 			for _, c := range n.Citations {
 				ps.Citations[c.ID] = c
@@ -1003,6 +1011,11 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		}
 		for _, o := range p.Occupations {
 			for _, c := range o.Citations {
+				ps.Citations[c.ID] = c
+			}
+		}
+		for _, a := range p.Associations {
+			for _, c := range a.Citations {
 				ps.Citations[c.ID] = c
 			}
 		}
@@ -1028,17 +1041,18 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		}
 
 		for _, c := range ev.GetCitations() {
-			for _, mo := range c.MediaObjects {
-				ps.MediaObjects[mo.ID] = mo
-			}
-			if c.Source != nil {
-				ps.Sources[c.Source.ID] = c.Source
-			}
 			ps.Citations[c.ID] = c
 		}
 	}
 
 	for _, c := range ps.Citations {
+		for _, mo := range c.MediaObjects {
+			ps.MediaObjects[mo.ID] = mo
+		}
+		if c.Source != nil {
+			ps.Sources[c.Source.ID] = c.Source
+		}
+
 		c.PeopleCited = model.FilterPersonList(c.PeopleCited, include)
 		c.EventsCited = model.FilterEventList(c.EventsCited, includedEvents)
 	}

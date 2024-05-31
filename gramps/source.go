@@ -3,6 +3,7 @@ package gramps
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
@@ -99,18 +100,12 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		if !ok {
 			continue
 		}
-		if gn.Type != "Transcript" {
-			continue
+		switch strings.ToLower(gn.Type) {
+		case "transcript":
+			cit.TranscriptionText = append(cit.TranscriptionText, noteToText(gn))
+		case "citation":
+			cit.TranscriptionText = append(cit.TranscriptionText, noteToText(gn))
 		}
-		txt := model.Text{
-			Text: gn.Text,
-		}
-		if pval(gn.Format, false) {
-			txt.Formatted = true
-		}
-
-		cit.TranscriptionText = append(cit.TranscriptionText, txt)
-
 	}
 
 	for _, gor := range gc.Objref {
@@ -156,4 +151,14 @@ func CitationDate(gc *grampsxml.Citation) (*model.Date, error) {
 		return &model.Date{Date: dt}, nil
 	}
 	return model.UnknownDate(), nil
+}
+
+func noteToText(gn *grampsxml.Note) model.Text {
+	txt := model.Text{
+		Text: gn.Text,
+	}
+	if pval(gn.Format, false) {
+		txt.Formatted = true
+	}
+	return txt
 }

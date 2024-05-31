@@ -5,18 +5,20 @@ import (
 )
 
 type Place struct {
-	ID string // canonical identifier
-	// Page                string    // path to page in site
+	ID                  string   // canonical identifier
 	Tags                []string // tags to add to the place's page
 	OriginalText        string   // the original text that was used to fill in the place information
 	Hints               []place.Hint
-	PreferredName       string          // fully parsed name but with just the minimum amount of context, such as "locality, region"
-	PreferredUniqueName string          // fully parsed name but with just enough extra context to make it unique
-	PreferredFullName   string          // the fully parsed name
-	PreferredSortName   string          // name organised for sorting, generally as a reverse hierarchy of country, region, locality
-	Parent              *Place          // the parent of this place in the administrative hierarchy
-	PlaceType           PlaceType       // the type of place, such as "village", "town", "parish"
-	Kind                place.PlaceKind // the kind of place
+	PreferredName       string       // fully parsed name but with just the minimum amount of context, such as "locality, region"
+	PreferredUniqueName string       // fully parsed name but with just enough extra context to make it unique
+	PreferredFullName   string       // the fully parsed name
+	PreferredSortName   string       // name organised for sorting, generally as a reverse hierarchy of country, region, locality
+	Description         string       // long form description of the place
+	Parent              *Place       // the parent of this place in the administrative hierarchy
+	PlaceType           PlaceType    // the type of place, such as "village", "town", "parish"
+	Numbered            bool         // whether the place is a numbered building
+	Singular            bool         // whether the place is a singular member of a group such as the register office or the barracks, not a named church.
+	BuildingKind        BuildingKind // the kind of building, such as "church", "workhouse" or "register office"
 	Timeline            []TimelineEvent
 	Unknown             bool    // true if this place is known to have existed but no other information is known
 	Links               []Link  // list of links to more information relevant to this place
@@ -25,6 +27,8 @@ type Place struct {
 
 	CountryName  *place.PlaceName
 	UKNationName *place.PlaceName
+
+	Kind place.PlaceKind // the kind of place - DEPRECATED
 }
 
 func (p *Place) IsUnknown() bool {
@@ -41,24 +45,25 @@ func (p *Place) SameAs(other *Place) bool {
 	return p == other || (p.ID != "" && p.ID == other.ID)
 }
 
-// func (p *Place) Country() *Place {
-// 	pp := p
-// 	for pp != nil {
-// 		if pp.Kind == place.PlaceKindCountry || pp.Kind == place.PlaceKindUKNation {
-// 			return pp
-// 		}
-// 		pp = pp.Parent
-// 	}
-
-// 	return UnknownPlace()
-// }
-
 func (p *Place) Where() string {
 	if p == nil {
 		return "an unknown place"
 	}
 
-	return p.PlaceType.InAt() + " " + p.PreferredFullName
+	return p.InAt() + " " + p.PreferredFullName
+}
+
+func (p *Place) InAt() string {
+	switch p.PlaceType {
+	case PlaceTypeAddress, PlaceTypeBuilding:
+		return "at"
+	case PlaceTypeStreet:
+		return "at"
+	case PlaceTypeShip:
+		return "aboard"
+	default:
+		return "in"
+	}
 }
 
 func UnknownPlace() *Place {
@@ -69,32 +74,40 @@ func UnknownPlace() *Place {
 		PreferredSortName:   "unknown place",
 		Unknown:             true,
 		PlaceType:           PlaceTypeUnknown,
+		BuildingKind:        BuildingKindNone,
 	}
 }
 
 type PlaceType string
 
 const (
-	PlaceTypeUnknown  = "place"
-	PlaceTypeAddress  = "address"
-	PlaceTypeCountry  = "country"
-	PlaceTypeBuilding = "building"
-	PlaceTypeStreet   = "street"
+	PlaceTypeUnknown      = "place"
+	PlaceTypeAddress      = "address"
+	PlaceTypeCountry      = "country"
+	PlaceTypeBuilding     = "building"
+	PlaceTypeBurialGround = "burial ground"
+	PlaceTypeStreet       = "street"
+	PlaceTypeShip         = "ship"
+	PlaceTypeCategory     = "category" // used ony for grouping related places
 )
 
 func (p PlaceType) String() string {
 	return string(p)
 }
 
-func (p PlaceType) InAt() string {
-	switch p {
-	case PlaceTypeAddress, PlaceTypeBuilding:
-		return "at"
-	case PlaceTypeStreet:
-		return "at"
-	default:
-		return "in"
-	}
+type BuildingKind string
+
+const (
+	BuildingKindNone           = ""
+	BuildingKindChurch         = "church"
+	BuildingKindWorkhouse      = "workhouse"
+	BuildingKindRegisterOffice = "register office"
+	BuildingKindFarm           = "farm"
+	BuildingKindHospital       = "hospital"
+)
+
+func (p BuildingKind) String() string {
+	return string(p)
 }
 
 type PlaceMatcher func(*Place) bool

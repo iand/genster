@@ -1,9 +1,6 @@
 package gramps
 
 import (
-	"fmt"
-
-	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/grampsxml"
@@ -15,6 +12,16 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 	logger := logging.With("source", "family", "id", id)
 	logger.Debug("populating from family record")
 
+	fam := m.FindFamily(l.ScopeName, id)
+	if fr.Rel != nil {
+		switch fr.Rel.Type {
+		case "Married":
+			fam.Bond = model.FamilyBondMarried
+		case "Unmarried":
+			fam.Bond = model.FamilyBondUnmarried
+		}
+	}
+
 	var fatherPresent, motherPresent bool
 	var father, mother *model.Person
 
@@ -23,11 +30,14 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		if ok {
 			father = m.FindPerson(l.ScopeName, pval(fp.ID, fp.Handle))
 			fatherPresent = true
+			fam.Father = father
+			father.Families = append(father.Families, fam)
 		}
 	}
 
 	if !fatherPresent {
 		father = model.UnknownPerson()
+		fam.Father = father
 	}
 
 	if fr.Mother != nil {
@@ -35,21 +45,14 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		if ok {
 			mother = m.FindPerson(l.ScopeName, pval(mp.ID, mp.Handle))
 			motherPresent = true
+			fam.Mother = mother
+			mother.Families = append(mother.Families, fam)
 		}
 	}
 
 	if !motherPresent {
 		mother = model.UnknownPerson()
-	}
-
-	if fr.Rel != nil {
-		fam := m.FindFamilyByParents(father, mother)
-		switch fr.Rel.Type {
-		case "Married":
-			fam.Bond = model.FamilyBondMarried
-		case "Unmarried":
-			fam.Bond = model.FamilyBondUnmarried
-		}
+		fam.Mother = mother
 	}
 
 	for _, cr := range fr.Childref {
@@ -95,10 +98,6 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		}
 	}
 
-	dp := &gdate.Parser{
-		AssumeGROQuarter: true,
-	}
-
 	for _, er := range fr.Eventref {
 		grev, ok := l.EventsByHandle[er.Hlink]
 		if !ok {
@@ -107,40 +106,32 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		}
 		pl, _ := l.findPlaceForEvent(m, grev)
 
-		var dt gdate.Date
-		var err error
-		if grev.Dateval != nil {
-			dt, err = dp.Parse(grev.Dateval.Val)
-			if err != nil {
-				return fmt.Errorf("date: %w", err)
-			}
-		} else {
+		dt, err := EventDate(grev)
+		if err != nil {
 			logger.Warn("could not parse event date", "hlink", er.Hlink)
-			continue
-
 		}
 
 		gev := model.GeneralEvent{
-			Date:   &model.Date{Date: dt},
+			Date:   dt,
 			Place:  pl,
 			Detail: "", // TODO: notes
 			Title:  pval(grev.Description, ""),
 		}
 
-		// var anoms []*model.Anomaly
-		// gev.Citations, anoms = l.parseCitationRecords(m, er.Citation, logger)
-		// for _, anom := range anoms {
-		// 	if fatherPresent {
-		// 		father.Anomalies = append(father.Anomalies, anom)
-		// 	}
-		// 	if motherPresent {
-		// 		mother.Anomalies = append(mother.Anomalies, anom)
-		// 	}
-		// }
+		var anoms []*model.Anomaly
+		gev.Citations, anoms = l.parseCitationRecords(m, grev.Citationref, logger)
+		for _, anom := range anoms {
+			if fatherPresent {
+				father.Anomalies = append(father.Anomalies, anom)
+			}
+			if motherPresent {
+				mother.Anomalies = append(mother.Anomalies, anom)
+			}
+		}
 
 		gpe := model.GeneralPartyEvent{
-			Party1: father,
-			Party2: mother,
+			Party1: &model.EventParticipant{Person: father, Role: model.EventRoleHusband},
+			Party2: &model.EventParticipant{Person: mother, Role: model.EventRoleWife},
 		}
 
 		var ev model.TimelineEvent
@@ -151,18 +142,43 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 				GeneralEvent:      gev,
 				GeneralPartyEvent: gpe,
 			}
+			fam.Bond = model.FamilyBondMarried
+			fam.Timeline = append(fam.Timeline, ev)
+			fam.BestStartEvent = ev
+			fam.BestStartDate = ev.GetDate()
+		case "Marriage License":
+			ev = &model.MarriageLicenseEvent{
+				GeneralEvent:      gev,
+				GeneralPartyEvent: gpe,
+			}
+			fam.Timeline = append(fam.Timeline, ev)
+			if fam.BestStartEvent == nil {
+				fam.BestStartEvent = ev
+				fam.BestStartDate = ev.GetDate()
+			}
+		case "Marriage Banns":
+			ev = &model.MarriageBannsEvent{
+				GeneralEvent:      gev,
+				GeneralPartyEvent: gpe,
+			}
+			fam.Timeline = append(fam.Timeline, ev)
+			if fam.BestStartEvent == nil {
+				fam.BestStartEvent = ev
+				fam.BestStartDate = ev.GetDate()
+			}
 		case "Divorce":
 			ev = &model.DivorceEvent{
 				GeneralEvent:      gev,
 				GeneralPartyEvent: gpe,
 			}
+			fam.BestEndEvent = ev
+			fam.BestEndDate = ev.GetDate()
 		default:
 			logger.Warn("unhandled family event type", "hlink", er.Hlink, "type", pval(grev.Type, "unknown"))
 
 		}
 
 		if ev != nil {
-
 			if !mother.IsUnknown() {
 				mother.Timeline = append(mother.Timeline, ev)
 			}
@@ -183,5 +199,6 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			// }
 		}
 	}
+
 	return nil
 }

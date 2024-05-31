@@ -35,6 +35,10 @@ func UpperFirst(s string) string {
 	return strings.ToUpper(string(r[0])) + string(r[1:])
 }
 
+func RemoveRedundantWhitespace(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
 func CardinalNoun(n int) string {
 	noun := cardinalNounUnderTwenty(n)
 	if noun != "" {
@@ -255,6 +259,8 @@ func MultiplicativeAdverb(n int) string {
 func JoinList(strs []string) string {
 	var ret string
 	for i, s := range strs {
+		s = strings.Trim(s, " ,!.?")
+
 		if i != 0 {
 			if i == len(strs)-1 {
 				ret += " and "
@@ -391,6 +397,12 @@ func AppendIndependentClause(s, clause string) string {
 	return s + "; " + clause
 }
 
+var startsWithNumeral = regexp.MustCompile(`^[0-9]`)
+
+func StartsWithNumeral(s string) bool {
+	return startsWithNumeral.MatchString(s)
+}
+
 var startsWithVowel = regexp.MustCompile(`^[aeiouAEIOU]`)
 
 func MaybeAn(s string) string {
@@ -429,6 +441,16 @@ func MaybeHaveBeenVerb(verb string) string {
 		return "have been " + st[4:]
 	}
 	return "have " + st
+}
+
+func StripWasIs(st string) string {
+	if strings.HasPrefix(st, "was ") {
+		return st[4:]
+	}
+	if strings.HasPrefix(st, "is ") {
+		return st[4:]
+	}
+	return st
 }
 
 var containsIsolatedNumber = regexp.MustCompile(`^(.*)\b([0-9]+)\b(.*)$`)

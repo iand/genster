@@ -100,7 +100,7 @@ func InferPersonBirthEventDate(p *model.Person) error {
 						Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
 					}
 				case *model.MarriageEvent:
-					if !tev.Party1.SameAs(p) && tev.Party2.SameAs(p) {
+					if !tev.Party1.Person.SameAs(p) && tev.Party2.Person.SameAs(p) {
 						break
 					}
 					inferredYear := year - 16
@@ -126,57 +126,181 @@ func InferPersonBirthEventDate(p *model.Person) error {
 }
 
 func InferPersonDeathEventDate(p *model.Person) error {
+	// do we already have a BestDeathlikeEvent?
+	if p.BestDeathlikeEvent != nil && !p.BestDeathlikeEvent.GetDate().IsUnknown() {
+		logging.Debug("not inferring death event date", "id", p.ID)
+		// best deathlike event has a known date, so we're good with that
+		return nil
+	}
+
+	const longLifespan = 95
+
+	probableLastDeathYear := 0
+	if byear, ok := p.BestBirthDate().Year(); ok {
+		probableLastDeathYear = byear + longLifespan
+	}
+
+	var dt *model.Date
 	var inference *model.Inference
-	if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
-		for _, ev := range p.Timeline {
-			if year, ok := ev.GetDate().Year(); ok {
-				if ev.GetDate().SortsBefore(bev.GetDate()) {
-					switch tev := ev.(type) {
-					case *model.BurialEvent:
-						if tev.Principal.SameAs(p) {
-							break
-						}
-						bev.Date = model.Year(year)
-						inference = &model.Inference{
-							Type:   model.InferenceTypeYearOfDeath,
-							Value:  fmt.Sprintf("%d", year),
-							Reason: fmt.Sprintf("%s was buried that year", p.Gender.SubjectPronoun()),
-						}
-					}
+
+	latestYear := 0
+eventloop:
+	for _, ev := range p.Timeline {
+		if year, ok := ev.GetDate().Year(); ok {
+			switch tev := ev.(type) {
+			case *model.BurialEvent:
+				if !tev.Principal.SameAs(p) {
+					break
+				}
+				logging.Debug("inferring death date from burial event", "id", p.ID)
+				dt = model.Year(year)
+				inference = &model.Inference{
+					Type:   model.InferenceTypeYearOfDeath,
+					Value:  fmt.Sprintf("%d", year),
+					Reason: fmt.Sprintf("%s was buried that year", p.Gender.SubjectPronoun()),
+				}
+				break eventloop
+			case *model.CremationEvent:
+				if !tev.Principal.SameAs(p) {
+					break
+				}
+				logging.Debug("inferring death date from cremation event", "id", p.ID)
+				dt = model.Year(year)
+				inference = &model.Inference{
+					Type:   model.InferenceTypeYearOfDeath,
+					Value:  fmt.Sprintf("%d", year),
+					Reason: fmt.Sprintf("%s was buried that year", p.Gender.SubjectPronoun()),
+				}
+				break eventloop
+			case *model.MarriageEvent:
+				if !tev.DirectlyInvolves(p) {
+					break
+				}
+				if year < latestYear {
+					break
+				}
+				latestYear = year
+				if probableLastDeathYear != 0 && probableLastDeathYear > year {
+					dt = model.YearRange(year, probableLastDeathYear)
 				} else {
-					switch tev := ev.(type) {
-					case *model.BirthEvent:
-						if tev.Principal.SameAs(p) {
-							break
-						}
-						bev.Date = model.AfterYear(year)
-						inference = &model.Inference{
-							Type:   model.InferenceTypeYearOfDeath,
-							Value:  fmt.Sprintf("after %d", year),
-							Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
-						}
-					case *model.MarriageEvent:
-						if !tev.Party1.SameAs(p) && tev.Party2.SameAs(p) {
-							break
-						}
-						bev.Date = model.AfterYear(year)
-						other := tev.GetOther(p)
-						inference = &model.Inference{
-							Type:   model.InferenceTypeYearOfDeath,
-							Value:  fmt.Sprintf("after %d", year),
-							Reason: fmt.Sprintf("%s married %s in %d", p.Gender.SubjectPronoun(), other.PreferredUniqueName, year),
-						}
-					}
+					dt = model.AfterYear(year)
+				}
+				other := tev.GetOther(p)
+				inference = &model.Inference{
+					Type:   model.InferenceTypeYearOfDeath,
+					Value:  fmt.Sprintf("after %d", year),
+					Reason: fmt.Sprintf("%s married %s in %d", p.Gender.SubjectPronoun(), other.PreferredUniqueName, year),
+				}
+			case *model.CensusEvent:
+				if !tev.DirectlyInvolves(p) {
+					break
+				}
+				if year < latestYear {
+					break
+				}
+				latestYear = year
+				if probableLastDeathYear != 0 && probableLastDeathYear > year {
+					dt = model.YearRange(year, probableLastDeathYear)
+				} else {
+					dt = model.AfterYear(year)
+				}
+				inference = &model.Inference{
+					Type:   model.InferenceTypeYearOfDeath,
+					Value:  fmt.Sprintf("after %d", year),
+					Reason: fmt.Sprintf("%s appeared in the %d census", p.Gender.SubjectPronoun(), year),
+				}
+			case *model.BirthEvent:
+				// ignore own birth
+				if tev.DirectlyInvolves(p) {
+					break
+				}
+				if year < latestYear {
+					break
+				}
+				latestYear = year
+				if probableLastDeathYear != 0 && probableLastDeathYear > year {
+					dt = model.YearRange(year, probableLastDeathYear)
+				} else {
+					dt = model.AfterYear(year)
+				}
+				inference = &model.Inference{
+					Type:   model.InferenceTypeYearOfDeath,
+					Value:  fmt.Sprintf("after %d", year),
+					Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
 				}
 			}
 		}
+	}
 
-		if inference != nil {
-			bev.Inferred = true
-			bev.Citations = append(bev.Citations, inference.AsCitation())
-			p.Inferences = append(p.Inferences, *inference)
+	// if dt.IsUnknown() {
+	// 	// use children's birth dates
+	// 	for _, c := range p.Children {
+	// 		if c.BestBirthlikeEvent == nil {
+	// 			continue
+	// 		}
+	// 		if c.BestBirthlikeEvent.GetDate().IsUnknown() {
+	// 			continue
+	// 		}
+
+	// 		year, ok := c.BestBirthlikeEvent.GetDate().Year()
+	// 		if !ok {
+	// 			continue
+	// 		}
+	// 		if year > latestYear {
+	// 			year = latestYear
+	// 			if probableLastDeathYear != 0 && probableLastDeathYear > year {
+	// 				dt = model.YearRange(year, probableLastDeathYear)
+	// 			} else {
+	// 				dt = model.AfterYear(year)
+	// 			}
+	// 			inference = &model.Inference{
+	// 				Type:   model.InferenceTypeYearOfDeath,
+	// 				Value:  fmt.Sprintf("after %d", year),
+	// 				Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), c.PreferredUniqueName, year),
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	if inference != nil && !dt.IsUnknown() {
+		switch tev := p.BestDeathlikeEvent.(type) {
+		case nil:
+			// no deathlike event so synthesise one
+			logging.Debug("adding inferred best deathlike event", "id", p.ID)
+			dev := &model.DeathEvent{
+				GeneralEvent: model.GeneralEvent{
+					Date:      dt,
+					Inferred:  true,
+					Citations: []*model.GeneralCitation{inference.AsCitation()},
+				},
+				GeneralIndividualEvent: model.GeneralIndividualEvent{
+					Principal: p,
+				},
+			}
+			p.BestDeathlikeEvent = dev
+
+		case *model.DeathEvent:
+			// set the date to the inferred one
+			logging.Debug("inferring death year from other events", "id", p.ID)
+			tev.Date = dt
+			tev.Inferred = true
+			tev.Citations = append(tev.Citations, inference.AsCitation())
+		case *model.BurialEvent:
+			logging.Debug("inferring burial year from other events", "id", p.ID)
+			tev.Date = dt
+			tev.Inferred = true
+			tev.Citations = append(tev.Citations, inference.AsCitation())
+		case *model.CremationEvent:
+			logging.Debug("inferring cremation year from other events", "id", p.ID)
+			tev.Date = dt
+			tev.Inferred = true
+			tev.Citations = append(tev.Citations, inference.AsCitation())
+		default:
+			logging.Error("unexpected deathlike event", "type", fmt.Sprintf("%T", p.BestDeathlikeEvent), "id", p.ID, "name", p.PreferredUniqueName)
+			return fmt.Errorf("unexpected deathlike event: %T", p.BestDeathlikeEvent)
 		}
 
+		p.Inferences = append(p.Inferences, *inference)
 	}
 
 	return nil
@@ -187,10 +311,10 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 
 	lastPossibleYearAlive := year
 
-	deathInferenceReason := ""
+	// deathInferenceReason := ""
 	if byear, ok := p.BestBirthDate().Year(); ok {
 		lastPossibleYearAlive = byear + maximumLifespan
-		deathInferenceReason = fmt.Sprintf("it is %d years after birth year of %d", maximumLifespan, byear)
+		// deathInferenceReason = fmt.Sprintf("it is %d years after birth year of %d", maximumLifespan, byear)
 	} else {
 		lastEventYear := 0
 		for _, ev := range p.Timeline {
@@ -205,7 +329,7 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 
 		if lastEventYear > 0 {
 			lastPossibleYearAlive = lastEventYear + maximumLifespan
-			deathInferenceReason = fmt.Sprintf("it is %d years after the last event involving this person", maximumLifespan)
+			// deathInferenceReason = fmt.Sprintf("it is %d years after the last event involving this person", maximumLifespan)
 		}
 
 	}
@@ -223,26 +347,26 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 			return fmt.Errorf("mark person as historic: %w", err)
 		}
 
-		dt := model.BeforeYear(lastPossibleYearAlive)
-		inf := model.Inference{
-			Type:   model.InferenceTypeYearOfDeath,
-			Value:  fmt.Sprintf("before %d", lastPossibleYearAlive),
-			Reason: deathInferenceReason,
-		}
+		// dt := model.BeforeYear(lastPossibleYearAlive)
+		// inf := model.Inference{
+		// 	Type:   model.InferenceTypeYearOfDeath,
+		// 	Value:  fmt.Sprintf("before %d", lastPossibleYearAlive),
+		// 	Reason: deathInferenceReason,
+		// }
 
-		if p.BestDeathlikeEvent == nil {
-			p.BestDeathlikeEvent = &model.DeathEvent{
-				GeneralEvent: model.GeneralEvent{Date: dt, Inferred: true, Citations: []*model.GeneralCitation{inf.AsCitation()}},
-				GeneralIndividualEvent: model.GeneralIndividualEvent{
-					Principal: p,
-				},
-			}
-		} else if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
-			bev.Inferred = true
-			bev.Date = dt
-			bev.Citations = append(bev.Citations, inf.AsCitation())
-		}
-		p.Inferences = append(p.Inferences, inf)
+		// if p.BestDeathlikeEvent == nil {
+		// 	p.BestDeathlikeEvent = &model.DeathEvent{
+		// 		GeneralEvent: model.GeneralEvent{Date: dt, Inferred: true, Citations: []*model.GeneralCitation{inf.AsCitation()}},
+		// 		GeneralIndividualEvent: model.GeneralIndividualEvent{
+		// 			Principal: p,
+		// 		},
+		// 	}
+		// } else if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
+		// 	bev.Inferred = true
+		// 	bev.Date = dt
+		// 	bev.Citations = append(bev.Citations, inf.AsCitation())
+		// }
+		// p.Inferences = append(p.Inferences, inf)
 	}
 
 	if p.Historic {

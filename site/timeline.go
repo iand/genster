@@ -157,7 +157,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 
 	return title
@@ -183,7 +183,7 @@ func (t *TimelineEntryFormatter) censusEventTitle(seq int, ev *model.CensusEvent
 		if pl.SameAs(t.pov.Place) {
 			title = text.JoinSentenceParts(title, residing, "here")
 		} else {
-			title = text.JoinSentenceParts(title, residing, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+			title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 		}
 
 	}
@@ -206,7 +206,7 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 
 	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -249,7 +249,7 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, residing, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -335,7 +335,7 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.PartyTimel
 
 	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	return title
 }

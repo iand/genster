@@ -6,10 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/adrg/strutil"
-	"github.com/adrg/strutil/metrics"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 	"github.com/iand/grampsxml"
 )
 
@@ -93,15 +92,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		prefName.given = strings.ReplaceAll(prefName.given, "-?-", model.UnknownNamePlaceholder)
 		prefName.surname = strings.ReplaceAll(prefName.surname, "-?-", model.UnknownNamePlaceholder)
 
-		prefName.call = prefName.given
-		prefName.suffix = pval(name.Suffix, "")
-		prefName.nick = pval(name.Nick, "")
-		prefName.call = pval(name.Call, "")
+		prefName.call = strings.TrimSpace(prefName.given)
+		prefName.suffix = strings.TrimSpace(pval(name.Suffix, ""))
+		prefName.nick = strings.TrimSpace(pval(name.Nick, ""))
+		prefName.call = strings.TrimSpace(pval(name.Call, ""))
 
 		p.PreferredGivenName = prefName.given
 		p.PreferredFamilyName = prefName.surname
 		p.PreferredSortName = prefName.surname + ", " + prefName.given
 		p.PreferredFullName = prefName.given + " " + prefName.surname
+		p.PreferredFamiliarName = prefName.call
 		p.PreferredFamiliarFullName = prefName.call + " " + prefName.surname
 		p.NickName = prefName.nick
 
@@ -208,13 +208,27 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				p.ModeOfDeath = model.ModeOfDeathLostAtSea
 			case "killed in action":
 				p.ModeOfDeath = model.ModeOfDeathKilledInAction
-			case "drowned":
+			case "drowned", "drowning":
 				p.ModeOfDeath = model.ModeOfDeathDrowned
 			case "executed", "execution":
 				p.ModeOfDeath = model.ModeOfDeathExecuted
 			default:
 				logger.Warn("unhandled mode of death attribute", "type", att.Type, "value", att.Value)
 			}
+		case "military number":
+			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			p.MiscFacts = append(p.MiscFacts, model.Fact{
+				Category:  model.FactCategoryMilitaryServiceNumber,
+				Detail:    att.Value,
+				Citations: cits,
+			})
+		case "seamans ticket":
+			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			p.MiscFacts = append(p.MiscFacts, model.Fact{
+				Category:  model.FactCategorySeamansTicket,
+				Detail:    att.Value,
+				Citations: cits,
+			})
 
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
@@ -273,56 +287,81 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			Title:  pval(grev.Description, ""),
 		}
 
-		giv := model.GeneralIndividualEvent{
-			Principal: p,
-		}
-
 		var citanoms []*model.Anomaly
 		if len(grev.Citationref) > 0 {
 			gev.Citations, citanoms = l.parseCitationRecords(m, grev.Citationref, logger)
 		}
 
+		for _, gnr := range grev.Noteref {
+			gn, ok := l.NotesByHandle[gnr.Hlink]
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(gn.Type) {
+			case "narrative":
+				if gev.Narrative.Text != "" {
+					logger.Warn("overwriting narrative with Narrative note", "hlink", gnr.Hlink)
+				}
+				gev.Narrative = noteToText(gn)
+			case "event note":
+				cit := &model.GeneralCitation{
+					ID:     gnr.Hlink,
+					Detail: gn.Text,
+				}
+				gev.Citations = append(gev.Citations, cit)
+			}
+		}
+
+		giv := model.GeneralIndividualEvent{
+			Principal: p,
+		}
+
 		var ev model.TimelineEvent
 
-		switch pval(grev.Type, "unknown") {
-		case "Birth":
+		switch strings.ToLower(pval(grev.Type, "unknown")) {
+		case "birth":
 			ev = &model.BirthEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Baptism":
+		case "baptism":
 			ev = &model.BaptismEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Death":
+		case "death":
 			ev = &model.DeathEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Burial":
+		case "burial":
 			ev = &model.BurialEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Census":
+		case "census":
 			censusDate, fixed := maybeFixCensusDate(grev)
 			if fixed {
 				gev.Date = censusDate
 			}
 			ev = l.populateCensusRecord(grev, &er, gev, p)
-		case "Residence":
+		case "residence":
 			ev = &model.ResidenceRecordedEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Probate":
+		case "probate":
 			ev = &model.ProbateEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-		case "Will":
+		case "will":
 			ev = &model.WillEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "apprentice":
+			ev = &model.ApprenticeEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
@@ -331,10 +370,30 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		// 		GeneralEvent:           gev,
 		// 		GeneralIndividualEvent: giv,
 		// 	}
-		case "Occupation":
+		case "sale of property":
+			ev = &model.SaleOfPropertyEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "occupation":
 			occupationEvents = append(occupationEvents, gev)
+		case "narrative":
+			ev = &model.IndividualNarrativeEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
 
 		default:
+			// TODO:
+			// Economic Status
+			// Settlement Examination
+			// Inquest
+			// Medical Information
+			// Property
+			// Arrival
+			// Departure
+			// Adopted
+
 			logger.Warn("unhandled person event type", "hlink", er.Hlink, "type", pval(grev.Type, "unknown"))
 
 		}
@@ -376,54 +435,34 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		sort.Slice(occupationEvents, func(i, j int) bool {
 			return occupationEvents[i].GetDate().SortsBefore(occupationEvents[j].GetDate())
 		})
-		for i, gev := range occupationEvents {
-			// logging.Debug("occupation event", "detail", gev.Detail)
-			// HACK: these are common in my ancestry descriptions
-			gev.Detail = strings.TrimPrefix(gev.Detail, "Occupation recorded as ")
-			gev.Detail = strings.TrimPrefix(gev.Detail, "Recorded as ")
-			gev.Detail = strings.TrimPrefix(gev.Detail, "Noted as ")
-			gev.Detail = strings.TrimRight(gev.Detail, ".!, ")
+		groupCounts := map[model.OccupationGroup]int{}
+		for _, gev := range occupationEvents {
+			title, status, group := parseOccupation(gev.Title)
+			groupCounts[group]++
+			oc := &model.Occupation{
+				Date:        gev.GetDate(),
+				StartDate:   gev.GetDate(),
+				EndDate:     gev.GetDate(),
+				Place:       gev.Place,
+				Name:        title,
+				Status:      status,
+				Group:       group,
+				Detail:      gev.Detail,
+				Citations:   gev.Citations,
+				Occurrences: 1,
+			}
+			p.Occupations = append(p.Occupations, oc)
+		}
 
-			if i == 0 {
-				oc := &model.Occupation{
-					StartDate:   gev.GetDate(),
-					EndDate:     gev.GetDate(),
-					Place:       gev.Place,
-					Title:       "Occupation",
-					Detail:      gev.Detail,
-					Citations:   gev.Citations,
-					Occurrences: 1,
-				}
-				p.Occupations = append(p.Occupations, oc)
-			} else {
-				// See if we can merge this with the previous occupation
-				previous := p.Occupations[len(p.Occupations)-1]
-				oc := metrics.NewOverlapCoefficient()
-				similarity := strutil.Similarity(gev.Detail, previous.Detail, oc)
-				// fmt.Printf("Occupation similarity between %q and %q is %v\n", gev.Detail, previous.Detail, similarity)
-				if similarity >= 0.7 {
-					// consolidate
-					previous.EndDate = gev.GetDate()
-					if len(gev.Detail) > len(previous.Detail) {
-						previous.Detail = gev.Detail
-					}
-					previous.Citations = append(previous.Citations, gev.Citations...)
-					previous.Occurrences++
-				} else {
-					oc := &model.Occupation{
-						StartDate:   gev.GetDate(),
-						EndDate:     gev.GetDate(),
-						Place:       gev.Place,
-						Title:       "Occupation",
-						Detail:      gev.Detail,
-						Citations:   gev.Citations,
-						Occurrences: 1,
-					}
-					p.Occupations = append(p.Occupations, oc)
-				}
-
+		bestGroup := model.OccupationGroupUnknown
+		bestGroupCount := 0
+		for grp, count := range groupCounts {
+			if count > bestGroupCount {
+				bestGroup = grp
 			}
 		}
+		p.OccupationGroup = bestGroup
+
 	}
 
 	// Add notes
@@ -450,6 +489,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			// ignore note
 		}
 
+	}
+
+	// Add to families
+	for _, co := range gp.Childof {
+		gfam, ok := l.FamiliesByHandle[co.Hlink]
+		if !ok {
+			return fmt.Errorf("person child of unknown family (person id: %s, childof hlink:%s)", pval(gp.ID, gp.Handle), co.Hlink)
+		}
+		fam := m.FindFamily(l.ScopeName, pval(gfam.ID, gfam.Handle))
+		fam.Children = append(fam.Children, p)
 	}
 
 	// Add associations
@@ -480,275 +529,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	return nil
 }
 
-func (l *Loader) findPlaceForEvent(m ModelFinder, er *grampsxml.Event) (*model.Place, []*model.Anomaly) {
-	if er.Place == nil {
-		return model.UnknownPlace(), nil
-	}
-
-	po, ok := l.PlacesByHandle[er.Place.Hlink]
-	if !ok {
-		return model.UnknownPlace(), nil
-	}
-
-	id := pval(po.ID, po.Handle)
-	pl := m.FindPlace(l.ScopeName, id)
-	return pl, nil
-}
-
-func maybeFixCensusDate(grev *grampsxml.Event) (*model.Date, bool) {
-	return nil, false
-}
-
-func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person) *model.CensusEvent {
-	id := pval(grev.ID, grev.Handle)
-
-	ev, ok := l.censusEvents[id]
-	if !ok {
-		ev = &model.CensusEvent{GeneralEvent: gev}
-		l.censusEvents[id] = ev
-	}
-
-	// CensusEntryRelation
-
-	ce := &model.CensusEntry{
-		Principal: p,
-	}
-
-	var transcript string
-	for _, gnr := range er.Noteref {
-		gn, ok := l.NotesByHandle[gnr.Hlink]
-		if !ok {
-			continue
-		}
-		if gn.Type == "Transcript" {
-			transcript = gn.Text
-		} else if gn.Type == "Narrative" {
-			ce.Narrative = gn.Text
-		}
-	}
-
-	fillCensusEntry(transcript, ce)
-	if ce.RelationToHead != "" {
-		logging.Debug("noting relation to head as "+ce.RelationToHead.String()+" from information on census", "id", p.ID)
-	}
-	if ce.MaritalStatus != "" {
-		logging.Debug("noting marital status as "+ce.MaritalStatus.String()+" from information on census", "id", p.ID)
-	}
-	if ce.Occupation != "" {
-		logging.Debug("noting occupation as "+ce.Occupation+" from information on census", "id", p.ID)
-	}
-
-	if reDetectMentalImpairment.MatchString(ce.Detail) {
-		p.MentalImpairment = true
-		logging.Debug("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	if reDetectPhysicalImpairment.MatchString(ce.Detail) {
-		p.PhysicalImpairment = true
-		logging.Debug("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	if reDetectPauper.MatchString(ce.Detail) {
-		p.Pauper = true
-		logging.Debug("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	ev.Entries = append(ev.Entries, ce)
-	// ev.GeneralEvent.Detail = ce.Detail // TODO: change when census events are shared
-	return ev
-}
-
-var censusEntryRelationLookup = map[string]model.CensusEntryRelation{
-	"head":            model.CensusEntryRelationHead,
-	"wife":            model.CensusEntryRelationWife,
-	"husband":         model.CensusEntryRelationHusband,
-	"son":             model.CensusEntryRelationSon,
-	"dau":             model.CensusEntryRelationDaughter,
-	"daur":            model.CensusEntryRelationDaughter,
-	"daughter":        model.CensusEntryRelationDaughter,
-	"child":           model.CensusEntryRelationChild,
-	"lodger":          model.CensusEntryRelationLodger,
-	"boarder":         model.CensusEntryRelationBoarder,
-	"inmate":          model.CensusEntryRelationInmate,
-	"patient":         model.CensusEntryRelationPatient,
-	"servant":         model.CensusEntryRelationServant,
-	"nephew":          model.CensusEntryRelationNephew,
-	"niece":           model.CensusEntryRelationNiece,
-	"brother":         model.CensusEntryRelationBrother,
-	"sister":          model.CensusEntryRelationSister,
-	"son-in-law":      model.CensusEntryRelationSonInLaw,
-	"daughter-in-law": model.CensusEntryRelationDaughterInLaw,
-	"father-in-law":   model.CensusEntryRelationFatherInLaw,
-	"mother-in-law":   model.CensusEntryRelationMotherInLaw,
-	"brother-in-law":  model.CensusEntryRelationBrotherInLaw,
-	"sister-in-law":   model.CensusEntryRelationSisterInLaw,
-	"grandson":        model.CensusEntryRelationGrandson,
-	"granddaughter":   model.CensusEntryRelationGranddaughter,
-	"visitor":         model.CensusEntryRelationVisitor,
-	"soldier":         model.CensusEntryRelationSoldier,
-	"father":          model.CensusEntryRelationFather,
-	"mother":          model.CensusEntryRelationMother,
-	"uncle":           model.CensusEntryRelationUncle,
-	"aunt":            model.CensusEntryRelationAunt,
-	"foster child":    model.CensusEntryRelationFosterChild,
-}
-
-var censusEntryMaritalStatusLookup = map[string]model.CensusEntryMaritalStatus{
-	"m":         model.CensusEntryMaritalStatusMarried,
-	"mar":       model.CensusEntryMaritalStatusMarried,
-	"married":   model.CensusEntryMaritalStatusMarried,
-	"unmarried": model.CensusEntryMaritalStatusUnmarried,
-	"u":         model.CensusEntryMaritalStatusUnmarried,
-	"unmar":     model.CensusEntryMaritalStatusUnmarried,
-	"unm":       model.CensusEntryMaritalStatusUnmarried,
-	"single":    model.CensusEntryMaritalStatusUnmarried,
-	"divorced":  model.CensusEntryMaritalStatusDivorced,
-	"w":         model.CensusEntryMaritalStatusWidowed,
-	"widow":     model.CensusEntryMaritalStatusWidowed,
-	"wid":       model.CensusEntryMaritalStatusWidowed,
-	"widower":   model.CensusEntryMaritalStatusWidowed,
-	"windower":  model.CensusEntryMaritalStatusWidowed,
-	"widowed":   model.CensusEntryMaritalStatusWidowed,
-	"widwr":     model.CensusEntryMaritalStatusWidowed,
-}
-
-var (
-	reRelationshipToHead       = regexp.MustCompile(`(?i)^(.*)\brelation(?:ship)?(?: to head(?: of house)?)?:\s*(.+?(?:-in-law)?)\b[\.,;]*(.*)$`)
-	reMaritalStatus            = regexp.MustCompile(`(?i)^(.*)\b(?:marital status|condition):\s*(.+?)\b[\.,;]*(.*)$`)
-	rePlaceOfBirth             = regexp.MustCompile(`(?i)^(.*)\b(?:born|birth|place of birth):\s*(.+?)\b[\.,;]*(.*)$`)
-	rePlaceOfBirth2            = regexp.MustCompile(`(?i)^(.*)\b(?:born|birth|place of birth):\s*(.+?)$`)
-	reName                     = regexp.MustCompile(`(?i)^(.*)\b(?:name):\s*(.+?)((?:\b[a-zA-Z]+:).*)$`)
-	reAge                      = regexp.MustCompile(`(?i)^(.*)\b(?:age):\s*(.+?)\b[\.,;]*(.*)$`)
-	reSex                      = regexp.MustCompile(`(?i)^(.*)\b(?:sex|gender):\s*(.+?)\b[\.,;]*(.*)$`)
-	reImpairment               = regexp.MustCompile(`(?i)^(.*)\b(?:impairment|disability):\s*(.+?)\b[\.,;]*(.*)$`)
-	reOccupation               = regexp.MustCompile(`(?i)^(.*)\b(?:occupation|occ|occ\.):\s*(.+?)\b[\.,;]*(.*)$`)
-	reDetectMentalImpairment   = regexp.MustCompile(`(?i)\b(?:idiot|imbecile)\b`)
-	reDetectPhysicalImpairment = regexp.MustCompile(`(?i)\b(?:crippled|disabled)\b`)
-	reDetectPauper             = regexp.MustCompile(`(?i)\b(?:pauper)\b`)
-)
-
-func fillCensusEntry(v string, ce *model.CensusEntry) {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return
-	}
-
-	// Check if this is a multi-line transcription, which we assume to be lines of "key: value"
-	if strings.Contains(v, "\n") {
-		lines := strings.Split(v, "\n")
-		v = ""
-		for _, line := range lines {
-			field, value, ok := strings.Cut(line, ":")
-			if !ok {
-				v += line + "\n"
-				continue
-			}
-
-			switch strings.ToLower(strings.TrimSpace(field)) {
-			case "name":
-				ce.Name = strings.TrimSpace(value)
-			case "relation", "relationship", "relation to head", "relationship to head":
-				if rel, ok := censusEntryRelationLookup[strings.ToLower(strings.TrimSpace(value))]; ok {
-					ce.RelationToHead = rel
-				} else {
-					v += line + "\n"
-				}
-
-			case "condition", "marital status":
-				if status, ok := censusEntryMaritalStatusLookup[strings.ToLower(strings.TrimSpace(value))]; ok {
-					ce.MaritalStatus = status
-				} else {
-					v += line + "\n"
-				}
-
-			case "age":
-				ce.Age = strings.TrimSpace(value)
-			case "sex", "gender":
-				ce.Sex = strings.TrimSpace(value)
-			case "born", "birth", "place of birth":
-				ce.PlaceOfBirth = strings.TrimSpace(value)
-			case "impairment", "disability":
-				ce.Impairment = strings.TrimSpace(value)
-			case "occupation", "occ", "occ.", "occup", "occup.":
-				ce.Occupation = strings.TrimSpace(value)
-			default:
-				v += line + "\n"
-			}
-
-		}
-
-	} else {
-		// Parse single line
-
-		matches := reRelationshipToHead.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			if rel, ok := censusEntryRelationLookup[strings.ToLower(matches[2])]; ok {
-				ce.RelationToHead = rel
-				v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-			}
-		}
-
-		matches = reMaritalStatus.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			logging.Warn("XXXXXXXXXXX found marital status", "m1", matches[1], "m2", matches[2], "m3", matches[3])
-			if status, ok := censusEntryMaritalStatusLookup[strings.ToLower(matches[2])]; ok {
-				ce.MaritalStatus = status
-				v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-			}
-		}
-
-		if status, ok := censusEntryMaritalStatusLookup[strings.ToLower(v)]; ok {
-			ce.MaritalStatus = status
-			v = ""
-		}
-
-		matches = reAge.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			ce.Age = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-		}
-
-		matches = reName.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			ce.Name = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-		}
-
-		matches = reSex.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			ce.Sex = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-		}
-
-		matches = reOccupation.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			ce.Occupation = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-		}
-
-		matches = reImpairment.FindStringSubmatch(v)
-		if len(matches) > 3 {
-			ce.Impairment = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
-		}
-
-		matches = rePlaceOfBirth2.FindStringSubmatch(v)
-		if len(matches) > 2 {
-			ce.PlaceOfBirth = strings.TrimSpace(matches[2])
-			v = strings.TrimRight(strings.TrimSpace(matches[1]), ",;")
-		}
-	}
-	// TODO:
-	// Relationship to Head: Son. Noted as "idiot"
-	// Relation to Head of House: Son. Noted as "imbecile"
-	// Relation to Head: Lodger  Occupation: Railway porter
-	// Relation to Head: Captain
-	// Relation to Head: Mate
-	// Relation to Head: Seaman A B
-
-	ce.Detail = v
-}
-
 func formatName(n grampsxml.Name) string {
 	if n.Display != nil && *n.Display != "" {
 		return *n.Display
@@ -774,4 +554,100 @@ func formatName(n grampsxml.Name) string {
 	name = strings.ReplaceAll(name, "-?-", model.UnknownNamePlaceholder)
 
 	return name
+}
+
+var (
+	reApprenticeParan = regexp.MustCompile(`(?i)^(.*)\(apprentice\)(.*)$`)
+	reApprentice      = regexp.MustCompile(`(?i)^(.*)\bapprentice\b(.*)$`)
+	reJourneymanParan = regexp.MustCompile(`(?i)^(.*)\(journeyman\)(.*)$`)
+	reJourneyman      = regexp.MustCompile(`(?i)^(.*)\bjourneyman\b(.*)$`)
+	reMasterParan     = regexp.MustCompile(`(?i)^(.*)\(master\)(.*)$`)
+	reMaster          = regexp.MustCompile(`(?i)^(.*)\bmaster\b(.*)$`)
+	reRetiredParan    = regexp.MustCompile(`(?i)^(.*)\(retired\)(.*)$`)
+	reRetired         = regexp.MustCompile(`(?i)^(.*)\bretired\b(.*)$`)
+	reDeceasedParan   = regexp.MustCompile(`(?i)^(.*)\(deceased\)(.*)$`)
+	reDeceased        = regexp.MustCompile(`(?i)^(.*)\bdeceased\b(.*)$`)
+	reUnemployedParan = regexp.MustCompile(`(?i)^(.*)\(unemployed\)(.*)$`)
+	reUnemployed      = regexp.MustCompile(`(?i)^(.*)\bunemployed\b(.*)$`)
+)
+
+var (
+	reGroupLabourer   = regexp.MustCompile(`(?i)\b(labourer|farmer|plate layer|bricklayer|husbandman|hind|gardener|dairyman|shepherd|porter|carter|waggoner|cartman|miller|boatman|excavator|maltster)\b`)
+	reGroupIndustrial = regexp.MustCompile(`(?i)\b(miner|pitman|collier|stoker|shipwright|plater|calker|rivetter|blacksmith|engineer|glassman|glassmaker|glass maker|bottle maker)\b`)
+	reGroupClerical   = regexp.MustCompile(`(?i)\bclerk|printer|teacher\b`)
+	reGroupMilitary   = regexp.MustCompile(`(?i)\b(soldier|sergeant|private|corporal|quartermaster)\b`)
+	reGroupPolice     = regexp.MustCompile(`(?i)\b(policeman|police|prison warder)\b`)
+	reGroupMaritime   = regexp.MustCompile(`(?i)\b(seaman|sailor|mariner)\b`)
+	reGroupCrafts     = regexp.MustCompile(`(?i)\b(baker|shoemaker|carpenter|mason|cobbler|tailor|dressmaker|seamstress|dress maker|lacemaker|lace maker|lace runner|shoe maker|bootmaker|machinist|cordwainer|joiner|glover|butcher)\b`)
+	reGroupCommercial = regexp.MustCompile(`(?i)\b(victualer|grocer|publican|dealer|hairdresser)\b`)
+	reGroupService    = regexp.MustCompile(`(?i)\b(nurse|servant|valet|housekeeper|charwoman|washerwoman|washer woman|cook|housemaid|maid|milkmaid)\b`)
+)
+
+func parseOccupation(s string) (string, model.OccupationStatus, model.OccupationGroup) {
+	status := model.OccupationStatusUnknown
+	group := model.OccupationGroupUnknown
+	s = strings.TrimSpace(s)
+
+	// values enclosed by quotes preserve their case
+	if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
+		s = strings.Trim(s, `"`)
+	} else {
+		s = strings.ToLower(s)
+	}
+
+	tokenStatuses := []struct {
+		re     *regexp.Regexp
+		status model.OccupationStatus
+	}{
+		{re: reApprenticeParan, status: model.OccupationStatusJourneyman},
+		{re: reJourneyman, status: model.OccupationStatusJourneyman},
+		{re: reMasterParan, status: model.OccupationStatusMaster},
+		{re: reMaster, status: model.OccupationStatusMaster},
+		{re: reApprenticeParan, status: model.OccupationStatusApprentice},
+		{re: reApprentice, status: model.OccupationStatusApprentice},
+		{re: reRetiredParan, status: model.OccupationStatusRetired},
+		{re: reRetired, status: model.OccupationStatusRetired},
+		{re: reDeceasedParan, status: model.OccupationStatusFormer},
+		{re: reDeceased, status: model.OccupationStatusFormer},
+		{re: reUnemployedParan, status: model.OccupationStatusUnemployed},
+		{re: reUnemployed, status: model.OccupationStatusUnemployed},
+	}
+
+	for _, st := range tokenStatuses {
+		matches := st.re.FindStringSubmatch(s)
+		if len(matches) > 2 {
+			s = matches[1] + matches[2]
+			status = st.status
+			break
+		}
+	}
+
+	kindMatchers := []struct {
+		re    *regexp.Regexp
+		group model.OccupationGroup
+	}{
+		{re: reGroupLabourer, group: model.OccupationGroupLabouring},
+		{re: reGroupIndustrial, group: model.OccupationGroupIndustrial},
+		{re: reGroupMaritime, group: model.OccupationGroupMaritime},
+		{re: reGroupCrafts, group: model.OccupationGroupCrafts},
+		{re: reGroupClerical, group: model.OccupationGroupClerical},
+		{re: reGroupCommercial, group: model.OccupationGroupCommercial},
+		{re: reGroupMilitary, group: model.OccupationGroupMilitary},
+		{re: reGroupPolice, group: model.OccupationGroupPolice},
+		{re: reGroupService, group: model.OccupationGroupService},
+	}
+
+	for _, km := range kindMatchers {
+		if km.re.MatchString(s) {
+			group = km.group
+			break
+		}
+	}
+
+	if group == model.OccupationGroupUnknown {
+		logging.Debug("did not match occupation group", "occupation", s)
+	}
+
+	s = text.RemoveRedundantWhitespace(s)
+	return s, status, group
 }

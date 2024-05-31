@@ -44,7 +44,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 
 		pl := p.BestBirthlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			birth = text.JoinSentenceParts(birth, pl.PlaceType.InAt(), pl.PreferredFullName)
+			birth = text.JoinSentenceParts(birth, pl.InAt(), pl.PreferredFullName)
 		}
 
 		doc.Para(text.UpperFirst(birth))
@@ -61,7 +61,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 
 		pl := p.BestDeathlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			death = text.JoinSentenceParts(death, pl.PlaceType.InAt(), pl.PreferredFullName)
+			death = text.JoinSentenceParts(death, pl.InAt(), pl.PreferredFullName)
 		}
 
 		doc.Para(text.UpperFirst(death))
@@ -114,7 +114,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 		if f.BestStartEvent != nil {
 			pl := f.BestStartEvent.GetPlace()
 			if !pl.IsUnknown() {
-				rel = text.JoinSentenceParts(rel, pl.PlaceType.InAt(), pl.PreferredFullName)
+				rel = text.JoinSentenceParts(rel, pl.InAt(), pl.PreferredFullName)
 			}
 		}
 

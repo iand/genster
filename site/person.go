@@ -21,7 +21,14 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		return doc, nil
 	}
 
-	doc.SetFrontMatterField("gender", p.Gender.Noun())
+	switch p.Gender {
+	case model.GenderMale:
+		doc.SetFrontMatterField("gender", "male")
+	case model.GenderFemale:
+		doc.SetFrontMatterField("gender", "female")
+	default:
+		doc.SetFrontMatterField("gender", "unknown")
+	}
 	if s.GenerateWikiTree {
 		if l := s.LinkForFormat(p, "wikitree"); l != "" {
 			doc.SetFrontMatterField("wikitreeformat", l)
@@ -48,13 +55,11 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 						eraYear = birthYear
 					}
 
-					if age < 3 {
-						doc.SetFrontMatterField("maturity", "infant")
-					} else if age < 15 {
+					if age < 14 {
 						doc.SetFrontMatterField("maturity", "child")
-					} else if age < 25 {
+					} else if age < 30 {
 						doc.SetFrontMatterField("maturity", "young")
-					} else if age < 55 {
+					} else if age < 70 {
 						doc.SetFrontMatterField("maturity", "mature")
 					} else {
 						doc.SetFrontMatterField("maturity", "old")
@@ -78,6 +83,29 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 				}
 			}
 
+			switch p.OccupationGroup {
+			case model.OccupationGroupLabouring:
+				doc.SetFrontMatterField("trade", "labourer")
+			case model.OccupationGroupIndustrial:
+				doc.SetFrontMatterField("trade", "miner")
+			case model.OccupationGroupMaritime:
+				doc.SetFrontMatterField("trade", "nautical")
+			case model.OccupationGroupCrafts:
+				doc.SetFrontMatterField("trade", "crafts")
+			case model.OccupationGroupClerical:
+				doc.SetFrontMatterField("trade", "clerical")
+			case model.OccupationGroupCommercial:
+				doc.SetFrontMatterField("trade", "commerical")
+			case model.OccupationGroupMilitary:
+				doc.SetFrontMatterField("trade", "military")
+			case model.OccupationGroupService:
+				doc.SetFrontMatterField("trade", "service")
+
+			}
+
+			for i := len(p.Occupations) - 1; i >= 0; i-- {
+			}
+
 		}
 	}
 
@@ -99,6 +127,18 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 		case *model.CensusEvent:
 			if tev.DirectlyInvolves(p) {
 				n.Statements = append(n.Statements, &CensusStatement{
+					Principal: p,
+					Event:     tev,
+				})
+			}
+		case *model.IndividualNarrativeEvent:
+			n.Statements = append(n.Statements, &NarrativeStatement{
+				Principal: p,
+				Event:     tev,
+			})
+		default:
+			if tev.GetNarrative().Text != "" {
+				n.Statements = append(n.Statements, &NarrativeStatement{
 					Principal: p,
 					Event:     tev,
 				})

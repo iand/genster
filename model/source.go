@@ -33,6 +33,7 @@ type GeneralCitation struct {
 	ID                string
 	TranscriptionDate *Date
 	TranscriptionText []Text
+	Notes             []Text
 	URL               *Link
 	MediaObjects      []*MediaObject
 	EventsCited       []TimelineEvent

@@ -63,10 +63,11 @@ type Person struct {
 
 	Occupations       []*Occupation // list of occupations
 	PrimaryOccupation string        // simple description of main occupation
-	EditLink          *Link         // link to a page that can be used to edit the details of this person
-	WikiTreeID        string        // the wikitree id of this person
-	GrampsID          string        // the gramps id of this person
-	Links             []Link        // list of links to more information relevant to this person
+	OccupationGroup   OccupationGroup
+	EditLink          *Link  // link to a page that can be used to edit the details of this person
+	WikiTreeID        string // the wikitree id of this person
+	GrampsID          string // the gramps id of this person
+	Links             []Link // list of links to more information relevant to this person
 
 	Redacted           bool          // true if the person's details should be redacted
 	RedactionKeepsName bool          // true if this person's name should be kept during redaction
@@ -151,9 +152,15 @@ func (p *Person) PreciseAgeAt(dt *Date) (*gdate.PreciseInterval, bool) {
 // Returns an empty string if no relation was determined
 func (p *Person) RelationTo(other *Person, dt *Date) string {
 	if p.SameAs(other) {
-		return "Self"
+		return "self"
 	}
 
+	if p.Father.SameAs(other.Father) || p.Mother.SameAs(other.Mother) {
+		if p.Father.SameAs(other.Father) && p.Mother.SameAs(other.Mother) {
+			return p.Gender.RelationToSiblingNoun()
+		}
+		return "half-" + p.Gender.RelationToSiblingNoun()
+	}
 	for _, ch := range p.Children {
 		if ch.SameAs(other) {
 			// other person is a child of this one
@@ -171,26 +178,26 @@ func (p *Person) RelationTo(other *Person, dt *Date) string {
 		if f.Father.SameAs(other) {
 			// The other person is the husband, so this person is the wife of other
 			if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
-				return "Former wife"
+				return "former wife"
 			}
 			if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
-				return "Wife"
+				return "wife"
 			}
 			if f.BestStartEvent == nil {
-				return "Wife"
+				return "wife"
 			}
 		} else if f.Mother.SameAs(other) {
 			// The other person is the wife, so this person is the husband of other
 			if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
-				return "Former husband"
+				return "former husband"
 			}
 
 			if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
-				return "Husband"
+				return "husband"
 			}
 
 			if f.BestStartEvent == nil {
-				return "Husband"
+				return "husband"
 			}
 		}
 	}
@@ -269,6 +276,30 @@ func (p *Person) RedactNames(name string) {
 	p.PreferredUniqueName = name
 	p.NickName = ""
 	p.KnownNames = p.KnownNames[:0]
+}
+
+func (p *Person) OccupationAt(dt *Date) *Occupation {
+	var occ *Occupation
+
+	// requires that p.Occupations is sorted by Date
+	for _, o := range p.Occupations {
+		if dt.SortsBefore(o.Date) {
+			break
+		}
+		if occ == nil {
+			occ = o
+			continue
+		}
+		if occ.Date.SortsBefore(o.Date) {
+			occ = o
+		}
+
+	}
+
+	if occ == nil {
+		return UnknownOccupation()
+	}
+	return occ
 }
 
 func UnknownPerson() *Person {

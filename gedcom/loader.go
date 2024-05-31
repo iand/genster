@@ -158,7 +158,12 @@ func (l *Loader) Load(t *tree.Tree) error {
 			return fmt.Errorf("family: %w", err)
 		}
 	}
+
 	logging.Info(fmt.Sprintf("loaded %d family records", len(l.Gedcom.Family)))
+
+	for _, p := range t.People {
+		l.buildFamilies(t, p)
+	}
 
 	return nil
 }

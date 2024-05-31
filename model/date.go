@@ -130,6 +130,20 @@ func (d *Date) When() string {
 	}
 
 	return d.Date.Occurrence()
+
+	// if d.Date.Calendar() == gdate.Gregorian {
+	// 	return d.Date.Occurrence()
+	// }
+
+	// cal := ""
+	// switch d.Date.Calendar() {
+	// case gdate.Julian, gdate.Julian25Mar:
+	// 	cal = "julian"
+	// default:
+	// 	cal = "unknown calendar"
+	// }
+
+	// return fmt.Sprintf("%s (%s)", d.Date.Occurrence(), cal)
 }
 
 func (d *Date) WhenYear() (string, bool) {

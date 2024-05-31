@@ -10,6 +10,7 @@ type TimelineEvent interface {
 	GetPlace() *Place
 	GetTitle() string
 	GetDetail() string
+	GetNarrative() Text
 	GetCitations() []*GeneralCitation
 	Type() string
 	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
@@ -18,7 +19,7 @@ type TimelineEvent interface {
 	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
-	Participants() []*Person
+	Participants() []*EventParticipant
 	SortsBefore(other TimelineEvent) bool
 }
 
@@ -28,12 +29,32 @@ type IndividualTimelineEvent interface {
 	GetPrincipal() *Person
 }
 
-// PartyTimelineEvent is a timeline event involving two parties.
+// PartyTimelineEvent is a timeline event involving two principal parties.
 type PartyTimelineEvent interface {
 	TimelineEvent
 	GetParty1() *Person
 	GetParty2() *Person
 	GetOther(p *Person) *Person // returns the first of party1 or party2 that is not p
+}
+
+type EventRole string
+
+const (
+	EventRoleUnknown   EventRole = "unknown"
+	EventRolePrincipal EventRole = "principal"
+	EventRoleHusband   EventRole = "husband"
+	EventRoleWife      EventRole = "wife"
+	EventRoleWitness   EventRole = "witness"
+	EventRoleGodparent EventRole = "godparent"
+)
+
+type EventParticipant struct {
+	Person *Person
+	Role   EventRole
+}
+
+func (e *EventParticipant) IsUnknown() bool {
+	return e == nil || e.Person.IsUnknown()
 }
 
 func SortTimelineEvents(evs []TimelineEvent) {
@@ -49,7 +70,7 @@ type GeneralEvent struct {
 	Detail    string
 	Citations []*GeneralCitation
 	Inferred  bool
-	Narrative string // hand written narrative, if any
+	Narrative Text // hand written narrative, if any
 }
 
 func (e *GeneralEvent) GetDate() *Date {
@@ -80,7 +101,7 @@ func (e *GeneralEvent) GetDetail() string {
 	return e.Detail
 }
 
-func (e *GeneralEvent) GetNarrative() string {
+func (e *GeneralEvent) GetNarrative() Text {
 	return e.Narrative
 }
 
@@ -137,40 +158,43 @@ func (e *GeneralIndividualEvent) DirectlyInvolves(p *Person) bool {
 	return e.Principal.SameAs(p)
 }
 
-func (e *GeneralIndividualEvent) Participants() []*Person {
-	return []*Person{e.Principal}
+func (e *GeneralIndividualEvent) Participants() []*EventParticipant {
+	return []*EventParticipant{{
+		Person: e.Principal,
+		Role:   EventRolePrincipal,
+	}}
 }
 
 // GeneralPartyEvent is a general event involving two principal parties.
 type GeneralPartyEvent struct {
-	Party1 *Person
-	Party2 *Person
+	Party1 *EventParticipant
+	Party2 *EventParticipant
 }
 
 func (e *GeneralPartyEvent) GetParty1() *Person {
-	return e.Party1
+	return e.Party1.Person
 }
 
 func (e *GeneralPartyEvent) GetParty2() *Person {
-	return e.Party2
+	return e.Party2.Person
 }
 
 func (e *GeneralPartyEvent) DirectlyInvolves(p *Person) bool {
-	return e.Party1.SameAs(p) || e.Party2.SameAs(p)
+	return e.Party1.Person.SameAs(p) || e.Party2.Person.SameAs(p)
 }
 
 func (e *GeneralPartyEvent) GetOther(p *Person) *Person {
-	if !e.Party1.SameAs(p) {
-		return e.Party1
+	if !e.Party1.Person.SameAs(p) {
+		return e.Party1.Person
 	}
-	if !e.Party2.SameAs(p) {
-		return e.Party2
+	if !e.Party2.Person.SameAs(p) {
+		return e.Party2.Person
 	}
 	return p
 }
 
-func (e *GeneralPartyEvent) Participants() []*Person {
-	return []*Person{e.Party1, e.Party2}
+func (e *GeneralPartyEvent) Participants() []*EventParticipant {
+	return []*EventParticipant{e.Party1, e.Party2}
 }
 
 // POV represents a point of view. It is used to provide contect when constructing a description of an event.
@@ -310,6 +334,21 @@ var (
 	_ IndividualTimelineEvent = (*ArrivalEvent)(nil)
 )
 
+// ApprenticeEvent represents the commencement of an apprenticeship of a person
+type ApprenticeEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *ApprenticeEvent) Type() string             { return "apprentice" }
+func (e *ApprenticeEvent) ShortDescription() string { return e.abbrev("app") }
+func (e *ApprenticeEvent) What() string             { return "apprenticed" }
+
+var (
+	_ TimelineEvent           = (*ApprenticeEvent)(nil)
+	_ IndividualTimelineEvent = (*ApprenticeEvent)(nil)
+)
+
 // IndividualNarrativeEvent represents some narrative that can be used as-is
 type IndividualNarrativeEvent struct {
 	GeneralEvent
@@ -379,9 +418,16 @@ func (e *CensusEvent) Head() *Person {
 	return nil
 }
 
-func (e *CensusEvent) Participants() []*Person {
-	// TODO implement CensusEvent.Participants
-	return []*Person{}
+func (e *CensusEvent) Participants() []*EventParticipant {
+	var ps []*EventParticipant
+
+	// TODO deduplicate
+	for _, ce := range e.Entries {
+		if ce.Principal != nil {
+			ps = append(ps, &EventParticipant{Person: ce.Principal})
+		}
+	}
+	return ps
 }
 
 var _ TimelineEvent = (*CensusEvent)(nil)
@@ -416,7 +462,7 @@ func (e *WillEvent) Type() string             { return "will" }
 func (e *WillEvent) ShortDescription() string { return e.abbrev("will") }
 func (e *WillEvent) What() string             { return "wrote a will" }
 
-// ResidenceRecordedEvent represents the event of a person's occupation being recorded / noted
+// ResidenceRecordedEvent represents the event of a person's residence being recorded / noted
 type ResidenceRecordedEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent
@@ -432,6 +478,21 @@ var (
 	_ TimelineEvent           = (*ResidenceRecordedEvent)(nil)
 	_ IndividualTimelineEvent = (*ResidenceRecordedEvent)(nil)
 )
+
+// SaleOfPropertyEvent represents the sale of some property person in their timeline
+type SaleOfPropertyEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*SaleOfPropertyEvent)(nil)
+	_ IndividualTimelineEvent = (*SaleOfPropertyEvent)(nil)
+)
+
+func (e *SaleOfPropertyEvent) Type() string             { return "sale of property" }
+func (e *SaleOfPropertyEvent) ShortDescription() string { return e.abbrev("sale") }
+func (e *SaleOfPropertyEvent) What() string             { return "sold some property" }
 
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {
@@ -463,13 +524,13 @@ func (e *MarriageLicenseEvent) Type() string             { return "marriage lice
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
 func (e *MarriageLicenseEvent) What() string             { return "obtained licensed to marry" }
 
-func (e *MarriageLicenseEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *MarriageLicenseEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *MarriageLicenseEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *MarriageLicenseEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // MarriageBannsEvent represents the event that public notice is given that two people intend to marry
 type MarriageBannsEvent struct {
@@ -486,13 +547,13 @@ func (e *MarriageBannsEvent) Type() string             { return "marriage banns"
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
 func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
 
-func (e *MarriageBannsEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *MarriageBannsEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *MarriageBannsEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *MarriageBannsEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // DivorceEvent represents the ending of a marriage by divorce in a timeline
 type DivorceEvent struct {
@@ -509,13 +570,13 @@ func (e *DivorceEvent) Type() string             { return "divorce" }
 func (e *DivorceEvent) ShortDescription() string { return e.abbrev("div") }
 func (e *DivorceEvent) What() string             { return "divorced" }
 
-func (e *DivorceEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *DivorceEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *DivorceEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *DivorceEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // AnnulmentEvent represents the ending of a marriage by anulment in a timeline
 type AnnulmentEvent struct {
@@ -532,13 +593,13 @@ func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
 func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
 
-func (e *AnnulmentEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *AnnulmentEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *AnnulmentEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *AnnulmentEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // FamilyStartEvent represents the start of a family grouping, if no other more specific event is available
 type FamilyStartEvent struct {
@@ -554,13 +615,13 @@ var (
 func (e *FamilyStartEvent) ShortDescription() string { return e.abbrev("start") }
 func (e *FamilyStartEvent) What() string             { return "started a family" }
 
-func (e *FamilyStartEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *FamilyStartEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *FamilyStartEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *FamilyStartEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // FamilyEndEvent represents the end of a family grouping, if no other more specific event is available
 type FamilyEndEvent struct {
@@ -576,13 +637,13 @@ var (
 func (e *FamilyEndEvent) ShortDescription() string { return e.abbrev("end") }
 func (e *FamilyEndEvent) What() string             { return "ended a family" }
 
-func (e *FamilyEndEvent) GetParty1() *Person {
-	return e.Party1
-}
+// func (e *FamilyEndEvent) GetParty1() *Person {
+// 	return e.Party1
+// }
 
-func (e *FamilyEndEvent) GetParty2() *Person {
-	return e.Party2
-}
+// func (e *FamilyEndEvent) GetParty2() *Person {
+// 	return e.Party2
+// }
 
 // PartyNarrativeEvent represents some narrative that can be used as-is
 type PartyNarrativeEvent struct {

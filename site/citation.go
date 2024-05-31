@@ -15,17 +15,6 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 	doc.Layout(PageLayoutCitation.String())
 	doc.Category(PageCategoryCitation)
 	doc.ID(c.ID)
-	// doc.AddTags(CleanTags(so.Tags))
-
-	// if so.RepositoryName != "" {
-	// 	para := text.JoinSentenceParts("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
-	// 	doc.Para(text.FormatSentence(para))
-	// }
-
-	// if so.SearchLink != "" {
-	// 	para := text.JoinSentenceParts("It can be ", doc.EncodeLink("searched online", so.SearchLink))
-	// 	doc.Para(text.FormatSentence(para))
-	// }
 
 	title := c.Detail
 	if title == "" {
@@ -45,7 +34,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 		link := s.LinkFor(mo)
 		if link != "" {
 			doc.EmptyPara()
-			doc.Image(mo.ID, s.LinkFor(mo))
+			doc.Image(mo.ID, link)
 		}
 	}
 
@@ -70,6 +59,23 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 		}
 	}
 
+	if len(c.Notes) > 0 {
+		if len(c.Notes) == 1 {
+			doc.Heading3("Note")
+		} else {
+			doc.Heading3("Note")
+		}
+		for _, t := range c.Notes {
+			if t.Formatted {
+				doc.Pre(t.Text)
+				doc.Pre("")
+			} else {
+				doc.Para(t.Text)
+				doc.EmptyPara()
+			}
+		}
+	}
+
 	peopleInCitations := make(map[*model.Person]bool)
 
 	var cites string
@@ -78,7 +84,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 	for _, ev := range c.EventsCited {
 		events = append(events, WhoWhatWhenWhere(ev, doc))
 		for _, p := range ev.Participants() {
-			peopleInCitations[p] = true
+			peopleInCitations[p.Person] = true
 		}
 	}
 

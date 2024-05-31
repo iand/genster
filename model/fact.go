@@ -8,12 +8,14 @@ import (
 const (
 	FactCategoryAKA                   = "Also known as"
 	FactCategoryMilitaryServiceNumber = "Military service number"
+	FactCategorySeamansTicket         = "Seaman's ticket"
 	FactCategoryCauseOfDeath          = "Cause of death"
 )
 
 type Fact struct {
 	Category  string
 	Detail    string
+	Comment   string // an explanatatory comment to be used alongside or as a footnote to the title
 	Citations []*GeneralCitation
 }
 
