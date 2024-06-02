@@ -136,8 +136,12 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 				Principal: p,
 				Event:     tev,
 			})
+		case *model.BirthEvent:
+		case *model.DeathEvent:
+		case *model.BurialEvent:
+		case *model.CremationEvent:
 		default:
-			if tev.GetNarrative().Text != "" {
+			if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
 				n.Statements = append(n.Statements, &NarrativeStatement{
 					Principal: p,
 					Event:     tev,
@@ -179,6 +183,13 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
+	}
+
+	if len(p.Comments) > 0 {
+		doc.Heading3("Comments")
+		for _, t := range p.Comments {
+			RenderText(t, doc)
+		}
 	}
 
 	t := &model.Timeline{
@@ -232,40 +243,9 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 
 	if len(p.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes")
-		mentions := make([]*model.Note, 0)
-		for _, n := range p.ResearchNotes {
-			if !n.PrimaryPerson.SameAs(p) {
-				mentions = append(mentions, n)
-				continue
-			}
-			doc.Heading3(n.Title)
-
-			byline := ""
-			if n.Author != "" {
-				byline = "by " + n.Author
-			}
-			if n.Date != "" {
-				if byline != "" {
-					byline += ", "
-				}
-				byline += n.Date
-			}
-			if byline != "" {
-				doc.Para(doc.EncodeItalic("Written " + byline))
-				doc.EmptyPara()
-			}
-			doc.RawMarkdown(n.Markdown)
+		for _, t := range p.ResearchNotes {
+			RenderText(t, doc)
 		}
-
-		if len(mentions) > 0 {
-			doc.Heading3("Mentioned in the following notes:")
-			ss := make([]string, 0, len(mentions))
-			for _, n := range mentions {
-				ss = append(ss, doc.EncodeModelLink(n.Title, n.PrimaryPerson))
-			}
-			doc.UnorderedList(ss)
-		}
-
 	}
 
 	return doc, nil

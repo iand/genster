@@ -100,11 +100,20 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		if !ok {
 			continue
 		}
+		if pval(gn.Priv, false) {
+			logger.Debug("skipping citation note marked as private", "handle", gn.Handle)
+			continue
+		}
 		switch strings.ToLower(gn.Type) {
 		case "transcript":
 			cit.TranscriptionText = append(cit.TranscriptionText, noteToText(gn))
 		case "citation":
-			cit.TranscriptionText = append(cit.TranscriptionText, noteToText(gn))
+			cit.Comments = append(cit.Comments, noteToText(gn))
+		case "research":
+			// research notes are always assumed to be markdown
+			t := noteToText(gn)
+			t.Markdown = true
+			cit.ResearchNotes = append(cit.ResearchNotes, t)
 		}
 	}
 
@@ -160,5 +169,15 @@ func noteToText(gn *grampsxml.Note) model.Text {
 	if pval(gn.Format, false) {
 		txt.Formatted = true
 	}
+
+	// TODO interpret styles and links
+
+	// <note handle="_f8e8f631a9b39636b2dd988731b" change="1717158291" id="N0182" type="Person Note">
+	//   <text>On her marriage certificate she stated her father to be George Palmer. However her father Daniel died while she was very young and she never knew him. Having met her descendants and seen her family bible I'm confident of the relationship and believe she was simply unaware of her father's name.</text>
+	//   <style name="link" value="gramps://Person/handle/f8b62146b55125f15e326031dd7">
+	//     <range start="90" end="96"/>
+	//   </style>
+	// </note>
+
 	return txt
 }

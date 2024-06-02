@@ -13,7 +13,6 @@ type Place struct {
 	PreferredUniqueName string       // fully parsed name but with just enough extra context to make it unique
 	PreferredFullName   string       // the fully parsed name
 	PreferredSortName   string       // name organised for sorting, generally as a reverse hierarchy of country, region, locality
-	Description         string       // long form description of the place
 	Parent              *Place       // the parent of this place in the administrative hierarchy
 	PlaceType           PlaceType    // the type of place, such as "village", "town", "parish"
 	Numbered            bool         // whether the place is a numbered building
@@ -29,6 +28,9 @@ type Place struct {
 	UKNationName *place.PlaceName
 
 	Kind place.PlaceKind // the kind of place - DEPRECATED
+
+	ResearchNotes []Text // research notes associated with this place
+	Comments      []Text // comments associated with this place
 }
 
 func (p *Place) IsUnknown() bool {
@@ -89,6 +91,12 @@ const (
 	PlaceTypeStreet       = "street"
 	PlaceTypeShip         = "ship"
 	PlaceTypeCategory     = "category" // used ony for grouping related places
+	PlaceTypeCity         = "city"
+	PlaceTypeTown         = "town"
+	PlaceTypeVillage      = "village"
+	PlaceTypeHamlet       = "hamlet"
+	PlaceTypeParish       = "parish"
+	PlaceTypeCounty       = "county"
 )
 
 func (p PlaceType) String() string {

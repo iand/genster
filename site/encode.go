@@ -18,7 +18,6 @@ type MarkdownDoc interface {
 	AddTag(s string)
 	AddTags(ss []string)
 	ResetSeenLinks()
-	RawMarkdown(s string)
 }
 
 type ExtendedMarkdownBuilder interface {
@@ -29,7 +28,9 @@ type ExtendedMarkdownBuilder interface {
 type MarkdownBuilder interface {
 	MarkdownEncoder
 	Markdown() string
+	RawMarkdown(s string)
 	Para(s string)
+	Pre(s string)
 	EmptyPara()
 	Heading2(s string)
 	Heading3(s string)

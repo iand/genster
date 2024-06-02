@@ -238,8 +238,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 				ev = l.populateCensusRecord(er, gev, p)
 			} else {
 				ev = &model.ResidenceRecordedEvent{
-					GeneralEvent:           gev,
-					GeneralIndividualEvent: giv,
+					GeneralEvent: gev,
+					GeneralMultipartyEvent: model.GeneralMultipartyEvent{
+						Participants: []*model.EventParticipant{{Person: p, Role: model.EventRolePrincipal}},
+					},
 				}
 			}
 		case "CENS":

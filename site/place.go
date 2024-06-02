@@ -29,8 +29,8 @@ func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 
 	doc.Para(doc.EncodeItalic(text.FinishSentence(name)))
 
-	if p.Description != "" {
-		doc.Para(text.FinishSentence(p.Description))
+	for _, t := range p.Comments {
+		RenderText(t, doc)
 	}
 
 	t := &model.Timeline{
@@ -50,6 +50,13 @@ func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
 		doc.Heading2("Links")
 		for _, l := range p.Links {
 			doc.Para(doc.EncodeLink(l.Title, l.URL))
+		}
+	}
+
+	if len(p.ResearchNotes) > 0 {
+		doc.Heading2("Research Notes")
+		for _, t := range p.ResearchNotes {
+			RenderText(t, doc)
 		}
 	}
 

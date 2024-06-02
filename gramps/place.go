@@ -48,6 +48,18 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	case "hospital":
 		pl.PlaceType = model.PlaceTypeBuilding
 		pl.BuildingKind = model.BuildingKindHospital
+	case "parish":
+		pl.PlaceType = model.PlaceTypeParish
+	case "ancient county", "county":
+		pl.PlaceType = model.PlaceTypeCounty
+	case "city":
+		pl.PlaceType = model.PlaceTypeCity
+	case "town":
+		pl.PlaceType = model.PlaceTypeTown
+	case "village":
+		pl.PlaceType = model.PlaceTypeVillage
+	case "hamlet":
+		pl.PlaceType = model.PlaceTypeHamlet
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
@@ -92,13 +104,27 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		}
 	}
 
-	for _, gnr := range gp.Noteref {
-		gn, ok := l.NotesByHandle[gnr.Hlink]
+	// Add notes
+	for _, nr := range gp.Noteref {
+		gn, ok := l.NotesByHandle[nr.Hlink]
 		if !ok {
 			continue
 		}
-		if gn.Type == "Place Note" {
-			pl.Description = gn.Text
+		if pval(gn.Priv, false) {
+			logger.Debug("skipping place note marked as private", "handle", gn.Handle)
+			continue
+		}
+
+		switch strings.ToLower(gn.Type) {
+		case "place note":
+			pl.Comments = append(pl.Comments, noteToText(gn))
+		case "research":
+			// research notes are always assumed to be markdown
+			t := noteToText(gn)
+			t.Markdown = true
+			pl.ResearchNotes = append(pl.ResearchNotes, t)
+		default:
+			// ignore note
 		}
 	}
 

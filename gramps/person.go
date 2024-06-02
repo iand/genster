@@ -247,6 +247,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Puzzle = true
 		case "featured":
 			p.Featured = true
+		case "publish":
+			p.Publish = true
 		}
 	}
 
@@ -346,10 +348,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			}
 			ev = l.populateCensusRecord(grev, &er, gev, p)
 		case "residence":
-			ev = &model.ResidenceRecordedEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
+			ev = l.getResidenceEvent(grev, &er, gev, p)
 		case "probate":
 			ev = &model.ProbateEvent{
 				GeneralEvent:           gev,
@@ -467,28 +466,26 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 	// Add notes
 	for _, nr := range gp.Noteref {
-		n, ok := l.NotesByHandle[nr.Hlink]
+		gn, ok := l.NotesByHandle[nr.Hlink]
 		if !ok {
 			continue
 		}
-		if pval(n.Priv, false) {
-			logger.Debug("skipping person note marked as private", "handle", n.Handle)
+		if pval(gn.Priv, false) {
+			logger.Debug("skipping person note marked as private", "handle", gn.Handle)
 			continue
 		}
 
-		switch strings.ToLower(n.Type) {
-		case "person note", "research":
-			p.ResearchNotes = append(p.ResearchNotes, &model.Note{
-				Title:         "",
-				Author:        "",
-				Date:          "",
-				Markdown:      n.Text,
-				PrimaryPerson: p,
-			})
+		switch strings.ToLower(gn.Type) {
+		case "person note":
+			p.Comments = append(p.Comments, noteToText(gn))
+		case "research":
+			// research notes are always assumed to be markdown
+			t := noteToText(gn)
+			t.Markdown = true
+			p.ResearchNotes = append(p.ResearchNotes, t)
 		default:
 			// ignore note
 		}
-
 	}
 
 	// Add to families

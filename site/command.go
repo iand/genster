@@ -171,26 +171,12 @@ func gen(cc *cli.Context) error {
 					// logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
 					continue
 				}
-				note := &model.Note{
-					Title:         nd.Title,
-					Author:        nd.Author,
-					Date:          nd.Date,
-					Markdown:      nd.Markdown,
-					PrimaryPerson: p,
-				}
-
 				logging.Debug("found research note for person", "filename", nd.Filename, "id", nd.Person)
-				p.ResearchNotes = append(p.ResearchNotes, note)
+				p.ResearchNotes = append(p.ResearchNotes, model.Text{
+					Text:     nd.Markdown,
+					Markdown: true,
+				})
 
-				for _, m := range nd.Mentions {
-					mp, ok := t.GetPerson(m)
-					if !ok {
-						// logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
-						continue
-					}
-					logging.Debug("found research note that mentions person", "filename", nd.Filename, "id", m)
-					mp.ResearchNotes = append(mp.ResearchNotes, note)
-				}
 			}
 		}
 
@@ -216,11 +202,27 @@ func gen(cc *cli.Context) error {
 
 	switch genopts.relation {
 	case "direct":
-		logging.Info("only generating pages for direct ancestors")
-		inclusionFunc = model.PersonIsDirectAncestor()
+		logging.Info("only generating pages for direct ancestors and those tagged as featured or publish")
+		inclusionFunc = func(p *model.Person) bool {
+			if p.Featured || p.Publish {
+				return true
+			}
+			if p.RelationToKeyPerson == nil {
+				return false
+			}
+			return p.RelationToKeyPerson.IsDirectAncestor()
+		}
 	case "common":
-		logging.Info("only generating pages for people with common ancestors")
-		inclusionFunc = model.PersonHasCommonAncestor()
+		logging.Info("only generating pages for people with common ancestors those tagged as featured or publish")
+		inclusionFunc = func(p *model.Person) bool {
+			if p.Featured || p.Publish {
+				return true
+			}
+			if p.RelationToKeyPerson == nil {
+				return false
+			}
+			return p.RelationToKeyPerson.HasCommonAncestor()
+		}
 	case "any":
 		break
 	default:

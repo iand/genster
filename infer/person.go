@@ -100,7 +100,7 @@ func InferPersonBirthEventDate(p *model.Person) error {
 						Reason: fmt.Sprintf("%s had child, %s, in %d", p.Gender.SubjectPronoun(), tev.Principal.PreferredUniqueName, year),
 					}
 				case *model.MarriageEvent:
-					if !tev.Party1.Person.SameAs(p) && tev.Party2.Person.SameAs(p) {
+					if !tev.Husband.SameAs(p) && tev.Wife.SameAs(p) {
 						break
 					}
 					inferredYear := year - 16

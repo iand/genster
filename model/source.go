@@ -33,7 +33,8 @@ type GeneralCitation struct {
 	ID                string
 	TranscriptionDate *Date
 	TranscriptionText []Text
-	Notes             []Text
+	Comments          []Text
+	ResearchNotes     []Text
 	URL               *Link
 	MediaObjects      []*MediaObject
 	EventsCited       []TimelineEvent
@@ -43,6 +44,7 @@ type GeneralCitation struct {
 type Text struct {
 	Text      string
 	Formatted bool
+	Markdown  bool
 }
 
 func (c *GeneralCitation) String() string {

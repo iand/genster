@@ -46,6 +46,7 @@ type Loader struct {
 	NotesByHandle        map[string]*grampsxml.Note
 	populatedPlaces      map[string]bool // which place handles have been populated to save repeated work when traversing the hierarchy
 	censusEvents         map[string]*model.CensusEvent
+	residenceEvents      map[string]*model.ResidenceRecordedEvent
 }
 
 func NewLoader(filename string, databaseName string) (*Loader, error) {
@@ -74,6 +75,7 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		NotesByHandle:        make(map[string]*grampsxml.Note),
 		populatedPlaces:      make(map[string]bool),
 		censusEvents:         make(map[string]*model.CensusEvent),
+		residenceEvents:      make(map[string]*model.ResidenceRecordedEvent),
 	}
 
 	l.indexObjects()

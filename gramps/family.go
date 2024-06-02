@@ -129,9 +129,9 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			}
 		}
 
-		gpe := model.GeneralPartyEvent{
-			Party1: &model.EventParticipant{Person: father, Role: model.EventRoleHusband},
-			Party2: &model.EventParticipant{Person: mother, Role: model.EventRoleWife},
+		gpe := model.GeneralUnionEvent{
+			Husband: father,
+			Wife:    mother,
 		}
 
 		var ev model.TimelineEvent
@@ -140,7 +140,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		case "Marriage":
 			ev = &model.MarriageEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 			fam.Bond = model.FamilyBondMarried
 			fam.Timeline = append(fam.Timeline, ev)
@@ -149,7 +149,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		case "Marriage License":
 			ev = &model.MarriageLicenseEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 			fam.Timeline = append(fam.Timeline, ev)
 			if fam.BestStartEvent == nil {
@@ -159,7 +159,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		case "Marriage Banns":
 			ev = &model.MarriageBannsEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 			fam.Timeline = append(fam.Timeline, ev)
 			if fam.BestStartEvent == nil {
@@ -169,7 +169,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		case "Divorce":
 			ev = &model.DivorceEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 			fam.BestEndEvent = ev
 			fam.BestEndDate = ev.GetDate()

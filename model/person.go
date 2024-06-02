@@ -12,8 +12,7 @@ const (
 )
 
 type Person struct {
-	ID string // canonical identifier
-	// Page                      string    // path to page in site
+	ID                        string    // canonical identifier
 	Tags                      []string  // tags to add to the person's page
 	PreferredFullName         string    // full legal name
 	PreferredGivenName        string    // name that can be used in prose, usually just the first name
@@ -58,6 +57,7 @@ type Person struct {
 	DiedInChildbirth   bool        // true if it is known that the person died in childbirth
 	ModeOfDeath        ModeOfDeath // mode of death, if known
 	CauseOfDeath       *Fact       // cause of death, if known
+	Publish            bool        // true if this person should always be included in the publish set
 	Featured           bool        // true if this person is to be highlighted as a featured person on the tree overview
 	Puzzle             bool        // true if this person is the centre of a significant puzzle
 
@@ -77,7 +77,8 @@ type Person struct {
 	MiscFacts          []Fact        // miscellaneous facts
 	Associations       []Association // general associations with other people such as godparent or twin
 	FeatureImage       *FeatureImage // an image that can be used to represent the person
-	ResearchNotes      []*Note       // research notes associated with this person
+	ResearchNotes      []Text        // research notes associated with this person
+	Comments           []Text        // comments associated with this person
 }
 
 func (p *Person) IsUnknown() bool {

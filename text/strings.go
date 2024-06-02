@@ -39,6 +39,10 @@ func RemoveRedundantWhitespace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 }
 
+func RemoveAllWhitespace(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), "")
+}
+
 func CardinalNoun(n int) string {
 	noun := cardinalNounUnderTwenty(n)
 	if noun != "" {

@@ -67,7 +67,7 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 		case *model.BurialEvent:
 			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was buried."
 		case *model.MarriageEvent:
-			evd.text = doc.EncodeModelLink(tev.Party1.Person.PreferredUniqueName, tev.Party1) + " and " + doc.EncodeModelLink(tev.Party2.Person.PreferredUniqueName, tev.Party2) + " were married."
+			evd.text = doc.EncodeModelLink(tev.Husband.PreferredUniqueName, tev.Husband) + " and " + doc.EncodeModelLink(tev.Wife.PreferredUniqueName, tev.Wife) + " were married."
 		default:
 			evd.text = EventWhatWhenWhere(tev, doc)
 		}
@@ -77,9 +77,9 @@ func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
 			if p.RelationToKeyPerson.IsDirectAncestor() {
 				evd.text += " " + text.UpperFirst(p.Gender.SubjectPronoun()) + " is a direct ancestor."
 			}
-		} else if tev, ok := ev.(model.PartyTimelineEvent); ok {
-			p1 := tev.GetParty1()
-			p2 := tev.GetParty1()
+		} else if tev, ok := ev.(model.UnionTimelineEvent); ok {
+			p1 := tev.GetHusband()
+			p2 := tev.GetHusband()
 			if p1.RelationToKeyPerson.IsDirectAncestor() && p2.RelationToKeyPerson.IsDirectAncestor() {
 				evd.text += " Both are direct ancestors."
 			} else if p1.RelationToKeyPerson.IsDirectAncestor() {

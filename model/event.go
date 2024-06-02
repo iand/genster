@@ -19,33 +19,42 @@ type TimelineEvent interface {
 	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
-	Participants() []*EventParticipant
+	GetParticipants() []*EventParticipant
+	GetParticipantsByRole(EventRole) []*EventParticipant
 	SortsBefore(other TimelineEvent) bool
 }
 
-// GeneralPartyEvent is a timeline event involving one individual.
+// IndividualTimelineEvent is a timeline event involving one individual.
 type IndividualTimelineEvent interface {
 	TimelineEvent
 	GetPrincipal() *Person
 }
 
-// PartyTimelineEvent is a timeline event involving two principal parties.
-type PartyTimelineEvent interface {
+// UnionTimelineEvent is a timeline event involving the union of two parties.
+type UnionTimelineEvent interface {
 	TimelineEvent
-	GetParty1() *Person
-	GetParty2() *Person
+	GetHusband() *Person
+	GetWife() *Person
 	GetOther(p *Person) *Person // returns the first of party1 or party2 that is not p
+}
+
+// MultipartyTimelineEvent is a timeline event involving multiple principal parties.
+type MultipartyTimelineEvent interface {
+	TimelineEvent
+	GetPrincipals() []*Person
 }
 
 type EventRole string
 
 const (
-	EventRoleUnknown   EventRole = "unknown"
-	EventRolePrincipal EventRole = "principal"
-	EventRoleHusband   EventRole = "husband"
-	EventRoleWife      EventRole = "wife"
-	EventRoleWitness   EventRole = "witness"
-	EventRoleGodparent EventRole = "godparent"
+	EventRoleUnknown     EventRole = "unknown"
+	EventRolePrincipal   EventRole = "principal"
+	EventRoleHusband     EventRole = "husband"
+	EventRoleWife        EventRole = "wife"
+	EventRoleWitness     EventRole = "witness" // witness to a marriage, will or other legal document
+	EventRoleGodparent   EventRole = "godparent"
+	EventRoleBeneficiary EventRole = "beneficiary" // beneficiary of a will
+	EventRoleExecutor    EventRole = "executor"    // executor of a will
 )
 
 type EventParticipant struct {
@@ -147,7 +156,8 @@ func (e *GeneralEvent) SortsBefore(other TimelineEvent) bool {
 
 // GeneralPartyEvent is a general event involving one individual.
 type GeneralIndividualEvent struct {
-	Principal *Person
+	Principal         *Person
+	OtherParticipants []*EventParticipant
 }
 
 func (e *GeneralIndividualEvent) GetPrincipal() *Person {
@@ -158,43 +168,143 @@ func (e *GeneralIndividualEvent) DirectlyInvolves(p *Person) bool {
 	return e.Principal.SameAs(p)
 }
 
-func (e *GeneralIndividualEvent) Participants() []*EventParticipant {
+func (e *GeneralIndividualEvent) GetParticipants() []*EventParticipant {
 	return []*EventParticipant{{
 		Person: e.Principal,
 		Role:   EventRolePrincipal,
 	}}
 }
 
-// GeneralPartyEvent is a general event involving two principal parties.
-type GeneralPartyEvent struct {
-	Party1 *EventParticipant
-	Party2 *EventParticipant
-}
-
-func (e *GeneralPartyEvent) GetParty1() *Person {
-	return e.Party1.Person
-}
-
-func (e *GeneralPartyEvent) GetParty2() *Person {
-	return e.Party2.Person
-}
-
-func (e *GeneralPartyEvent) DirectlyInvolves(p *Person) bool {
-	return e.Party1.Person.SameAs(p) || e.Party2.Person.SameAs(p)
-}
-
-func (e *GeneralPartyEvent) GetOther(p *Person) *Person {
-	if !e.Party1.Person.SameAs(p) {
-		return e.Party1.Person
+func (e *GeneralIndividualEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
+	if r == EventRolePrincipal {
+		return []*EventParticipant{{
+			Person: e.Principal,
+			Role:   EventRolePrincipal,
+		}}
 	}
-	if !e.Party2.Person.SameAs(p) {
-		return e.Party2.Person
+
+	var eps []*EventParticipant
+	for _, ep := range e.OtherParticipants {
+		if ep.Role == r {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
+// GeneralUnionEvent is a general event involving the union of two parties.
+type GeneralUnionEvent struct {
+	Husband           *Person
+	Wife              *Person
+	OtherParticipants []*EventParticipant
+}
+
+func (e *GeneralUnionEvent) GetHusband() *Person {
+	return e.Husband
+}
+
+func (e *GeneralUnionEvent) GetWife() *Person {
+	return e.Wife
+}
+
+func (e *GeneralUnionEvent) GetHusband1() *Person {
+	return e.Husband
+}
+
+func (e *GeneralUnionEvent) GetWife1() *Person {
+	return e.Wife
+}
+
+func (e *GeneralUnionEvent) DirectlyInvolves(p *Person) bool {
+	return e.Husband.SameAs(p) || e.Wife.SameAs(p)
+}
+
+func (e *GeneralUnionEvent) GetOther(p *Person) *Person {
+	if !e.Husband.SameAs(p) {
+		return e.Husband
+	}
+	if !e.Wife.SameAs(p) {
+		return e.Wife
 	}
 	return p
 }
 
-func (e *GeneralPartyEvent) Participants() []*EventParticipant {
-	return []*EventParticipant{e.Party1, e.Party2}
+func (e *GeneralUnionEvent) GetParticipants() []*EventParticipant {
+	return []*EventParticipant{
+		{
+			Person: e.Husband,
+			Role:   EventRoleHusband,
+		},
+		{
+			Person: e.Wife,
+			Role:   EventRoleWife,
+		},
+	}
+}
+
+func (e *GeneralUnionEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
+	switch r {
+	case EventRoleHusband:
+		return []*EventParticipant{
+			{
+				Person: e.Husband,
+				Role:   EventRoleHusband,
+			},
+		}
+	case EventRoleWife:
+		return []*EventParticipant{
+			{
+				Person: e.Wife,
+				Role:   EventRoleWife,
+			},
+		}
+	default:
+		var eps []*EventParticipant
+		for _, ep := range e.OtherParticipants {
+			if ep.Role == r {
+				eps = append(eps, ep)
+			}
+		}
+		return eps
+	}
+}
+
+// GeneralMultipartyEvent is a general event involving multiple parties.
+type GeneralMultipartyEvent struct {
+	Participants []*EventParticipant
+}
+
+func (e *GeneralMultipartyEvent) DirectlyInvolves(p *Person) bool {
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) && ep.Role == EventRolePrincipal {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *GeneralMultipartyEvent) GetPrincipals() []*Person {
+	var ps []*Person
+	for _, p := range e.Participants {
+		if p.Role == EventRolePrincipal {
+			ps = append(ps, p.Person)
+		}
+	}
+	return ps
+}
+
+func (e *GeneralMultipartyEvent) GetParticipants() []*EventParticipant {
+	return e.Participants
+}
+
+func (e *GeneralMultipartyEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
+	var eps []*EventParticipant
+	for _, ep := range e.Participants {
+		if ep.Role == r {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
 }
 
 // POV represents a point of view. It is used to provide contect when constructing a description of an event.
@@ -202,32 +312,6 @@ type POV struct {
 	Person *Person // the person observing or experiencing the event
 	Place  *Place  // the place in which the observing is taking place
 }
-
-// PlaceholderIndividualEvent represents an event involving one individual that has not been interpreted and is a placeholder until the necessary
-// processing has been written.
-type PlaceholderIndividualEvent struct {
-	GeneralEvent
-	GeneralIndividualEvent
-	ExtraInfo string
-}
-
-func (e *PlaceholderIndividualEvent) GetTitle() string {
-	return e.ExtraInfo
-}
-
-// PlaceholderPartyEvent represents an event involving two parties that has not been interpreted and is a placeholder until the necessary
-// processing has been written.
-type PlaceholderPartyEvent struct {
-	GeneralEvent
-	GeneralPartyEvent
-	ExtraInfo string
-}
-
-func (e *PlaceholderPartyEvent) GetTitle() string {
-	return e.ExtraInfo
-}
-
-var _ TimelineEvent = (*PlaceholderIndividualEvent)(nil)
 
 // BirthEvent represents the birth of a person in their timeline
 type BirthEvent struct {
@@ -418,7 +502,7 @@ func (e *CensusEvent) Head() *Person {
 	return nil
 }
 
-func (e *CensusEvent) Participants() []*EventParticipant {
+func (e *CensusEvent) GetParticipants() []*EventParticipant {
 	var ps []*EventParticipant
 
 	// TODO deduplicate
@@ -428,6 +512,10 @@ func (e *CensusEvent) Participants() []*EventParticipant {
 		}
 	}
 	return ps
+}
+
+func (e *CensusEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
+	panic("GeneralPartyEvent.GetParticipantsByRole not implemented")
 }
 
 var _ TimelineEvent = (*CensusEvent)(nil)
@@ -465,7 +553,7 @@ func (e *WillEvent) What() string             { return "wrote a will" }
 // ResidenceRecordedEvent represents the event of a person's residence being recorded / noted
 type ResidenceRecordedEvent struct {
 	GeneralEvent
-	GeneralIndividualEvent
+	GeneralMultipartyEvent
 }
 
 func (e *ResidenceRecordedEvent) Type() string               { return "residence" }
@@ -476,7 +564,7 @@ func (e *ResidenceRecordedEvent) GetTitle() string           { return "residence
 
 var (
 	_ TimelineEvent           = (*ResidenceRecordedEvent)(nil)
-	_ IndividualTimelineEvent = (*ResidenceRecordedEvent)(nil)
+	_ MultipartyTimelineEvent = (*ResidenceRecordedEvent)(nil)
 )
 
 // SaleOfPropertyEvent represents the sale of some property person in their timeline
@@ -497,12 +585,12 @@ func (e *SaleOfPropertyEvent) What() string             { return "sold some prop
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {
 	GeneralEvent
-	GeneralPartyEvent
+	GeneralUnionEvent
 }
 
 var (
 	_ TimelineEvent      = (*MarriageEvent)(nil)
-	_ PartyTimelineEvent = (*MarriageEvent)(nil)
+	_ UnionTimelineEvent = (*MarriageEvent)(nil)
 )
 
 func (e *MarriageEvent) Type() string             { return "marriage" }
@@ -512,152 +600,62 @@ func (e *MarriageEvent) What() string             { return "married" }
 // MarriageLicenseEvent represents the event where two people obtain a license to marry
 type MarriageLicenseEvent struct {
 	GeneralEvent
-	GeneralPartyEvent
+	GeneralUnionEvent
 }
 
 var (
 	_ TimelineEvent      = (*MarriageLicenseEvent)(nil)
-	_ PartyTimelineEvent = (*MarriageLicenseEvent)(nil)
+	_ UnionTimelineEvent = (*MarriageLicenseEvent)(nil)
 )
 
 func (e *MarriageLicenseEvent) Type() string             { return "marriage license" }
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
 func (e *MarriageLicenseEvent) What() string             { return "obtained licensed to marry" }
 
-// func (e *MarriageLicenseEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *MarriageLicenseEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
 // MarriageBannsEvent represents the event that public notice is given that two people intend to marry
 type MarriageBannsEvent struct {
 	GeneralEvent
-	GeneralPartyEvent
+	GeneralUnionEvent
 }
 
 var (
 	_ TimelineEvent      = (*MarriageBannsEvent)(nil)
-	_ PartyTimelineEvent = (*MarriageBannsEvent)(nil)
+	_ UnionTimelineEvent = (*MarriageBannsEvent)(nil)
 )
 
 func (e *MarriageBannsEvent) Type() string             { return "marriage banns" }
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
 func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
 
-// func (e *MarriageBannsEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *MarriageBannsEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
 // DivorceEvent represents the ending of a marriage by divorce in a timeline
 type DivorceEvent struct {
 	GeneralEvent
-	GeneralPartyEvent
+	GeneralUnionEvent
 }
 
 var (
 	_ TimelineEvent      = (*DivorceEvent)(nil)
-	_ PartyTimelineEvent = (*DivorceEvent)(nil)
+	_ UnionTimelineEvent = (*DivorceEvent)(nil)
 )
 
 func (e *DivorceEvent) Type() string             { return "divorce" }
 func (e *DivorceEvent) ShortDescription() string { return e.abbrev("div") }
 func (e *DivorceEvent) What() string             { return "divorced" }
 
-// func (e *DivorceEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *DivorceEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
 // AnnulmentEvent represents the ending of a marriage by anulment in a timeline
 type AnnulmentEvent struct {
 	GeneralEvent
-	GeneralPartyEvent
+	GeneralUnionEvent
 }
 
 var (
 	_ TimelineEvent      = (*AnnulmentEvent)(nil)
-	_ PartyTimelineEvent = (*AnnulmentEvent)(nil)
+	_ UnionTimelineEvent = (*AnnulmentEvent)(nil)
 )
 
 func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
 func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
-
-// func (e *AnnulmentEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *AnnulmentEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
-// FamilyStartEvent represents the start of a family grouping, if no other more specific event is available
-type FamilyStartEvent struct {
-	GeneralEvent
-	GeneralPartyEvent
-}
-
-var (
-	_ TimelineEvent      = (*FamilyStartEvent)(nil)
-	_ PartyTimelineEvent = (*FamilyStartEvent)(nil)
-)
-
-func (e *FamilyStartEvent) ShortDescription() string { return e.abbrev("start") }
-func (e *FamilyStartEvent) What() string             { return "started a family" }
-
-// func (e *FamilyStartEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *FamilyStartEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
-// FamilyEndEvent represents the end of a family grouping, if no other more specific event is available
-type FamilyEndEvent struct {
-	GeneralEvent
-	GeneralPartyEvent
-}
-
-var (
-	_ TimelineEvent      = (*FamilyEndEvent)(nil)
-	_ PartyTimelineEvent = (*FamilyEndEvent)(nil)
-)
-
-func (e *FamilyEndEvent) ShortDescription() string { return e.abbrev("end") }
-func (e *FamilyEndEvent) What() string             { return "ended a family" }
-
-// func (e *FamilyEndEvent) GetParty1() *Person {
-// 	return e.Party1
-// }
-
-// func (e *FamilyEndEvent) GetParty2() *Person {
-// 	return e.Party2
-// }
-
-// PartyNarrativeEvent represents some narrative that can be used as-is
-type PartyNarrativeEvent struct {
-	GeneralEvent
-	GeneralPartyEvent
-}
-
-func (e *PartyNarrativeEvent) ShortDescription() string { return e.abbrev("narr") }
-func (e *PartyNarrativeEvent) What() string             { return "narrative" }
-
-var (
-	_ TimelineEvent      = (*PartyNarrativeEvent)(nil)
-	_ PartyTimelineEvent = (*PartyNarrativeEvent)(nil)
-)
 
 type EventMatcher func(TimelineEvent) bool
 

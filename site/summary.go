@@ -25,22 +25,18 @@ func WhoWhatWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string 
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
 		title = enc.EncodeModelLink(tev.GetPrincipal().PreferredFullName, tev.GetPrincipal())
-	case model.PartyTimelineEvent:
-		title = enc.EncodeModelLink(tev.GetParty1().PreferredFullName, tev.GetParty1()) + " and " + enc.EncodeModelLink(tev.GetParty2().PreferredFullName, tev.GetParty2())
+	case model.UnionTimelineEvent:
+		title = enc.EncodeModelLink(tev.GetHusband().PreferredFullName, tev.GetHusband()) + " and " + enc.EncodeModelLink(tev.GetWife().PreferredFullName, tev.GetWife())
+	case model.MultipartyTimelineEvent:
+		var names []string
+		for _, p := range tev.GetPrincipals() {
+			names = append(names, enc.EncodeModelLink(p.PreferredFullName, p))
+		}
+		title = text.JoinList(names)
 	}
 
 	title = text.JoinSentenceParts(title, EventWhatWhenWhere(ev, enc))
 
-	// title = text.JoinSentenceParts(title, ev.What())
-	// date := ev.GetDate()
-	// if !date.IsUnknown() {
-	// 	title = text.JoinSentenceParts(title, date.When())
-	// }
-
-	// pl := ev.GetPlace()
-	// if !pl.IsUnknown() {
-	// 	title = text.JoinSentenceParts(title, pl.PlaceType.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	// }
 	return title
 }
 

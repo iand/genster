@@ -254,7 +254,7 @@ func (s *Site) BuildCalendar() error {
 	for _, p := range s.Tree.People {
 		for _, ev := range p.Timeline {
 			_, indiv := ev.(model.IndividualTimelineEvent)
-			_, party := ev.(model.PartyTimelineEvent)
+			_, party := ev.(model.UnionTimelineEvent)
 
 			if !indiv && !party {
 				continue

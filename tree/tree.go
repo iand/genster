@@ -719,7 +719,7 @@ EventLoop:
 		}
 
 		// Drop all events from excluded and redacted people
-		for _, o := range ev.Participants() {
+		for _, o := range ev.GetParticipants() {
 			if o.Person.Redacted {
 				continue EventLoop
 			}
@@ -751,7 +751,7 @@ func (t *Tree) TrimPlaceTimeline(p *model.Place) error {
 
 EventLoop:
 	for _, ev := range p.Timeline {
-		for _, o := range ev.Participants() {
+		for _, o := range ev.GetParticipants() {
 			// Drop all events from redacted people
 			if o.Person.Redacted {
 				continue EventLoop
@@ -770,7 +770,7 @@ func (t *Tree) TrimSourceTimeline(s *model.Source) error {
 EventLoop:
 	for _, ev := range s.EventsCiting {
 		// count number of non excluded people involved in event
-		for _, o := range ev.Participants() {
+		for _, o := range ev.GetParticipants() {
 			// Drop all events from redacted people
 			if o.Person.Redacted {
 				continue EventLoop
@@ -790,7 +790,7 @@ func (t *Tree) CrossReferenceCitations(p *model.Person) {
 EventLoop:
 	for _, ev := range p.Timeline {
 		// Skip all events from redacted people
-		for _, o := range ev.Participants() {
+		for _, o := range ev.GetParticipants() {
 			if o.Person.Redacted {
 				continue EventLoop
 			}

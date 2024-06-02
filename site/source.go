@@ -18,24 +18,7 @@ func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
 	doc.Layout(PageLayoutSource.String())
 	doc.Category(PageCategorySource)
 	doc.ID(so.ID)
-	// // doc.AddTags(CleanTags(so.Tags))
 
-	// // if so.RepositoryName != "" {
-	// // 	para := text.JoinSentenceParts("provided by", doc.EncodeLink(so.RepositoryName, so.RepositoryLink))
-	// // 	doc.Para(text.FormatSentence(para))
-	// // }
-
-	// // if so.SearchLink != "" {
-	// // 	para := text.JoinSentenceParts("It can be ", doc.EncodeLink("searched online", so.SearchLink))
-	// // 	doc.Para(text.FormatSentence(para))
-	// // }
-
-	// title := ""
-	// if c.Source != nil && c.Source.Title != "" {
-	// 	title = c.Source.Title
-	// } else {
-	// 	title = c.Detail
-	// }
 	doc.Heading1(so.Title)
 
 	if len(so.RepositoryRefs) > 0 {

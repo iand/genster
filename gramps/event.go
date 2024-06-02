@@ -43,6 +43,10 @@ func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Event
 			if !ok {
 				continue
 			}
+			if pval(gn.Priv, false) {
+				logging.Debug("skipping census note marked as private", "id", p.ID, "handle", gn.Handle)
+				continue
+			}
 			if gn.Type == "Narrative" {
 				ev.Narrative = noteToText(gn)
 			}
@@ -512,4 +516,36 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 
 func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
 	return nil, fmt.Errorf("unsupported span")
+}
+
+func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person) *model.ResidenceRecordedEvent {
+	id := pval(grev.ID, grev.Handle)
+
+	ev, ok := l.residenceEvents[id]
+	if !ok {
+		ev = &model.ResidenceRecordedEvent{GeneralEvent: gev}
+		l.residenceEvents[id] = ev
+
+		for _, gnr := range grev.Noteref {
+			gn, ok := l.NotesByHandle[gnr.Hlink]
+			if !ok {
+				continue
+			}
+			if pval(gn.Priv, false) {
+				logging.Debug("skipping residence note marked as private", "id", p.ID, "handle", gn.Handle)
+				continue
+			}
+			if gn.Type == "Narrative" {
+				ev.Narrative = noteToText(gn)
+			}
+		}
+
+	}
+
+	ev.Participants = append(ev.Participants, &model.EventParticipant{
+		Person: p,
+		Role:   model.EventRolePrincipal,
+	})
+
+	return ev
 }

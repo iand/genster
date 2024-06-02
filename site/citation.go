@@ -48,6 +48,9 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 			if t.Formatted {
 				doc.Pre(t.Text)
 				doc.Pre("")
+			} else if t.Markdown {
+				doc.RawMarkdown(t.Text)
+				doc.Pre("")
 			} else {
 				doc.BlockQuote(t.Text)
 				doc.BlockQuote("")
@@ -59,20 +62,10 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 		}
 	}
 
-	if len(c.Notes) > 0 {
-		if len(c.Notes) == 1 {
-			doc.Heading3("Note")
-		} else {
-			doc.Heading3("Note")
-		}
-		for _, t := range c.Notes {
-			if t.Formatted {
-				doc.Pre(t.Text)
-				doc.Pre("")
-			} else {
-				doc.Para(t.Text)
-				doc.EmptyPara()
-			}
+	if len(c.Comments) > 0 {
+		doc.Heading3("Comments")
+		for _, t := range c.Comments {
+			RenderText(t, doc)
 		}
 	}
 
@@ -83,7 +76,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 	events := make([]string, 0, len(c.EventsCited))
 	for _, ev := range c.EventsCited {
 		events = append(events, WhoWhatWhenWhere(ev, doc))
-		for _, p := range ev.Participants() {
+		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
 		}
 	}
@@ -164,6 +157,13 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (*md.Document, error)
 			doc.Heading3("Source")
 			doc.Para(c.Source.Title + " available at:")
 			doc.UnorderedList(repos)
+		}
+	}
+
+	if len(c.ResearchNotes) > 0 {
+		doc.Heading2("Research Notes")
+		for _, t := range c.ResearchNotes {
+			RenderText(t, doc)
 		}
 	}
 

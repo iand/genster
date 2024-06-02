@@ -106,9 +106,9 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 			}
 		}
 
-		gpe := model.GeneralPartyEvent{
-			Party1: &model.EventParticipant{Person: father, Role: model.EventRoleHusband},
-			Party2: &model.EventParticipant{Person: mother, Role: model.EventRoleWife},
+		gpe := model.GeneralUnionEvent{
+			Husband: father,
+			Wife:    mother,
 		}
 
 		var ev model.TimelineEvent
@@ -116,35 +116,31 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		case "MARR":
 			ev = &model.MarriageEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 
 		case "MARB":
 			ev = &model.MarriageBannsEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 		case "MARL":
 			ev = &model.MarriageLicenseEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 		case "DIV":
 			ev = &model.DivorceEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 		case "ANUL":
 			ev = &model.AnnulmentEvent{
 				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
+				GeneralUnionEvent: gpe,
 			}
 		default:
-			ev = &model.PlaceholderPartyEvent{
-				GeneralEvent:      gev,
-				GeneralPartyEvent: gpe,
-				ExtraInfo:         fmt.Sprintf("Unknown family event (Xref=%s, Tag=%s, Value=%s)", fr.Xref, er.Tag, er.Value),
-			}
+			logging.Warn("unknown family event", "xref", fr.Xref, "tag", er.Tag, "value", er.Value)
 		}
 
 		if !mother.IsUnknown() {
@@ -200,9 +196,9 @@ func (l *Loader) buildFamilies(t *tree.Tree, p *model.Person) error {
 		return p1, p2, false
 	}
 
-	addMarriage := func(t *tree.Tree, ev model.PartyTimelineEvent) {
-		p1 := ev.GetParty1()
-		p2 := ev.GetParty2()
+	addMarriage := func(t *tree.Tree, ev model.UnionTimelineEvent) {
+		p1 := ev.GetHusband()
+		p2 := ev.GetWife()
 		if p1.IsUnknown() || p2.IsUnknown() {
 			return
 		}

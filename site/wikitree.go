@@ -248,6 +248,14 @@ func (w *WikiTreeEncoder) BlockQuote(s string) {
 	w.writeBlockQuote(&w.main, s)
 }
 
+func (w *WikiTreeEncoder) Pre(s string) {
+	w.writePre(&w.main, s)
+}
+
+func (w *WikiTreeEncoder) RawMarkdown(s string) {
+	w.writePara(&w.main, s)
+}
+
 func (w *WikiTreeEncoder) EncodePara(s string) string {
 	buf := new(strings.Builder)
 	w.writePara(buf, s)
@@ -287,6 +295,12 @@ func (w *WikiTreeEncoder) EncodeDefinitionList(items [][2]string) string {
 func (w *WikiTreeEncoder) EncodeBlockQuote(s string) string {
 	buf := new(strings.Builder)
 	w.writeBlockQuote(buf, s)
+	return buf.String()
+}
+
+func (w *WikiTreeEncoder) EncodePre(s string) string {
+	buf := new(strings.Builder)
+	w.writePre(buf, s)
 	return buf.String()
 }
 
@@ -362,6 +376,12 @@ func (w *WikiTreeEncoder) writeBlockQuote(buf io.StringWriter, s string) {
 	buf.WriteString("<blockquote>\n")
 	buf.WriteString(s)
 	buf.WriteString("</blockquote>\n")
+}
+
+func (w *WikiTreeEncoder) writePre(buf io.StringWriter, s string) {
+	buf.WriteString("<pre>\n")
+	buf.WriteString(s)
+	buf.WriteString("</pre>\n")
 }
 
 func (w *WikiTreeEncoder) writeDefinitionList(buf io.StringWriter, items [][2]string) {

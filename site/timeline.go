@@ -73,9 +73,6 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 		title = t.departureEventTitle(seq, tev)
 	case *model.DivorceEvent:
 		slog.Debug("timeline: unhandled divorce event")
-	case *model.PlaceholderIndividualEvent:
-		slog.Debug("timeline: ignored placeholder event", "id", tev.GetPrincipal().ID, "info", tev.ExtraInfo)
-		title = tev.ExtraInfo
 	default:
 		slog.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)
@@ -292,11 +289,11 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 	return title
 }
 
-func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.PartyTimelineEvent) string {
+func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.UnionTimelineEvent) string {
 	title := ""
 	if t.pov.Person.IsUnknown() {
-		party1 := ev.GetParty1()
-		party2 := ev.GetParty2()
+		party1 := ev.GetHusband()
+		party2 := ev.GetWife()
 
 		party1Link := t.enc.EncodeModelLink(party1.PreferredFullName, party1)
 		party2Link := t.enc.EncodeModelLink(party2.PreferredFullName, party2)
@@ -354,6 +351,19 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 		}
 		name := t.enc.EncodeModelLinkDedupe(principal.PreferredFullName, principal.PreferredGivenName, principal)
 		return text.AppendAside(principal.RelationTo(t.pov.Person, tev.GetDate()), name)
+	case model.MultipartyTimelineEvent:
+		if tev.DirectlyInvolves(observer) {
+			return "" // no context needed
+		}
+		var ppl []string
+		for _, p := range tev.GetPrincipals() {
+			if p.IsUnknown() {
+				continue
+			}
+			ppl = append(ppl, t.enc.EncodeModelLink(p.PreferredFullName, p))
+		}
+
+		return text.JoinList(ppl)
 
 	case *model.CensusEvent:
 		if tev.DirectlyInvolves(observer) {

@@ -5,7 +5,23 @@ import (
 	"strings"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 )
+
+func RenderText(t model.Text, enc MarkdownDoc) error {
+	if t.Formatted {
+		enc.Pre(t.Text)
+		enc.Pre("")
+	} else if t.Markdown {
+		enc.RawMarkdown(t.Text)
+		enc.EmptyPara()
+	} else {
+		enc.Para(text.FormatSentence(t.Text))
+		enc.EmptyPara()
+	}
+
+	return nil
+}
 
 func RenderFacts(facts []model.Fact, pov *model.POV, enc ExtendedMarkdownBuilder) error {
 	enc.EmptyPara()
