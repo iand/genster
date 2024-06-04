@@ -45,6 +45,8 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "inflammation of the liver"
 	case "hysteritis":
 		comment = "inflammation of the womb"
+	case "peritonitis":
+		comment = "inflammation of the abdomen"
 	case "dysentery":
 		comment = "inflammation of the intestine"
 	case "colic":
@@ -57,8 +59,10 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "a swelling caused by accumulation of abnormally large amounts of fluid often caused by kidney disease or congestive heart failure"
 	case "lockjaw", "trismus":
 		comment = "tetanus"
-	case "natural decay:", "senile decay":
+	case "natural decay", "senile decay":
 		comment = "death through old age"
+	case "morbus cordis":
+		comment = "heart disease"
 	}
 
 	if comment != "" {
