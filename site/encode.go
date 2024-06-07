@@ -67,7 +67,6 @@ type InlineEncoder interface {
 type ExtendedMarkdownEncoder interface {
 	MarkdownEncoder
 	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	// EncodeCitation(citation string, detail string, citationID string) string
 	EncodeCitationDetail(c *model.GeneralCitation) string
 	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
 }
@@ -96,4 +95,22 @@ func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) st
 		ss[i] = enc.EncodeModelLink(formatter(ps[i]), ps[i])
 	}
 	return text.JoinList(ss)
+}
+
+type CitationSkippingEncoder struct {
+	MarkdownBuilder
+}
+
+var _ ExtendedMarkdownEncoder = (*CitationSkippingEncoder)(nil)
+
+func (e *CitationSkippingEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
+	return firstText
+}
+
+func (e *CitationSkippingEncoder) EncodeCitationDetail(c *model.GeneralCitation) string {
+	return ""
+}
+
+func (e *CitationSkippingEncoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
+	return s
 }

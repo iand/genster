@@ -110,7 +110,7 @@ func AgeWhenWhere(ev model.IndividualTimelineEvent, enc ExtendedInlineEncoder) s
 	return title
 }
 
-func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preceding model.IndividualTimelineEvent, enc ExtendedMarkdownEncoder) string {
+func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preceding model.TimelineEvent, enc ExtendedMarkdownEncoder) string {
 	detail := what
 
 	if pl.SameAs(preceding.GetPlace()) {
@@ -299,14 +299,7 @@ func PositionInFamily(p *model.Person) string {
 	return text.OrdinalNoun(olderSameGender+1) + " " + text.LowerFirst(p.Gender.RelationToParentNoun())
 }
 
-func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, includeBirthDate bool) string {
-	// intro := IntroGenerator{
-	// 	POV: &model.POV{
-	// 		Person: p,
-	// 	},
-	// }
-
-	summary := ""
+func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, includeBirthDate bool, activeTense bool) string {
 	if name != "" {
 		if p.Redacted {
 			return enc.EncodeItalic(name)
@@ -316,105 +309,110 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, in
 			name = enc.EncodeItalic(name)
 		}
 
-		summary = enc.EncodeModelLink(name, p)
+		name = enc.EncodeModelLink(name, p)
 
-		// Intro statement
 		if p.NickName != "" {
-			summary = text.JoinSentenceParts(summary, fmt.Sprintf("(known as %s)", p.NickName))
+			name = text.JoinSentenceParts(name, fmt.Sprintf("(known as %s)", p.NickName))
 		}
 	}
 
+	var para text.Para
+	birth := PersonBirthSummary(p, enc, name, includeBirthDate, true, activeTense)
+	if birth != "" {
+		para.NewSentence(birth)
+		if activeTense {
+			name = ""
+		} else {
+			name = p.Gender.SubjectPronoun()
+		}
+	}
+
+	marrs := PersonMarriageSummary(p, enc, name, false, activeTense)
+	if marrs != "" {
+		para.NewSentence(marrs)
+		if activeTense {
+			name = ""
+		} else {
+			name = p.Gender.SubjectPronoun()
+		}
+	}
+
+	death := PersonDeathSummary(p, enc, name, false, activeTense)
+	if death != "" {
+		para.NewSentence(death)
+	}
+
+	// TODO: life events
+	// marriages
+	// emigration
+	// imprisonment
+
+	finalDetail := ""
+	if p.Unmarried {
+		finalDetail = "never married"
+	}
+
+	if finalDetail != "" {
+		para.NewSentence(p.Gender.SubjectPronoun(), finalDetail)
+	}
+
+	return para.Text()
+}
+
+func PersonBirthSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, allowInferred bool, includeBirthDate, activeTense bool) string {
 	var birth *model.BirthEvent
-	var bap *model.BaptismEvent
-	var death *model.DeathEvent
-	var burial model.IndividualTimelineEvent // TODO: cremation
+	var bev model.IndividualTimelineEvent
 
-	if p.BestBirthlikeEvent != nil {
-		switch tev := p.BestBirthlikeEvent.(type) {
-		case *model.BirthEvent:
+	if p.BestBirthlikeEvent == nil {
+		return ""
+	}
+	switch tev := p.BestBirthlikeEvent.(type) {
+	case *model.BirthEvent:
+		if allowInferred || !tev.IsInferred() {
 			birth = tev
-			for _, ev := range p.Timeline {
-				if !ev.DirectlyInvolves(p) {
-					continue
-				}
-				if bev, ok := ev.(*model.BaptismEvent); ok {
-					if bap == nil || bev.GetDate().SortsBefore(bap.GetDate()) {
-						bap = bev
-					}
+			bev = tev
+		}
+		for _, ev := range p.Timeline {
+			if !ev.DirectlyInvolves(p) {
+				continue
+			}
+			if bapev, ok := ev.(*model.BaptismEvent); ok {
+				if bev == nil {
+					bev = bapev
+				} else if !bev.GetDate().IsMorePreciseThan(bapev.GetDate()) {
+					bev = bapev
 				}
 			}
-		case *model.BaptismEvent:
-			bap = tev
 		}
+	case *model.BaptismEvent:
+		bev = tev
 	}
 
-	if p.BestDeathlikeEvent != nil {
-		switch tev := p.BestDeathlikeEvent.(type) {
-		case *model.DeathEvent:
-			// Don't include inferred deaths in summary
-			if !tev.IsInferred() {
-				death = tev
-			}
-			for _, ev := range p.Timeline {
-				if !ev.DirectlyInvolves(p) {
-					continue
-				}
-				if bev, ok := ev.(*model.BurialEvent); ok {
-					if burial == nil || bev.GetDate().SortsBefore(burial.GetDate()) {
-						burial = bev
-					}
-				} else if bev, ok := ev.(*model.CremationEvent); ok {
-					if burial == nil || bev.GetDate().SortsBefore(burial.GetDate()) {
-						burial = bev
-					}
-				}
-			}
-		case *model.BurialEvent:
-			burial = tev
+	tense := func(st string) string {
+		if activeTense {
+			return text.StripWasIs(st)
 		}
+		return st
 	}
 
-	// TODO: twin
-	// TODO: marriages
-	// TODO: major life events
-	// TODO: age at death
-	// TODO: cause of death
-
-	// birthAdditional contains extra information such as whether person was a twin
-	birthAdditional := ""
-
-	firstEvent := true
-	var precedingEvent model.IndividualTimelineEvent
-	if birth != nil {
-		if includeBirthDate {
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(text.StripWasIs(EventWhatWhenWhere(birth, enc)), birth.GetCitations()))
-		} else {
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(text.StripWasIs(EventWhatWhere(birth, enc)), birth.GetCitations()))
-		}
-		precedingEvent = birth
-		// Try to complete the sentence
-		if birthAdditional != "" {
-			summary = text.JoinSentenceParts(summary, birthAdditional)
-			summary = text.FinishSentence(summary)
-			precedingEvent = nil
-		}
-		firstEvent = false
+	if bev == nil {
+		return ""
 	}
 
-	if bap != nil {
-		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", enc.EncodeWithCitations(text.StripWasIs(FollowingWhatWhenWhere(InferredWhat(bap.What(), bap), bap.GetDate(), bap.GetPlace(), precedingEvent, enc)), bap.GetCitations()))
-			summary = text.FinishSentence(summary)
-			precedingEvent = nil
-		} else {
-			if !firstEvent {
-				summary = text.JoinSentenceParts(summary, text.UpperFirst(p.Gender.SubjectPronoun()))
-			}
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(EventWhatWhenWhere(bap, enc), bap.GetCitations()))
-			precedingEvent = bap
-		}
+	var para text.Para
+	para.NewSentence(name)
 
-		firstEvent = false
+	if includeBirthDate {
+		if birth != nil {
+			if _, ok := bev.(*model.BaptismEvent); ok {
+				if yrs, ok := birth.GetDate().WholeYearsUntil(bev.GetDate()); ok && yrs > 1 {
+					para.Continue("born", birth.GetDate().When(), "and")
+				}
+			}
+		}
+		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhenWhere(bev, enc)), bev.GetCitations()))
+	} else {
+		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhere(bev, enc)), bev.GetCitations()))
 	}
 
 	if len(p.Associations) > 0 {
@@ -423,118 +421,126 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, in
 				continue
 			}
 			twinLink := enc.EncodeModelLink(as.Other.PreferredFamiliarName, as.Other)
-
-			if precedingEvent != nil {
-				summary = text.FinishSentence(summary)
-				precedingEvent = nil
-			}
-
-			summary = text.JoinSentenceParts(summary, text.UpperFirst(p.Gender.SubjectPronoun()), "was the twin to", p.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations))
-			summary = text.FinishSentence(summary)
-			break
+			para.Continue(text.UpperFirst(p.Gender.SubjectPronoun()), "was the twin to", p.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations))
 		}
 	}
 
-	deathAdditional := ""
-	if death != nil {
-		var deathWhat string
-		switch p.ModeOfDeath {
-		case model.ModeOfDeathLostAtSea:
-			deathWhat = "lost at sea"
-		case model.ModeOfDeathKilledInAction:
-			deathWhat = "killed in action"
-		case model.ModeOfDeathDrowned:
-			deathWhat = "drowned"
-		case model.ModeOfDeathSuicide:
-			deathWhat = "died by suicide"
-		case model.ModeOfDeathExecuted:
-			deathWhat = "executed"
-		default:
-			deathWhat = death.What()
-		}
+	return para.Text()
+}
 
-		deathWhat = DeathWhat(death, p.ModeOfDeath)
+func PersonDeathSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, allowInferred bool, activeTense bool) string {
+	var death *model.DeathEvent
+	var bev model.IndividualTimelineEvent
 
-		if age, ok := p.AgeInYearsAt(death.GetDate()); ok {
-			if age <= 1 {
-				deathAdditional = "while still a young child"
-			} else {
-				deathAdditional = fmt.Sprintf("at the age of %s", text.CardinalNoun(age))
-			}
-		}
-
-		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(deathWhat, death.GetDate(), death.GetPlace(), precedingEvent, enc))
-			summary = text.FinishSentence(summary)
-			precedingEvent = nil
-		} else {
-			if !firstEvent {
-				summary = text.JoinSentenceParts(summary, text.UpperFirst(p.Gender.SubjectPronoun()))
-			}
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(WhatWhenWhere(deathWhat, death.GetDate(), death.GetPlace(), enc), death.GetCitations()))
-			if deathAdditional != "" {
-				summary = text.JoinSentenceParts(summary, deathAdditional)
-				summary = text.FinishSentence(summary)
-				precedingEvent = nil
-			} else {
-				precedingEvent = death
-			}
-		}
-
-		firstEvent = false
+	if p.BestDeathlikeEvent == nil {
+		return ""
 	}
-
-	if burial != nil {
-		burialAdditional := ""
-		if deathAdditional == "" {
-			if age, ok := p.AgeInYearsAt(burial.GetDate()); ok {
-				if age <= 1 {
-					burialAdditional = "while still a young child"
-				} else {
-					burialAdditional = fmt.Sprintf("at the age of %s", text.CardinalNoun(age))
+	switch tev := p.BestDeathlikeEvent.(type) {
+	case *model.DeathEvent:
+		if allowInferred || !tev.IsInferred() {
+			death = tev
+			bev = tev
+		}
+		for _, ev := range p.Timeline {
+			if !ev.DirectlyInvolves(p) {
+				continue
+			}
+			if tev, ok := ev.(*model.BurialEvent); ok {
+				if bev == nil || tev.GetDate().SortsBefore(bev.GetDate()) {
+					bev = tev
+				}
+			} else if tev, ok := ev.(*model.CremationEvent); ok {
+				if bev == nil || tev.GetDate().SortsBefore(bev.GetDate()) {
+					bev = tev
 				}
 			}
 		}
+	case *model.BurialEvent:
+		bev = tev
+	}
 
-		if precedingEvent != nil {
-			summary = text.JoinSentenceParts(summary, "and", FollowingWhatWhenWhere(InferredWhat(burial.What(), burial), burial.GetDate(), burial.GetPlace(), precedingEvent, enc))
-			summary = text.FinishSentence(summary)
-			precedingEvent = nil
-		} else {
-			if !firstEvent {
-				summary = text.JoinSentenceParts(summary, text.UpperFirst(p.Gender.SubjectPronoun()))
-			}
-			summary = text.JoinSentenceParts(summary, enc.EncodeWithCitations(EventWhatWhenWhere(burial, enc), burial.GetCitations()))
-			if burialAdditional != "" {
-				summary = text.JoinSentenceParts(summary, burialAdditional)
-				summary = text.FinishSentence(summary)
-				precedingEvent = nil
-			} else {
-				precedingEvent = burial
-			}
+	if bev == nil {
+		return ""
+	}
+
+	tense := func(st string) string {
+		if activeTense {
+			return text.StripWasIs(st)
 		}
-		firstEvent = false
+		return st
 	}
 
-	// for _, f := range p.Families {
-	// 	n.Statements = append(n.Statements, &FamilyStatement{
-	// 		Principal: p,
-	// 		Family:    f,
-	// 	})
-	// }
+	var para text.Para
+	para.NewSentence(name)
+	deathWhat := bev.What()
+	if death != nil {
+		deathWhat = DeathWhat(death, p.ModeOfDeath)
+	}
+	para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(deathWhat, bev.GetDate(), bev.GetPlace(), enc)), bev.GetCitations()))
 
-	summary = text.FinishSentence(summary)
-
-	finalDetail := ""
-	if p.Unmarried {
-		finalDetail = "never married"
+	if age, ok := p.AgeInYearsAt(bev.GetDate()); ok {
+		if age <= 1 {
+			para.Continue("in infancy")
+		} else {
+			para.Continue(fmt.Sprintf("at the age of %s", text.CardinalNoun(age)))
+		}
 	}
 
-	if finalDetail != "" {
-		summary += " " + text.FinishSentence(text.UpperFirst(p.Gender.SubjectPronoun())+" "+finalDetail)
+	return para.Text()
+}
+
+func PersonMarriageSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, allowInferred bool, activeTense bool) string {
+	tense := func(st string) string {
+		if activeTense {
+			return text.StripWasIs(st)
+		}
+		return st
 	}
 
-	return summary
+	var fams []*model.Family
+
+	for _, f := range p.Families {
+		if f.Bond != model.FamilyBondMarried && f.Bond != model.FamilyBondLikelyMarried {
+			continue
+		}
+		if f.BestStartEvent == nil {
+			continue
+		}
+		fams = append(fams, f)
+	}
+
+	var marrs []string
+	if len(fams) == 0 {
+		return ""
+	} else if len(fams) == 1 {
+		// more detail
+		f := fams[0]
+		other := f.OtherParent(p)
+		what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFullName, other)
+		marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), nil, enc)), f.BestStartEvent.GetCitations()))
+	} else {
+		var prev model.TimelineEvent
+		for _, f := range fams {
+			other := f.OtherParent(p)
+
+			y, _ := f.BestStartEvent.GetDate().AsYear()
+
+			if prev != nil {
+				what := enc.EncodeModelLink(other.PreferredFullName, other)
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, nil, enc)), f.BestStartEvent.GetCitations()))
+			} else {
+				what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFullName, other)
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, nil, enc)), f.BestStartEvent.GetCitations()))
+			}
+
+			prev = f.BestStartEvent
+		}
+	}
+
+	var para text.Para
+	para.NewSentence(name)
+	para.Continue(text.JoinList(marrs))
+	return para.Text()
 }
 
 func GenerateOlb(p *model.Person) error {

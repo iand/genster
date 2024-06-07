@@ -168,6 +168,12 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 			Principal: p,
 			Family:    f,
 		})
+		if !f.BestEndDate.IsUnknown() {
+			n.Statements = append(n.Statements, &FamilyEndStatement{
+				Principal: p,
+				Family:    f,
+			})
+		}
 	}
 
 	n.Render(pov, doc)

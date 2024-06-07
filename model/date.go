@@ -111,6 +111,57 @@ func (d *Date) IsFirm() bool {
 	return false
 }
 
+// IsMorePreciseThan reports whether d is more a more precise date than o.
+func (d *Date) IsMorePreciseThan(o *Date) bool {
+	if o.IsUnknown() {
+		return true
+	}
+	if d.IsUnknown() {
+		return false
+	}
+
+	// from here both dates are known
+
+	if d.Derivation != DateDerivationStandard || o.Derivation != DateDerivationStandard {
+		return d.Derivation == DateDerivationStandard
+	}
+
+	// from here both dates have standard derivation
+
+	switch d.Date.(type) {
+	case *gdate.Precise:
+		return true
+	case *gdate.MonthYear:
+		switch o.Date.(type) {
+		case *gdate.Precise:
+			return false
+		default:
+			return true
+		}
+	case *gdate.YearQuarter:
+		switch o.Date.(type) {
+		case *gdate.Precise, *gdate.MonthYear:
+			return false
+		default:
+			return true
+		}
+	case *gdate.Year:
+		switch o.Date.(type) {
+		case *gdate.Precise, *gdate.MonthYear, *gdate.YearQuarter:
+			return false
+		default:
+			return true
+		}
+	default:
+		switch o.Date.(type) {
+		case *gdate.Precise, *gdate.MonthYear, *gdate.YearQuarter, *gdate.Year:
+			return false
+		default:
+			return true
+		}
+	}
+}
+
 func (d *Date) String() string {
 	if d == nil {
 		return "unknown"
@@ -162,6 +213,20 @@ func (d *Date) WhenYear() (string, bool) {
 	default:
 		return "in " + strconv.Itoa(yr), true
 	}
+}
+
+func (d *Date) AsYear() (*Date, bool) {
+	if d == nil {
+		return nil, false
+	}
+
+	y, ok := gdate.AsYear(d.Date)
+	if !ok {
+		return nil, false
+	}
+	return &Date{
+		Date: y,
+	}, true
 }
 
 func (d *Date) Year() (int, bool) {

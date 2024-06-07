@@ -48,6 +48,20 @@ func (p *Para) NewSentence(ss ...string) {
 	p.Continue(ss...)
 }
 
+// DropSentence drops the current sentence
+func (p *Para) DropSentence() {
+	if len(p.sentences) == 0 {
+		return
+	}
+	p.sentences = p.sentences[:len(p.sentences)-1]
+}
+
+// ReplaceSentence replaces the current sentence with s
+func (p *Para) ReplaceSentence(s string) {
+	p.DropSentence()
+	p.NewSentence(s)
+}
+
 // FinishSentence completes the current sentence and leaves the paragraph ready for the next one.
 func (p *Para) FinishSentence() {
 	if len(p.sentences) == 0 {
@@ -99,6 +113,9 @@ func (p *Para) AppendClause(clause string) {
 // AppendAsAside appends an aside to the current sentence, preceding it with a comma
 // if necessary and appending a comma after the clause.
 func (p *Para) AppendAsAside(clause string) {
+	if clause == "" {
+		return
+	}
 	p.AppendClause(clause + ",")
 }
 
@@ -112,4 +129,26 @@ func (p *Para) AppendList(ss ...string) {
 		p.AppendClause(ss[i])
 	}
 	p.Continue("and " + ss[len(ss)-1])
+}
+
+func (p *Para) CurrentSentenceLength() int {
+	if len(p.sentences) == 0 {
+		return 0
+	}
+	return len(p.sentences[len(p.sentences)-1])
+}
+
+func (p *Para) CurrentSentenceWords() int {
+	if len(p.sentences) == 0 {
+		return 0
+	}
+	return len(strings.Fields(p.sentences[len(p.sentences)-1]))
+}
+
+func (p *Para) Length() int {
+	l := 0
+	for i := range p.sentences {
+		l += len(p.sentences[i])
+	}
+	return l
 }

@@ -452,7 +452,7 @@ func StripWasIs(st string) string {
 		return st[4:]
 	}
 	if strings.HasPrefix(st, "is ") {
-		return st[4:]
+		return st[3:]
 	}
 	return st
 }
