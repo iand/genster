@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 )
@@ -299,13 +300,19 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 	return b.EncodeLink(firstText+suffix, url)
 }
 
-func (b *Encoder) EncodeCitation(citation string, detail string, citationID string) string {
+func (b *Encoder) EncodeCitation(sourceName string, citationText string, citationID string) string {
 	if b.SuppressCitations {
 		return ""
 	}
 	if b.citationMap == nil {
 		b.citationMap = make(map[string]int)
 	}
+
+	detail := sourceName
+	if !strings.HasSuffix(detail, ".") && !strings.HasSuffix(detail, "!") && !strings.HasSuffix(detail, "?") {
+		detail += "; "
+	}
+	detail += citationText
 
 	var idx int
 	if citationID != "" {
@@ -315,19 +322,13 @@ func (b *Encoder) EncodeCitation(citation string, detail string, citationID stri
 			b.citationidx++
 			idx = b.citationidx
 			b.citationMap[citationID] = idx
-			// b.citations.WriteString("\n")
-			b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, citation))
-			// b.citations.WriteString("\n")
-			// if detail != "" {
-			// 	b.citations.WriteString(detail)
-			// 	b.citations.WriteString("\n")
-			// }
+			b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, detail))
 		}
 
 	} else {
 		b.citationidx++
 		idx = b.citationidx
-		b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, citation))
+		b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, detail))
 	}
 
 	return fmt.Sprintf("[^cit_%d]", idx)
@@ -345,19 +346,20 @@ func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitati
 }
 
 func (b *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
-	var detail string
-
-	heading := c.String()
+	citationText := c.Detail
 
 	if c.ID != "" && len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0 {
-		heading += " (" + b.EncodeModelLink("more details...", c) + ")"
+		if b.LinkBuilder.LinkFor(c) == "" {
+			logging.Warn("citation has media but it cannot be linked", "citation", citationText)
+		}
+		citationText += " (" + b.EncodeModelLink("more details...", c) + ")"
 	} else {
 		if c.URL != nil {
-			heading += text.FinishSentence(b.EncodePara("View at " + b.EncodeLink(c.URL.Title, c.URL.URL)))
+			citationText += text.FinishSentence(b.EncodePara("View at " + b.EncodeLink(c.URL.Title, c.URL.URL)))
 		}
 	}
 
-	return b.EncodeCitation(heading, detail, c.ID)
+	return b.EncodeCitation(c.SourceTitle(), citationText, c.ID)
 }
 
 func (b *Encoder) Pre(s string) {

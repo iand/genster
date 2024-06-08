@@ -277,6 +277,23 @@ func JoinList(strs []string) string {
 	return ret
 }
 
+func JoinListOr(strs []string) string {
+	var ret string
+	for i, s := range strs {
+		s = strings.Trim(s, " ,!.?")
+
+		if i != 0 {
+			if i == len(strs)-1 {
+				ret += " or "
+			} else {
+				ret += ", "
+			}
+		}
+		ret += s
+	}
+	return ret
+}
+
 func JoinSentenceParts(parts ...string) string {
 	var ret string
 	for _, s := range parts {

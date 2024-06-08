@@ -48,6 +48,10 @@ func EventWhatWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
 	return WhatWhere(InferredWhat(ev.What(), ev), ev.GetPlace(), enc)
 }
 
+func EventWhenWhere(ev model.TimelineEvent, enc ExtendedInlineEncoder) string {
+	return WhenWhere(ev.GetDate(), ev.GetPlace(), enc)
+}
+
 func InferredWhat(what string, ev model.TimelineEvent) string {
 	if ev.IsInferred() {
 		return "is inferred to " + text.MaybeHaveBeenVerb(what)
@@ -299,7 +303,29 @@ func PositionInFamily(p *model.Person) string {
 	return text.OrdinalNoun(olderSameGender+1) + " " + text.LowerFirst(p.Gender.RelationToParentNoun())
 }
 
-func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, includeBirthDate bool, activeTense bool) string {
+func PersonParentage(p *model.Person, enc ExtendedMarkdownEncoder) string {
+	rel := PositionInFamily(p)
+	if rel == "" {
+		rel = text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+	intro := "the " + rel + " of "
+
+	if p.Father.IsUnknown() {
+		if p.Mother.IsUnknown() {
+			return intro + "unknown parents"
+		} else {
+			return intro + enc.EncodeModelLink(p.Mother.PreferredFullName, p.Mother)
+		}
+	} else {
+		if p.Mother.IsUnknown() {
+			return intro + enc.EncodeModelLink(p.Father.PreferredFullName, p.Father)
+		} else {
+			return intro + enc.EncodeModelLink(p.Father.PreferredFullName, p.Father) + " and " + enc.EncodeModelLink(p.Mother.PreferredFullName, p.Mother)
+		}
+	}
+}
+
+func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, includeBirth bool, includeParentage bool, activeTense bool) string {
 	if name != "" {
 		if p.Redacted {
 			return enc.EncodeItalic(name)
@@ -317,13 +343,15 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, in
 	}
 
 	var para text.Para
-	birth := PersonBirthSummary(p, enc, name, includeBirthDate, true, activeTense)
-	if birth != "" {
-		para.NewSentence(birth)
-		if activeTense {
-			name = ""
-		} else {
-			name = p.Gender.SubjectPronoun()
+	if includeBirth {
+		birth := PersonBirthSummary(p, enc, name, true, true, includeParentage, activeTense)
+		if birth != "" {
+			para.NewSentence(birth)
+			if activeTense {
+				name = ""
+			} else {
+				name = p.Gender.SubjectPronoun()
+			}
 		}
 	}
 
@@ -359,7 +387,7 @@ func PersonSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, in
 	return para.Text()
 }
 
-func PersonBirthSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, allowInferred bool, includeBirthDate, activeTense bool) string {
+func PersonBirthSummary(p *model.Person, enc ExtendedMarkdownEncoder, name string, allowInferred bool, includeBirthDate bool, includeParentage bool, activeTense bool) string {
 	var birth *model.BirthEvent
 	var bev model.IndividualTimelineEvent
 
@@ -413,6 +441,10 @@ func PersonBirthSummary(p *model.Person, enc ExtendedMarkdownEncoder, name strin
 		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhenWhere(bev, enc)), bev.GetCitations()))
 	} else {
 		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhere(bev, enc)), bev.GetCitations()))
+	}
+
+	if includeParentage {
+		para.AppendClause(PersonParentage(p, enc))
 	}
 
 	if len(p.Associations) > 0 {
@@ -472,7 +504,7 @@ func PersonDeathSummary(p *model.Person, enc ExtendedMarkdownEncoder, name strin
 
 	var para text.Para
 	para.NewSentence(name)
-	deathWhat := bev.What()
+	deathWhat := text.MaybeWasVerb(bev.What())
 	if death != nil {
 		deathWhat = DeathWhat(death, p.ModeOfDeath)
 	}

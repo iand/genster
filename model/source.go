@@ -65,6 +65,13 @@ func (c *GeneralCitation) String() string {
 	return s
 }
 
+func (c *GeneralCitation) SourceTitle() string {
+	if c.Source == nil {
+		return "unknown source"
+	}
+	return c.Source.Title
+}
+
 type Repository struct {
 	ID        string // canonical id
 	Name      string

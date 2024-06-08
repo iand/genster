@@ -595,9 +595,9 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 			p.PreferredGivenName = "unidentified"
 			p.PreferredFamiliarName = "unidentified"
 			p.PreferredFamiliarFullName = "unidentified"
-			p.PreferredFamilyName = "unidentified"
-			p.PreferredSortName = "unidentified person"
-			p.PreferredUniqueName = "an unidentified person"
+			// p.PreferredFamilyName = "unidentified"
+			// p.PreferredSortName = "unidentified person"
+			// p.PreferredUniqueName = "an unidentified person"
 		}
 	} else {
 		if p.NickName != "" {
@@ -616,6 +616,11 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 			p.PreferredSortName = fmt.Sprintf("%s (%s)", p.PreferredSortName, p.VitalYears)
 		}
 	}
+
+	if p.FamilyNameGrouping == "" {
+		p.FamilyNameGrouping = p.PreferredFamilyName
+	}
+
 	return nil
 }
 

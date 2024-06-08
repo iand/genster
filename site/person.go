@@ -168,7 +168,7 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 			Principal: p,
 			Family:    f,
 		})
-		if !f.BestEndDate.IsUnknown() {
+		if !f.BestEndDate.IsUnknown() && f.BestEndEvent != nil && !f.BestEndEvent.IsInferred() {
 			n.Statements = append(n.Statements, &FamilyEndStatement{
 				Principal: p,
 				Family:    f,

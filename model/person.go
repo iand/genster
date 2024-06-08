@@ -23,6 +23,7 @@ type Person struct {
 	PreferredUniqueName       string    // a name with additional uniquely identifying information such as years of birth and death or a numeric identifier
 	NickName                  string    // a name other than their given name that the are known by
 	KnownNames                []*Name   // list of all known names
+	FamilyNameGrouping        string    // the group of surnames this person's name is part of (e.g. Clarke/Clark), by default is the PreferredFamilyName
 	Olb                       string    // One line bio
 	Gender                    Gender    // male, female or unknown
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
@@ -114,6 +115,15 @@ func (p *Person) IsCloseToDirectAncestor() bool {
 		return false
 	}
 	return p.RelationToKeyPerson.IsCloseToDirectAncestor()
+}
+
+// Generation returns the generation from the key person, 0 means same generation, 1 means parent, -1 means child
+// returns +1000 if no relation is known.
+func (p *Person) Generation() int {
+	if p.IsUnknown() || p.RelationToKeyPerson == nil {
+		return 1000
+	}
+	return p.RelationToKeyPerson.FromGenerations
 }
 
 func (p *Person) AgeInYearsAt(dt *Date) (int, bool) {
@@ -459,9 +469,15 @@ func PersonIsCloseToDirectAncestor() PersonMatcher {
 	}
 }
 
-func SortPeople(people []*Person) {
+func SortPeopleByName(people []*Person) {
 	sort.Slice(people, func(i, j int) bool {
 		return people[i].PreferredSortName < people[j].PreferredSortName
+	})
+}
+
+func SortPeopleByGeneration(people []*Person) {
+	sort.Slice(people, func(i, j int) bool {
+		return people[i].Generation() < people[j].Generation()
 	})
 }
 

@@ -116,6 +116,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 		p.PreferredUniqueName = p.PreferredFullName
 
+		if group, ok := l.familyNameGroups[p.PreferredFamilyName]; ok {
+			p.FamilyNameGrouping = group
+		}
+
 		if reUppercase.MatchString(p.PreferredFullName) {
 			p.Anomalies = append(p.Anomalies, &model.Anomaly{
 				Category: model.AnomalyCategoryName,

@@ -47,6 +47,7 @@ type Loader struct {
 	populatedPlaces      map[string]bool // which place handles have been populated to save repeated work when traversing the hierarchy
 	censusEvents         map[string]*model.CensusEvent
 	residenceEvents      map[string]*model.ResidenceRecordedEvent
+	familyNameGroups     map[string]string
 }
 
 func NewLoader(filename string, databaseName string) (*Loader, error) {
@@ -76,6 +77,7 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		populatedPlaces:      make(map[string]bool),
 		censusEvents:         make(map[string]*model.CensusEvent),
 		residenceEvents:      make(map[string]*model.ResidenceRecordedEvent),
+		familyNameGroups:     make(map[string]string),
 	}
 
 	l.indexObjects()
@@ -116,6 +118,12 @@ func (l *Loader) indexObjects() error {
 	}
 	for _, v := range l.DB.Notes.Note {
 		l.NotesByHandle[v.Handle] = &v
+	}
+	for _, v := range l.DB.Namemaps.Map {
+		if v.Type != "group_as" {
+			continue
+		}
+		l.familyNameGroups[v.Key] = v.Value
 	}
 	return nil
 }

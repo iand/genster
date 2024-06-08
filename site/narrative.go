@@ -627,7 +627,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc Exten
 	if len(s.Family.Children) == 1 {
 		c := s.Family.Children[0]
 		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, true, false))
+			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, true, false, false))
 		}
 		enc.Para(detail.Text())
 	} else {
@@ -686,7 +686,7 @@ func (s *FamilyStatement) childList(clist []*model.Person, enc ExtendedMarkdownB
 
 	childList := make([]string, 0, len(clist))
 	for _, c := range clist {
-		childList = append(childList, PersonSummary(c, enc, c.PreferredGivenName, true, true))
+		childList = append(childList, PersonSummary(c, enc, c.PreferredGivenName, true, false, true))
 	}
 	return childList
 }
@@ -718,16 +718,20 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 			// this form: "At the age of thirty-four, Annie gave birth to a"
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
-			detail.Continue("gave birth to")
+			detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
+			detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFullName, c))
+			detail.Continue(enc.EncodeWithCitations(EventWhenWhere(c.BestBirthlikeEvent, enc), c.BestBirthlikeEvent.GetCitations()))
+
 		} else {
 			// this form: "At the age of thirty-four, Annie had a"
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
-			detail.Continue("had")
-		}
+			detail.Continue("had a", c.Gender.RelationToParentNoun())
+			detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFullName, c))
+			detail.Continue("who")
+			detail.Continue(enc.EncodeWithCitations(EventWhatWhenWhere(c.BestBirthlikeEvent, enc), c.BestBirthlikeEvent.GetCitations()))
 
-		detail.Continue("a", c.Gender.RelationToParentNoun())
-		detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFullName, c))
+		}
 
 		// pad the sentence to be longer if needed
 		if detail.CurrentSentenceLength() < 60 {
@@ -738,7 +742,7 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 		}
 
 		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, true, false))
+			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))
 		}
 	} else {
 		panic("Not implemented: renderIllegitimate where person has more than one child or is the father")
@@ -799,7 +803,7 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc Ex
 		}
 		detail.FinishSentence()
 		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFullName, !useBirthDateInIntro, false))
+			detail.NewSentence(PersonSummary(c, enc, c.PreferredFullName, !useBirthDateInIntro, false, false))
 		}
 
 	} else {

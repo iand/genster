@@ -245,7 +245,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		return p.Featured
 	}, 8)
 	if len(featuredPeople) > 0 {
-		model.SortPeople(featuredPeople)
+		model.SortPeopleByName(featuredPeople)
 		doc.EmptyPara()
 		doc.Heading2("Featured")
 		items := make([]string, len(featuredPeople))
@@ -263,7 +263,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		return p.Puzzle && !p.Featured
 	}, 8)
 	if len(puzzlePeople) > 0 {
-		model.SortPeople(puzzlePeople)
+		model.SortPeopleByName(puzzlePeople)
 		doc.EmptyPara()
 		doc.Heading2("Currently puzzling over")
 		items := make([]string, len(puzzlePeople))
@@ -294,7 +294,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		return true
 	}, 3)
 	if len(rnPeople) > 0 {
-		model.SortPeople(rnPeople)
+		model.SortPeopleByName(rnPeople)
 		doc.EmptyPara()
 		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
 			return p.PreferredFamiliarFullName

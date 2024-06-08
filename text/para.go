@@ -16,6 +16,11 @@ func (p *Para) Continue(ss ...string) {
 	if len(ss) == 0 {
 		return
 	}
+	s := p.join(ss...)
+	if s == "" {
+		return
+	}
+
 	current := ""
 	if len(p.sentences) == 0 {
 		p.sentences = append(p.sentences, "")
@@ -23,23 +28,29 @@ func (p *Para) Continue(ss ...string) {
 		current = p.sentences[len(p.sentences)-1]
 	}
 
+	if current == "" {
+		current = UpperFirst(s)
+	} else if !strings.HasSuffix(current, " ") || !strings.HasPrefix(s, " ") {
+		current += " "
+		current += s
+	}
+
+	p.sentences[len(p.sentences)-1] = current
+}
+
+func (p *Para) join(ss ...string) string {
+	var str string
 	for i, s := range ss {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			continue
 		}
-
-		if i == 0 && current == "" {
-			current = UpperFirst(s)
-			continue
+		if i != 0 {
+			str += " "
 		}
-		if !strings.HasSuffix(current, " ") || !strings.HasPrefix(s, " ") {
-			current += " "
-		}
-		current += s
+		str += s
 	}
-
-	p.sentences[len(p.sentences)-1] = current
+	return str
 }
 
 // NewSentence begins a new sentence by finishing any existing sentence and combining the strings into text which becomes the current sentence.
@@ -86,8 +97,8 @@ func (p *Para) FinishSentence() {
 
 // AppendClause appends a clause to the current sentence, preceding it with a comma
 // if necessary.
-func (p *Para) AppendClause(clause string) {
-	clause = strings.TrimSpace(clause)
+func (p *Para) AppendClause(ss ...string) {
+	clause := p.join(ss...)
 	if len(clause) == 0 {
 		return
 	}
