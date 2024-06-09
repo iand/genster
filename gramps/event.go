@@ -161,8 +161,7 @@ var censusEntryMaritalStatusLookup = map[string]model.CensusEntryMaritalStatus{
 var (
 	reRelationshipToHead       = regexp.MustCompile(`(?i)^(.*)\brelation(?:ship)?(?: to head(?: of house)?)?:\s*(.+?(?:-in-law)?)\b[\.,;]*(.*)$`)
 	reMaritalStatus            = regexp.MustCompile(`(?i)^(.*)\b(?:marital status|condition):\s*(.+?)\b[\.,;]*(.*)$`)
-	rePlaceOfBirth             = regexp.MustCompile(`(?i)^(.*)\b(?:born|birth|place of birth):\s*(.+?)\b[\.,;]*(.*)$`)
-	rePlaceOfBirth2            = regexp.MustCompile(`(?i)^(.*)\b(?:born|birth|place of birth):\s*(.+?)$`)
+	rePlaceOfBirth             = regexp.MustCompile(`(?i)^(.*)\b(?:born|birth|place of birth):\s*(.+?)$`)
 	reName                     = regexp.MustCompile(`(?i)^(.*)\b(?:name):\s*(.+?)((?:\b[a-zA-Z]+:).*)$`)
 	reAge                      = regexp.MustCompile(`(?i)^(.*)\b(?:age):\s*(.+?)\b[\.,;]*(.*)$`)
 	reSex                      = regexp.MustCompile(`(?i)^(.*)\b(?:sex|gender):\s*(.+?)\b[\.,;]*(.*)$`)
@@ -277,7 +276,7 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 			v = strings.TrimRight(strings.TrimSpace(matches[1]+matches[3]), ",;")
 		}
 
-		matches = rePlaceOfBirth2.FindStringSubmatch(v)
+		matches = rePlaceOfBirth.FindStringSubmatch(v)
 		if len(matches) > 2 {
 			ce.PlaceOfBirth = strings.TrimSpace(matches[2])
 			v = strings.TrimRight(strings.TrimSpace(matches[1]), ",;")
@@ -341,14 +340,14 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 			dp.ReckoningLocation = gdate.ReckoningLocationNone
 			dp.Calendar = gdate.Julian25Mar
 		default:
-			return nil, fmt.Errorf("Cformat not supported")
+			return nil, fmt.Errorf("date Cformat not supported")
 		}
 	}
 	if dv.Dualdated != nil {
-		return nil, fmt.Errorf("Dualdated not supported")
+		return nil, fmt.Errorf("date Dualdated not supported")
 	}
 	if dv.Newyear != nil {
-		return nil, fmt.Errorf("Newyear not supported")
+		return nil, fmt.Errorf("date Newyear not supported")
 	}
 
 	// Quality:
@@ -417,13 +416,13 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 
 func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 	if dr.Cformat != nil {
-		return nil, fmt.Errorf("Cformat not supported")
+		return nil, fmt.Errorf("date Cformat not supported")
 	}
 	if dr.Dualdated != nil {
-		return nil, fmt.Errorf("Dualdated not supported")
+		return nil, fmt.Errorf("date Dualdated not supported")
 	}
 	if dr.Newyear != nil {
-		return nil, fmt.Errorf("Newyear not supported")
+		return nil, fmt.Errorf("date Newyear not supported")
 	}
 
 	// Quality:

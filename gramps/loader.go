@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
@@ -16,8 +15,6 @@ import (
 )
 
 var _ = logging.Debug
-
-var startsWithNumber = regexp.MustCompile(`^[1-9]`)
 
 type ModelFinder interface {
 	FindPerson(scope string, id string) *model.Person

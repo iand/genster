@@ -67,7 +67,7 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 
 	if comment != "" {
 		text = fmt.Sprintf("%q (%s)", text, comment)
-	} else if strings.Index(text, " ") != -1 {
+	} else if strings.Contains(text, " ") {
 		text = fmt.Sprintf("%q", text)
 	}
 

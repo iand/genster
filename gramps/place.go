@@ -190,7 +190,3 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 
 	return nil
 }
-
-func (l *Loader) populatePlaceHierarchy(m ModelFinder, gp *grampsxml.Placeobj) error {
-	return nil
-}

@@ -480,8 +480,6 @@ func InferPersonCauseOfDeath(p *model.Person) error {
 				Reason: "detail of death event contains the words drowned or drowning",
 			}
 			p.Inferences = append(p.Inferences, inf)
-		} else {
-			// logging.Dump("death detail: " + p.BestDeathlikeEvent.GetDetail())
 		}
 	}
 	return nil

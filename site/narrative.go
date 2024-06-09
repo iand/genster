@@ -217,7 +217,7 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 	nintro := IntroGenerator{
 		POV: pov,
 	}
-	for i, s := range n.Statements {
+	for _, s := range n.Statements {
 		if currentNarrativeSequence != s.NarrativeSequence() {
 			currentNarrativeSequence = s.NarrativeSequence()
 			switch currentNarrativeSequence {
@@ -234,96 +234,6 @@ func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
 				sequenceInNarrative = 0
 			}
 		}
-
-		if sequenceInNarrative == 0 || pov.Person.BestDeathDate().SortsBefore(s.Start()) {
-			// nintro.NameBased = pov.Person.PreferredFamiliarName
-
-			if s.NarrativeSequence() == NarrativeSequenceLifeStory {
-				// nintro.TimeBased = text.UpperFirst(s.Start().When()) + ", "
-			}
-		} else {
-			// name := pov.Person.PreferredFamiliarName
-			// if sequenceInNarrative%4 != 0 {
-			// 	name = pov.Person.Gender.SubjectPronoun()
-			// }
-			// nintro.NameBased = name
-
-			if i > 0 {
-				// 	sincePrev := n.Statements[i-1].End().IntervalUntil(s.Start())
-				// 	if years, ok := sincePrev.WholeYears(); ok {
-				// 		dateInYear, ok := s.Start().DateInYear(true)
-				// 		if ok {
-				// 			dateInYear = "on " + dateInYear
-				// 		}
-
-				// 		if years < 0 && s.Start().SortsBefore(n.Statements[i-1].End()) {
-				// 			nintro.TimeBased = ""
-				// 		} else if years == 0 {
-				// 			days, isPreciseInterval := sincePrev.ApproxDays()
-				// 			if isPreciseInterval && days < 5 {
-				// 				nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 					dateInYear,
-				// 					text.AppendAside(dateInYear, "just a few days later"),
-				// 					text.AppendAside("Very shortly after", dateInYear),
-				// 					text.AppendAside("Just a few days later", dateInYear),
-				// 				)
-				// 			} else if isPreciseInterval && days < 20 {
-				// 				nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 					text.AppendAside("Shortly after", dateInYear),
-				// 					text.AppendAside("Several days later", dateInYear),
-				// 				)
-				// 			} else if n.Statements[i-1].End().SameYear(s.Start()) {
-				// 				nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 					text.AppendAside("Later that year", dateInYear),
-				// 					text.AppendAside("The same year", dateInYear),
-				// 					text.AppendAside("Later that same year", dateInYear),
-				// 					text.AppendAside("That same year", dateInYear),
-				// 				)
-				// 			} else {
-				// 				nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 					text.AppendAside("Shortly after", dateInYear),
-				// 					text.AppendAside("Some time later", dateInYear),
-				// 					text.AppendAside("A short while later", dateInYear),
-				// 				)
-				// 			}
-
-				// 		} else if years == 1 {
-				// 			nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 				text.AppendAside("The next year", dateInYear),
-				// 				text.AppendAside("The following year", dateInYear),
-				// 				"",
-				// 			)
-				// 		} else if years < 5 {
-				// 			nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 				s.Start().When(),
-				// 				"",
-				// 				text.AppendClause("A few years later", s.Start().When()),
-				// 				text.AppendClause("Some years later", s.Start().When()),
-				// 				"",
-				// 			)
-				// 		} else {
-				// 			nintro.TimeBased = ChooseFrom(sequenceInNarrative,
-				// 				"",
-				// 				text.AppendClause("Several years later", s.Start().When()),
-				// 			)
-				// 			if nintro.TimeBased != "" {
-				// 				nintro.TimeBased += ", "
-				// 			}
-				// 		}
-				// 	}
-			}
-		}
-
-		// nintro.Text = nintro.TimeBased
-		// nintro.DateInferred = true
-		// if nintro.Text == "" {
-		// 	// nintro.Text = ChooseFrom(sequenceInNarrative, "", "", "then ")
-		// 	// nintro.Text += nintro.NameBased
-		// 	nintro.DateInferred = false
-		// 	// } else if nintro.NameBased != "" {
-		// 	// 	nintro.Text = text.AppendClause(nintro.Text, nintro.NameBased)
-		// }
-		// nintro.Text = text.UpperFirst(nintro.Text)
 
 		s.RenderDetail(sequenceInNarrative, &nintro, b, nil)
 		b.EmptyPara()
@@ -808,7 +718,6 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc Ex
 
 	} else {
 		panic("Not implemented: renderUnmarried where person has more than one child")
-		detail.NewSentence(intro.Default(seq, s.Start()))
 	}
 
 	enc.Para(detail.Text())
@@ -836,6 +745,7 @@ func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc Ex
 
 	other := s.Family.OtherParent(s.Principal)
 	if other.IsUnknown() {
+		return
 	}
 
 	var detail text.Para
@@ -993,9 +903,9 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc Extend
 		}
 	}
 	if len(funerals) > 0 {
-		if len(funerals) > 1 {
-			// TODO: record an anomaly
-		}
+		// if len(funerals) > 1 {
+		// TODO: record an anomaly
+		// }
 
 		evDetail := ""
 		funeralEvent := funerals[0]
@@ -1218,23 +1128,9 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc Exten
 		}
 
 		detail.Continue(text.JoinList(peopleList))
-
-		// other := rel + " " + enc.EncodeModelLink(en.Principal.PreferredFamiliarName, en.Principal)
-		// detail.AppendClause(other)
-
 	}
 
 	enc.Para(detail.Text())
-	return
-
-	// year, _ := s.Event.GetDate().Year()
-	// enc.Para(fmt.Sprintf("census %d", year))
-	// for _, ce := range s.Event.Entries {
-	// 	enc.Para(fmt.Sprintf("%+v\n", ce))
-	// }
-	// if s.Event.Detail != "" {
-	// 	enc.Para(s.Event.Detail)
-	// }
 }
 
 func (s *CensusStatement) Start() *model.Date {

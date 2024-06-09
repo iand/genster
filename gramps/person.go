@@ -12,10 +12,7 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-var (
-	reUppercase     = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
-	reParanthesised = regexp.MustCompile(`^\((.+)\)$`)
-)
+var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
 
 func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error {
 	id := pval(gp.ID, gp.Handle)
@@ -600,7 +597,7 @@ func parseOccupation(s string) (string, model.OccupationStatus, model.Occupation
 		re     *regexp.Regexp
 		status model.OccupationStatus
 	}{
-		{re: reApprenticeParan, status: model.OccupationStatusJourneyman},
+		{re: reJourneymanParan, status: model.OccupationStatusJourneyman},
 		{re: reJourneyman, status: model.OccupationStatusJourneyman},
 		{re: reMasterParan, status: model.OccupationStatusMaster},
 		{re: reMaster, status: model.OccupationStatusMaster},

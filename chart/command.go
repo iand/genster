@@ -7,9 +7,7 @@ package chart
 
 import (
 	"fmt"
-	"image/color"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/urfave/cli/v2"
@@ -29,15 +27,6 @@ func checkFlags(cc *cli.Context) error {
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 	}
 	return nil
-}
-
-func parseColor(s string) (color.Color, error) {
-	intColor, err := strconv.ParseInt(s, 16, 32)
-	if err != nil {
-		return color.RGBA{}, err
-	}
-
-	return color.RGBA{uint8((intColor & 0xFF0000) >> 16), uint8((intColor & 0x00FF00) >> 8), uint8((intColor & 0x0000FF)), 0xFF}, nil
 }
 
 var chartopts struct {
