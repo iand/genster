@@ -141,7 +141,7 @@ func (n *IntroGenerator) RelativeTime(seq int, dt *model.Date, includeFullDate b
 	return ""
 }
 
-func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc render.InlineMarkdownEncoder) string {
+func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc render.PageMarkdownEncoder) string {
 	if n.PeopleIntroduced == nil {
 		n.PeopleIntroduced = make(map[string][]string)
 	}

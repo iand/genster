@@ -7,8 +7,9 @@ import (
 )
 
 type Page interface {
-	WriteTo(w io.Writer) (int64, error)
+	PageMarkdownEncoder
 	MarkupBuilder
+	WriteTo(w io.Writer) (int64, error)
 	SetFrontMatterField(k, v string)
 	Title(s string)
 	Summary(s string)
@@ -20,8 +21,18 @@ type Page interface {
 	ResetSeenLinks()
 }
 
+// A PageMarkdownEncoder provides methods that encode as markdown but require
+// or add additional context at the page level.
+type PageMarkdownEncoder interface {
+	InlineMarkdownEncoder
+	EncodeCitationDetail(c *model.GeneralCitation) string
+	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
+	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
+}
+
 type MarkupBuilder interface {
 	InlineMarkdownEncoder
+	PageMarkdownEncoder
 	String() string // used by list pages
 	RawMarkdown(string)
 	Para(string)
@@ -41,7 +52,4 @@ type InlineMarkdownEncoder interface {
 	EncodeBold(s string) string
 	EncodeLink(text string, url string) string
 	EncodeModelLink(text string, m any) string
-	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	EncodeCitationDetail(c *model.GeneralCitation) string
-	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
 }

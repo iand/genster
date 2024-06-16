@@ -40,7 +40,7 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 
 type TimelineEntryFormatter struct {
 	pov      *model.POV
-	enc      render.InlineMarkdownEncoder
+	enc      render.PageMarkdownEncoder
 	omitDate bool
 }
 
@@ -80,7 +80,6 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.MusterEvent:
 		// title = t.musterEventTitle(seq, tev)
 		title = t.generalEventTitle(seq, tev)
-		logging.Warn("XXXXXXXXXXXXXXXXXXXXXXX muster", "title", title, "what", tev.What())
 	default:
 		logging.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)

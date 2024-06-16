@@ -65,11 +65,11 @@ func (e *Encoder) Heading1(s string) {
 	e.writeHeading1(&e.maintext, s)
 }
 
-func (e *Encoder) EncodeHeading1(s string) string {
-	buf := new(strings.Builder)
-	e.writeHeading1(buf, s)
-	return buf.String()
-}
+// func (e *Encoder) EncodeHeading1(s string) string {
+// 	buf := new(strings.Builder)
+// 	e.writeHeading1(buf, s)
+// 	return buf.String()
+// }
 
 func (e *Encoder) writeHeading1(buf io.StringWriter, s string) {
 	buf.WriteString("\n")
@@ -81,11 +81,11 @@ func (b *Encoder) Heading2(s string) {
 	b.writeHeading2(&b.maintext, s)
 }
 
-func (b *Encoder) EncodeHeading2(s string) string {
-	buf := new(strings.Builder)
-	b.writeHeading2(buf, s)
-	return buf.String()
-}
+// func (b *Encoder) EncodeHeading2(s string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeHeading2(buf, s)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeHeading2(buf io.StringWriter, s string) {
 	buf.WriteString("\n")
@@ -97,11 +97,11 @@ func (b *Encoder) Heading3(s string) {
 	b.writeHeading3(&b.maintext, s)
 }
 
-func (b *Encoder) EncodeHeading3(s string) string {
-	buf := new(strings.Builder)
-	b.writeHeading3(buf, s)
-	return buf.String()
-}
+// func (b *Encoder) EncodeHeading3(s string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeHeading3(buf, s)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeHeading3(buf io.StringWriter, s string) {
 	buf.WriteString("\n")
@@ -113,11 +113,11 @@ func (b *Encoder) Heading4(s string) {
 	b.writeHeading4(&b.maintext, s)
 }
 
-func (b *Encoder) EncodeHeading4(s string) string {
-	buf := new(strings.Builder)
-	b.writeHeading4(buf, s)
-	return buf.String()
-}
+// func (b *Encoder) EncodeHeading4(s string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeHeading4(buf, s)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeHeading4(buf io.StringWriter, s string) {
 	buf.WriteString("\n")
@@ -144,11 +144,11 @@ func (b *Encoder) EmptyPara() {
 	b.writeEmptyPara(&b.maintext)
 }
 
-func (b *Encoder) EncodeEmptyPara() string {
-	buf := new(strings.Builder)
-	b.writeEmptyPara(buf)
-	return buf.String()
-}
+// func (b *Encoder) EncodeEmptyPara() string {
+// 	buf := new(strings.Builder)
+// 	b.writeEmptyPara(buf)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeEmptyPara(buf io.StringWriter) {
 	buf.WriteString("\n\n")
@@ -158,11 +158,11 @@ func (b *Encoder) BlockQuote(s string) {
 	b.writeBlockQuote(&b.maintext, s)
 }
 
-func (b *Encoder) EncodeBlockQuote(s string) string {
-	buf := new(strings.Builder)
-	b.writeBlockQuote(buf, s)
-	return buf.String()
-}
+// func (b *Encoder) EncodeBlockQuote(s string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeBlockQuote(buf, s)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeBlockQuote(buf io.StringWriter, s string) {
 	lines := strings.Split(s, "\n")
@@ -189,11 +189,11 @@ func (b *Encoder) UnorderedList(items []string) {
 	b.writeUnorderedList(&b.maintext, items)
 }
 
-func (b *Encoder) EncodeUnorderedList(items []string) string {
-	buf := new(strings.Builder)
-	b.writeUnorderedList(buf, items)
-	return buf.String()
-}
+// func (b *Encoder) EncodeUnorderedList(items []string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeUnorderedList(buf, items)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeUnorderedList(buf io.StringWriter, items []string) {
 	for _, item := range items {
@@ -205,11 +205,11 @@ func (b *Encoder) OrderedList(items []string) {
 	b.writeOrderedList(&b.maintext, items)
 }
 
-func (b *Encoder) EncodeOrderedList(items []string) string {
-	buf := new(strings.Builder)
-	b.writeOrderedList(buf, items)
-	return buf.String()
-}
+// func (b *Encoder) EncodeOrderedList(items []string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeOrderedList(buf, items)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeOrderedList(buf io.StringWriter, items []string) {
 	for i, item := range items {
@@ -221,11 +221,11 @@ func (b *Encoder) DefinitionList(items [][2]string) {
 	b.writeDefinitionList(&b.maintext, items)
 }
 
-func (b *Encoder) EncodeDefinitionList(items [][2]string) string {
-	buf := new(strings.Builder)
-	b.writeDefinitionList(buf, items)
-	return buf.String()
-}
+// func (b *Encoder) EncodeDefinitionList(items [][2]string) string {
+// 	buf := new(strings.Builder)
+// 	b.writeDefinitionList(buf, items)
+// 	return buf.String()
+// }
 
 func (b *Encoder) writeDefinitionList(buf io.StringWriter, items [][2]string) {
 	// buf.WriteString("<dl>\n")

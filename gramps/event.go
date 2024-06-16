@@ -13,7 +13,7 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
+func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
 	pl := l.findPlaceForEvent(m, grev)
 
 	dt, err := EventDate(grev)
@@ -29,9 +29,19 @@ func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, logger *slog.L
 		Attributes: make(map[string]string),
 	}
 
+	// add shared attributes
 	for _, att := range grev.Attribute {
 		if pval(att.Priv, false) {
 			logger.Debug("skipping event attribute marked as private", "type", att.Type)
+			continue
+		}
+		gev.Attributes[strings.ToLower(att.Type)] = att.Value
+	}
+
+	// add attributes for this reference
+	for _, att := range grer.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping event reference attribute marked as private", "type", att.Type)
 			continue
 		}
 		gev.Attributes[strings.ToLower(att.Type)] = att.Value

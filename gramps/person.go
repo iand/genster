@@ -268,7 +268,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			continue
 		}
 
-		gev, eventAnomalies, err := l.parseEvent(m, grev, logger)
+		gev, eventAnomalies, err := l.parseEvent(m, grev, &grer, logger)
 		if err != nil {
 			logger.Warn("could not parse event", "error", err.Error(), "hlink", grer.Hlink)
 			anom := &model.Anomaly{
