@@ -8,10 +8,10 @@ type TimelineEvent interface {
 	GetDate() *Date
 	GetDateType() EventDateType
 	GetPlace() *Place
-	GetTitle() string
 	GetDetail() string
 	GetNarrative() Text
 	GetCitations() []*GeneralCitation
+	GetAttribute(name string) (string, bool)
 	Type() string
 	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
 	What() string                    // married, born, divorced
@@ -72,14 +72,24 @@ func SortTimelineEvents(evs []TimelineEvent) {
 	})
 }
 
+const (
+	EventAttributeEmployer  = "employer"
+	EventAttributeService   = "service" // military service: merchant navy, army, royal artillery etc.
+	EventAttributeRegiment  = "regiment"
+	EventAttributeBattalion = "battalion"
+	EventAttributeCompany   = "company"
+	EventAttributeRank      = "rank"
+)
+
 type GeneralEvent struct {
-	Date      *Date
-	Place     *Place
-	Title     string
-	Detail    string
-	Citations []*GeneralCitation
-	Inferred  bool
-	Narrative Text // hand written narrative, if any
+	Date       *Date
+	Place      *Place
+	Title      string
+	Detail     string
+	Citations  []*GeneralCitation
+	Inferred   bool
+	Narrative  Text // hand written narrative, if any
+	Attributes map[string]string
 }
 
 func (e *GeneralEvent) GetDate() *Date {
@@ -102,16 +112,17 @@ func (e *GeneralEvent) Where() string {
 	return e.Place.Where()
 }
 
-func (e *GeneralEvent) GetTitle() string {
-	return e.Title
-}
-
 func (e *GeneralEvent) GetDetail() string {
 	return e.Detail
 }
 
 func (e *GeneralEvent) GetNarrative() Text {
 	return e.Narrative
+}
+
+func (e *GeneralEvent) GetAttribute(name string) (string, bool) {
+	v, ok := e.Attributes[name]
+	return v, ok
 }
 
 func (e *GeneralEvent) GetCitations() []*GeneralCitation {
@@ -141,7 +152,7 @@ func (e *GeneralEvent) abbrev(prefix string) string {
 	return prefix + ". " + e.Date.String()
 }
 
-func (e *GeneralEvent) What() string { return "had an event" }
+func (e *GeneralEvent) What() string { return e.Title }
 
 func (e *GeneralEvent) SortsBefore(other TimelineEvent) bool {
 	if e == nil || e.Date == nil {
@@ -388,6 +399,35 @@ var (
 	_ IndividualTimelineEvent = (*CremationEvent)(nil)
 )
 
+// EnlistmentEvent represents the enlisting of a person to a military service
+type EnlistmentEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *EnlistmentEvent) Type() string             { return "enlistment" }
+func (e *EnlistmentEvent) ShortDescription() string { return e.abbrev("enl") }
+
+var (
+	_ TimelineEvent           = (*EnlistmentEvent)(nil)
+	_ IndividualTimelineEvent = (*EnlistmentEvent)(nil)
+)
+
+// MusterEvent represents the recording of a person in a muster call
+type MusterEvent struct {
+	GeneralEvent
+	GeneralMultipartyEvent
+}
+
+func (e *MusterEvent) Type() string               { return "muster" }
+func (e *MusterEvent) ShortDescription() string   { return e.abbrev("must") }
+func (e *MusterEvent) GetDateType() EventDateType { return EventDateTypeRecorded }
+
+var (
+	_ TimelineEvent           = (*MusterEvent)(nil)
+	_ MultipartyTimelineEvent = (*MusterEvent)(nil)
+)
+
 // DepartureEvent represents the departure of a person from a place
 type DepartureEvent struct {
 	GeneralEvent
@@ -440,7 +480,6 @@ type IndividualNarrativeEvent struct {
 }
 
 func (e *IndividualNarrativeEvent) ShortDescription() string { return e.abbrev("narr") }
-func (e *IndividualNarrativeEvent) What() string             { return e.GetTitle() }
 
 var (
 	_ TimelineEvent           = (*IndividualNarrativeEvent)(nil)
@@ -520,7 +559,7 @@ func (e *CensusEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
 
 var _ TimelineEvent = (*CensusEvent)(nil)
 
-// ProbateEvent represents the granting of probate for a person in their timeline
+// ProbateEvent represents the granting of probate for a person who has died
 type ProbateEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent

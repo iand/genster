@@ -147,6 +147,10 @@ func (p *Person) PreciseAgeAt(dt *Date) (*gdate.PreciseInterval, bool) {
 		return nil, false
 	}
 
+	if _, ok := p.BestBirthlikeEvent.(*BirthEvent); !ok {
+		return nil, false
+	}
+
 	in := p.BestBirthlikeEvent.GetDate().IntervalUntil(dt)
 	if in.IsUnknown() {
 		return nil, false

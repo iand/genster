@@ -170,10 +170,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		}
 
 		gev := model.GeneralEvent{
-			Date:   &model.Date{Date: dt},
-			Place:  pl,
-			Detail: detail,
-			Title:  er.Tag,
+			Date:       &model.Date{Date: dt},
+			Place:      pl,
+			Detail:     detail,
+			Title:      er.Tag,
+			Attributes: make(map[string]string),
 		}
 
 		giv := model.GeneralIndividualEvent{

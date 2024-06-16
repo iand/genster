@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 )
 
-func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
+func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
@@ -204,7 +204,7 @@ func RenderPersonPage(s *Site, p *model.Person) (*md.Document, error) {
 	for _, ev := range p.Timeline {
 		if ev.GetDate().IsUnknown() && ev.GetPlace().IsUnknown() {
 			p.MiscFacts = append(p.MiscFacts, model.Fact{
-				Category: ev.GetTitle(),
+				Category: ev.What(),
 				Detail:   ev.GetDetail(),
 			})
 		} else {

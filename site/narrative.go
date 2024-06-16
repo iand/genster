@@ -7,6 +7,7 @@ import (
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
@@ -140,7 +141,7 @@ func (n *IntroGenerator) RelativeTime(seq int, dt *model.Date, includeFullDate b
 	return ""
 }
 
-func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc ExtendedInlineEncoder) string {
+func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc render.InlineMarkdownEncoder) string {
 	if n.PeopleIntroduced == nil {
 		n.PeopleIntroduced = make(map[string][]string)
 	}
@@ -204,7 +205,7 @@ const (
 	NarrativeSequencePostDeath = 4
 )
 
-func (n *Narrative) Render(pov *model.POV, b ExtendedMarkdownBuilder) {
+func (n *Narrative) Render(pov *model.POV, b render.MarkupBuilder) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
 			return n.Statements[i].Start().SortsBefore(n.Statements[j].Start())
@@ -248,7 +249,7 @@ type GrammarHints struct {
 }
 
 type Statement interface {
-	RenderDetail(int, *IntroGenerator, ExtendedMarkdownBuilder, *GrammarHints)
+	RenderDetail(int, *IntroGenerator, render.MarkupBuilder, *GrammarHints)
 	Start() *model.Date
 	End() *model.Date
 	NarrativeSequence() int
@@ -262,7 +263,7 @@ type IntroStatement struct {
 
 var _ Statement = (*IntroStatement)(nil)
 
-func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	var birth string
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
@@ -412,7 +413,7 @@ type FamilyStatement struct {
 
 var _ Statement = (*FamilyStatement)(nil)
 
-func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 	other := s.Family.OtherParent(s.Principal)
@@ -581,7 +582,7 @@ func (s *FamilyStatement) childCardinal(clist []*model.Person) string {
 	return text.CardinalWithUnit(len(s.Family.Children), "child", "children")
 }
 
-func (s *FamilyStatement) childList(clist []*model.Person, enc ExtendedMarkdownBuilder) []string {
+func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuilder) []string {
 	sort.Slice(clist, func(i, j int) bool {
 		var d1, d2 *model.Date
 		if clist[i].BestBirthlikeEvent != nil {
@@ -601,7 +602,7 @@ func (s *FamilyStatement) childList(clist []*model.Person, enc ExtendedMarkdownB
 	return childList
 }
 
-func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	// unmarried and the other parent is not known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -660,7 +661,7 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 	enc.Para(detail.Text())
 }
 
-func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	// unmarried but the other parent is known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -723,7 +724,7 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc Ex
 	enc.Para(detail.Text())
 }
 
-func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	// married or unknown relationship but the other parent is unknown
 }
 
@@ -734,7 +735,7 @@ type FamilyEndStatement struct {
 
 var _ Statement = (*FamilyEndStatement)(nil)
 
-func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	endDate := s.Family.BestEndDate
 	if endDate.IsUnknown() {
 		return
@@ -796,7 +797,7 @@ type DeathStatement struct {
 
 var _ Statement = (*DeathStatement)(nil)
 
-func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	var detail string
 
 	bev := s.Principal.BestDeathlikeEvent
@@ -871,14 +872,17 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc Extend
 	}
 	detail += enc.EncodeWithCitations(evDetail, bev.GetCitations())
 
+	burialRunOnSentence := true
+
 	if s.Principal.CauseOfDeath != nil {
 		detail = text.FinishSentence(detail)
 		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(s.Principal.CauseOfDeath.Detail, s.Principal.CauseOfDeath.Citations)))
+		burialRunOnSentence = false
 	}
 
-	additionalDetailFromDeathEvent := EventNarrativeDetail(bev)
-
-	if bev.GetNarrative().Text != "" {
+	additionalDetailFromDeathEvent := EventNarrativeDetail(bev, enc)
+	if additionalDetailFromDeathEvent != "" {
+		burialRunOnSentence = false
 		detail = text.FinishSentence(detail)
 		detail = text.JoinSentenceParts(detail, additionalDetailFromDeathEvent)
 	}
@@ -935,10 +939,10 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc Extend
 			evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 		}
 
-		if additionalDetailFromDeathEvent != "" {
-			detail = text.FinishSentence(detail) + " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
-		} else {
+		if burialRunOnSentence {
 			detail += " and was "
+		} else {
+			detail = text.FinishSentence(detail) + " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
 		}
 
 		detail += enc.EncodeWithCitations(evDetail, funeralEvent.GetCitations())
@@ -994,7 +998,7 @@ type CensusStatement struct {
 
 var _ Statement = (*CensusStatement)(nil)
 
-func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
+func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	ce, found := s.Event.Entry(s.Principal)
 	if !found {
 		return
@@ -1155,8 +1159,8 @@ type NarrativeStatement struct {
 
 var _ Statement = (*NarrativeStatement)(nil)
 
-func (s *NarrativeStatement) RenderDetail(seq int, intro *IntroGenerator, enc ExtendedMarkdownBuilder, hints *GrammarHints) {
-	narrative := s.Event.GetNarrative().Text
+func (s *NarrativeStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+	narrative := EventNarrativeDetail(s.Event, enc)
 	if narrative == "" {
 		return
 	}
@@ -1193,14 +1197,14 @@ func ChooseFrom(n int, alternatives ...string) string {
 	return alternatives[n%len(alternatives)]
 }
 
-func EventNarrativeDetail(ev model.TimelineEvent) string {
-	if ev.GetNarrative().Text != "" {
-		return ev.GetNarrative().Text
+func EventNarrativeDetail(ev model.TimelineEvent, enc render.MarkupBuilder) string {
+	narr := ev.GetNarrative()
+	if narr.Text == "" {
+		detail := strings.ToLower(ev.GetDetail())
+		if strings.HasPrefix(detail, "she was recorded as") || strings.HasPrefix(detail, "he was recorded as") || strings.HasPrefix(detail, "it was recorded that") {
+			return ev.GetDetail()
+		}
+		return ""
 	}
-
-	detail := strings.ToLower(ev.GetDetail())
-	if strings.HasPrefix(detail, "she was recorded as") || strings.HasPrefix(detail, "he was recorded as") || strings.HasPrefix(detail, "it was recorded that") {
-		return ev.GetDetail()
-	}
-	return ""
+	return EncodeText(narr, enc)
 }

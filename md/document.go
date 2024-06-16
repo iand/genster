@@ -1,7 +1,7 @@
 package md
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -38,14 +38,14 @@ type Document struct {
 	frontMatter map[string][]string
 }
 
-func (b *Document) Markdown() string {
+func (b *Document) String() string {
 	s := new(strings.Builder)
-	b.WriteMarkdown(s)
+	b.WriteTo(s)
 	return s.String()
 }
 
-func (b *Document) WriteMarkdown(w io.Writer) error {
-	bw := bufio.NewWriter(w)
+func (b *Document) WriteTo(w io.Writer) (int64, error) {
+	bb := new(bytes.Buffer)
 	tagRanks := map[string]byte{
 		MarkdownTagID:      4,
 		MarkdownTagTitle:   3,
@@ -54,7 +54,7 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 	}
 
 	if len(b.frontMatter) > 0 {
-		bw.WriteString("---\n")
+		bb.WriteString("---\n")
 
 		keys := make([]string, 0, len(b.frontMatter))
 		for k := range b.frontMatter {
@@ -71,33 +71,44 @@ func (b *Document) WriteMarkdown(w io.Writer) error {
 
 		for _, k := range keys {
 			vs := b.frontMatter[k]
-			bw.WriteString(k)
-			bw.WriteString(": ")
+			bb.WriteString(k)
+			bb.WriteString(": ")
 			if len(vs) == 1 {
 				if safeString.MatchString(vs[0]) && !numericString.MatchString(vs[0]) {
-					bw.WriteString(vs[0])
+					bb.WriteString(vs[0])
 				} else {
-					bw.WriteString(fmt.Sprintf("%q", vs[0]))
+					bb.WriteString(fmt.Sprintf("%q", vs[0]))
 				}
-				bw.WriteString("\n")
+				bb.WriteString("\n")
 			} else {
-				bw.WriteString("\n")
+				bb.WriteString("\n")
 				for _, v := range vs {
-					bw.WriteString("- ")
+					bb.WriteString("- ")
 					if safeString.MatchString(v) && !numericString.MatchString(v) {
-						bw.WriteString(v)
+						bb.WriteString(v)
 					} else {
-						bw.WriteString(fmt.Sprintf("%q", v))
+						bb.WriteString(fmt.Sprintf("%q", v))
 					}
-					bw.WriteString("\n")
+					bb.WriteString("\n")
 				}
 			}
 		}
-		bw.WriteString("---\n")
+		bb.WriteString("---\n")
 	}
-	bw.WriteString("\n")
+	bb.WriteString("\n")
 
-	return b.Encoder.WriteMarkdown(bw)
+	n, err := bb.WriteTo(w)
+	if err != nil {
+		return n, fmt.Errorf("write front matter: %w", err)
+	}
+
+	n1, err := b.Encoder.WriteTo(w)
+	n += n1
+	if err != nil {
+		return n, fmt.Errorf("write body: %w", err)
+	}
+
+	return n, nil
 }
 
 func (b *Document) SetFrontMatterField(k, v string) {

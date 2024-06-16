@@ -3,12 +3,12 @@ package site
 import (
 	"fmt"
 
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderPlacePage(s *Site, p *model.Place) (*md.Document, error) {
+func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 	pov := &model.POV{Place: p}
 
 	doc := s.NewDocument()

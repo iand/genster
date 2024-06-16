@@ -2,13 +2,14 @@ package site
 
 import (
 	"fmt"
-	"log/slog"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuilder) error {
+func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder) error {
 	enc.EmptyPara()
 	if len(t.Events) == 0 {
 		return nil
@@ -23,6 +24,9 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuild
 	events := make([][2]string, 0, len(t.Events))
 	for i, ev := range t.Events {
 		title := fmtr.Title(i, ev)
+		if title == "" {
+			continue
+		}
 		detail := fmtr.Detail(i, ev)
 		events = append(events, [2]string{
 			title,
@@ -36,7 +40,7 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc ExtendedMarkdownBuild
 
 type TimelineEntryFormatter struct {
 	pov      *model.POV
-	enc      ExtendedMarkdownEncoder
+	enc      render.InlineMarkdownEncoder
 	omitDate bool
 }
 
@@ -72,10 +76,17 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.DepartureEvent:
 		title = t.departureEventTitle(seq, tev)
 	case *model.DivorceEvent:
-		slog.Debug("timeline: unhandled divorce event")
-	default:
-		slog.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
+		logging.Debug("timeline: unhandled divorce event")
+	case *model.MusterEvent:
+		// title = t.musterEventTitle(seq, tev)
 		title = t.generalEventTitle(seq, tev)
+		logging.Warn("XXXXXXXXXXXXXXXXXXXXXXX muster", "title", title, "what", tev.What())
+	default:
+		logging.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
+		title = t.generalEventTitle(seq, tev)
+	}
+	if title == "" {
+		return ""
 	}
 	title = t.enc.EncodeWithCitations(title, ev.GetCitations())
 	return text.FormatSentence(title)
@@ -188,6 +199,9 @@ func (t *TimelineEntryFormatter) censusEventTitle(seq int, ev *model.CensusEvent
 }
 
 func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEvent) string {
+	if ev.What() == "" {
+		return ""
+	}
 	var title string
 	title = text.JoinSentenceParts(title, t.observerContext(ev))
 
@@ -247,6 +261,33 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	}
+	return title
+}
+
+func (t *TimelineEntryFormatter) musterEventTitle(seq int, ev *model.MusterEvent) string {
+	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
+
+	title = text.JoinSentenceParts(title, "at muster")
+	if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
+		if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
+			title = text.JoinSentenceParts(title, "for the", battalion, "battalion,", regiment)
+		} else {
+			title = text.JoinSentenceParts(title, "for the", regiment, "regiment")
+		}
+	}
+	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentenceParts(title, "here")
+	}
+
+	date := ev.GetDate()
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
+		title = text.JoinSentenceParts(title, date.When())
+	}
+
+	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 	return title
 }

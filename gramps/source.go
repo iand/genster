@@ -106,12 +106,12 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		}
 		switch strings.ToLower(gn.Type) {
 		case "transcript":
-			cit.TranscriptionText = append(cit.TranscriptionText, noteToText(gn))
+			cit.TranscriptionText = append(cit.TranscriptionText, l.parseNote(gn, m))
 		case "citation":
-			cit.Comments = append(cit.Comments, noteToText(gn))
+			cit.Comments = append(cit.Comments, l.parseNote(gn, m))
 		case "research":
 			// research notes are always assumed to be markdown
-			t := noteToText(gn)
+			t := l.parseNote(gn, m)
 			t.Markdown = true
 			cit.ResearchNotes = append(cit.ResearchNotes, t)
 		}
@@ -162,7 +162,7 @@ func CitationDate(gc *grampsxml.Citation) (*model.Date, error) {
 	return model.UnknownDate(), nil
 }
 
-func noteToText(gn *grampsxml.Note) model.Text {
+func (l *Loader) parseNote(gn *grampsxml.Note, m ModelFinder) model.Text {
 	txt := model.Text{
 		Text: gn.Text,
 	}
@@ -170,7 +170,28 @@ func noteToText(gn *grampsxml.Note) model.Text {
 		txt.Formatted = true
 	}
 
-	// TODO interpret styles and links
+	for _, st := range gn.Style {
+		switch st.Name {
+		case "link":
+			if st.Value != nil {
+				obj, ok := l.resolveGrampsLink(*st.Value, m)
+				if ok {
+					for _, r := range st.Range {
+						// TODO: adjust start/end to account for any additional formatting
+						txt.Links = append(txt.Links, model.ObjectLink{
+							Object: obj,
+							Start:  r.Start, // gramps indices are 1-based
+							End:    r.End,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	if len(txt.Links) > 0 {
+		txt.Markdown = true
+	}
 
 	// <note handle="_f8e8f631a9b39636b2dd988731b" change="1717158291" id="N0182" type="Person Note">
 	//   <text>On her marriage certificate she stated her father to be George Palmer. However her father Daniel died while she was very young and she never knew him. Having met her descendants and seen her family bible I'm confident of the relationship and believe she was simply unaware of her father's name.</text>
@@ -180,4 +201,49 @@ func noteToText(gn *grampsxml.Note) model.Text {
 	// </note>
 
 	return txt
+}
+
+func (l *Loader) resolveGrampsLink(link string, m ModelFinder) (any, bool) {
+	if !strings.HasPrefix(link, "gramps://") {
+		return nil, false
+	}
+	link = link[9:]
+
+	kind, link, found := strings.Cut(link, "/")
+	if !found {
+		return nil, false
+	}
+
+	reftype, ref, found := strings.Cut(link, "/")
+	if !found {
+		return nil, false
+	}
+
+	if reftype != "handle" {
+		return nil, false
+	}
+
+	// handles begin with an underscore
+	ref = "_" + ref
+
+	switch kind {
+	case "Person":
+		gp, ok := l.PeopleByHandle[ref]
+		if !ok {
+			return nil, false
+		}
+		id := pval(gp.ID, gp.Handle)
+		p := m.FindPerson(l.ScopeName, id)
+		return p, true
+	case "Place":
+		gp, ok := l.PlacesByHandle[ref]
+		if !ok {
+			return nil, false
+		}
+		id := pval(gp.ID, gp.Handle)
+		p := m.FindPlace(l.ScopeName, id)
+		return p, true
+	}
+
+	return nil, false
 }

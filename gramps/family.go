@@ -1,6 +1,8 @@
 package gramps
 
 import (
+	"strings"
+
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/grampsxml"
@@ -104,7 +106,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			logger.Warn("could not find event", "hlink", er.Hlink)
 			continue
 		}
-		pl, _ := l.findPlaceForEvent(m, grev)
+		pl := l.findPlaceForEvent(m, grev)
 
 		dt, err := EventDate(grev)
 		if err != nil {
@@ -112,10 +114,18 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		}
 
 		gev := model.GeneralEvent{
-			Date:   dt,
-			Place:  pl,
-			Detail: "", // TODO: notes
-			Title:  pval(grev.Description, ""),
+			Date:       dt,
+			Place:      pl,
+			Detail:     "", // TODO: notes
+			Title:      pval(grev.Description, ""),
+			Attributes: make(map[string]string),
+		}
+		for _, att := range grev.Attribute {
+			if pval(att.Priv, false) {
+				logging.Debug("skipping event attribute marked as private", "id", fam.ID, "type", att.Type)
+				continue
+			}
+			gev.Attributes[strings.ToLower(att.Type)] = att.Value
 		}
 
 		var anoms []*model.Anomaly

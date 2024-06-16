@@ -5,15 +5,17 @@ import (
 	"strings"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderText(t model.Text, enc MarkdownDoc) error {
+func RenderText(t model.Text, enc render.Page) error {
 	if t.Formatted {
 		enc.Pre(t.Text)
 		enc.Pre("")
 	} else if t.Markdown {
-		enc.RawMarkdown(t.Text)
+		txt := EncodeText(t, enc)
+		enc.RawMarkdown(txt)
 		enc.EmptyPara()
 	} else {
 		enc.Para(text.FormatSentence(t.Text))
@@ -23,7 +25,31 @@ func RenderText(t model.Text, enc MarkdownDoc) error {
 	return nil
 }
 
-func RenderFacts(facts []model.Fact, pov *model.POV, enc ExtendedMarkdownBuilder) error {
+func EncodeText(t model.Text, enc render.MarkupBuilder) string {
+	if len(t.Links) == 0 {
+		return t.Text
+	}
+
+	text := []rune(t.Text)
+
+	// Ensure links are ordered by start position
+	// Overlapping links are not supported
+	sort.Slice(t.Links, func(i, j int) bool {
+		return t.Links[i].Start < t.Links[j].Start
+	})
+	formatted := ""
+	cursor := 0
+	for _, l := range t.Links {
+		formatted += string(text[cursor:l.Start])
+		linktext := string(text[l.Start:l.End])
+		formatted += enc.EncodeModelLink(linktext, l.Object)
+		cursor = l.End
+	}
+	formatted += string(text[cursor:])
+	return formatted
+}
+
+func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) error {
 	enc.EmptyPara()
 
 	categories := make([]string, 0)
@@ -90,7 +116,7 @@ func Tagify(s string) string {
 	return s
 }
 
-func RenderNames(names []*model.Name, enc ExtendedMarkdownBuilder) error {
+func RenderNames(names []*model.Name, enc render.MarkupBuilder) error {
 	enc.EmptyPara()
 
 	namelist := make([]string, 0, len(names))

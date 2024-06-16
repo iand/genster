@@ -1,7 +1,7 @@
 package md
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"html"
 	"io"
@@ -28,27 +28,28 @@ func (e *Encoder) SetLinkBuilder(l LinkBuilder) {
 	e.LinkBuilder = l
 }
 
-func (e *Encoder) Markdown() string {
+func (e *Encoder) String() string {
 	s := new(strings.Builder)
-	e.WriteMarkdown(s)
+	e.WriteTo(s)
 	return s.String()
 }
 
-func (e *Encoder) WriteMarkdown(w io.Writer) error {
-	bw := bufio.NewWriter(w)
-	bw.WriteString(e.maintext.String())
-	bw.WriteString("\n")
+func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
+	bb := new(bytes.Buffer)
+
+	bb.WriteString(e.maintext.String())
+	bb.WriteString("\n")
 
 	reftext := e.citetext.String()
 	if len(reftext) > 0 {
-		bw.WriteString("<div class=\"footnotes\">\n\n")
-		bw.WriteString("----\n\n")
-		bw.WriteString("#### Citations and notes\n")
-		bw.WriteString("\n")
-		bw.WriteString(reftext)
-		bw.WriteString("</div>\n\n")
+		bb.WriteString("<div class=\"footnotes\">\n\n")
+		bb.WriteString("----\n\n")
+		bb.WriteString("#### Citations and notes\n")
+		bb.WriteString("\n")
+		bb.WriteString(reftext)
+		bb.WriteString("</div>\n\n")
 	}
-	return bw.Flush()
+	return bb.WriteTo(w)
 }
 
 func (e *Encoder) SetBody(s string) {
@@ -309,7 +310,7 @@ func (b *Encoder) EncodeCitation(sourceName string, citationText string, citatio
 	}
 
 	detail := sourceName
-	if !strings.HasSuffix(detail, ".") && !strings.HasSuffix(detail, "!") && !strings.HasSuffix(detail, "?") {
+	if detail != "" && !strings.HasSuffix(detail, ".") && !strings.HasSuffix(detail, "!") && !strings.HasSuffix(detail, "?") {
 		detail += "; "
 	}
 	detail += citationText

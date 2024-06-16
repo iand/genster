@@ -45,6 +45,14 @@ type Text struct {
 	Text      string
 	Formatted bool
 	Markdown  bool
+	Links     []ObjectLink
+}
+
+// An ObjectLink is a specification of where to insert a link to an object in some text
+type ObjectLink struct {
+	Object any
+	Start  int // rune index
+	End    int // rune index
 }
 
 func (c *GeneralCitation) String() string {
@@ -67,7 +75,7 @@ func (c *GeneralCitation) String() string {
 
 func (c *GeneralCitation) SourceTitle() string {
 	if c.Source == nil {
-		return "unknown source"
+		return ""
 	}
 	return c.Source.Title
 }

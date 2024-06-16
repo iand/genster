@@ -90,10 +90,11 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 		}
 
 		gev := model.GeneralEvent{
-			Date:   &model.Date{Date: dt},
-			Place:  pl,
-			Detail: er.Value,
-			Title:  fmt.Sprintf("%s event %s", er.Tag, dt.Occurrence()),
+			Date:       &model.Date{Date: dt},
+			Place:      pl,
+			Detail:     er.Value,
+			Title:      fmt.Sprintf("%s event %s", er.Tag, dt.Occurrence()),
+			Attributes: make(map[string]string),
 		}
 		var anoms []*model.Anomaly
 		gev.Citations, anoms = l.parseCitationRecords(m, er.Citation, logger)

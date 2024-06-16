@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
@@ -13,7 +13,7 @@ type Calendar struct {
 	Events []model.TimelineEvent
 }
 
-func (c *Calendar) RenderPage(s *Site) (*md.Document, error) {
+func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
 	monthNames := []string{
 		1:  "January",
 		2:  "February",

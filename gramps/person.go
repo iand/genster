@@ -256,63 +256,28 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	// collect occupation events and attempt to consolidate them later
 	occupationEvents := make([]model.GeneralEvent, 0)
 
-	for _, er := range gp.Eventref {
-		role := pval(er.Role, "unknown")
+	for _, grer := range gp.Eventref {
+		role := pval(grer.Role, "unknown")
 		if role != "Primary" {
 			continue
 		}
 
-		grev, ok := l.EventsByHandle[er.Hlink]
+		grev, ok := l.EventsByHandle[grer.Hlink]
 		if !ok {
-			logger.Warn("could not find event", "hlink", er.Hlink)
+			logger.Warn("could not find event", "hlink", grer.Hlink)
 			continue
 		}
 
-		pl, planoms := l.findPlaceForEvent(m, grev)
-
-		dt, err := EventDate(grev)
+		gev, eventAnomalies, err := l.parseEvent(m, grev, logger)
 		if err != nil {
-			logger.Warn("could not parse event date", "error", err.Error(), "hlink", er.Hlink)
+			logger.Warn("could not parse event", "error", err.Error(), "hlink", grer.Hlink)
 			anom := &model.Anomaly{
 				Category: model.AnomalyCategoryEvent,
 				Text:     err.Error(),
-				Context:  "Event date",
+				Context:  "Parsing event data",
 			}
 			p.Anomalies = append(p.Anomalies, anom)
-
 			continue
-		}
-
-		gev := model.GeneralEvent{
-			Date:   dt,
-			Place:  pl,
-			Detail: "", // TODO: notes
-			Title:  pval(grev.Description, ""),
-		}
-
-		var citanoms []*model.Anomaly
-		if len(grev.Citationref) > 0 {
-			gev.Citations, citanoms = l.parseCitationRecords(m, grev.Citationref, logger)
-		}
-
-		for _, gnr := range grev.Noteref {
-			gn, ok := l.NotesByHandle[gnr.Hlink]
-			if !ok {
-				continue
-			}
-			switch strings.ToLower(gn.Type) {
-			case "narrative":
-				if gev.Narrative.Text != "" {
-					logger.Warn("overwriting narrative with Narrative note", "hlink", gnr.Hlink)
-				}
-				gev.Narrative = noteToText(gn)
-			case "event note":
-				cit := &model.GeneralCitation{
-					ID:     gnr.Hlink,
-					Detail: gn.Text,
-				}
-				gev.Citations = append(gev.Citations, cit)
-			}
 		}
 
 		giv := model.GeneralIndividualEvent{
@@ -347,9 +312,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			if fixed {
 				gev.Date = censusDate
 			}
-			ev = l.populateCensusRecord(grev, &er, gev, p)
+			ev = l.populateCensusRecord(grev, &grer, gev, p, m)
 		case "residence":
-			ev = l.getResidenceEvent(grev, &er, gev, p)
+			ev = l.getResidenceEvent(grev, &grer, gev, p, m)
 		case "probate":
 			ev = &model.ProbateEvent{
 				GeneralEvent:           gev,
@@ -383,6 +348,57 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralIndividualEvent: giv,
 			}
 
+		case "enlistment":
+			ev = &model.EnlistmentEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+			if gev.Title == "" {
+				p.Anomalies = append(p.Anomalies, &model.Anomaly{
+					Category: model.AnomalyCategoryEvent,
+					Text:     "Enlistment event is missing a description, should be of the form \"enlisted in the Royal Artillery\"",
+					Context:  "Description",
+				})
+
+				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
+					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
+						p.Anomalies = append(p.Anomalies, &model.Anomaly{
+							Category: model.AnomalyCategoryEvent,
+							Text:     "Enlistment event is missing either a regiment or service attribute",
+							Context:  "Attributes",
+						})
+					}
+				}
+
+				if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
+					gev.Title = "enlisted in the " + reg
+				} else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
+					gev.Title = "enlisted in the " + svc
+				} else {
+					gev.Title = "enlisted"
+				}
+			}
+		case "muster":
+			ev = l.getMusterEvent(grev, &grer, gev, p, m)
+			if gev.Title == "" {
+				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
+					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
+						p.Anomalies = append(p.Anomalies, &model.Anomaly{
+							Category: model.AnomalyCategoryEvent,
+							Text:     "Muster event is missing either a regiment or service attribute",
+							Context:  "Attributes",
+						})
+					}
+				}
+
+				// if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
+				// 	gev.Title = "enlisted in the " + reg
+				// } else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
+				// 	gev.Title = "enlisted in the " + svc
+				// } else {
+				// 	gev.Title = "r"
+				// }
+			}
 		default:
 			// TODO:
 			// Economic Status
@@ -394,7 +410,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			// Departure
 			// Adopted
 
-			logger.Warn("unhandled person event type", "hlink", er.Hlink, "type", pval(grev.Type, "unknown"))
+			logger.Warn("unhandled person event type", "hlink", grer.Hlink, "type", pval(grev.Type, "unknown"))
 
 		}
 
@@ -402,15 +418,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			logger.Debug("adding event to timeline", "what", ev.What(), "when", ev.When(), "where", ev.Where())
 
 			p.Timeline = append(p.Timeline, ev)
+			pl := ev.GetPlace()
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
-			}
-			for _, anom := range planoms {
-				anom.Context = "Place in " + ev.Type() + " event"
-				if !ev.GetDate().IsUnknown() {
-					anom.Context += " " + ev.GetDate().When()
-				}
-				p.Anomalies = append(p.Anomalies, anom)
 			}
 
 			seenSource := make(map[*model.Source]bool)
@@ -420,12 +430,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 					seenSource[c.Source] = true
 				}
 			}
-
-			for _, anom := range citanoms {
-				anom.Context = "Citation for " + ev.Type() + " event"
-				p.Anomalies = append(p.Anomalies, anom)
-			}
-
+			p.Anomalies = append(p.Anomalies, eventAnomalies...)
 		}
 
 	}
@@ -478,10 +483,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 		switch strings.ToLower(gn.Type) {
 		case "person note":
-			p.Comments = append(p.Comments, noteToText(gn))
+			p.Comments = append(p.Comments, l.parseNote(gn, m))
 		case "research":
 			// research notes are always assumed to be markdown
-			t := noteToText(gn)
+			t := l.parseNote(gn, m)
 			t.Markdown = true
 			p.ResearchNotes = append(p.ResearchNotes, t)
 		default:

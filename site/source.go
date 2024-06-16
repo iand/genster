@@ -1,16 +1,11 @@
 package site
 
 import (
-	// "fmt"
-
-	// "slices"
-
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
-	// "github.com/iand/genster/text"
+	"github.com/iand/genster/render"
 )
 
-func RenderSourcePage(s *Site, so *model.Source) (*md.Document, error) {
+func RenderSourcePage(s *Site, so *model.Source) (render.Page, error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 

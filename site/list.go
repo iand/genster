@@ -69,7 +69,7 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 			}
 
 			group, groupPriority := groupRelation(p.RelationToKeyPerson)
-			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown(), group, groupPriority)
+			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String(), group, groupPriority)
 		}
 
 	}
@@ -110,7 +110,7 @@ func (s *Site) WriteInferenceListPages(root string) error {
 				b.Para(b.EncodeModelLink("View page", p))
 			}
 			b.DefinitionList(items)
-			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
+			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
 		}
 
 	}
@@ -199,7 +199,7 @@ func (s *Site) WriteTodoListPages(root string) error {
 			}
 
 			group, groupPriority := groupRelation(p.RelationToKeyPerson)
-			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown(), group, groupPriority)
+			pn.AddEntryWithGroup(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String(), group, groupPriority)
 		}
 
 	}
@@ -261,7 +261,7 @@ func (s *Site) WritePersonListPages(root string) error {
 			summary,
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
+		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
 
 	}
 	if err := pn.WritePages(s, baseDir, PageLayoutListPeople, "People", "This is a full, alphabetical list of people in the tree."); err != nil {
@@ -284,7 +284,7 @@ func (s *Site) WritePlaceListPages(root string) error {
 			b.EncodeModelLink(p.PreferredUniqueName, p),
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.Markdown())
+		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
 
 	}
 	if err := pn.WritePages(s, baseDir, PageLayoutListPlaces, "Places", "This is a full, alphabetical list of places in the tree."); err != nil {
@@ -304,7 +304,7 @@ func (s *Site) WriteSourceListPages(root string) error {
 			b.EncodeModelLink(so.Title, so),
 		})
 		b.DefinitionList(items)
-		pn.AddEntry(so.Title+"~"+so.ID, so.Title, b.Markdown())
+		pn.AddEntry(so.Title+"~"+so.ID, so.Title, b.String())
 
 	}
 	if err := pn.WritePages(s, baseDir, PageLayoutListSources, "Sources", "This is a full, alphabetical list of sources cited in the tree."); err != nil {
@@ -360,7 +360,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			})
 
 			b.DefinitionList(items)
-			pn.AddEntry(fmt.Sprintf("%4d~%s~%s", p.Generation(), p.PreferredSortName, p.ID), p.PreferredSortName, b.Markdown())
+			pn.AddEntry(fmt.Sprintf("%4d~%s~%s", p.Generation(), p.PreferredSortName, p.ID), p.PreferredSortName, b.String())
 		}
 
 		baseDir := filepath.Join(root, s.ListSurnamesDir, slug.Make(surname))

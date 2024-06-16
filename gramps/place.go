@@ -117,10 +117,10 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 
 		switch strings.ToLower(gn.Type) {
 		case "place note":
-			pl.Comments = append(pl.Comments, noteToText(gn))
+			pl.Comments = append(pl.Comments, l.parseNote(gn, m))
 		case "research":
 			// research notes are always assumed to be markdown
-			t := noteToText(gn)
+			t := l.parseNote(gn, m)
 			t.Markdown = true
 			pl.ResearchNotes = append(pl.ResearchNotes, t)
 		default:

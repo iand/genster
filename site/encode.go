@@ -4,80 +4,11 @@ import (
 	"net/url"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-type MarkdownDoc interface {
-	ExtendedMarkdownBuilder
-	SetFrontMatterField(k, v string)
-	Title(s string)
-	Summary(s string)
-	Layout(s string)
-	Category(s string)
-	ID(s string)
-	AddTag(s string)
-	AddTags(ss []string)
-	ResetSeenLinks()
-}
-
-type ExtendedMarkdownBuilder interface {
-	ExtendedMarkdownEncoder
-	MarkdownBuilder
-}
-
-type MarkdownBuilder interface {
-	MarkdownEncoder
-	Markdown() string
-	RawMarkdown(s string)
-	Para(s string)
-	Pre(s string)
-	EmptyPara()
-	Heading2(s string)
-	Heading3(s string)
-	Heading4(s string)
-	UnorderedList(items []string)
-	OrderedList(items []string)
-	DefinitionList(items [][2]string)
-	BlockQuote(s string)
-}
-
-type InlineBuilder interface {
-	InlineEncoder
-	Markdown() string
-}
-
-type MarkdownEncoder interface {
-	InlineEncoder
-	EncodePara(s string) string
-	EncodeEmptyPara() string
-	EncodeHeading4(s string) string
-	EncodeUnorderedList(items []string) string
-	EncodeOrderedList(items []string) string
-	EncodeDefinitionList(items [][2]string) string
-	EncodeBlockQuote(s string) string
-}
-
-type InlineEncoder interface {
-	EncodeLink(text string, url string) string
-	EncodeModelLink(text string, m any) string
-	EncodeItalic(s string) string
-	EncodeBold(s string) string
-}
-
-type ExtendedMarkdownEncoder interface {
-	MarkdownEncoder
-	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	EncodeCitationDetail(c *model.GeneralCitation) string
-	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
-}
-
-type ExtendedInlineEncoder interface {
-	InlineEncoder
-	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-	// EncodeCitation(citation string, detail string, citationID string) string
-}
-
-func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {
+func EncodeRawLink(u string, enc render.InlineMarkdownEncoder) string {
 	text := u
 
 	pu, err := url.Parse(u)
@@ -89,7 +20,7 @@ func EncodeRawLink(u string, enc ExtendedInlineEncoder) string {
 }
 
 // EncodePeopleListInline encodes a list of people as a comma separated list
-func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) string, enc InlineEncoder) string {
+func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) string, enc render.InlineMarkdownEncoder) string {
 	ss := make([]string, len(ps))
 	for i := range ps {
 		ss[i] = enc.EncodeModelLink(formatter(ps[i]), ps[i])
@@ -98,10 +29,10 @@ func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) st
 }
 
 type CitationSkippingEncoder struct {
-	MarkdownBuilder
+	render.MarkupBuilder
 }
 
-var _ ExtendedMarkdownEncoder = (*CitationSkippingEncoder)(nil)
+var _ render.InlineMarkdownEncoder = (*CitationSkippingEncoder)(nil)
 
 func (e *CitationSkippingEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
 	return firstText

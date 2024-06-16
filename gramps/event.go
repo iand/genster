@@ -2,35 +2,97 @@ package gramps
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 	"github.com/iand/grampsxml"
 )
 
-func (l *Loader) findPlaceForEvent(m ModelFinder, er *grampsxml.Event) (*model.Place, []*model.Anomaly) {
-	if er.Place == nil {
-		return model.UnknownPlace(), nil
+func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
+	pl := l.findPlaceForEvent(m, grev)
+
+	dt, err := EventDate(grev)
+	if err != nil {
+		return model.GeneralEvent{}, nil, err
 	}
 
-	po, ok := l.PlacesByHandle[er.Place.Hlink]
+	gev := model.GeneralEvent{
+		Date:       dt,
+		Place:      pl,
+		Detail:     "",
+		Title:      pval(grev.Description, ""),
+		Attributes: make(map[string]string),
+	}
+
+	for _, att := range grev.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping event attribute marked as private", "type", att.Type)
+			continue
+		}
+		gev.Attributes[strings.ToLower(att.Type)] = att.Value
+	}
+
+	var anomalies []*model.Anomaly
+	if len(grev.Citationref) > 0 {
+		var citanoms []*model.Anomaly
+		gev.Citations, citanoms = l.parseCitationRecords(m, grev.Citationref, logger)
+		for _, anom := range citanoms {
+			anom.Context = "Citation for " + pval(grev.Type, "unknown") + " event"
+			anomalies = append(anomalies, anom)
+		}
+	}
+
+	for _, gnr := range grev.Noteref {
+		gn, ok := l.NotesByHandle[gnr.Hlink]
+		if !ok {
+			continue
+		}
+		if pval(gn.Priv, false) {
+			logger.Debug("skipping event note marked as private", "handle", gn.Handle)
+			continue
+		}
+		switch strings.ToLower(gn.Type) {
+		case "narrative":
+			if gev.Narrative.Text != "" {
+				logger.Warn("overwriting narrative with Narrative note", "hlink", gnr.Hlink)
+			}
+			gev.Narrative = l.parseNote(gn, m)
+		case "event note":
+			cit := &model.GeneralCitation{
+				ID:     gnr.Hlink,
+				Detail: gn.Text,
+			}
+			gev.Citations = append(gev.Citations, cit)
+		}
+	}
+	return gev, anomalies, nil
+}
+
+func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.Place {
+	if grev.Place == nil {
+		return model.UnknownPlace()
+	}
+
+	po, ok := l.PlacesByHandle[grev.Place.Hlink]
 	if !ok {
-		return model.UnknownPlace(), nil
+		return model.UnknownPlace()
 	}
 
 	id := pval(po.ID, po.Handle)
 	pl := m.FindPlace(l.ScopeName, id)
-	return pl, nil
+	return pl
 }
 
 func maybeFixCensusDate(grev *grampsxml.Event) (*model.Date, bool) {
 	return nil, false
 }
 
-func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person) *model.CensusEvent {
+func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.CensusEvent {
 	id := pval(grev.ID, grev.Handle)
 
 	ev, ok := l.censusEvents[id]
@@ -48,7 +110,7 @@ func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Event
 				continue
 			}
 			if gn.Type == "Narrative" {
-				ev.Narrative = noteToText(gn)
+				ev.Narrative = l.parseNote(gn, m)
 			}
 		}
 
@@ -64,6 +126,10 @@ func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Event
 	for _, gnr := range er.Noteref {
 		gn, ok := l.NotesByHandle[gnr.Hlink]
 		if !ok {
+			continue
+		}
+		if pval(gn.Priv, false) {
+			logging.Debug("skipping census entry note marked as private", "id", p.ID, "handle", gn.Handle)
 			continue
 		}
 		if gn.Type == "Transcript" {
@@ -517,13 +583,20 @@ func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
 	return nil, fmt.Errorf("unsupported span")
 }
 
-func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person) *model.ResidenceRecordedEvent {
+func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.ResidenceRecordedEvent {
 	id := pval(grev.ID, grev.Handle)
 
-	ev, ok := l.residenceEvents[id]
-	if !ok {
+	var ev *model.ResidenceRecordedEvent
+
+	mev, ok := l.multipartyEvents[id]
+	if ok {
+		ev, ok = mev.(*model.ResidenceRecordedEvent)
+		if !ok {
+			panic(fmt.Sprintf("expected multiparty event with id %q to be a ResidenceRecordedEvent but it was a %T", id, mev))
+		}
+	} else {
 		ev = &model.ResidenceRecordedEvent{GeneralEvent: gev}
-		l.residenceEvents[id] = ev
+		l.multipartyEvents[id] = ev
 
 		for _, gnr := range grev.Noteref {
 			gn, ok := l.NotesByHandle[gnr.Hlink]
@@ -535,9 +608,59 @@ func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref
 				continue
 			}
 			if gn.Type == "Narrative" {
-				ev.Narrative = noteToText(gn)
+				ev.Narrative = l.parseNote(gn, m)
 			}
 		}
+
+	}
+
+	ev.Participants = append(ev.Participants, &model.EventParticipant{
+		Person: p,
+		Role:   model.EventRolePrincipal,
+	})
+
+	return ev
+}
+
+func (l *Loader) getMusterEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.MusterEvent {
+	id := pval(grev.ID, grev.Handle)
+
+	var ev *model.MusterEvent
+
+	mev, ok := l.multipartyEvents[id]
+	if ok {
+		ev, ok = mev.(*model.MusterEvent)
+		if !ok {
+			panic(fmt.Sprintf("expected multiparty event with id %q to be a MusterEvent but it was a %T", id, mev))
+		}
+	} else {
+		ev = &model.MusterEvent{GeneralEvent: gev}
+		l.multipartyEvents[id] = ev
+
+		for _, gnr := range grev.Noteref {
+			gn, ok := l.NotesByHandle[gnr.Hlink]
+			if !ok {
+				continue
+			}
+			if pval(gn.Priv, false) {
+				logging.Debug("skipping muster note marked as private", "id", p.ID, "handle", gn.Handle)
+				continue
+			}
+			if gn.Type == "Narrative" {
+				ev.Narrative = l.parseNote(gn, m)
+			}
+		}
+
+		title := text.JoinSentenceParts("recorded at muster")
+		if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
+			if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
+				title = text.JoinSentenceParts(title, "for the", battalion, "battalion,", regiment)
+			} else {
+				title = text.JoinSentenceParts(title, "for the", regiment, "regiment")
+			}
+		}
+
+		ev.Title = title
 
 	}
 

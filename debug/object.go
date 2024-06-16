@@ -17,7 +17,7 @@ func ObjectTitle(obj any) string {
 	case model.UnionTimelineEvent:
 		return fmt.Sprintf("%s [d=%s; pl=%s; p1=%s; p2=%s]", tobj.Type(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()), ObjectTitle(tobj.GetHusband()), ObjectTitle(tobj.GetWife()))
 	case model.TimelineEvent:
-		return fmt.Sprintf("%s [d=%s; pl=%s]", tobj.GetTitle(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()))
+		return fmt.Sprintf("%s [d=%s; pl=%s]", tobj.What(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()))
 	case *model.Person:
 		return fmt.Sprintf("%s (%s)", tobj.PreferredUniqueName, tobj.ID)
 	case *model.Place:

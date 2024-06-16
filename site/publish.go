@@ -3,6 +3,7 @@ package site
 import (
 	"container/heap"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
 	"github.com/iand/gtree"
@@ -123,7 +125,7 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		if err != nil {
 			return fmt.Errorf("create calendar file: %w", err)
 		}
-		if err := d.WriteMarkdown(f); err != nil {
+		if _, err := d.WriteTo(f); err != nil {
 			return fmt.Errorf("write calendar markdown: %w", err)
 		}
 		f.Close()
@@ -180,7 +182,7 @@ func (s *Site) NewDocument() *md.Document {
 	return doc
 }
 
-func (s *Site) NewMarkdownBuilder() MarkdownBuilder {
+func (s *Site) NewMarkdownBuilder() render.MarkupBuilder {
 	enc := &md.Encoder{}
 	enc.SetLinkBuilder(s)
 
@@ -565,14 +567,14 @@ func groupRelation(rel *model.Relation) (string, int) {
 	return group, groupPriority
 }
 
-func writePage(doc *md.Document, root string, fname string) error {
+func writePage(p io.WriterTo, root string, fname string) error {
 	f, err := CreateFile(filepath.Join(root, fname))
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
 
-	if err := doc.WriteMarkdown(f); err != nil {
-		return fmt.Errorf("write markdown: %w", err)
+	if _, err := p.WriteTo(f); err != nil {
+		return fmt.Errorf("write file content: %w", err)
 	}
 	return f.Close()
 }
@@ -612,6 +614,25 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		Families:     make(map[string]*model.Family),
 		MediaObjects: make(map[string]*model.MediaObject),
 		Events:       make(map[model.TimelineEvent]bool),
+	}
+
+	includePlace := func(pl *model.Place) {
+		ps.Places[pl.ID] = pl
+		for pl.Parent != nil {
+			ps.Places[pl.Parent.ID] = pl.Parent
+			pl = pl.Parent
+		}
+	}
+
+	includePlacesInTexts := func(txts ...model.Text) {
+		for _, txt := range txts {
+			for _, l := range txt.Links {
+				switch t := l.Object.(type) {
+				case *model.Place:
+					includePlace(t)
+				}
+			}
+		}
 	}
 
 	for _, p := range t.People {
@@ -655,6 +676,10 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 				ps.Citations[c.ID] = c
 			}
 		}
+
+		includePlacesInTexts(p.ResearchNotes...)
+		includePlacesInTexts(p.Comments...)
+
 	}
 
 	includedEvents := func(ev model.TimelineEvent) bool {
@@ -666,22 +691,22 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		if pl != nil {
 			if _, ok := ps.Places[pl.ID]; !ok {
 				pl.Timeline = model.FilterEventList(pl.Timeline, includedEvents)
-				if len(pl.Timeline) > 0 {
-					ps.Places[pl.ID] = pl
-					for pl.Parent != nil {
-						ps.Places[pl.Parent.ID] = pl.Parent
-						pl = pl.Parent
-					}
-				}
+				includePlace(pl)
 			}
 		}
 
 		for _, c := range ev.GetCitations() {
 			ps.Citations[c.ID] = c
 		}
+
+		// include any places mentioned in texts
+		includePlacesInTexts(ev.GetNarrative())
 	}
 
 	for _, c := range ps.Citations {
+		includePlacesInTexts(c.ResearchNotes...)
+		includePlacesInTexts(c.Comments...)
+
 		for _, mo := range c.MediaObjects {
 			ps.MediaObjects[mo.ID] = mo
 		}
@@ -691,6 +716,12 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 
 		c.PeopleCited = model.FilterPersonList(c.PeopleCited, include)
 		c.EventsCited = model.FilterEventList(c.EventsCited, includedEvents)
+	}
+
+	for _, pl := range ps.Places {
+		includePlacesInTexts(pl.ResearchNotes...)
+		includePlacesInTexts(pl.Comments...)
+
 	}
 
 	includedCitations := func(c *model.GeneralCitation) bool {

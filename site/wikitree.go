@@ -5,12 +5,12 @@ import (
 	"io"
 	"strings"
 
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
+func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
@@ -169,7 +169,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 		}
 	}
 
-	doc.Pre(tldoc.Markdown())
+	doc.Pre(tldoc.String())
 
 	doc.EmptyPara()
 	doc.Para("Annotation stub:")
@@ -191,7 +191,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (*md.Document, error) {
 	return doc, nil
 }
 
-var _ ExtendedMarkdownBuilder = (*WikiTreeEncoder)(nil)
+var _ render.MarkupBuilder = (*WikiTreeEncoder)(nil)
 
 type WikiTreeEncoder struct {
 	main strings.Builder
@@ -200,7 +200,7 @@ type WikiTreeEncoder struct {
 	citationMap map[string]int
 }
 
-func (w *WikiTreeEncoder) Markdown() string {
+func (w *WikiTreeEncoder) String() string {
 	s := new(strings.Builder)
 	s.WriteString(w.main.String())
 	s.WriteString("\n")
