@@ -25,7 +25,7 @@ func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxm
 		Date:       dt,
 		Place:      pl,
 		Detail:     "",
-		Title:      pval(grev.Description, ""),
+		Title:      pval(grev.Type, ""),
 		Attributes: make(map[string]string),
 	}
 
@@ -671,6 +671,62 @@ func (l *Loader) getMusterEvent(grev *grampsxml.Event, er *grampsxml.Eventref, g
 		}
 
 		ev.Title = title
+
+	}
+
+	ev.Participants = append(ev.Participants, &model.EventParticipant{
+		Person: p,
+		Role:   model.EventRolePrincipal,
+	})
+
+	return ev
+}
+
+func (l *Loader) getBattleEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.BattleEvent {
+	id := pval(grev.ID, grev.Handle)
+
+	var ev *model.BattleEvent
+
+	mev, ok := l.multipartyEvents[id]
+	if ok {
+		ev, ok = mev.(*model.BattleEvent)
+		if !ok {
+			panic(fmt.Sprintf("expected multiparty event with id %q to be a BattleEvent but it was a %T", id, mev))
+		}
+	} else {
+		ev = &model.BattleEvent{GeneralEvent: gev}
+		l.multipartyEvents[id] = ev
+
+		if desc := pval(grev.Description, ""); desc != "" {
+			ev.Title = "participated in the " + desc
+		} else {
+			ev.Title = "participated in battle"
+		}
+
+		for _, gnr := range grev.Noteref {
+			gn, ok := l.NotesByHandle[gnr.Hlink]
+			if !ok {
+				continue
+			}
+			if pval(gn.Priv, false) {
+				logging.Debug("skipping battle note marked as private", "id", p.ID, "handle", gn.Handle)
+				continue
+			}
+			if gn.Type == "Narrative" {
+				ev.Narrative = l.parseNote(gn, m)
+			}
+		}
+
+		// title := text.JoinSentenceParts("participated in battle")
+		// if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
+		// 	if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
+		// 		title = text.JoinSentenceParts(title, "in the", battalion, "battalion,", regiment)
+		// 	} else {
+		// 		title = text.JoinSentenceParts(title, "in the", regiment, "regiment")
+		// 	}
+		// }
+
+		// ev.Title = title
 
 	}
 

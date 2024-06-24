@@ -405,6 +405,10 @@ func (s *Site) LinkForFormat(v any, format string) string {
 	return ""
 }
 
+func (s *Site) RedirectPath(id string) string {
+	return "/r/" + id
+}
+
 func (s *Site) ScanPersonForAnomalies(p *model.Person) {
 	var birthEvents []model.TimelineEvent
 	var baptismEvents []model.TimelineEvent

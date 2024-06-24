@@ -16,6 +16,11 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	doc.Category(PageCategoryCitation)
 	doc.ID(c.ID)
 
+	if c.GrampsID != "" {
+		doc.SetFrontMatterField("grampsid", c.GrampsID)
+		doc.AddAlias(s.RedirectPath(c.GrampsID))
+	}
+
 	title := c.Detail
 	if title == "" {
 		if c.Source != nil && c.Source.Title != "" {

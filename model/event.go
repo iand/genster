@@ -14,7 +14,7 @@ type TimelineEvent interface {
 	GetAttribute(name string) (string, bool)
 	Type() string                    // name of the type of event, usually a single word
 	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
-	What() string                    // text description of what happened, such as married, born, divorced
+	What() string                    // text description of what happened, such as married, born, divorced, in the past tense
 	When() string                    // text description of date
 	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
@@ -84,7 +84,7 @@ const (
 type GeneralEvent struct {
 	Date       *Date
 	Place      *Place
-	Title      string
+	Title      string // used for the return value of "What()"
 	Detail     string
 	Citations  []*GeneralCitation
 	Inferred   bool
@@ -428,6 +428,20 @@ var (
 	_ MultipartyTimelineEvent = (*MusterEvent)(nil)
 )
 
+// BattleEvent represents the recording of a person's participation in a battle
+type BattleEvent struct {
+	GeneralEvent
+	GeneralMultipartyEvent
+}
+
+func (e *BattleEvent) Type() string             { return "battle" }
+func (e *BattleEvent) ShortDescription() string { return e.abbrev("bat") }
+
+var (
+	_ TimelineEvent           = (*BattleEvent)(nil)
+	_ MultipartyTimelineEvent = (*BattleEvent)(nil)
+)
+
 // DepartureEvent represents the departure of a person from a place
 type DepartureEvent struct {
 	GeneralEvent
@@ -471,6 +485,34 @@ func (e *ApprenticeEvent) What() string             { return "apprenticed" }
 var (
 	_ TimelineEvent           = (*ApprenticeEvent)(nil)
 	_ IndividualTimelineEvent = (*ApprenticeEvent)(nil)
+)
+
+// Promotion represents the promotion of a person in their employment
+type PromotionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *PromotionEvent) Type() string             { return "promotion" }
+func (e *PromotionEvent) ShortDescription() string { return e.abbrev("prom") }
+
+var (
+	_ TimelineEvent           = (*PromotionEvent)(nil)
+	_ IndividualTimelineEvent = (*PromotionEvent)(nil)
+)
+
+// Demotion represents the demotion of a person in their employment
+type DemotionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *DemotionEvent) Type() string             { return "demotion" }
+func (e *DemotionEvent) ShortDescription() string { return e.abbrev("dem") }
+
+var (
+	_ TimelineEvent           = (*DemotionEvent)(nil)
+	_ IndividualTimelineEvent = (*DemotionEvent)(nil)
 )
 
 // IndividualNarrativeEvent represents some narrative that can be used as-is

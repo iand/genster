@@ -230,6 +230,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Detail:    att.Value,
 				Citations: cits,
 			})
+		case "slug":
+			p.Slug = att.Value
 
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
@@ -341,6 +343,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralIndividualEvent: giv,
 			}
 		case "occupation":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Detail = desc
+			}
+			logger.Debug("found occupation", "what", gev.Detail, "when", gev.When(), "where", gev.Where())
 			occupationEvents = append(occupationEvents, gev)
 		case "narrative":
 			ev = &model.IndividualNarrativeEvent{
@@ -349,34 +355,46 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			}
 
 		case "enlistment":
+			if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
+				if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
+					p.Anomalies = append(p.Anomalies, &model.Anomaly{
+						Category: model.AnomalyCategoryEvent,
+						Text:     "Enlistment event is missing either a regiment or service attribute",
+						Context:  "Attributes",
+					})
+				}
+			}
+
+			if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
+				gev.Title = "enlisted in the " + reg
+			} else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
+				gev.Title = "enlisted in the " + svc
+			} else {
+				gev.Title = "enlisted"
+			}
 			ev = &model.EnlistmentEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
-			if gev.Title == "" {
-				p.Anomalies = append(p.Anomalies, &model.Anomaly{
-					Category: model.AnomalyCategoryEvent,
-					Text:     "Enlistment event is missing a description, should be of the form \"enlisted in the Royal Artillery\"",
-					Context:  "Description",
-				})
-
-				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
-					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
-						p.Anomalies = append(p.Anomalies, &model.Anomaly{
-							Category: model.AnomalyCategoryEvent,
-							Text:     "Enlistment event is missing either a regiment or service attribute",
-							Context:  "Attributes",
-						})
-					}
-				}
-
-				if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
-					gev.Title = "enlisted in the " + reg
-				} else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
-					gev.Title = "enlisted in the " + svc
-				} else {
-					gev.Title = "enlisted"
-				}
+		case "promotion":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = "promoted to " + desc
+			} else {
+				gev.Title = "promoted"
+			}
+			ev = &model.PromotionEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "demotion":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = "demoted to " + desc
+			} else {
+				gev.Title = "demoted"
+			}
+			ev = &model.DemotionEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
 			}
 		case "muster":
 			ev = l.getMusterEvent(grev, &grer, gev, p, m)
@@ -390,14 +408,19 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 						})
 					}
 				}
-
-				// if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
-				// 	gev.Title = "enlisted in the " + reg
-				// } else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
-				// 	gev.Title = "enlisted in the " + svc
-				// } else {
-				// 	gev.Title = "r"
-				// }
+			}
+		case "battle":
+			ev = l.getBattleEvent(grev, &grer, gev, p, m)
+			if gev.Title == "" {
+				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
+					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
+						p.Anomalies = append(p.Anomalies, &model.Anomaly{
+							Category: model.AnomalyCategoryEvent,
+							Text:     "Battle event is missing either a regiment or service attribute",
+							Context:  "Attributes",
+						})
+					}
+				}
 			}
 		default:
 			// TODO:
@@ -442,7 +465,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		})
 		groupCounts := map[model.OccupationGroup]int{}
 		for _, gev := range occupationEvents {
-			title, status, group := parseOccupation(gev.Title)
+			title, status, group := parseOccupation(gev.Detail)
 			groupCounts[group]++
 			oc := &model.Occupation{
 				Date:        gev.GetDate(),

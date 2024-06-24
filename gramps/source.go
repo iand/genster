@@ -81,6 +81,7 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		return cit, nil
 	}
 	cit.Detail = pval(gc.Page, "")
+	cit.GrampsID = pval(gc.ID, "")
 
 	dt, err := CitationDate(gc)
 	if err != nil {
@@ -107,7 +108,7 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		switch strings.ToLower(gn.Type) {
 		case "transcript":
 			cit.TranscriptionText = append(cit.TranscriptionText, l.parseNote(gn, m))
-		case "citation":
+		case "general":
 			cit.Comments = append(cit.Comments, l.parseNote(gn, m))
 		case "research":
 			// research notes are always assumed to be markdown

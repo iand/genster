@@ -62,7 +62,7 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.ProbateEvent:
 		title = t.probateEventTitle(seq, tev)
 	case *model.IndividualNarrativeEvent:
-		title = t.generalEventTitle(seq, tev)
+		// title = t.generalEventTitle(seq, tev)
 	case *model.ResidenceRecordedEvent:
 		title = t.residenceEventTitle(seq, tev)
 	case *model.MarriageEvent:
@@ -78,8 +78,8 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.DivorceEvent:
 		logging.Debug("timeline: unhandled divorce event")
 	case *model.MusterEvent:
-		// title = t.musterEventTitle(seq, tev)
-		title = t.generalEventTitle(seq, tev)
+		title = t.musterEventTitle(seq, tev)
+		// title = t.generalEventTitle(seq, tev)
 	default:
 		logging.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)
@@ -267,15 +267,17 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 func (t *TimelineEntryFormatter) musterEventTitle(seq int, ev *model.MusterEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
 
-	title = text.JoinSentenceParts(title, "at muster")
 	if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
 		if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
-			title = text.JoinSentenceParts(title, "for the", battalion, "battalion,", regiment)
+			title = text.JoinSentenceParts(title, "in the", battalion, "battalion,", regiment)
 		} else {
-			title = text.JoinSentenceParts(title, "for the", regiment, "regiment")
+			title = text.JoinSentenceParts(title, "in the", regiment, "regiment")
 		}
 	}
+	title = text.JoinSentenceParts(title, "at muster taken ")
+
 	pl := ev.GetPlace()
+
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, "here")
 	}

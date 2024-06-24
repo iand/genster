@@ -185,10 +185,16 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 
 	if p.WikiTreeID != "" {
 		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)
+		doc.AddAlias(s.RedirectPath(p.WikiTreeID))
 	}
 
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
+		doc.AddAlias(s.RedirectPath(p.GrampsID))
+	}
+
+	if p.Slug != "" {
+		doc.AddAlias(s.RedirectPath(p.Slug))
 	}
 
 	if len(p.Comments) > 0 {

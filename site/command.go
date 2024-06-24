@@ -202,22 +202,22 @@ func gen(cc *cli.Context) error {
 
 	switch genopts.relation {
 	case "direct":
-		logging.Info("only generating pages for direct ancestors and those tagged as featured or publish")
+		logging.Info("only generating pages for direct ancestors and those with common ancestors tagged as featured or publish")
 		inclusionFunc = func(p *model.Person) bool {
-			if p.Featured || p.Publish {
-				return true
-			}
 			if p.RelationToKeyPerson == nil {
 				return false
 			}
-			return p.RelationToKeyPerson.IsDirectAncestor()
+			if p.RelationToKeyPerson.IsDirectAncestor() {
+				return true
+			}
+			if (p.Publish || p.Featured) && p.RelationToKeyPerson.HasCommonAncestor() {
+				return true
+			}
+			return false
 		}
 	case "common":
 		logging.Info("only generating pages for people with common ancestors those tagged as featured or publish")
 		inclusionFunc = func(p *model.Person) bool {
-			if p.Featured || p.Publish {
-				return true
-			}
 			if p.RelationToKeyPerson == nil {
 				return false
 			}

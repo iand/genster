@@ -27,6 +27,7 @@ const (
 	MarkdownTagFirstPage = "first"
 	MarkdownTagLastPage  = "last"
 	MarkdownTagIndexPage = "index"
+	MarkdownTagAliases   = "aliases"
 )
 
 type LinkBuilder interface {
@@ -166,4 +167,11 @@ func (b *Document) AddTags(ss []string) {
 	for _, s := range ss {
 		b.AddTag(s)
 	}
+}
+
+func (b *Document) AddAlias(s string) {
+	if s == "" {
+		return
+	}
+	b.appendFrontMatterField(MarkdownTagAliases, s)
 }

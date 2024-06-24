@@ -297,9 +297,9 @@ func (t *Tree) Generate(redactLiving bool) error {
 
 	// Fill in gaps with inferences
 	for _, p := range t.People {
-		infer.InferPersonBirthEventDate(p)
+		// infer.InferPersonBirthEventDate(p)
 		infer.InferPersonAliveOrDead(p, time.Now().Year())
-		infer.InferPersonDeathEventDate(p)
+		// infer.InferPersonDeathEventDate(p)
 		infer.InferPersonCauseOfDeath(p)
 		infer.InferPersonGeneralFacts(p)
 	}

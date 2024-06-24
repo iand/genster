@@ -447,9 +447,14 @@ func MaybePossessiveSuffix(s string) string {
 	return s + "'s"
 }
 
+// TODO: remove MaybeWasVerb
 func MaybeWasVerb(verb string) string {
-	switch verb {
-	case "born", "baptised", "buried", "cremated", "executed", "lost at sea", "killed in action":
+	fs := strings.Fields(verb)
+	if len(fs) == 0 {
+		return verb
+	}
+	switch fs[0] {
+	case "born", "baptised", "buried", "cremated", "executed", "lost", "killed", "promoted", "demoted":
 		return "was " + verb
 	default:
 		return verb

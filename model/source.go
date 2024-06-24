@@ -31,6 +31,7 @@ type GeneralCitation struct {
 	Source            *Source
 	Detail            string
 	ID                string
+	GrampsID          string // the original gramps id, if any
 	TranscriptionDate *Date
 	TranscriptionText []Text
 	Comments          []Text
