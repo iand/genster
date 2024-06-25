@@ -232,6 +232,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			})
 		case "slug":
 			p.Slug = att.Value
+		case "olb":
+			p.Olb = att.Value
 
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
@@ -421,6 +423,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 						})
 					}
 				}
+			}
+		case "institution entry":
+			ev = &model.InstitutionEntryEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "institution departure":
+			ev = &model.InstitutionDepartureEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
 			}
 		default:
 			// TODO:

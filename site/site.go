@@ -169,7 +169,7 @@ func (s *Site) Generate() error {
 		return err
 	}
 	for _, p := range s.Tree.People {
-		GenerateOlb(p)
+		// GenerateOlb(p)
 		s.ScanPersonTodos(p)
 		s.ScanPersonForAnomalies(p)
 		s.AssignTags(p)

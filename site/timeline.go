@@ -75,6 +75,10 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 		title = t.arrivalEventTitle(seq, tev)
 	case *model.DepartureEvent:
 		title = t.departureEventTitle(seq, tev)
+	case *model.InstitutionEntryEvent:
+		title = t.institutionEntryEventTitle(seq, tev)
+	case *model.InstitutionDepartureEvent:
+		title = t.institutionDepartureEventTitle(seq, tev)
 	case *model.DivorceEvent:
 		logging.Debug("timeline: unhandled divorce event")
 	case *model.MusterEvent:
@@ -321,6 +325,44 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 		title = text.JoinSentenceParts(title, "from", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	}
+
+	date := ev.GetDate()
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
+		title = text.JoinSentenceParts(title, date.When())
+	}
+
+	return title
+}
+
+func (t *TimelineEntryFormatter) institutionEntryEventTitle(seq int, ev *model.InstitutionEntryEvent) string {
+	title := text.JoinSentenceParts(t.observerContext(ev), "entered")
+	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentenceParts(title, "here")
+	}
+
+	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	}
+
+	date := ev.GetDate()
+	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
+		title = text.JoinSentenceParts(title, date.When())
+	}
+
+	return title
+}
+
+func (t *TimelineEntryFormatter) institutionDepartureEventTitle(seq int, ev *model.InstitutionDepartureEvent) string {
+	title := text.JoinSentenceParts(t.observerContext(ev), "left")
+	pl := ev.GetPlace()
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentenceParts(title, "here")
+	}
+
+	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
 	}
 
 	date := ev.GetDate()

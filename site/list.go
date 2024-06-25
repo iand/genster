@@ -346,16 +346,23 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			items := make([][2]string, 0)
 			b := &CitationSkippingEncoder{s.NewMarkdownBuilder()}
 
+			title := b.EncodeModelLink(p.PreferredSortName, p)
 			summary := PersonSummary(p, b, p.PreferredFamiliarName, true, true, false)
+
 			var rel string
 			if s.LinkFor(p) != "" {
 				if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
-					rel = b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name()))
+					rel = b.EncodeBold(p.RelationToKeyPerson.Name())
+					title = text.AppendClause(title, rel)
 				}
 			}
 
+			if p.Olb != "" {
+				summary = text.FormatSentence(p.Olb) + " " + summary
+			}
+
 			items = append(items, [2]string{
-				text.AppendClause(b.EncodeModelLink(p.PreferredSortName, p), rel),
+				text.FormatSentence(title),
 				summary,
 			})
 

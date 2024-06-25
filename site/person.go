@@ -6,6 +6,7 @@ import (
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
+	"github.com/iand/genster/text"
 )
 
 func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
@@ -35,9 +36,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		}
 	}
 
-	if p.Olb != "" {
-		doc.Summary(p.Olb)
-	}
+	// if p.Olb != "" {
+	// 	doc.Summary(p.Olb)
+	// }
 	doc.AddTags(CleanTags(p.Tags))
 
 	// determine the feature image
@@ -107,6 +108,27 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 			}
 
 		}
+	}
+
+	// if p.Olb != "" {
+	// 	doc.Para(doc.EncodeBold(doc.EncodeItalic(text.FormatSentence(p.Olb))))
+	// }
+
+	ap := p.RelationToKeyPerson.Path()
+	if len(ap) > 2 {
+		path := ""
+		path += "<div><b>" + ap[len(ap)-1].PreferredUniqueName + "</b></div>"
+		if p.Olb != "" {
+			path += "<div><i>" + text.FormatSentence(p.Olb) + "<i></div>"
+		}
+		for i := len(ap) - 2; i >= 0; i-- {
+			if ap[i].Redacted {
+				break
+			}
+			path += "<div>↓</div>"
+			path += "<div>" + doc.EncodeLink(ap[i].PreferredUniqueName, doc.LinkBuilder.LinkFor(ap[i])) + "</div>"
+		}
+		doc.SetFrontMatterField("ancestorpath", path)
 	}
 
 	// Render narrative

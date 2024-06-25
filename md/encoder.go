@@ -254,7 +254,8 @@ func (b *Encoder) EncodeLink(text string, url string) string {
 		return text
 	}
 
-	return fmt.Sprintf("[%s](%s)", text, url)
+	return fmt.Sprintf("<a href=\"%s\">%s</a>", url, text)
+	// return fmt.Sprintf("[%s](%s)", text, url)
 }
 
 func (b *Encoder) EncodeModelLink(firstText string, m any) string {

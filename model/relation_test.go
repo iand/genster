@@ -11,6 +11,7 @@ func makeSelfRelationFor(p *Person) *Relation {
 		From:           p,
 		To:             p,
 		CommonAncestor: p,
+		AncestorPath:   []*Person{p},
 	}
 }
 
@@ -625,6 +626,7 @@ func TestRelationExtendToParent(t *testing.T) {
 				CommonAncestor:  pnew,
 				FromGenerations: 1,
 				ToGenerations:   0,
+				AncestorPath:    []*Person{pnew},
 			},
 		},
 		{
@@ -634,6 +636,7 @@ func TestRelationExtendToParent(t *testing.T) {
 				CommonAncestor:  parent,
 				FromGenerations: 1,
 				ToGenerations:   0,
+				AncestorPath:    []*Person{parent},
 			},
 			want: &Relation{
 				From:            p,
@@ -641,6 +644,7 @@ func TestRelationExtendToParent(t *testing.T) {
 				CommonAncestor:  pnew,
 				FromGenerations: 2,
 				ToGenerations:   0,
+				AncestorPath:    []*Person{parent, pnew},
 			},
 		},
 	}
@@ -738,4 +742,113 @@ func TestIsCloseToDirectAncestor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPath(t *testing.T) {
+	p := familyTree()
+
+	testCases := []struct {
+		rel  *Relation
+		want []*Person
+	}{
+		{
+			rel:  nil,
+			want: nil,
+		},
+		{
+			rel: p.RelationToKeyPerson,
+			want: []*Person{
+				p,
+			},
+		},
+		{
+			rel: p.Father.RelationToKeyPerson,
+			want: []*Person{
+				p,
+				p.Father,
+			},
+		},
+		{
+			rel: p.Father.Father.RelationToKeyPerson,
+			want: []*Person{
+				p,
+				p.Father,
+				p.Father.Father,
+			},
+		},
+		{
+			rel: p.Father.Mother.Father.RelationToKeyPerson,
+			want: []*Person{
+				p,
+				p.Father,
+				p.Father.Mother,
+				p.Father.Mother.Father,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.rel.Name(), func(t *testing.T) {
+			got := tc.rel.Path()
+			if len(got) != len(tc.want) {
+				t.Errorf("got %d in path, want %d", len(got), len(tc.want))
+				return
+			}
+
+			for i := range got {
+				if !got[i].SameAs(tc.want[i]) {
+					t.Errorf("got person %s at index %d, want %s", got[i].ID, i, tc.want[i].ID)
+				}
+			}
+		})
+	}
+}
+
+// familyTree returns a simple family tree with relations
+func familyTree() *Person {
+	addFather := func(ch *Person) *Person {
+		p := &Person{ID: ch.ID + "f", Gender: GenderMale}
+		ch.Father = p
+		p.Children = append(p.Children, ch)
+		p.RelationToKeyPerson = ch.RelationToKeyPerson.ExtendToParent(p)
+		return p
+	}
+	addMother := func(ch *Person) *Person {
+		p := &Person{ID: ch.ID + "m", Gender: GenderFemale}
+		ch.Mother = p
+		p.Children = append(p.Children, ch)
+		p.RelationToKeyPerson = ch.RelationToKeyPerson.ExtendToParent(p)
+		return p
+	}
+
+	p := &Person{ID: "p", Gender: GenderMale}
+	p.RelationToKeyPerson = Self(p)
+
+	pf := addFather(p) // father
+	pm := addMother(p) // mother
+
+	pff := addFather(pf) // paternal grandfather
+	pfm := addMother(pf) // paternal grandmother
+	pmf := addFather(pm) // maternal grandfather
+	pmm := addMother(pm) // maternal grandmother
+
+	pfff := addFather(pff) // paternal grandfather's father
+	pffm := addMother(pff) // paternal grandfather's mother
+	pfmf := addFather(pfm) // paternal grandmother's father
+	pfmm := addMother(pfm) // paternal grandmother's mother
+	pmff := addFather(pmf) // maternal grandfather's father
+	pmfm := addMother(pmf) // maternal grandfather's mother
+	pmmf := addFather(pmm) // maternal grandmother's father
+	pmmm := addMother(pmm) // maternal grandmother's mother
+
+	_ = pfff
+	_ = pffm
+	_ = pfmf
+	_ = pfmm
+	_ = pmff
+	_ = pmfm
+	_ = pmmf
+	_ = pmmm
+
+	return p
 }

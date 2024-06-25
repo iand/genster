@@ -12,6 +12,7 @@ type Relation struct {
 	ClosestDirectRelation *Relation // if the To person does not share an ancestor with the From person, then this is the relation of From to a person who was the partner/spouse of a direct relation of To
 	// ToSpouseGenerations   int       // number of generations between the To person and the spouse of SpouseRelation. 0 = spouse, 1 = parent of spouse
 	SpouseRelation *Relation // the relationship of the To person to the spouse of the ClosestDirectRelation
+	AncestorPath   []*Person // the list of direct ancestors between From and To
 }
 
 func (r *Relation) IsUnknown() bool {
@@ -91,6 +92,18 @@ func (r *Relation) IsCloseToDirectAncestor() bool {
 	return false
 }
 
+// Path returns a list of people that comprise the shortest path
+// to reach the To person from the From person. The list will always
+// contain at least one person (the From person) for a non-nil Relation.
+// The first entry in a populated list will be the From person, the last
+// entry will be the To person.
+func (r *Relation) Path() []*Person {
+	if r == nil || len(r.AncestorPath) == 0 {
+		return nil
+	}
+	return r.AncestorPath
+}
+
 // HasCommonAncestor reports whether the From and To person have a common ancestor, including
 // if the To person is a direct ancestor of the From person
 func (r *Relation) HasCommonAncestor() bool {
@@ -103,6 +116,10 @@ func (r *Relation) HasCommonAncestor() bool {
 // Name returns the name of the relation between From and To, in the
 // form that "To is the Name() of From"
 func (r *Relation) Name() string {
+	if r == nil {
+		return "no relation"
+	}
+
 	if r.CommonAncestor != nil {
 
 		if r.To.SameAs(r.CommonAncestor) {
@@ -357,6 +374,7 @@ func (r *Relation) ExtendToSpouse(spouse *Person) *Relation {
 		To:                    spouse,
 		ClosestDirectRelation: r,
 		SpouseRelation:        Self(spouse),
+		AncestorPath:          nil,
 	}
 }
 
@@ -389,12 +407,17 @@ func (r *Relation) ExtendToChild(ch *Person) *Relation {
 func (r *Relation) ExtendToParent(parent *Person) *Relation {
 	if r.CommonAncestor != nil {
 		if r.CommonAncestor.SameAs(r.To) {
+			// direct ancestor
+			ap := make([]*Person, 0, len(r.AncestorPath)+1)
+			ap = append(ap, r.AncestorPath...)
+			ap = append(ap, parent)
 			return &Relation{
 				From:            r.From,
 				To:              parent,
 				CommonAncestor:  parent,
 				FromGenerations: r.FromGenerations + 1,
 				ToGenerations:   0,
+				AncestorPath:    ap,
 			}
 		} else {
 			return &Relation{
@@ -435,6 +458,7 @@ func Parent(child *Person, parent *Person) *Relation {
 		CommonAncestor:  parent,
 		FromGenerations: 1,
 		ToGenerations:   0,
+		AncestorPath:    []*Person{child, parent},
 	}
 }
 
@@ -445,6 +469,7 @@ func Self(p *Person) *Relation {
 		CommonAncestor:  p,
 		FromGenerations: 0,
 		ToGenerations:   0,
+		AncestorPath:    []*Person{p},
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 
 type TimelineEvent interface {
 	GetDate() *Date
-	GetDateType() EventDateType
 	GetPlace() *Place
 	GetDetail() string
 	GetNarrative() Text
@@ -98,10 +97,6 @@ func (e *GeneralEvent) GetDate() *Date {
 
 func (e *GeneralEvent) When() string {
 	return e.Date.When()
-}
-
-func (e *GeneralEvent) GetDateType() EventDateType {
-	return EventDateTypeOccurred
 }
 
 func (e *GeneralEvent) GetPlace() *Place {
@@ -419,9 +414,8 @@ type MusterEvent struct {
 	GeneralMultipartyEvent
 }
 
-func (e *MusterEvent) Type() string               { return "muster" }
-func (e *MusterEvent) ShortDescription() string   { return e.abbrev("must") }
-func (e *MusterEvent) GetDateType() EventDateType { return EventDateTypeRecorded }
+func (e *MusterEvent) Type() string             { return "muster" }
+func (e *MusterEvent) ShortDescription() string { return e.abbrev("must") }
 
 var (
 	_ TimelineEvent           = (*MusterEvent)(nil)
@@ -637,11 +631,10 @@ type ResidenceRecordedEvent struct {
 	GeneralMultipartyEvent
 }
 
-func (e *ResidenceRecordedEvent) Type() string               { return "residence" }
-func (e *ResidenceRecordedEvent) ShortDescription() string   { return e.abbrev("res") }
-func (e *ResidenceRecordedEvent) What() string               { return "resided" }
-func (e *ResidenceRecordedEvent) GetDateType() EventDateType { return EventDateTypeRecorded }
-func (e *ResidenceRecordedEvent) GetTitle() string           { return "residence" }
+func (e *ResidenceRecordedEvent) Type() string             { return "residence" }
+func (e *ResidenceRecordedEvent) ShortDescription() string { return e.abbrev("res") }
+func (e *ResidenceRecordedEvent) What() string             { return "resided" }
+func (e *ResidenceRecordedEvent) GetTitle() string         { return "residence" }
 
 var (
 	_ TimelineEvent           = (*ResidenceRecordedEvent)(nil)
@@ -662,6 +655,51 @@ var (
 func (e *SaleOfPropertyEvent) Type() string             { return "sale of property" }
 func (e *SaleOfPropertyEvent) ShortDescription() string { return e.abbrev("sale") }
 func (e *SaleOfPropertyEvent) What() string             { return "sold some property" }
+
+// InstitutionEntryEvent represents the admission of a person to an institution
+type InstitutionEntryEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*InstitutionEntryEvent)(nil)
+	_ IndividualTimelineEvent = (*InstitutionEntryEvent)(nil)
+)
+
+func (e *InstitutionEntryEvent) Type() string             { return "institution entry" }
+func (e *InstitutionEntryEvent) ShortDescription() string { return e.abbrev("adm") }
+func (e *InstitutionEntryEvent) What() string             { return "entered" }
+
+// InstitutionDepartureEvent represents the discharge of a person from an institution
+type InstitutionDepartureEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*InstitutionDepartureEvent)(nil)
+	_ IndividualTimelineEvent = (*InstitutionDepartureEvent)(nil)
+)
+
+func (e *InstitutionDepartureEvent) Type() string             { return "institution departure" }
+func (e *InstitutionDepartureEvent) ShortDescription() string { return e.abbrev("adm") }
+func (e *InstitutionDepartureEvent) What() string             { return "left" }
+
+// InstitutionEvent represents the discharge of a person from an institution
+type InstitutionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*InstitutionEvent)(nil)
+	_ IndividualTimelineEvent = (*InstitutionEvent)(nil)
+)
+
+func (e *InstitutionEvent) Type() string             { return "institution discharge" }
+func (e *InstitutionEvent) ShortDescription() string { return e.abbrev("adm") }
+func (e *InstitutionEvent) What() string             { return "absent" }
 
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {
