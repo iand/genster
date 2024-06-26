@@ -24,11 +24,8 @@ type (
 )
 
 type Encoder struct {
-	LinkBuilder LinkBuilder
-	maintext    strings.Builder
-	// citetext          strings.Builder
-	// citationidx       int
-	// citationMap       map[string]int
+	LinkBuilder       LinkBuilder
+	maintext          strings.Builder
 	citationAnchors   map[string]citationAnchor // map of citation ids to html anchors
 	sourceMap         map[string]sourceEntry    // map of source names to source entries
 	seenLinks         map[string]bool
@@ -69,16 +66,6 @@ func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
 
 	bb.WriteString(e.maintext.String())
 	bb.WriteString("\n")
-
-	// reftext := e.citetext.String()
-	// if len(reftext) > 0 {
-	// 	bb.WriteString("<div class=\"footnotes\">\n\n")
-	// 	bb.WriteString("----\n\n")
-	// 	bb.WriteString("#### Citations and Notes\n")
-	// 	bb.WriteString("\n")
-	// 	bb.WriteString(reftext)
-	// 	bb.WriteString("</div>\n\n")
-	// }
 
 	if len(e.sourceMap) > 0 {
 		sources := make([]sourceEntry, 0, len(e.sourceMap))
@@ -189,15 +176,6 @@ func (e *Encoder) OrderedList(ms []render.Markdown) {
 func (e *Encoder) DefinitionList(markups [][2]render.Markdown) {
 	e.maintext.WriteString("<dl>\n")
 	for _, markup := range markups {
-		// buf.WriteString(fmt.Sprintf("#### %s\n", item[0]))
-		// buf.WriteString(fmt.Sprintf("%s\n", item[1]))
-		// b.maintext.WriteString("\n")
-		// b.maintext.WriteString(fmt.Sprintf("%s\n", item[0]))
-		// lines := strings.Split(item[1], "\n")
-		// for _, l := range lines {
-		// 	b.maintext.WriteString(fmt.Sprintf(": %s\n", l))
-		// }
-
 		e.maintext.WriteString("<dt>")
 		markup[0].ToHTML(&e.maintext)
 		e.maintext.WriteString("</dt>\n")
@@ -259,7 +237,6 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 
 	if b.seenLinks[url] {
 		return subsequentText
-		// return b.EncodeLink(subsequentText+suffix, url)
 	}
 	b.seenLinks[url] = true
 
@@ -285,9 +262,6 @@ func (b *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
 	if c.ID != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
-		// if b.LinkBuilder.LinkFor(c) == "" {
-		// 	logging.Warn("citation has media but it cannot be linked", "citation", citationText)
-		// }
 		citationText += " (" + b.EncodeModelLink("more details...", c) + ")"
 	} else {
 		if c.URL != nil {
@@ -302,39 +276,12 @@ func (b *Encoder) EncodeCitationLink(sourceName string, citationText render.Mark
 	if b.SuppressCitations {
 		return ""
 	}
-	// if b.citationMap == nil {
-	// 	b.citationMap = make(map[string]int)
-	// }
-
-	// detail := sourceName
-	// if detail != "" && !strings.HasSuffix(detail, ".") && !strings.HasSuffix(detail, "!") && !strings.HasSuffix(detail, "?") {
-	// 	detail += "; "
-	// }
-	// detail += citationText
-
-	// var idx int
-	// if citationID != "" {
-	// 	var exists bool
-	// 	idx, exists = b.citationMap[citationID]
-	// 	if !exists {
-	// 		b.citationidx++
-	// 		idx = b.citationidx
-	// 		b.citationMap[citationID] = idx
-	// 		b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, detail))
-	// 	}
-
-	// } else {
-	// 	b.citationidx++
-	// 	idx = b.citationidx
-	// 	b.citetext.WriteString(fmt.Sprintf("[^cit_%d]: %s\n", idx, detail))
-	// }
 
 	if b.citationAnchors == nil {
 		b.citationAnchors = make(map[string]citationAnchor)
 	}
 
 	ret := ""
-	// ret := fmt.Sprintf("[^cit_%d]", idx)
 
 	var anchor string
 	ca, ok := b.citationAnchors[citationID]
