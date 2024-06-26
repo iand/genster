@@ -16,7 +16,7 @@ func EncodeRawLink(u string, enc render.InlineMarkdownEncoder) string {
 		text = pu.Host
 	}
 
-	return enc.EncodeLink(text, u)
+	return string(enc.EncodeLink(text, u))
 }
 
 // EncodePeopleListInline encodes a list of people as a comma separated list

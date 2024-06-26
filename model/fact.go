@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -75,5 +76,25 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		Category:  FactCategoryCauseOfDeath,
 		Detail:    text,
 		Citations: citations,
+	}
+}
+
+type Link struct {
+	Title string
+	URL   string
+}
+
+func LinkFromURL(u string) *Link {
+	pu, err := url.Parse(u)
+	if err != nil {
+		return &Link{
+			Title: u,
+			URL:   u,
+		}
+	}
+
+	return &Link{
+		Title: pu.Host,
+		URL:   u,
 	}
 }

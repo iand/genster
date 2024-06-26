@@ -119,11 +119,26 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 	}
 
 	for _, gor := range gc.Objref {
+		if pval(gor.Priv, false) {
+			logger.Debug("skipping citation object marked as private", "handle", gor.Hlink)
+			continue
+		}
 		gob, ok := l.ObjectsByHandle[gor.Hlink]
 		if ok {
 			mo := m.FindMediaObject(gob.File.Src)
 			mo.Citations = append(mo.Citations, cit)
 			cit.MediaObjects = append(cit.MediaObjects, mo)
+		}
+	}
+
+	for _, att := range gc.Srcattribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping citation attribute marked as private", "type", att.Type)
+			continue
+		}
+		switch strings.ToLower(att.Type) {
+		case "url":
+			cit.URL = model.LinkFromURL(att.Value)
 		}
 	}
 

@@ -368,7 +368,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 	}
 
 	detail = text.FinishSentence(detail)
-	enc.Para(detail)
+	enc.Para(render.Markdown(detail))
 
 	if len(s.Baptisms) > 1 {
 
@@ -390,7 +390,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 		}
 		bapDetail = text.FinishSentence(text.JoinSentenceParts(intro.Pronoun(seq, s.Start()), bapDetail))
-		enc.Para(bapDetail)
+		enc.Para(render.Markdown(bapDetail))
 	}
 }
 
@@ -540,9 +540,9 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		if !c.Redacted {
 			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, true, false, false))
 		}
-		enc.Para(detail.Text())
+		enc.Para(render.Markdown(detail.Text()))
 	} else {
-		enc.Para(detail.Text())
+		enc.Para(render.Markdown(detail.Text()))
 		childList := s.childList(s.Family.Children, enc)
 		enc.UnorderedList(childList)
 	}
@@ -582,7 +582,7 @@ func (s *FamilyStatement) childCardinal(clist []*model.Person) string {
 	return text.CardinalWithUnit(len(s.Family.Children), "child", "children")
 }
 
-func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuilder) []string {
+func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuilder) []render.Markdown {
 	sort.Slice(clist, func(i, j int) bool {
 		var d1, d2 *model.Date
 		if clist[i].BestBirthlikeEvent != nil {
@@ -595,9 +595,9 @@ func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuil
 		return d1.SortsBefore(d2)
 	})
 
-	childList := make([]string, 0, len(clist))
+	childList := make([]render.Markdown, 0, len(clist))
 	for _, c := range clist {
-		childList = append(childList, PersonSummary(c, enc, c.PreferredGivenName, true, false, true))
+		childList = append(childList, render.Markdown(PersonSummary(c, enc, c.PreferredGivenName, true, false, true)))
 	}
 	return childList
 }
@@ -658,7 +658,7 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 	} else {
 		panic("Not implemented: renderIllegitimate where person has more than one child or is the father")
 	}
-	enc.Para(detail.Text())
+	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
@@ -721,7 +721,7 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 		panic("Not implemented: renderUnmarried where person has more than one child")
 	}
 
-	enc.Para(detail.Text())
+	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
@@ -772,7 +772,7 @@ func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc re
 		detail.Continue(end)
 	}
 
-	enc.Para(detail.Text())
+	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *FamilyEndStatement) Start() *model.Date {
@@ -976,7 +976,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 		}
 	}
-	enc.Para(s.Principal.PreferredFamiliarName + " " + detail)
+	enc.Para(render.Markdown(s.Principal.PreferredFamiliarName + " " + detail))
 }
 
 func (s *DeathStatement) Start() *model.Date {
@@ -1017,7 +1017,7 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		detail.Continue(enc.EncodeWithCitations(WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc), s.Event.GetCitations())) // fmt.Sprintf("in the %d census", year)
 		detail.NewSentence(narrative)
 		detail.FinishSentence()
-		enc.Para(detail.Text())
+		enc.Para(render.Markdown(detail.Text()))
 		return
 	}
 	// TODO: construct narrative of census
@@ -1134,7 +1134,7 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		detail.Continue(text.JoinList(peopleList))
 	}
 
-	enc.Para(detail.Text())
+	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *CensusStatement) Start() *model.Date {
@@ -1176,7 +1176,9 @@ func (s *NarrativeStatement) RenderDetail(seq int, intro *IntroGenerator, enc re
 
 	detail.NewSentence(narrative)
 	detail.FinishSentence()
-	enc.Para(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations()))
+
+	// enc.ParaWithFigure(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations()), "/trees/cg/media/6V7KWAJR2LCVK.png", "alt text", "this is a caption")
+	enc.Para(render.Markdown(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations())))
 }
 
 func (s *NarrativeStatement) Start() *model.Date {

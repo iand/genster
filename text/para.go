@@ -1,6 +1,8 @@
 package text
 
-import "strings"
+import (
+	"strings"
+)
 
 type Para struct {
 	sentences []string

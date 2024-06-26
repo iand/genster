@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/iand/genster/md"
+	"github.com/iand/genster/render"
 )
 
 type Paginator struct {
@@ -149,25 +150,25 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 		doc.Layout(layout.String())
 
 		var group string
-		var list []string
+		var list []render.Markdown
 		for _, pg := range pages {
 			if pg.Group != group {
 				if len(list) > 0 {
-					doc.Heading3(group)
+					doc.Heading3(render.Markdown(group))
 					doc.UnorderedList(list)
 					list = list[:0]
 				}
 				group = pg.Group
 			}
 			if pg.FirstKey == pg.LastKey {
-				list = append(list, doc.EncodeLink(pg.FirstTitle, pg.Name))
+				list = append(list, render.Markdown(doc.EncodeLink(pg.FirstTitle, pg.Name)))
 			} else {
-				list = append(list, doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstTitle, pg.LastTitle), pg.Name))
+				list = append(list, render.Markdown(doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstTitle, pg.LastTitle), pg.Name)))
 			}
 		}
 
 		if len(list) > 0 {
-			doc.Heading3(group)
+			doc.Heading3(render.Markdown(group))
 			doc.UnorderedList(list)
 		}
 

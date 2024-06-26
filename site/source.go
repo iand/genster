@@ -14,10 +14,10 @@ func RenderSourcePage(s *Site, so *model.Source) (render.Page, error) {
 	doc.Category(PageCategorySource)
 	doc.ID(so.ID)
 
-	doc.Heading1(so.Title)
+	doc.Title(so.Title)
 
 	if len(so.RepositoryRefs) > 0 {
-		repos := make([]string, 0, len(so.RepositoryRefs))
+		repos := make([]render.Markdown, 0, len(so.RepositoryRefs))
 		for _, rr := range so.RepositoryRefs {
 			// 	rr := c.Source.RepositoryRefs[0]
 
@@ -32,7 +32,7 @@ func RenderSourcePage(s *Site, so *model.Source) (render.Page, error) {
 			}
 
 			if s != "" {
-				repos = append(repos, s)
+				repos = append(repos, render.Markdown(s))
 			}
 		}
 

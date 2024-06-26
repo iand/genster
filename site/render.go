@@ -15,10 +15,10 @@ func RenderText(t model.Text, enc render.Page) error {
 		enc.Pre("")
 	} else if t.Markdown {
 		txt := EncodeText(t, enc)
-		enc.RawMarkdown(txt)
+		enc.RawMarkdown(render.Markdown(txt))
 		enc.EmptyPara()
 	} else {
-		enc.Para(text.FormatSentence(t.Text))
+		enc.Para(render.Markdown(text.FormatSentence(t.Text)))
 		enc.EmptyPara()
 	}
 
@@ -70,14 +70,17 @@ func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) e
 
 	sort.Strings(categories)
 
-	factlist := make([][2]string, 0, len(categories))
+	factlist := make([][2]render.Markdown, 0, len(categories))
 	for _, cat := range categories {
 		fl, ok := factsByCategory[cat]
 		if !ok {
 			continue
 		}
 		if len(fl) == 0 {
-			factlist = append(factlist, [2]string{cat, fl[0].Detail})
+			factlist = append(factlist, [2]render.Markdown{
+				render.Markdown(cat),
+				render.Markdown(fl[0].Detail),
+			})
 			continue
 		}
 		buf := new(strings.Builder)
@@ -87,7 +90,10 @@ func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) e
 			}
 			buf.WriteString(enc.EncodeWithCitations(f.Detail, f.Citations))
 		}
-		factlist = append(factlist, [2]string{cat, buf.String()})
+		factlist = append(factlist, [2]render.Markdown{
+			render.Markdown(cat),
+			render.Markdown(buf.String()),
+		})
 	}
 
 	enc.DefinitionList(factlist)
@@ -119,9 +125,9 @@ func Tagify(s string) string {
 func RenderNames(names []*model.Name, enc render.MarkupBuilder) error {
 	enc.EmptyPara()
 
-	namelist := make([]string, 0, len(names))
+	namelist := make([]render.Markdown, 0, len(names))
 	for _, n := range names {
-		namelist = append(namelist, enc.EncodeWithCitations(n.Name, n.Citations))
+		namelist = append(namelist, render.Markdown(enc.EncodeWithCitations(n.Name, n.Citations)))
 	}
 
 	enc.UnorderedList(namelist)

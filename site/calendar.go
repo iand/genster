@@ -41,7 +41,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
 	var eventDays []eventDay
 
 	month := 0
-	items := []string{}
+	items := []render.Markdown{}
 	for _, ev := range c.Events {
 		y, m, d, ok := ev.GetDate().YMD()
 		if !ok {
@@ -112,10 +112,10 @@ func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
 			}
 
 			day = evd.day
-			doc.Heading2(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day)))
+			doc.Heading2(render.Markdown(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day))))
 		}
 
-		items = append(items, evd.text)
+		items = append(items, render.Markdown(evd.text))
 
 	}
 

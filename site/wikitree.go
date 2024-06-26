@@ -31,7 +31,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 		return doc, nil
 	}
 
-	doc.Para(doc.EncodeModelLink("Main page for "+p.PreferredFamiliarName, p))
+	doc.Para(render.Markdown(doc.EncodeModelLink("Main page for "+p.PreferredFamiliarName, p)))
 
 	if p.BestBirthlikeEvent != nil {
 		doc.EmptyPara()
@@ -47,7 +47,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 			birth = text.JoinSentenceParts(birth, pl.InAt(), pl.PreferredFullName)
 		}
 
-		doc.Para(text.UpperFirst(birth))
+		doc.Para(render.Markdown(text.UpperFirst(birth)))
 	}
 
 	if p.BestDeathlikeEvent != nil {
@@ -64,25 +64,25 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 			death = text.JoinSentenceParts(death, pl.InAt(), pl.PreferredFullName)
 		}
 
-		doc.Para(text.UpperFirst(death))
+		doc.Para(render.Markdown(text.UpperFirst(death)))
 	}
 
 	encodeWikiTreeLink := func(p *model.Person) string {
-		return doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID))
+		return string(doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID)))
 	}
 
 	doc.EmptyPara()
 	if p.Father.IsUnknown() {
 		doc.Para("Father: unknown")
 	} else {
-		doc.Para("Father: " + encodeWikiTreeLink(p.Father))
+		doc.Para(render.Markdown("Father: " + encodeWikiTreeLink(p.Father)))
 	}
 
 	doc.EmptyPara()
 	if p.Mother.IsUnknown() {
 		doc.Para("Mother: unknown")
 	} else {
-		doc.Para("Mother: " + encodeWikiTreeLink(p.Mother))
+		doc.Para(render.Markdown("Mother: " + encodeWikiTreeLink(p.Mother)))
 	}
 
 	for seq, f := range p.Families {
@@ -119,7 +119,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 		}
 
 		doc.EmptyPara()
-		doc.Para(text.UpperFirst(rel))
+		doc.Para(render.Markdown(text.UpperFirst(rel)))
 
 	}
 	var children string
@@ -138,14 +138,14 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 	}
 	if children != "" {
 		doc.EmptyPara()
-		doc.Para("Children: " + children)
+		doc.Para(render.Markdown("Children: " + children))
 	}
 
 	tldoc := &WikiTreeEncoder{}
 
 	if p.Olb != "" {
 		tldoc.EmptyPara()
-		tldoc.Para(tldoc.EncodeBold("One line bio:") + " " + p.Olb)
+		tldoc.Para(render.Markdown(tldoc.EncodeBold("One line bio:") + " " + p.Olb))
 	}
 
 	t := &model.Timeline{
@@ -212,95 +212,68 @@ func (w *WikiTreeEncoder) String() string {
 	return s.String()
 }
 
-func (w *WikiTreeEncoder) Para(s string) {
-	w.writePara(&w.main, s)
+func (w *WikiTreeEncoder) Para(m render.Markdown) {
+	w.main.WriteString("\n")
+	w.main.WriteString(string(m))
+	w.main.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) EmptyPara() {
 	w.writeEmptyPara(&w.main)
 }
 
-func (w *WikiTreeEncoder) Heading2(s string) {
-	w.writeHeading2(&w.main, s)
+func (w *WikiTreeEncoder) Heading2(m render.Markdown) {
+	w.writeHeading2(&w.main, m)
 }
 
-func (w *WikiTreeEncoder) Heading3(s string) {
-	w.writeHeading3(&w.main, s)
+func (w *WikiTreeEncoder) Heading3(m render.Markdown) {
+	w.writeHeading3(&w.main, m)
 }
 
-func (w *WikiTreeEncoder) Heading4(s string) {
-	w.writeHeading4(&w.main, s)
+func (w *WikiTreeEncoder) Heading4(m render.Markdown) {
+	w.writeHeading4(&w.main, m)
 }
 
-func (w *WikiTreeEncoder) UnorderedList(items []string) {
-	w.writeUnorderedList(&w.main, items)
+func (w *WikiTreeEncoder) UnorderedList(items []render.Markdown) {
+	for _, item := range items {
+		w.main.WriteString("*" + string(item) + "\n")
+	}
 }
 
-func (w *WikiTreeEncoder) OrderedList(items []string) {
-	w.writeOrderedList(&w.main, items)
+func (w *WikiTreeEncoder) OrderedList(items []render.Markdown) {
+	for _, item := range items {
+		w.main.WriteString("#" + string(item) + "\n")
+	}
 }
 
-func (w *WikiTreeEncoder) DefinitionList(items [][2]string) {
-	w.writeDefinitionList(&w.main, items)
+func (w *WikiTreeEncoder) DefinitionList(items [][2]render.Markdown) {
+	for _, item := range items {
+		w.main.WriteString(fmt.Sprintf("%s\n", string(item[0])))
+		if len(item[1]) > 0 {
+			w.main.WriteString(text.PrefixLines(string(item[1]), ":"))
+			w.main.WriteString("\n")
+		}
+		w.main.WriteString("\n")
+	}
 }
 
-func (w *WikiTreeEncoder) BlockQuote(s string) {
-	w.writeBlockQuote(&w.main, s)
+func (w *WikiTreeEncoder) BlockQuote(m render.Markdown) {
+	w.main.WriteString("<blockquote>\n")
+	m.ToHTML(&w.main)
+	w.main.WriteString("</blockquote>\n")
 }
 
 func (w *WikiTreeEncoder) Pre(s string) {
 	w.writePre(&w.main, s)
 }
 
-func (w *WikiTreeEncoder) RawMarkdown(s string) {
-	w.writePara(&w.main, s)
-}
-
-func (w *WikiTreeEncoder) EncodePara(s string) string {
-	buf := new(strings.Builder)
-	w.writePara(buf, s)
-	return buf.String()
+func (w *WikiTreeEncoder) RawMarkdown(m render.Markdown) {
+	m.ToHTML(&w.main)
 }
 
 func (w *WikiTreeEncoder) EncodeEmptyPara() string {
 	buf := new(strings.Builder)
 	w.writeEmptyPara(buf)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodeHeading4(s string) string {
-	buf := new(strings.Builder)
-	w.writeHeading4(buf, s)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodeUnorderedList(items []string) string {
-	buf := new(strings.Builder)
-	w.writeUnorderedList(buf, items)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodeOrderedList(items []string) string {
-	buf := new(strings.Builder)
-	w.writeOrderedList(buf, items)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodeDefinitionList(items [][2]string) string {
-	buf := new(strings.Builder)
-	w.writeDefinitionList(buf, items)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodeBlockQuote(s string) string {
-	buf := new(strings.Builder)
-	w.writeBlockQuote(buf, s)
-	return buf.String()
-}
-
-func (w *WikiTreeEncoder) EncodePre(s string) string {
-	buf := new(strings.Builder)
-	w.writePre(buf, s)
 	return buf.String()
 }
 
@@ -314,12 +287,12 @@ func (w *WikiTreeEncoder) EncodeModelLink(text string, m any) string {
 	return buf.String()
 }
 
-func (w *WikiTreeEncoder) EncodeItalic(s string) string {
-	return "''" + s + "''"
+func (w *WikiTreeEncoder) EncodeItalic(m string) string {
+	return "''" + string(m) + "''"
 }
 
-func (w *WikiTreeEncoder) EncodeBold(s string) string {
-	return "'''" + s + "'''"
+func (w *WikiTreeEncoder) EncodeBold(m string) string {
+	return "'''" + string(m) + "'''"
 }
 
 func (w *WikiTreeEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
@@ -332,67 +305,32 @@ func (w *WikiTreeEncoder) EncodeCitationSeperator() string {
 	return ","
 }
 
-func (w *WikiTreeEncoder) writePara(buf io.StringWriter, s string) {
-	buf.WriteString("\n")
-	buf.WriteString(s)
-	buf.WriteString("\n")
-}
-
 func (w *WikiTreeEncoder) writeEmptyPara(buf io.StringWriter) {
 	buf.WriteString("\n")
 }
 
-func (w *WikiTreeEncoder) writeHeading2(buf io.StringWriter, s string) {
+func (w *WikiTreeEncoder) writeHeading2(buf io.StringWriter, m render.Markdown) {
 	buf.WriteString("\n")
-	buf.WriteString("== " + s + " ==")
-	buf.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) writeHeading3(buf io.StringWriter, s string) {
-	buf.WriteString("\n")
-	buf.WriteString("=== " + s + " ===")
+	buf.WriteString("== " + string(m) + " ==")
 	buf.WriteString("\n")
 }
 
-func (w *WikiTreeEncoder) writeHeading4(buf io.StringWriter, s string) {
+func (w *WikiTreeEncoder) writeHeading3(buf io.StringWriter, m render.Markdown) {
 	buf.WriteString("\n")
-	buf.WriteString("==== " + s + " ====")
+	buf.WriteString("=== " + string(m) + " ===")
 	buf.WriteString("\n")
 }
 
-func (w *WikiTreeEncoder) writeUnorderedList(buf io.StringWriter, items []string) {
-	for _, item := range items {
-		buf.WriteString("*" + item + "\n")
-	}
-}
-
-func (w *WikiTreeEncoder) writeOrderedList(buf io.StringWriter, items []string) {
-	for _, item := range items {
-		buf.WriteString("#" + item + "\n")
-	}
-}
-
-func (w *WikiTreeEncoder) writeBlockQuote(buf io.StringWriter, s string) {
-	buf.WriteString("<blockquote>\n")
-	buf.WriteString(s)
-	buf.WriteString("</blockquote>\n")
+func (w *WikiTreeEncoder) writeHeading4(buf io.StringWriter, m render.Markdown) {
+	buf.WriteString("\n")
+	buf.WriteString("==== " + string(m) + " ====")
+	buf.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) writePre(buf io.StringWriter, s string) {
 	buf.WriteString("<pre>\n")
 	buf.WriteString(s)
 	buf.WriteString("</pre>\n")
-}
-
-func (w *WikiTreeEncoder) writeDefinitionList(buf io.StringWriter, items [][2]string) {
-	for _, item := range items {
-		buf.WriteString(fmt.Sprintf("%s\n", item[0]))
-		if len(item[1]) > 0 {
-			buf.WriteString(text.PrefixLines(item[1], ":"))
-			buf.WriteString("\n")
-		}
-		buf.WriteString("\n")
-	}
 }
 
 func (w *WikiTreeEncoder) writeModelLink(buf io.StringWriter, text string, v any) {
@@ -436,7 +374,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if c.Source != nil {
 		if c.Source.RepositoryName != "" {
 			if c.Source.RepositoryLink != "" {
-				repo = w.EncodeLink(text.StripNewlines(c.Source.RepositoryName), c.Source.RepositoryLink)
+				repo = string(w.EncodeLink(text.StripNewlines(c.Source.RepositoryName), c.Source.RepositoryLink))
 			} else {
 				repo = text.StripNewlines(c.Source.RepositoryName)
 			}
@@ -453,7 +391,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	detail = text.FinishSentence(detail)
 
 	if c.URL != nil {
-		detail = text.AppendIndependentClause(detail, w.EncodeLink(c.URL.Title, c.URL.URL))
+		detail = text.AppendIndependentClause(detail, string(w.EncodeLink(c.URL.Title, c.URL.URL)))
 		detail = text.FinishSentence(detail)
 	}
 
@@ -476,6 +414,9 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	}
 
 	return fmt.Sprintf(`<ref name="cit_%d">%s</ref>`, idx, detail)
+}
+
+func (w *WikiTreeEncoder) ParaWithFigure(s render.Markdown, link string, alt string, caption render.Markdown) {
 }
 
 func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {

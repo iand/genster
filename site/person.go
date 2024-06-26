@@ -2,6 +2,7 @@ package site
 
 import (
 	"fmt"
+	"html"
 	"sort"
 
 	"github.com/iand/genster/model"
@@ -126,8 +127,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 				break
 			}
 			path += "<div>↓</div>"
-			path += "<div>" + doc.EncodeLink(ap[i].PreferredUniqueName, doc.LinkBuilder.LinkFor(ap[i])) + "</div>"
+			path += "<div>" + fmt.Sprintf("<a href=\"%s\">%s</a>", doc.LinkBuilder.LinkFor(ap[i]), html.EscapeString(ap[i].PreferredUniqueName)) + "</div>"
 		}
+
 		doc.SetFrontMatterField("ancestorpath", path)
 	}
 
@@ -265,9 +267,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		}
 	}
 
-	links := make([]string, 0, len(p.Links))
+	links := make([]render.Markdown, 0, len(p.Links))
 	for _, l := range p.Links {
-		links = append(links, doc.EncodeLink(l.Title, l.URL))
+		links = append(links, render.Markdown(doc.EncodeLink(l.Title, l.URL)))
 	}
 
 	if len(links) > 0 {

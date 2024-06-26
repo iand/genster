@@ -21,20 +21,16 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 		enc: enc,
 	}
 
-	events := make([][2]string, 0, len(t.Events))
+	events := make([]render.Markdown, 0, len(t.Events))
 	for i, ev := range t.Events {
 		title := fmtr.Title(i, ev)
 		if title == "" {
 			continue
 		}
-		detail := fmtr.Detail(i, ev)
-		events = append(events, [2]string{
-			title,
-			detail,
-		})
+		events = append(events, render.Markdown(title))
 	}
 
-	enc.DefinitionList(events)
+	enc.UnorderedList(events)
 	return nil
 }
 

@@ -27,7 +27,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 		name += " in " + doc.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
 	}
 
-	doc.Para(doc.EncodeItalic(text.FinishSentence(name)))
+	doc.Para(render.Markdown(doc.EncodeItalic(text.FinishSentence(name))))
 
 	for _, t := range p.Comments {
 		RenderText(t, doc)
@@ -49,7 +49,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 	if len(p.Links) > 0 {
 		doc.Heading2("Links")
 		for _, l := range p.Links {
-			doc.Para(doc.EncodeLink(l.Title, l.URL))
+			doc.Para(render.Markdown(doc.EncodeLink(l.Title, l.URL)))
 		}
 	}
 

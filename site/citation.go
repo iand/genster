@@ -32,14 +32,14 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	doc.Title(title)
 
 	if c.Detail != "" && c.Source != nil && c.Source.Title != "" {
-		doc.Para("Cited from " + c.Source.Title)
+		doc.Para(render.Markdown("Cited from " + c.Source.Title))
 	}
 
 	for _, mo := range c.MediaObjects {
 		link := s.LinkFor(mo)
 		if link != "" {
 			doc.EmptyPara()
-			doc.Image(mo.ID, link)
+			doc.Figure(link, mo.ID, render.Markdown(mo.ID))
 		}
 	}
 
@@ -52,18 +52,17 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 		for _, t := range c.TranscriptionText {
 			if t.Formatted {
 				doc.Pre(t.Text)
-				doc.Pre("")
+				// doc.Pre("")
 			} else if t.Markdown {
-				doc.RawMarkdown(t.Text)
-				doc.Pre("")
+				doc.RawMarkdown(render.Markdown(t.Text))
+				// doc.Pre("")
 			} else {
-				doc.BlockQuote(t.Text)
-				doc.BlockQuote("")
-
+				doc.BlockQuote(render.Markdown(t.Text))
+				// doc.BlockQuote("")
 			}
 		}
 		if !c.TranscriptionDate.IsUnknown() {
-			doc.BlockQuote("-- transcribed " + c.TranscriptionDate.When())
+			doc.BlockQuote(render.Markdown("-- transcribed " + c.TranscriptionDate.When()))
 		}
 	}
 
@@ -78,20 +77,20 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	var cites string
 
-	events := make([]string, 0, len(c.EventsCited))
+	events := make([]render.Markdown, 0, len(c.EventsCited))
 	for _, ev := range c.EventsCited {
-		events = append(events, WhoWhatWhenWhere(ev, doc))
+		events = append(events, render.Markdown(WhoWhatWhenWhere(ev, doc)))
 		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
 		}
 	}
 
-	people := make([]string, 0, len(c.PeopleCited))
+	people := make([]render.Markdown, 0, len(c.PeopleCited))
 	for _, p := range c.PeopleCited {
 		if peopleInCitations[p] {
 			continue
 		}
-		people = append(people, doc.EncodeModelLink(p.PreferredFullName, p))
+		people = append(people, render.Markdown(doc.EncodeModelLink(p.PreferredFullName, p)))
 	}
 
 	if len(events) > 0 || len(people) > 0 {
@@ -104,7 +103,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 				cites = text.JoinSentenceParts(text.SmallCardinalNoun(len(c.EventsCited)), "events have been derived from this evidence:")
 			}
 			doc.EmptyPara()
-			doc.Para(text.FormatSentence(cites))
+			doc.Para(render.Markdown(text.FormatSentence(cites)))
 
 			doc.UnorderedList(events)
 		}
@@ -128,7 +127,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 			}
 
 			doc.EmptyPara()
-			doc.Para(text.UpperFirst(peopleIntro))
+			doc.Para(render.Markdown(text.UpperFirst(peopleIntro)))
 			slices.Sort(people)
 			doc.UnorderedList(people)
 		}
@@ -136,10 +135,14 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 
 	doc.Heading3("Full Citation")
-	doc.Para(text.FinishSentence(c.String()))
+	doc.Para(render.Markdown(text.FinishSentence(c.String())))
+
+	repos := make([]render.Markdown, 0)
+	if c.URL != nil {
+		repos = append(repos, render.Markdown(doc.EncodeLink(c.URL.Title, c.URL.URL)))
+	}
 
 	if c.Source != nil && len(c.Source.RepositoryRefs) > 0 {
-		repos := make([]string, 0, len(c.Source.RepositoryRefs))
 		for _, rr := range c.Source.RepositoryRefs {
 			// 	rr := c.Source.RepositoryRefs[0]
 
@@ -154,15 +157,15 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 			}
 
 			if s != "" {
-				repos = append(repos, s)
+				repos = append(repos, render.Markdown(s))
 			}
 		}
+	}
 
-		if len(repos) > 0 {
-			doc.Heading3("Source")
-			doc.Para(c.Source.Title + " available at:")
-			doc.UnorderedList(repos)
-		}
+	if len(repos) > 0 {
+		doc.Heading3("Source")
+		doc.Para(render.Markdown(c.Source.Title + " available at:"))
+		doc.UnorderedList(repos)
 	}
 
 	if len(c.ResearchNotes) > 0 {

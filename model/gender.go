@@ -190,8 +190,3 @@ func (g Gender) WidowWidower() string {
 		return "widow"
 	}
 }
-
-type Link struct {
-	Title string
-	URL   string
-}

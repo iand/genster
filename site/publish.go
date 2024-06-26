@@ -206,7 +206,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	desc := s.Tree.Description
 
 	if desc != "" {
-		doc.Para(text.FormatSentence(desc))
+		doc.Para(render.Markdown(text.FormatSentence(desc)))
 	}
 
 	peopleDesc := ""
@@ -224,20 +224,20 @@ func (s *Site) WriteTreeOverview(root string) error {
 			if i > 11 {
 				break
 			}
-			list[i] = doc.EncodeLink(ancestorSurnames[i].K, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].K)))
+			list[i] = string(doc.EncodeLink(ancestorSurnames[i].K, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].K))))
 		}
 		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
 		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
-		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", doc.EncodeLink("all surnames...", s.ListSurnamesDir))))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", string(doc.EncodeLink("all surnames...", s.ListSurnamesDir)))))
 	}
 
 	if peopleDesc != "" {
 		doc.EmptyPara()
-		doc.Para(peopleDesc)
+		doc.Para(render.Markdown(peopleDesc))
 	}
 
 	doc.EmptyPara()
-	doc.Para(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson)))
+	doc.Para(render.Markdown(text.JoinSentenceParts("See a", string(doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir)), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson))))
 
 	// Featured people
 	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
@@ -250,9 +250,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 		model.SortPeopleByName(featuredPeople)
 		doc.EmptyPara()
 		doc.Heading2("Featured")
-		items := make([]string, len(featuredPeople))
+		items := make([]render.Markdown, len(featuredPeople))
 		for i, p := range featuredPeople {
-			items[i] = text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb)
+			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb))
 		}
 		doc.UnorderedList(items)
 	}
@@ -268,9 +268,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 		model.SortPeopleByName(puzzlePeople)
 		doc.EmptyPara()
 		doc.Heading2("Currently puzzling over")
-		items := make([]string, len(puzzlePeople))
+		items := make([]render.Markdown, len(puzzlePeople))
 		for i, p := range puzzlePeople {
-			items[i] = text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb)
+			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb))
 		}
 		doc.UnorderedList(items)
 	}
@@ -301,7 +301,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
 			return p.PreferredFamiliarFullName
 		}, doc))
-		doc.Para(text.FormatSentence(detail))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
 	}
 
 	// Oldest people
@@ -312,7 +312,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 			age, _ := p.AgeInYearsAtDeath()
 			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
 		}, doc))
-		doc.Para(text.FormatSentence(detail))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
 
 	}
 
@@ -333,7 +333,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	if len(notes) > 0 {
 		doc.EmptyPara()
 		doc.Heading3("Notes")
-		doc.Para(text.FormatSentence(notes))
+		doc.Para(render.Markdown(text.FormatSentence(notes)))
 	}
 
 	if err := writePage(doc, root, fname); err != nil {
@@ -360,7 +360,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 	g := 0
 	doc.Heading3("Generation 1")
 
-	doc.Para(text.JoinSentenceParts("1.", doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson))))
+	doc.Para(render.Markdown(text.JoinSentenceParts("1.", string(doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson))))))
 	for i := range ancestors {
 		ig := -1
 		idx := i + 2
@@ -379,11 +379,11 @@ func (s *Site) WriteChartAncestors(root string) error {
 			} else if g == 4 {
 				doc.Heading3("Generation 5: Great-Great-Grandparents")
 			} else {
-				doc.Heading3(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2))
+				doc.Heading3(render.Markdown(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)))
 			}
 		}
 		if ancestors[i] != nil {
-			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i]))))
+			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), string(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i])))))
 
 			var adds []string
 			if ancestors[i].PrimaryOccupation != "" {
@@ -397,7 +397,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 			}
 
 			detail = text.AppendClause(detail, text.JoinList(adds))
-			doc.Para(detail)
+			doc.Para(render.Markdown(detail))
 		} else {
 
 			name := "Not known"
@@ -432,7 +432,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 				}
 			}
 
-			doc.Para(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name))
+			doc.Para(render.Markdown(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name)))
 		}
 	}
 
@@ -472,7 +472,7 @@ func (s *Site) WriteChartTrees(root string) error {
 		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 2); err != nil {
 			return fmt.Errorf("failed to write descendant tree: %w", err)
 		}
-		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
 	}
 
 	// index 30-61 are great-great-great grandparents, only produce chart if they have no known parents, but at a greater depth
@@ -489,7 +489,7 @@ func (s *Site) WriteChartTrees(root string) error {
 		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 3); err != nil {
 			return fmt.Errorf("failed to write descendant tree: %w", err)
 		}
-		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
 	}
 
 	// produce chart for each member of a later generation
@@ -501,7 +501,7 @@ func (s *Site) WriteChartTrees(root string) error {
 		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 4); err != nil {
 			return fmt.Errorf("failed to write descendant tree: %w", err)
 		}
-		doc.Para(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg")))
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
 	}
 
 	baseDir := filepath.Join(root, s.ChartTreesDir)

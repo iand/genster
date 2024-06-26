@@ -14,6 +14,7 @@ require (
 	github.com/iand/pontium v0.3.14
 	github.com/kortschak/utter v1.5.0
 	github.com/urfave/cli/v2 v2.24.4
+	github.com/yuin/goldmark v1.7.4
 )
 
 require (
