@@ -707,8 +707,8 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		includePlacesInTexts(c.ResearchNotes...)
 		includePlacesInTexts(c.Comments...)
 
-		for _, mo := range c.MediaObjects {
-			ps.MediaObjects[mo.ID] = mo
+		for _, cmo := range c.MediaObjects {
+			ps.MediaObjects[cmo.Object.ID] = cmo.Object
 		}
 		if c.Source != nil {
 			ps.Sources[c.Source.ID] = c.Source

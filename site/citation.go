@@ -35,11 +35,11 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 		doc.Para(render.Markdown("Cited from " + c.Source.Title))
 	}
 
-	for _, mo := range c.MediaObjects {
-		link := s.LinkFor(mo)
+	for _, cmo := range c.MediaObjects {
+		link := s.LinkFor(cmo.Object)
 		if link != "" {
 			doc.EmptyPara()
-			doc.Figure(link, mo.ID, render.Markdown(mo.ID))
+			doc.Figure(link, cmo.Object.ID, render.Markdown(cmo.Object.Title), cmo.Highlight)
 		}
 	}
 

@@ -376,9 +376,18 @@ func (b *Encoder) ParaWithFigure(text render.Markdown, link string, alt string, 
 	b.maintext.WriteString("</p>\n")
 }
 
-func (b *Encoder) Figure(link string, alt string, caption render.Markdown) {
+func (b *Encoder) Figure(link string, alt string, caption render.Markdown, highlight *model.Region) {
 	b.maintext.WriteString("<figure>")
-	b.maintext.WriteString(fmt.Sprintf("<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+	if highlight == nil {
+		b.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
+	} else {
+		b.maintext.WriteString("<div class=\"shade\">")
+		b.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\">", html.EscapeString(link)))
+		b.maintext.WriteString(fmt.Sprintf("<span class=\"shade\" style=\"bottom: %d%%;left: %d%%;width: %d%%;height: %d%%;\"></span>", highlight.Bottom, highlight.Left, highlight.Width, highlight.Height))
+		b.maintext.WriteString(fmt.Sprintf("<img src=\"%[1]s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+		b.maintext.WriteString("</a></div>")
+	}
+
 	b.maintext.WriteString("<figcaption>")
 	b.maintext.WriteString("<p>")
 	caption.ToHTML(&b.maintext)

@@ -2,7 +2,7 @@ package model
 
 type FeatureImage struct {
 	MediaObject MediaObject
-	Crop        Crop
+	Crop        *Region
 }
 
 type Crop struct {
@@ -14,6 +14,7 @@ type Crop struct {
 
 type MediaObject struct {
 	ID          string
+	Title       string
 	SrcFilePath string
 	FileName    string
 	FileSize    int
@@ -21,4 +22,11 @@ type MediaObject struct {
 	Width       int
 	Height      int
 	Citations   []*GeneralCitation
+}
+
+type Region struct {
+	Left   int
+	Bottom int
+	Width  int
+	Height int
 }

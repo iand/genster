@@ -37,9 +37,14 @@ type GeneralCitation struct {
 	Comments          []Text
 	ResearchNotes     []Text
 	URL               *Link
-	MediaObjects      []*MediaObject
+	MediaObjects      []*CitedMediaObject
 	EventsCited       []TimelineEvent
 	PeopleCited       []*Person
+}
+
+type CitedMediaObject struct {
+	Object    *MediaObject
+	Highlight *Region
 }
 
 type Text struct {

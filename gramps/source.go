@@ -127,7 +127,20 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 		if ok {
 			mo := m.FindMediaObject(gob.File.Src)
 			mo.Citations = append(mo.Citations, cit)
-			cit.MediaObjects = append(cit.MediaObjects, mo)
+
+			cmo := &model.CitedMediaObject{
+				Object: mo,
+			}
+			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
+				cmo.Highlight = &model.Region{
+					Left:   *gor.Region.Corner1x,
+					Bottom: 100 - *gor.Region.Corner2y,
+					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
+					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
+				}
+			}
+
+			cit.MediaObjects = append(cit.MediaObjects, cmo)
 		}
 	}
 

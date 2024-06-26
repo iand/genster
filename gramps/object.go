@@ -22,5 +22,6 @@ func (l *Loader) populateObjectFacts(m ModelFinder, gob *grampsxml.Object) error
 		return fmt.Errorf("unsupported media type: %v", mo.MediaType)
 	}
 	mo.FileName = fmt.Sprintf("%s.%s", mo.ID, ext)
+	mo.Title = gob.File.Description
 	return nil
 }
