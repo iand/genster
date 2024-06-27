@@ -43,33 +43,32 @@ type Person struct {
 	PossiblyAlive bool // true if this person is possibly still alive, false if they are known to be dead or are historic
 	DiedYoung     bool // true if this person died before adulthood
 
-	Unknown            bool        // true if this person is known to have existed but no other information is known
-	Unmarried          bool        // true if it is known that the person did not marry
-	Childless          bool        // true if it is known that the person did not have any children
-	Illegitimate       bool        // true if it is known that the person was born illegitimately
-	BornInWorkhouse    bool        // true if the birth place of the person was a workhouse
-	DiedInWorkhouse    bool        // true if the death place of the person was a workhouse
-	Pauper             bool        // true if the person was, at some stage, noted as a pauper
-	Twin               bool        // true if it is known that the person was a twin
-	Blind              bool        // true if it is known that the person was blind for the majority of their life
-	Deaf               bool        // true if it is known that the person was deaf for the majority of their life
-	PhysicalImpairment bool        // true if it is known that the person was physically impaired for the majority of their life
-	MentalImpairment   bool        // true if it is known that the person was mentally impaired for the majority of their life
-	DiedInChildbirth   bool        // true if it is known that the person died in childbirth
-	ModeOfDeath        ModeOfDeath // mode of death, if known
-	CauseOfDeath       *Fact       // cause of death, if known
-	Publish            bool        // true if this person should always be included in the publish set
-	Featured           bool        // true if this person is to be highlighted as a featured person on the tree overview
-	Puzzle             bool        // true if this person is the centre of a significant puzzle
-
-	Occupations       []*Occupation // list of occupations
-	PrimaryOccupation string        // simple description of main occupation
-	OccupationGroup   OccupationGroup
-	EditLink          *Link  // link to a page that can be used to edit the details of this person
-	WikiTreeID        string // the wikitree id of this person
-	GrampsID          string // the gramps id of this person
-	Slug              string // a short url-friendly identifier that can be used to refer to this person
-	Links             []Link // list of links to more information relevant to this person
+	Unknown            bool          // true if this person is known to have existed but no other information is known
+	Unmarried          bool          // true if it is known that the person did not marry
+	Childless          bool          // true if it is known that the person did not have any children
+	Illegitimate       bool          // true if it is known that the person was born illegitimately
+	BornInWorkhouse    bool          // true if the birth place of the person was a workhouse
+	DiedInWorkhouse    bool          // true if the death place of the person was a workhouse
+	Pauper             bool          // true if the person was, at some stage, noted as a pauper
+	Twin               bool          // true if it is known that the person was a twin
+	Blind              bool          // true if it is known that the person was blind for the majority of their life
+	Deaf               bool          // true if it is known that the person was deaf for the majority of their life
+	PhysicalImpairment bool          // true if it is known that the person was physically impaired for the majority of their life
+	MentalImpairment   bool          // true if it is known that the person was mentally impaired for the majority of their life
+	DiedInChildbirth   bool          // true if it is known that the person died in childbirth
+	ModeOfDeath        ModeOfDeath   // mode of death, if known
+	CauseOfDeath       *Fact         // cause of death, if known
+	Publish            bool          // true if this person should always be included in the publish set
+	Featured           bool          // true if this person is to be highlighted as a featured person on the tree overview
+	Puzzle             bool          // true if this person is the centre of a significant puzzle
+	Occupations        []*Occupation // list of occupations
+	PrimaryOccupation  string        // simple description of main occupation
+	OccupationGroup    OccupationGroup
+	EditLink           *Link  // link to a page that can be used to edit the details of this person
+	WikiTreeID         string // the wikitree id of this person
+	GrampsID           string // the gramps id of this person
+	Slug               string // a short url-friendly identifier that can be used to refer to this person
+	Links              []Link // list of links to more information relevant to this person
 
 	Redacted           bool          // true if the person's details should be redacted
 	RedactionKeepsName bool          // true if this person's name should be kept during redaction

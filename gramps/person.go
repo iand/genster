@@ -234,7 +234,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Slug = att.Value
 		case "olb":
 			p.Olb = att.Value
-
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
 		}

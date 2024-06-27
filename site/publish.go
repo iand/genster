@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -270,7 +271,17 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Heading2("Currently puzzling over")
 		items := make([]render.Markdown, len(puzzlePeople))
 		for i, p := range puzzlePeople {
-			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb))
+			desc := p.Olb
+			for _, rn := range p.ResearchNotes {
+				if strings.HasPrefix(rn.Text, "### ") {
+					bef, _, ok := strings.Cut(rn.Text, "\n")
+					if ok {
+						desc = bef[4:]
+						break
+					}
+				}
+			}
+			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), desc))
 		}
 		doc.UnorderedList(items)
 	}
