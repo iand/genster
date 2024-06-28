@@ -193,10 +193,21 @@ func CitationDate(gc *grampsxml.Citation) (*model.Date, error) {
 
 func (l *Loader) parseNote(gn *grampsxml.Note, m ModelFinder) model.Text {
 	txt := model.Text{
+		ID:   pval(gn.ID, ""),
 		Text: gn.Text,
 	}
 	if pval(gn.Format, false) {
 		txt.Formatted = true
+	}
+
+	styleOffset := 0
+	if strings.HasPrefix(txt.Text, "### ") {
+		bef, aft, ok := strings.Cut(txt.Text, "\n")
+		if ok {
+			styleOffset = -len(bef) - 1 // -1 for the newline
+			txt.Title = bef[4:]
+			txt.Text = aft
+		}
 	}
 
 	for _, st := range gn.Style {
@@ -209,8 +220,8 @@ func (l *Loader) parseNote(gn *grampsxml.Note, m ModelFinder) model.Text {
 						// TODO: adjust start/end to account for any additional formatting
 						txt.Links = append(txt.Links, model.ObjectLink{
 							Object: obj,
-							Start:  r.Start, // gramps indices are 1-based
-							End:    r.End,
+							Start:  r.Start + styleOffset,
+							End:    r.End + styleOffset,
 						})
 					}
 				}

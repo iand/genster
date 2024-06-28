@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -250,7 +249,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	if len(featuredPeople) > 0 {
 		model.SortPeopleByName(featuredPeople)
 		doc.EmptyPara()
-		doc.Heading2("Featured")
+		doc.Heading2("Featured", "")
 		items := make([]render.Markdown, len(featuredPeople))
 		for i, p := range featuredPeople {
 			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb))
@@ -268,17 +267,14 @@ func (s *Site) WriteTreeOverview(root string) error {
 	if len(puzzlePeople) > 0 {
 		model.SortPeopleByName(puzzlePeople)
 		doc.EmptyPara()
-		doc.Heading2("Currently puzzling over")
+		doc.Heading2("Currently puzzling over", "")
 		items := make([]render.Markdown, len(puzzlePeople))
 		for i, p := range puzzlePeople {
 			desc := p.Olb
 			for _, rn := range p.ResearchNotes {
-				if strings.HasPrefix(rn.Text, "### ") {
-					bef, _, ok := strings.Cut(rn.Text, "\n")
-					if ok {
-						desc = bef[4:]
-						break
-					}
+				if rn.Title != "" {
+					desc = rn.Title
+					break
 				}
 			}
 			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), desc))
@@ -343,7 +339,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	if len(notes) > 0 {
 		doc.EmptyPara()
-		doc.Heading3("Notes")
+		doc.Heading3("Notes", "")
 		doc.Para(render.Markdown(text.FormatSentence(notes)))
 	}
 
@@ -369,7 +365,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 	doc.Layout(PageLayoutChartAncestors.String())
 
 	g := 0
-	doc.Heading3("Generation 1")
+	doc.Heading3("Generation 1", "")
 
 	doc.Para(render.Markdown(text.JoinSentenceParts("1.", string(doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson))))))
 	for i := range ancestors {
@@ -382,15 +378,15 @@ func (s *Site) WriteChartAncestors(root string) error {
 		if ig != g {
 			g = ig
 			if g == 1 {
-				doc.Heading3("Generation 2: Parents")
+				doc.Heading3("Generation 2: Parents", "p")
 			} else if g == 2 {
-				doc.Heading3("Generation 3: Grandparents")
+				doc.Heading3("Generation 3: Grandparents", "gp")
 			} else if g == 3 {
-				doc.Heading3("Generation 4: Great-Grandparents")
+				doc.Heading3("Generation 4: Great-Grandparents", "ggp")
 			} else if g == 4 {
-				doc.Heading3("Generation 5: Great-Great-Grandparents")
+				doc.Heading3("Generation 5: Great-Great-Grandparents", "gggp")
 			} else {
-				doc.Heading3(render.Markdown(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)))
+				doc.Heading3(render.Markdown(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)), "")
 			}
 		}
 		if ancestors[i] != nil {

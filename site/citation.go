@@ -45,9 +45,9 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	if len(c.TranscriptionText) > 0 {
 		if len(c.TranscriptionText) == 1 {
-			doc.Heading3("Transcription")
+			doc.Heading3("Transcription", "")
 		} else {
-			doc.Heading3("Transcriptions")
+			doc.Heading3("Transcriptions", "")
 		}
 		for _, t := range c.TranscriptionText {
 			if t.Formatted {
@@ -67,7 +67,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 
 	if len(c.Comments) > 0 {
-		doc.Heading3("Comments")
+		doc.Heading3("Comments", "")
 		for _, t := range c.Comments {
 			RenderText(t, doc)
 		}
@@ -94,7 +94,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 
 	if len(events) > 0 || len(people) > 0 {
-		doc.Heading3("Other Information")
+		doc.Heading3("Other Information", "other")
 
 		if len(events) > 0 {
 			if len(c.EventsCited) == 1 {
@@ -134,7 +134,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	}
 
-	doc.Heading3("Full Citation")
+	doc.Heading3("Full Citation", "")
 	doc.Para(render.Markdown(text.FinishSentence(c.String())))
 
 	repos := make([]render.Markdown, 0)
@@ -163,13 +163,13 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 
 	if len(repos) > 0 {
-		doc.Heading3("Source")
+		doc.Heading3("Source", "")
 		doc.Para(render.Markdown(c.Source.Title + " available at:"))
 		doc.UnorderedList(repos)
 	}
 
 	if len(c.ResearchNotes) > 0 {
-		doc.Heading2("Research Notes")
+		doc.Heading2("Research Notes", "")
 		for _, t := range c.ResearchNotes {
 			RenderText(t, doc)
 		}

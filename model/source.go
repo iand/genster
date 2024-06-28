@@ -48,6 +48,8 @@ type CitedMediaObject struct {
 }
 
 type Text struct {
+	ID        string
+	Title     string
 	Text      string
 	Formatted bool
 	Markdown  bool

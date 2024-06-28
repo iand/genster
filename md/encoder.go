@@ -105,21 +105,30 @@ func (e *Encoder) RawMarkdown(s render.Markdown) {
 	e.maintext.WriteString(string(s))
 }
 
-func (e *Encoder) Heading2(m render.Markdown) {
+func (e *Encoder) Heading2(m render.Markdown, id string) {
 	e.maintext.WriteString("<h2>")
 	m.ToHTML(&e.maintext)
+	if id != "" {
+		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	}
 	e.maintext.WriteString("</h2>\n")
 }
 
-func (e *Encoder) Heading3(m render.Markdown) {
+func (e *Encoder) Heading3(m render.Markdown, id string) {
 	e.maintext.WriteString("<h3>")
 	m.ToHTML(&e.maintext)
+	if id != "" {
+		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	}
 	e.maintext.WriteString("</h3>\n")
 }
 
-func (e *Encoder) Heading4(m render.Markdown) {
+func (e *Encoder) Heading4(m render.Markdown, id string) {
 	e.maintext.WriteString("<h4>")
 	m.ToHTML(&e.maintext)
+	if id != "" {
+		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	}
 	e.maintext.WriteString("</h4>\n")
 }
 

@@ -112,7 +112,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
 			}
 
 			day = evd.day
-			doc.Heading2(render.Markdown(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day))))
+			doc.Heading2(render.Markdown(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day))), fmt.Sprintf("day%d", day))
 		}
 
 		items = append(items, render.Markdown(evd.text))

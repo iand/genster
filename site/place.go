@@ -39,7 +39,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 
 	if len(p.Timeline) > 0 {
 		doc.EmptyPara()
-		doc.Heading2("Timeline")
+		doc.Heading2("Timeline", "")
 
 		if err := RenderTimeline(t, pov, doc); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
@@ -47,14 +47,14 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 	}
 
 	if len(p.Links) > 0 {
-		doc.Heading2("Links")
+		doc.Heading2("Links", "")
 		for _, l := range p.Links {
 			doc.Para(render.Markdown(doc.EncodeLink(l.Title, l.URL)))
 		}
 	}
 
 	if len(p.ResearchNotes) > 0 {
-		doc.Heading2("Research Notes")
+		doc.Heading2("Research Notes", "")
 		for _, t := range p.ResearchNotes {
 			RenderText(t, doc)
 		}

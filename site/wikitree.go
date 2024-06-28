@@ -163,7 +163,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 
 	if len(t.Events) > 0 {
 		tldoc.EmptyPara()
-		tldoc.Heading2("Timeline")
+		tldoc.Heading2("Timeline", "")
 		if err := RenderTimeline(t, pov, tldoc); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
@@ -222,15 +222,15 @@ func (w *WikiTreeEncoder) EmptyPara() {
 	w.writeEmptyPara(&w.main)
 }
 
-func (w *WikiTreeEncoder) Heading2(m render.Markdown) {
+func (w *WikiTreeEncoder) Heading2(m render.Markdown, id string) {
 	w.writeHeading2(&w.main, m)
 }
 
-func (w *WikiTreeEncoder) Heading3(m render.Markdown) {
+func (w *WikiTreeEncoder) Heading3(m render.Markdown, id string) {
 	w.writeHeading3(&w.main, m)
 }
 
-func (w *WikiTreeEncoder) Heading4(m render.Markdown) {
+func (w *WikiTreeEncoder) Heading4(m render.Markdown, id string) {
 	w.writeHeading4(&w.main, m)
 }
 

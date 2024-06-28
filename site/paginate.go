@@ -154,7 +154,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 		for _, pg := range pages {
 			if pg.Group != group {
 				if len(list) > 0 {
-					doc.Heading3(render.Markdown(group))
+					doc.Heading3(render.Markdown(group), "")
 					doc.UnorderedList(list)
 					list = list[:0]
 				}
@@ -168,7 +168,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 		}
 
 		if len(list) > 0 {
-			doc.Heading3(render.Markdown(group))
+			doc.Heading3(render.Markdown(group), "")
 			doc.UnorderedList(list)
 		}
 

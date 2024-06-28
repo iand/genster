@@ -222,7 +222,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	if len(p.Comments) > 0 {
-		doc.Heading3("Comments")
+		doc.Heading3("Comments", "")
 		for _, t := range p.Comments {
 			RenderText(t, doc)
 		}
@@ -244,7 +244,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 
 	if len(p.Timeline) > 0 {
 		doc.EmptyPara()
-		doc.Heading2("Timeline")
+		doc.Heading2("Timeline", "")
 
 		doc.ResetSeenLinks()
 		if err := RenderTimeline(t, pov, doc); err != nil {
@@ -253,7 +253,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	if len(p.MiscFacts) > 0 || len(p.KnownNames) > 1 {
-		doc.Heading2("Other Information")
+		doc.Heading2("Other Information", "")
 		if len(p.KnownNames) > 1 {
 			doc.EmptyPara()
 			doc.Para("Other names and variations")
@@ -273,12 +273,12 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	if len(links) > 0 {
-		doc.Heading2("Links")
+		doc.Heading2("Links", "")
 		doc.UnorderedList(links)
 	}
 
 	if len(p.ResearchNotes) > 0 {
-		doc.Heading2("Research Notes")
+		doc.Heading2("Research Notes", "")
 		for _, t := range p.ResearchNotes {
 			RenderText(t, doc)
 		}

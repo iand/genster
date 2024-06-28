@@ -10,6 +10,9 @@ import (
 )
 
 func RenderText(t model.Text, enc render.Page) error {
+	if t.Title != "" {
+		enc.Heading3(render.Markdown(t.Title), t.ID)
+	}
 	if t.Formatted {
 		enc.Pre(t.Text)
 		enc.Pre("")

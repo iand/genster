@@ -44,7 +44,7 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 
 		if len(anomaliesByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
-			b.Heading2(render.Markdown(p.PreferredUniqueName))
+			b.Heading2(render.Markdown(p.PreferredUniqueName), p.ID)
 			rel := "unknown relation"
 			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
 				rel = p.RelationToKeyPerson.Name()
@@ -104,7 +104,7 @@ func (s *Site) WriteInferenceListPages(root string) error {
 
 		if len(items) > 0 {
 			b := s.NewMarkdownBuilder()
-			b.Heading2(render.Markdown(p.PreferredUniqueName))
+			b.Heading2(render.Markdown(p.PreferredUniqueName), p.ID)
 			if p.EditLink != nil {
 				b.Para(render.Markdown(b.EncodeModelLink("View page", p) + " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))))
 			} else {
@@ -155,7 +155,7 @@ func (s *Site) WriteTodoListPages(root string) error {
 
 		if len(todosByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
-			b.Heading2(render.Markdown(p.PreferredUniqueName))
+			b.Heading2(render.Markdown(p.PreferredUniqueName), p.ID)
 			rel := "unknown relation"
 			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
 				rel = p.RelationToKeyPerson.Name()
