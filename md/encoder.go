@@ -357,52 +357,82 @@ func (b *Encoder) EncodeCitationLink(sourceName string, citationText render.Mark
 	return ret
 }
 
-func (b *Encoder) Pre(s string) {
-	b.maintext.WriteString("<pre>\n")
-	b.maintext.WriteString(html.EscapeString(s))
-	b.maintext.WriteString("</pre>\n")
+func (e *Encoder) Pre(s string) {
+	e.maintext.WriteString("<pre>\n")
+	e.maintext.WriteString(html.EscapeString(s))
+	e.maintext.WriteString("</pre>\n")
 }
 
-func (b *Encoder) Image(alt string, link string) {
-	b.writeImage(&b.maintext, alt, link)
+func (e *Encoder) Image(alt string, link string) {
+	e.writeImage(&e.maintext, alt, link)
 }
 
 func (b *Encoder) writeImage(buf io.StringWriter, alt string, link string) {
 	buf.WriteString(fmt.Sprintf("![%s](%s)\n", alt, link))
 }
 
-func (b *Encoder) ParaWithFigure(text render.Markdown, link string, alt string, caption render.Markdown) {
-	b.maintext.WriteString("<p>")
-	b.maintext.WriteString("<figure class=\"inline-right\">")
-	b.maintext.WriteString(fmt.Sprintf("<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
-	b.maintext.WriteString("<figcaption>")
-	b.maintext.WriteString("<p>")
-	caption.ToHTML(&b.maintext)
-	b.maintext.WriteString("</p>")
-	b.maintext.WriteString("</figcaption>")
-	b.maintext.WriteString("</figure>\n")
-	text.ToHTML(&b.maintext)
-	b.maintext.WriteString("</p>\n")
+func (e *Encoder) ParaWithFigure(text render.Markdown, link string, alt string, caption render.Markdown) {
+	e.maintext.WriteString("<p>")
+	e.maintext.WriteString("<figure class=\"inline-right\">")
+	e.maintext.WriteString(fmt.Sprintf("<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+	e.maintext.WriteString("<figcaption>")
+	e.maintext.WriteString("<p>")
+	caption.ToHTML(&e.maintext)
+	e.maintext.WriteString("</p>")
+	e.maintext.WriteString("</figcaption>")
+	e.maintext.WriteString("</figure>\n")
+	text.ToHTML(&e.maintext)
+	e.maintext.WriteString("</p>\n")
 }
 
-func (b *Encoder) Figure(link string, alt string, caption render.Markdown, highlight *model.Region) {
-	b.maintext.WriteString("<figure>")
+func (e *Encoder) Figure(link string, alt string, caption render.Markdown, highlight *model.Region) {
+	e.maintext.WriteString("<figure>")
 	if highlight == nil {
-		b.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
+		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
 	} else {
-		b.maintext.WriteString("<div class=\"shade\">")
-		b.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\">", html.EscapeString(link)))
-		b.maintext.WriteString(fmt.Sprintf("<span class=\"shade\" style=\"bottom: %d%%;left: %d%%;width: %d%%;height: %d%%;\"></span>", highlight.Bottom, highlight.Left, highlight.Width, highlight.Height))
-		b.maintext.WriteString(fmt.Sprintf("<img src=\"%[1]s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
-		b.maintext.WriteString("</a></div>")
+		e.maintext.WriteString("<div class=\"shade\">")
+		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\">", html.EscapeString(link)))
+		e.maintext.WriteString(fmt.Sprintf("<span class=\"shade\" style=\"bottom: %d%%;left: %d%%;width: %d%%;height: %d%%;\"></span>", highlight.Bottom, highlight.Left, highlight.Width, highlight.Height))
+		e.maintext.WriteString(fmt.Sprintf("<img src=\"%[1]s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+		e.maintext.WriteString("</a></div>")
 	}
 
-	b.maintext.WriteString("<figcaption>")
-	b.maintext.WriteString("<p>")
-	caption.ToHTML(&b.maintext)
-	b.maintext.WriteString("</p>")
-	b.maintext.WriteString("</figcaption>")
-	b.maintext.WriteString("</figure>\n")
+	e.maintext.WriteString("<figcaption>")
+	e.maintext.WriteString("<p>")
+	caption.ToHTML(&e.maintext)
+	e.maintext.WriteString("</p>")
+	e.maintext.WriteString("</figcaption>")
+	e.maintext.WriteString("</figure>\n")
+}
+
+func (e *Encoder) Timeline(rows []render.TimelineRow) {
+	e.maintext.WriteString("<dl class=\"timeline\">\n")
+	yr := ""
+	for _, row := range rows {
+		if yr != row.Year {
+			if yr != "" {
+				e.maintext.WriteString("</dl></dd>\n")
+			}
+			e.maintext.WriteString("<dt>")
+			e.maintext.WriteString(html.EscapeString(row.Year))
+			e.maintext.WriteString("</dt>\n")
+			e.maintext.WriteString("<dd><dl class=\"tlentry\">\n")
+			yr = row.Year
+		}
+		e.maintext.WriteString("<dt>")
+		e.maintext.WriteString(html.EscapeString(row.Date))
+		e.maintext.WriteString("</dt>\n")
+		e.maintext.WriteString("<dd>")
+		for i, det := range row.Details {
+			if i > 0 {
+				e.maintext.WriteString("<br>\n")
+			}
+			det.ToHTML(&e.maintext)
+		}
+		e.maintext.WriteString("</dd>\n")
+	}
+	e.maintext.WriteString("</dl></dd>\n")
+	e.maintext.WriteString("</dl>\n")
 }
 
 func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {

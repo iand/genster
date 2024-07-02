@@ -29,8 +29,9 @@ type Place struct {
 
 	Kind place.PlaceKind // the kind of place - DEPRECATED
 
-	ResearchNotes []Text // research notes associated with this place
-	Comments      []Text // comments associated with this place
+	ResearchNotes []Text              // research notes associated with this place
+	Comments      []Text              // comments associated with this place
+	Gallery       []*CitedMediaObject // images and documents associated with the place
 }
 
 func (p *Place) IsUnknown() bool {

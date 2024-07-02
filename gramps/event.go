@@ -452,8 +452,8 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 	}
 
 	dateType := pval(dv.Type, "Regular")
-	switch dateType {
-	case "Before":
+	switch strings.ToLower(dateType) {
+	case "before":
 		dyear, ok := dt.(*gdate.Year)
 		if !ok {
 			return nil, fmt.Errorf("'before' type not supported for dates other than years")
@@ -462,7 +462,7 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 			C: dyear.C,
 			Y: dyear.Y,
 		}
-	case "After":
+	case "after":
 		dyear, ok := dt.(*gdate.Year)
 		if !ok {
 			return nil, fmt.Errorf("'after' type not supported for dates other than years")
@@ -471,7 +471,7 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 			C: dyear.C,
 			Y: dyear.Y,
 		}
-	case "About":
+	case "about":
 		dyear, ok := dt.(*gdate.Year)
 		if !ok {
 			return nil, fmt.Errorf("'about' type not supported for dates other than years")
@@ -480,8 +480,10 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 			C: dyear.C,
 			Y: dyear.Y,
 		}
-	case "Regular":
+	case "regular":
 		break
+	default:
+		return nil, fmt.Errorf("unexpected date type: %s", dateType)
 	}
 
 	return &model.Date{

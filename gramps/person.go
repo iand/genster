@@ -3,7 +3,6 @@ package gramps
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/iand/genster/logging"
@@ -256,8 +255,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		}
 	}
 
-	// collect occupation events and attempt to consolidate them later
-	occupationEvents := make([]model.GeneralEvent, 0)
+	// // collect occupation events and attempt to consolidate them later
+	// occupationEvents := make([]model.GeneralEvent, 0)
 
 	for _, grer := range gp.Eventref {
 		role := pval(grer.Role, "unknown")
@@ -343,12 +342,59 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "economic status":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = "Economic status recorded as " + desc
+				ev = &model.EconomicStatusEvent{
+					GeneralEvent:           gev,
+					GeneralIndividualEvent: giv,
+				}
+			}
+
 		case "occupation":
 			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Detail = desc
+				name, status, group := parseOccupation(desc)
+				if strings.ToLower(name) == "pauper" {
+					p.Anomalies = append(p.Anomalies, &model.Anomaly{
+						Category: model.AnomalyCategoryEvent,
+						Text:     "Occupation event looks like an economic status: " + name,
+						Context:  "Detail",
+					})
+				}
+				oc := &model.Occupation{
+					Date:        gev.GetDate(),
+					StartDate:   gev.GetDate(),
+					EndDate:     gev.GetDate(),
+					Place:       gev.Place,
+					Name:        name,
+					Status:      status,
+					Group:       group,
+					Detail:      desc,
+					Citations:   gev.Citations,
+					Occurrences: 1,
+				}
+				p.Occupations = append(p.Occupations, oc)
+				if oc.Name != "" {
+					str := ""
+					if oc.Status != model.OccupationStatusUnknown {
+						str = oc.Status.String() + " "
+					}
+					str += oc.Name
+
+					gev.Title = "Occupation recorded as " + str
+					ev = &model.OccupationEvent{
+						GeneralEvent:           gev,
+						GeneralIndividualEvent: giv,
+					}
+				}
 			}
-			logger.Debug("found occupation", "what", gev.Detail, "when", gev.When(), "where", gev.Where())
-			occupationEvents = append(occupationEvents, gev)
+
+			// logger.Debug("found occupation", "what", gev.Detail, "when", gev.When(), "where", gev.Where())
+			// occupationEvents = append(occupationEvents, gev)
+			// ev = &model.OccupationEvent{
+			// 	GeneralEvent:           gev,
+			// 	GeneralIndividualEvent: giv,
+			// }
 		case "narrative":
 			ev = &model.IndividualNarrativeEvent{
 				GeneralEvent:           gev,
@@ -470,28 +516,32 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	}
 
 	// Try and consolidate occupation events
-	if len(occupationEvents) > 0 {
-		sort.Slice(occupationEvents, func(i, j int) bool {
-			return occupationEvents[i].GetDate().SortsBefore(occupationEvents[j].GetDate())
-		})
+	if len(p.Occupations) > 0 {
+		// sort.Slice(occupationEvents, func(i, j int) bool {
+		// 	return occupationEvents[i].GetDate().SortsBefore(occupationEvents[j].GetDate())
+		// })
 		groupCounts := map[model.OccupationGroup]int{}
-		for _, gev := range occupationEvents {
-			title, status, group := parseOccupation(gev.Detail)
-			groupCounts[group]++
-			oc := &model.Occupation{
-				Date:        gev.GetDate(),
-				StartDate:   gev.GetDate(),
-				EndDate:     gev.GetDate(),
-				Place:       gev.Place,
-				Name:        title,
-				Status:      status,
-				Group:       group,
-				Detail:      gev.Detail,
-				Citations:   gev.Citations,
-				Occurrences: 1,
-			}
-			p.Occupations = append(p.Occupations, oc)
+		for _, oc := range p.Occupations {
+			groupCounts[oc.Group]++
 		}
+
+		// for _, gev := range occupationEvents {
+		// 	title, status, group := parseOccupation(gev.Detail)
+		// 	groupCounts[group]++
+		// 	oc := &model.Occupation{
+		// 		Date:        gev.GetDate(),
+		// 		StartDate:   gev.GetDate(),
+		// 		EndDate:     gev.GetDate(),
+		// 		Place:       gev.Place,
+		// 		Name:        title,
+		// 		Status:      status,
+		// 		Group:       group,
+		// 		Detail:      gev.Detail,
+		// 		Citations:   gev.Citations,
+		// 		Occurrences: 1,
+		// 	}
+		// 	p.Occupations = append(p.Occupations, oc)
+		// }
 
 		bestGroup := model.OccupationGroupUnknown
 		bestGroupCount := 0
@@ -560,6 +610,35 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Associations = append(p.Associations, assoc)
 		default:
 			logger.Warn("unhandled person reference relation", "handle", gp.Handle, "rel", pr.Rel)
+		}
+	}
+
+	// add media objects
+	for _, gor := range gp.Objref {
+		if pval(gor.Priv, false) {
+			logger.Debug("skipping media object marked as private", "handle", gor.Hlink)
+			continue
+		}
+		gob, ok := l.ObjectsByHandle[gor.Hlink]
+		if ok {
+			mo := m.FindMediaObject(gob.File.Src)
+
+			cmo := &model.CitedMediaObject{
+				Object: mo,
+			}
+			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
+				cmo.Highlight = &model.Region{
+					Left:   *gor.Region.Corner1x,
+					Bottom: 100 - *gor.Region.Corner2y,
+					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
+					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
+				}
+			}
+
+			p.Gallery = append(p.Gallery, cmo)
+			if p.FeatureImage == nil {
+				p.FeatureImage = cmo
+			}
 		}
 	}
 

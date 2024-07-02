@@ -208,6 +208,9 @@ const (
 func (n *Narrative) Render(pov *model.POV, b render.MarkupBuilder) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
+			if n.Statements[i].Start().SameDate(n.Statements[j].Start()) {
+				return n.Statements[i].Priority() > n.Statements[j].Priority()
+			}
 			return n.Statements[i].Start().SortsBefore(n.Statements[j].Start())
 		}
 		return n.Statements[i].NarrativeSequence() < n.Statements[j].NarrativeSequence()
@@ -253,6 +256,7 @@ type Statement interface {
 	Start() *model.Date
 	End() *model.Date
 	NarrativeSequence() int
+	Priority() int // priority within a narrative against another statement with same date, higher will be rendered first
 }
 
 type IntroStatement struct {
@@ -404,6 +408,10 @@ func (s *IntroStatement) End() *model.Date {
 
 func (s *IntroStatement) NarrativeSequence() int {
 	return NarrativeSequenceIntro
+}
+
+func (s *IntroStatement) Priority() int {
+	return 10
 }
 
 type FamilyStatement struct {
@@ -560,11 +568,21 @@ func (s *FamilyStatement) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
 }
 
+func (s *FamilyStatement) Priority() int {
+	return 5
+}
+
 func (s *FamilyStatement) childCardinal(clist []*model.Person) string {
 	// TODO: note how many children survived if some died
 	allSameGender := true
-	if s.Family.Children[0].Gender != model.GenderUnknown {
+	if s.Family.Children[0].Redacted {
+		allSameGender = false
+	} else if s.Family.Children[0].Gender != model.GenderUnknown {
 		for i := 1; i < len(s.Family.Children); i++ {
+			if s.Family.Children[i].Redacted {
+				allSameGender = false
+				break
+			}
 			if s.Family.Children[i].Gender != s.Family.Children[0].Gender {
 				allSameGender = false
 				break
@@ -595,10 +613,22 @@ func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuil
 		return d1.SortsBefore(d2)
 	})
 
+	redactedCount := 0
 	childList := make([]render.Markdown, 0, len(clist))
 	for _, c := range clist {
+		if c.Redacted {
+			redactedCount++
+			continue
+		}
 		childList = append(childList, render.Markdown(PersonSummary(c, enc, c.PreferredGivenName, true, false, true)))
 	}
+	if len(childList) == 0 {
+		return childList
+	}
+	if redactedCount > 0 {
+		childList = append(childList, render.Markdown(text.CardinalWithUnit(redactedCount, "other child", "other children")+" living or recently died"))
+	}
+
 	return childList
 }
 
@@ -791,6 +821,10 @@ func (s *FamilyEndStatement) endedWithDeathOf(p *model.Person) bool {
 	return p.SameAs(s.Family.EndDeathPerson)
 }
 
+func (s *FamilyEndStatement) Priority() int {
+	return 4
+}
+
 type DeathStatement struct {
 	Principal *model.Person
 }
@@ -870,7 +904,8 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 		pl := bev.GetPlace()
 		evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
-	detail += enc.EncodeWithCitations(evDetail, bev.GetCitations())
+
+	detail += s.Principal.PreferredFamiliarName + " " + evDetail
 
 	burialRunOnSentence := true
 
@@ -884,7 +919,14 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 	if additionalDetailFromDeathEvent != "" {
 		burialRunOnSentence = false
 		detail = text.FinishSentence(detail)
-		detail = text.JoinSentenceParts(detail, additionalDetailFromDeathEvent)
+		detail = text.JoinSentences(detail, additionalDetailFromDeathEvent)
+	}
+
+	detail = enc.EncodeWithCitations(detail, bev.GetCitations())
+
+	if !burialRunOnSentence {
+		enc.Para(render.Markdown(detail))
+		detail = ""
 	}
 
 	funerals := []model.IndividualTimelineEvent{}
@@ -939,17 +981,19 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 		}
 
-		if burialRunOnSentence {
-			detail += " and was "
+		if detail == "" {
+			detail = text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
 		} else {
-			detail = text.FinishSentence(detail) + " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
+			if burialRunOnSentence {
+				detail += " and was "
+			} else {
+				detail = text.FinishSentence(detail) + " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
+			}
 		}
 
-		detail += enc.EncodeWithCitations(evDetail, funeralEvent.GetCitations())
+		detail = text.JoinSentenceParts(detail, enc.EncodeWithCitations(evDetail, funeralEvent.GetCitations()))
 
 	}
-
-	detail = text.FinishSentence(detail)
 
 	// if death is not inferred then perhaps make a statement about surviving partner
 	if !bev.IsInferred() {
@@ -976,7 +1020,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 		}
 	}
-	enc.Para(render.Markdown(s.Principal.PreferredFamiliarName + " " + detail))
+	enc.Para(render.Markdown(detail))
 }
 
 func (s *DeathStatement) Start() *model.Date {
@@ -989,6 +1033,10 @@ func (s *DeathStatement) End() *model.Date {
 
 func (s *DeathStatement) NarrativeSequence() int {
 	return NarrativeSequenceDeath
+}
+
+func (s *DeathStatement) Priority() int {
+	return 5
 }
 
 type CensusStatement struct {
@@ -1149,6 +1197,10 @@ func (s *CensusStatement) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
 }
 
+func (s *CensusStatement) Priority() int {
+	return 4
+}
+
 // A NarrativeStatement is used for any general event that includes a narrative.
 // If the Event is an IndividualNarrativeEvent then the narrative field is used in
 // place of any generated text. Otherwise an introductory sentence is prepended.
@@ -1191,6 +1243,10 @@ func (s *NarrativeStatement) End() *model.Date {
 
 func (s *NarrativeStatement) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
+}
+
+func (s *NarrativeStatement) Priority() int {
+	return 0
 }
 
 // UTILITY

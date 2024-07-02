@@ -68,6 +68,8 @@ var (
 	With    = slog.With
 )
 
+type Logger = slog.Logger
+
 func Dump(v any) {
 	switch vt := v.(type) {
 	case string:

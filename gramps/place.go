@@ -186,6 +186,32 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		}
 	}
 
+	// add media objects
+	for _, gor := range gp.Objref {
+		if pval(gor.Priv, false) {
+			logger.Debug("skipping media object marked as private", "handle", gor.Hlink)
+			continue
+		}
+		gob, ok := l.ObjectsByHandle[gor.Hlink]
+		if ok {
+			mo := m.FindMediaObject(gob.File.Src)
+
+			cmo := &model.CitedMediaObject{
+				Object: mo,
+			}
+			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
+				cmo.Highlight = &model.Region{
+					Left:   *gor.Region.Corner1x,
+					Bottom: 100 - *gor.Region.Corner2y,
+					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
+					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
+				}
+			}
+
+			pl.Gallery = append(pl.Gallery, cmo)
+		}
+	}
+
 	l.populatedPlaces[gp.Handle] = true
 
 	return nil

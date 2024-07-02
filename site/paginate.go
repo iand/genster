@@ -11,13 +11,16 @@ import (
 )
 
 type Paginator struct {
-	HugoStyle bool
+	HugoStyle   bool
+	MaxPageSize int
 
 	Entries []PaginatorEntry
 }
 
 func NewPaginator() *Paginator {
-	return &Paginator{}
+	return &Paginator{
+		MaxPageSize: 4096,
+	}
 }
 
 type PaginatorEntry struct {
@@ -70,7 +73,6 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 
 	var pages []*Page
 
-	maxSize := 4096
 	pg := &Page{
 		Name: fmt.Sprintf("%02d", 1),
 	}
@@ -86,7 +88,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 				Group: e.Group,
 			}
 		}
-		if len(pg.Content)+len(e.Content) > maxSize {
+		if p.MaxPageSize > 0 && len(pg.Content)+len(e.Content) > p.MaxPageSize {
 			if len(pg.Content) == 0 {
 				slog.Warn("skipping item since it is larger than maximum allowed for a single page")
 				continue

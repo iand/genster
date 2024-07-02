@@ -305,6 +305,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 	}
 
 	for _, f := range t.Families {
+		t.AddSpouses(f)
 		t.InferFamilyStartEndDates(f)
 	}
 
@@ -501,6 +502,16 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 		p.BeingTense = "was"
 	}
 
+	return nil
+}
+
+func (t *Tree) AddSpouses(f *model.Family) error {
+	if f.Mother.IsUnknown() || f.Father.IsUnknown() {
+		return nil
+	}
+
+	f.Mother.Spouses = append(f.Mother.Spouses, f.Father)
+	f.Father.Spouses = append(f.Father.Spouses, f.Mother)
 	return nil
 }
 

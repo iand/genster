@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
-	"github.com/gosimple/slug"
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
@@ -88,9 +86,6 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 
 	for _, mo := range s.PublishSet.MediaObjects {
 		// TODO: redaction
-		if len(mo.Citations) == 0 {
-			continue
-		}
 
 		// var ext string
 		// switch mo.MediaType {
@@ -217,14 +212,15 @@ func (s *Site) WriteTreeOverview(root string) error {
 		peopleDesc = text.FormatSentence(fmt.Sprintf("There are %d people in this tree", numberOfPeople))
 	}
 
-	ancestorSurnames := FlattenMapByValueDesc(s.PublishSet.AncestorSurnameDistribution())
+	// ancestorSurnames := FlattenMapByValueDesc(s.PublishSet.AncestorSurnameDistribution())
+	ancestorSurnames := s.PublishSet.AncestorSurnameGroupList()
 	if len(ancestorSurnames) > 0 {
-		list := make([]string, 12)
+		list := make([]string, 16)
 		for i := range ancestorSurnames {
-			if i > 11 {
+			if i > len(list)-1 {
 				break
 			}
-			list[i] = string(doc.EncodeLink(ancestorSurnames[i].K, path.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(ancestorSurnames[i].K))))
+			list[i] = string(doc.EncodeLink(ancestorSurnames[i], s.LinkForSurnameListPage(ancestorSurnames[i])))
 		}
 		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
 		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
@@ -268,6 +264,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		model.SortPeopleByName(puzzlePeople)
 		doc.EmptyPara()
 		doc.Heading2("Currently puzzling over", "")
+		doc.Para("These people are the focus of current research or are brick walls that we can't currently move past.")
 		items := make([]render.Markdown, len(puzzlePeople))
 		for i, p := range puzzlePeople {
 			desc := p.Olb
@@ -311,13 +308,80 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Para(render.Markdown(text.FormatSentence(detail)))
 	}
 
+	doc.Heading2("Statistics and Records", "")
+
+	// Oldest people
+	earliestPeople := s.PublishSet.EarliestBorn(3)
+	if len(earliestPeople) > 0 {
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("The earliest known births are:", EncodePeopleListInline(earliestPeople, func(p *model.Person) string {
+			dt := p.BestBirthDate()
+			yr, ok := dt.Year()
+			if !ok {
+				return fmt.Sprintf("%s", p.PreferredFamiliarFullName)
+			}
+			return fmt.Sprintf("%s (b. %d)", p.PreferredFamiliarFullName, yr)
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+
+	}
+
 	// Oldest people
 	oldestPeople := s.PublishSet.OldestPeople(3)
 	if len(oldestPeople) > 0 {
 		doc.EmptyPara()
-		detail := text.JoinSentenceParts("Oldest people:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("The people who lived the longest:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
 			age, _ := p.AgeInYearsAtDeath()
 			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+
+	}
+
+	// Greatest number of children people
+	greatestChildrenPeople := s.PublishSet.GreatestChildren(6)
+	if len(greatestChildrenPeople) > 0 {
+		greatestChildrenPeopleDedupe := make([]*model.Person, 0, len(greatestChildrenPeople))
+		for _, p := range greatestChildrenPeople {
+			skipAddPerson := false
+			for k, other := range greatestChildrenPeopleDedupe {
+				if p.Gender == other.Gender {
+					continue
+				}
+				if len(p.Children) != len(other.Children) {
+					continue
+				}
+				// check if they were married
+				married := false
+				for _, sp := range p.Spouses {
+					if sp.SameAs(other) {
+						married = true
+						break
+					}
+				}
+
+				if married {
+					skipAddPerson = true
+					// keep the female
+					if p.Gender == model.GenderFemale {
+						greatestChildrenPeopleDedupe[k] = p
+					}
+					break
+				}
+			}
+
+			if !skipAddPerson {
+				greatestChildrenPeopleDedupe = append(greatestChildrenPeopleDedupe, p)
+			}
+		}
+
+		if len(greatestChildrenPeopleDedupe) > 3 {
+			greatestChildrenPeopleDedupe = greatestChildrenPeopleDedupe[:3]
+		}
+
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("The people with the largest number of children:", EncodePeopleListInline(greatestChildrenPeopleDedupe, func(p *model.Person) string {
+			return fmt.Sprintf("%s (%d)", p.PreferredFamiliarFullName, len(p.Children))
 		}, doc))
 		doc.Para(render.Markdown(text.FormatSentence(detail)))
 
@@ -597,6 +661,7 @@ func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
 }
 
 type PublishSet struct {
+	KeyPerson    *model.Person
 	People       map[string]*model.Person
 	Citations    map[string]*model.GeneralCitation
 	Sources      map[string]*model.Source
@@ -613,6 +678,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 	}
 
 	ps := &PublishSet{
+		KeyPerson:    t.KeyPerson,
 		People:       make(map[string]*model.Person),
 		Citations:    make(map[string]*model.GeneralCitation),
 		Sources:      make(map[string]*model.Source),
@@ -683,6 +749,9 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 				ps.Citations[c.ID] = c
 			}
 		}
+		for _, cmo := range p.Gallery {
+			ps.MediaObjects[cmo.Object.ID] = cmo.Object
+		}
 
 		includePlacesInTexts(p.ResearchNotes...)
 		includePlacesInTexts(p.Comments...)
@@ -726,6 +795,9 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 	}
 
 	for _, pl := range ps.Places {
+		for _, cmo := range pl.Gallery {
+			ps.MediaObjects[cmo.Object.ID] = cmo.Object
+		}
 		includePlacesInTexts(pl.ResearchNotes...)
 		includePlacesInTexts(pl.Comments...)
 
@@ -818,6 +890,26 @@ func (ps *PublishSet) AncestorSurnameDistribution() map[string]int {
 	return dist
 }
 
+// AncestorSurnameList returns a list of surname groups in generation
+// order, starting with the father of the key person, then the mother,
+// then the father's father etc..
+func (ps *PublishSet) AncestorSurnameGroupList() []string {
+	ppl := ps.Ancestors(ps.KeyPerson, 6)
+	seen := make(map[string]struct{})
+	names := make([]string, 0)
+
+	for i := range ppl {
+		if ppl[i] == nil || ppl[i].Redacted {
+			continue
+		}
+		if _, found := seen[ppl[i].FamilyNameGrouping]; !found {
+			seen[ppl[i].FamilyNameGrouping] = struct{}{}
+			names = append(names, ppl[i].FamilyNameGrouping)
+		}
+	}
+	return names
+}
+
 // TreeSurnameDistribution returns a map of surnames and the number
 // of people in the tree with that surname
 // It excludes redacted people.
@@ -838,7 +930,7 @@ func (ps *PublishSet) TreeSurnameDistribution() map[string]int {
 // OldestPeople returns a list of the oldest people in the tree, sorted by descending age
 // It excludes redacted people.
 func (ps *PublishSet) OldestPeople(limit int) []*model.Person {
-	h := new(PersonWithAgeHeap)
+	h := new(PersonWithGreatestNumberHeap)
 	heap.Init(h)
 
 	for _, p := range ps.People {
@@ -849,7 +941,7 @@ func (ps *PublishSet) OldestPeople(limit int) []*model.Person {
 		if !ok {
 			continue
 		}
-		heap.Push(h, &PersonWithAge{Person: p, Age: age})
+		heap.Push(h, &PersonWithNumber{Person: p, Number: age})
 		if h.Len() > limit {
 			heap.Pop(h)
 		}
@@ -857,7 +949,65 @@ func (ps *PublishSet) OldestPeople(limit int) []*model.Person {
 
 	list := make([]*model.Person, h.Len())
 	for i := len(list) - 1; i >= 0; i-- {
-		pa := heap.Pop(h).(*PersonWithAge)
+		pa := heap.Pop(h).(*PersonWithNumber)
+		list[i] = pa.Person
+	}
+	return list
+}
+
+// GreatestChildren returns a list of the people with the greatest number of children in
+// the tree
+// It excludes redacted people.
+func (ps *PublishSet) GreatestChildren(limit int) []*model.Person {
+	h := new(PersonWithGreatestNumberHeap)
+	heap.Init(h)
+
+	for _, p := range ps.People {
+		if p.Redacted {
+			continue
+		}
+		if len(p.Children) == 0 {
+			continue
+		}
+		heap.Push(h, &PersonWithNumber{Person: p, Number: len(p.Children)})
+		if h.Len() > limit {
+			heap.Pop(h)
+		}
+	}
+
+	list := make([]*model.Person, h.Len())
+	for i := len(list) - 1; i >= 0; i-- {
+		pa := heap.Pop(h).(*PersonWithNumber)
+		list[i] = pa.Person
+	}
+	return list
+}
+
+// EarliestBorn returns a list of the earliest born people in the tree, sorted by descending date
+// It excludes redacted people.
+func (ps *PublishSet) EarliestBorn(limit int) []*model.Person {
+	h := new(PersonWithLeastNumberHeap)
+	heap.Init(h)
+
+	for _, p := range ps.People {
+		if p.Redacted {
+			continue
+		}
+
+		dt := p.BestBirthDate()
+		yr, ok := dt.Year()
+		if !ok {
+			continue
+		}
+		heap.Push(h, &PersonWithNumber{Person: p, Number: yr})
+		if h.Len() > limit {
+			heap.Pop(h)
+		}
+	}
+
+	list := make([]*model.Person, h.Len())
+	for i := len(list) - 1; i >= 0; i-- {
+		pa := heap.Pop(h).(*PersonWithNumber)
 		list[i] = pa.Person
 	}
 	return list
@@ -929,22 +1079,40 @@ func (ps *PublishSet) Ancestors(p *model.Person, generations int) []*model.Perso
 	return a
 }
 
-type PersonWithAge struct {
+type PersonWithNumber struct {
 	Person *model.Person
-	Age    int
+	Number int // age, year etc...
 }
 
-type PersonWithAgeHeap []*PersonWithAge
+type PersonWithGreatestNumberHeap []*PersonWithNumber
 
-func (h PersonWithAgeHeap) Len() int           { return len(h) }
-func (h PersonWithAgeHeap) Less(i, j int) bool { return h[i].Age < h[j].Age }
-func (h PersonWithAgeHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h PersonWithGreatestNumberHeap) Len() int           { return len(h) }
+func (h PersonWithGreatestNumberHeap) Less(i, j int) bool { return h[i].Number < h[j].Number }
+func (h PersonWithGreatestNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
-func (h *PersonWithAgeHeap) Push(x interface{}) {
-	*h = append(*h, x.(*PersonWithAge))
+func (h *PersonWithGreatestNumberHeap) Push(x interface{}) {
+	*h = append(*h, x.(*PersonWithNumber))
 }
 
-func (h *PersonWithAgeHeap) Pop() interface{} {
+func (h *PersonWithGreatestNumberHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
+type PersonWithLeastNumberHeap []*PersonWithNumber
+
+func (h PersonWithLeastNumberHeap) Len() int           { return len(h) }
+func (h PersonWithLeastNumberHeap) Less(i, j int) bool { return h[j].Number < h[i].Number }
+func (h PersonWithLeastNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *PersonWithLeastNumberHeap) Push(x interface{}) {
+	*h = append(*h, x.(*PersonWithNumber))
+}
+
+func (h *PersonWithLeastNumberHeap) Pop() interface{} {
 	old := *h
 	n := len(old)
 	x := old[n-1]

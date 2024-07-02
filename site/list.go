@@ -342,6 +342,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 		pn := NewPaginator()
 		pn.HugoStyle = s.GenerateHugo
+		pn.MaxPageSize = -1
 
 		for _, p := range people {
 			items := make([][2]render.Markdown, 0)
@@ -359,7 +360,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			}
 
 			if p.Olb != "" {
-				summary = text.FormatSentence(p.Olb) + " " + summary
+				summary = b.EncodeItalic(text.FormatSentence(p.Olb)) + "<br>" + summary
 			}
 
 			items = append(items, [2]render.Markdown{
@@ -401,7 +402,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	alist := make([]render.Markdown, 0, len(surnames))
 	for _, surname := range surnames {
-		alist = append(alist, render.Markdown(doc.EncodeLink(surname, "./"+slug.Make(surname))))
+		alist = append(alist, render.Markdown(doc.EncodeLink(surname, s.LinkForSurnameListPage(surname))))
 	}
 	doc.UnorderedList(alist)
 

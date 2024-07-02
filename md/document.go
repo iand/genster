@@ -21,6 +21,7 @@ const (
 	MarkdownTagTags      = "tags"
 	MarkdownTagCategory  = "category"
 	MarkdownTagID        = "id"
+	MarkdownTagImage     = "image"
 	MarkdownTagBasePath  = "basepath"
 	MarkdownTagNextPage  = "next"
 	MarkdownTagPrevPage  = "prev"
@@ -147,6 +148,10 @@ func (b *Document) Category(s string) {
 
 func (b *Document) ID(s string) {
 	b.SetFrontMatterField(MarkdownTagID, s)
+}
+
+func (b *Document) Image(s string) {
+	b.SetFrontMatterField(MarkdownTagImage, s)
 }
 
 func (b *Document) BasePath(s string) {

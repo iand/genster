@@ -52,6 +52,13 @@ type MarkupBuilder interface {
 	OrderedList([]Markdown)
 	DefinitionList([][2]Markdown)
 	BlockQuote(Markdown)
+	Timeline([]TimelineRow)
+}
+
+type TimelineRow struct {
+	Year    string
+	Date    string
+	Details []Markdown
 }
 
 type InlineMarkdownEncoder interface {

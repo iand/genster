@@ -70,16 +70,17 @@ type Person struct {
 	Slug               string // a short url-friendly identifier that can be used to refer to this person
 	Links              []Link // list of links to more information relevant to this person
 
-	Redacted           bool          // true if the person's details should be redacted
-	RedactionKeepsName bool          // true if this person's name should be kept during redaction
-	Inferences         []Inference   // list of inferences made
-	Anomalies          []*Anomaly    // list of anomalies detected
-	ToDos              []*ToDo       // list of todos detected
-	MiscFacts          []Fact        // miscellaneous facts
-	Associations       []Association // general associations with other people such as godparent or twin
-	FeatureImage       *FeatureImage // an image that can be used to represent the person
-	ResearchNotes      []Text        // research notes associated with this person
-	Comments           []Text        // comments associated with this person
+	Redacted           bool                // true if the person's details should be redacted
+	RedactionKeepsName bool                // true if this person's name should be kept during redaction
+	Inferences         []Inference         // list of inferences made
+	Anomalies          []*Anomaly          // list of anomalies detected
+	ToDos              []*ToDo             // list of todos detected
+	MiscFacts          []Fact              // miscellaneous facts
+	Associations       []Association       // general associations with other people such as godparent or twin
+	FeatureImage       *CitedMediaObject   // an image that can be used to represent the person
+	ResearchNotes      []Text              // research notes associated with this person
+	Comments           []Text              // comments associated with this person
+	Gallery            []*CitedMediaObject // images and documents associated with the person
 }
 
 func (p *Person) IsUnknown() bool {

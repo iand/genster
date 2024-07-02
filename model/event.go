@@ -20,7 +20,6 @@ type TimelineEvent interface {
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
 	GetParticipants() []*EventParticipant
 	GetParticipantsByRole(EventRole) []*EventParticipant
-	SortsBefore(other TimelineEvent) bool // returns true if this event sorts before the other event
 }
 
 // IndividualTimelineEvent is a timeline event involving one individual.
@@ -41,6 +40,30 @@ type UnionTimelineEvent interface {
 type MultipartyTimelineEvent interface {
 	TimelineEvent
 	GetPrincipals() []*Person
+}
+
+// EventSortsBefore reports whether ev sorts before other
+func EventSortsBefore(ev, other TimelineEvent) bool {
+	if ev == nil || ev.GetDate() == nil {
+		return false
+	}
+	if other == nil || other.GetDate() == nil {
+		return true
+	}
+
+	if ev.GetDate().SortsBefore(other.GetDate()) {
+		return true
+	}
+
+	if ev.GetDate().SameDate(other.GetDate()) {
+		if sb, ok := ev.(interface {
+			SortsBefore(other TimelineEvent) bool
+		}); ok {
+			return sb.SortsBefore(other)
+		}
+	}
+
+	return false
 }
 
 type EventRole string
@@ -67,7 +90,7 @@ func (e *EventParticipant) IsUnknown() bool {
 
 func SortTimelineEvents(evs []TimelineEvent) {
 	sort.Slice(evs, func(i, j int) bool {
-		return evs[i].SortsBefore(evs[j])
+		return EventSortsBefore(evs[i], evs[j])
 	})
 }
 
@@ -147,17 +170,11 @@ func (e *GeneralEvent) abbrev(prefix string) string {
 	return prefix + ". " + e.Date.String()
 }
 
-func (e *GeneralEvent) What() string { return e.Title }
-
-func (e *GeneralEvent) SortsBefore(other TimelineEvent) bool {
-	if e == nil || e.Date == nil {
-		return false
+func (e *GeneralEvent) What() string {
+	if e.Title != "" {
+		return e.Title
 	}
-	if other == nil || other.GetDate() == nil {
-		return true
-	}
-
-	return e.Date.SortsBefore(other.GetDate())
+	return e.Type()
 }
 
 // GeneralPartyEvent is a general event involving one individual.
@@ -325,9 +342,10 @@ type BirthEvent struct {
 	GeneralIndividualEvent
 }
 
-func (e *BirthEvent) Type() string             { return "birth" }
-func (e *BirthEvent) ShortDescription() string { return e.abbrev("b") }
-func (e *BirthEvent) What() string             { return "born" }
+func (e *BirthEvent) Type() string                         { return "birth" }
+func (e *BirthEvent) ShortDescription() string             { return e.abbrev("b") }
+func (e *BirthEvent) What() string                         { return "born" }
+func (e *BirthEvent) SortsBefore(other TimelineEvent) bool { return true }
 
 var (
 	_ TimelineEvent           = (*BirthEvent)(nil)
@@ -343,6 +361,14 @@ type BaptismEvent struct {
 func (e *BaptismEvent) Type() string             { return "baptism" }
 func (e *BaptismEvent) ShortDescription() string { return e.abbrev("bap") }
 func (e *BaptismEvent) What() string             { return "baptised" }
+func (e *BaptismEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 var (
 	_ TimelineEvent           = (*BaptismEvent)(nil)
@@ -358,6 +384,14 @@ type DeathEvent struct {
 func (e *DeathEvent) Type() string             { return "death" }
 func (e *DeathEvent) ShortDescription() string { return e.abbrev("d") }
 func (e *DeathEvent) What() string             { return "died" }
+func (e *DeathEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 var (
 	_ TimelineEvent           = (*DeathEvent)(nil)
@@ -373,6 +407,14 @@ type BurialEvent struct {
 func (e *BurialEvent) Type() string             { return "burial" }
 func (e *BurialEvent) ShortDescription() string { return e.abbrev("bur") }
 func (e *BurialEvent) What() string             { return "buried" }
+func (e *BurialEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent, *DeathEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 var (
 	_ TimelineEvent           = (*BurialEvent)(nil)
@@ -388,6 +430,14 @@ type CremationEvent struct {
 func (e *CremationEvent) Type() string             { return "cremation" }
 func (e *CremationEvent) ShortDescription() string { return e.abbrev("crem") }
 func (e *CremationEvent) What() string             { return "cremated" }
+func (e *CremationEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent, *DeathEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 var (
 	_ TimelineEvent           = (*CremationEvent)(nil)
@@ -464,6 +514,20 @@ func (e *ArrivalEvent) What() string             { return "arrived" }
 var (
 	_ TimelineEvent           = (*ArrivalEvent)(nil)
 	_ IndividualTimelineEvent = (*ArrivalEvent)(nil)
+)
+
+// OccupationEvent represents the the recording of a person's occupation
+type OccupationEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *OccupationEvent) Type() string             { return "occupation" }
+func (e *OccupationEvent) ShortDescription() string { return e.abbrev("occ") }
+
+var (
+	_ TimelineEvent           = (*OccupationEvent)(nil)
+	_ IndividualTimelineEvent = (*OccupationEvent)(nil)
 )
 
 // ApprenticeEvent represents the commencement of an apprenticeship of a person
@@ -593,6 +657,15 @@ func (e *CensusEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
 	panic("GeneralPartyEvent.GetParticipantsByRole not implemented")
 }
 
+func (e *CensusEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent, *EconomicStatusEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 var _ TimelineEvent = (*CensusEvent)(nil)
 
 // ProbateEvent represents the granting of probate for a person who has died
@@ -701,6 +774,20 @@ func (e *InstitutionEvent) Type() string             { return "institution disch
 func (e *InstitutionEvent) ShortDescription() string { return e.abbrev("adm") }
 func (e *InstitutionEvent) What() string             { return "absent" }
 
+// EconomicStatusEvent represents the economic status of a person
+type EconomicStatusEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*EconomicStatusEvent)(nil)
+	_ IndividualTimelineEvent = (*EconomicStatusEvent)(nil)
+)
+
+func (e *EconomicStatusEvent) Type() string             { return "economic status" }
+func (e *EconomicStatusEvent) ShortDescription() string { return e.abbrev("anul") }
+
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {
 	GeneralEvent
@@ -716,6 +803,15 @@ func (e *MarriageEvent) Type() string             { return "marriage" }
 func (e *MarriageEvent) ShortDescription() string { return e.abbrev("m") }
 func (e *MarriageEvent) What() string             { return "married" }
 
+func (e *MarriageEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 // MarriageLicenseEvent represents the event where two people obtain a license to marry
 type MarriageLicenseEvent struct {
 	GeneralEvent
@@ -730,6 +826,14 @@ var (
 func (e *MarriageLicenseEvent) Type() string             { return "marriage license" }
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
 func (e *MarriageLicenseEvent) What() string             { return "obtained licensed to marry" }
+func (e *MarriageLicenseEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
+		return true
+	default:
+		return false
+	}
+}
 
 // MarriageBannsEvent represents the event that public notice is given that two people intend to marry
 type MarriageBannsEvent struct {
@@ -745,6 +849,14 @@ var (
 func (e *MarriageBannsEvent) Type() string             { return "marriage banns" }
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
 func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
+func (e *MarriageBannsEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
+		return true
+	default:
+		return false
+	}
+}
 
 // DivorceEvent represents the ending of a marriage by divorce in a timeline
 type DivorceEvent struct {
@@ -760,6 +872,14 @@ var (
 func (e *DivorceEvent) Type() string             { return "divorce" }
 func (e *DivorceEvent) ShortDescription() string { return e.abbrev("div") }
 func (e *DivorceEvent) What() string             { return "divorced" }
+func (e *DivorceEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent:
+		return true
+	default:
+		return false
+	}
+}
 
 // AnnulmentEvent represents the ending of a marriage by anulment in a timeline
 type AnnulmentEvent struct {
@@ -775,6 +895,14 @@ var (
 func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
 func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
+func (e *AnnulmentEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent:
+		return true
+	default:
+		return false
+	}
+}
 
 type EventMatcher func(TimelineEvent) bool
 

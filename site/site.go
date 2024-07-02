@@ -3,10 +3,12 @@ package site
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
 
+	"github.com/gosimple/slug"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
@@ -403,6 +405,10 @@ func (s *Site) LinkForFormat(v any, format string) string {
 	}
 
 	return ""
+}
+
+func (s *Site) LinkForSurnameListPage(surname string) string {
+	return filepath.Join(s.BaseURL, s.ListSurnamesDir, slug.Make(surname))
 }
 
 func (s *Site) RedirectPath(id string) string {

@@ -23,6 +23,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		return doc, nil
 	}
 
+	if p.FeatureImage != nil {
+		doc.Image(s.LinkFor(p.FeatureImage.Object))
+	}
+
 	switch p.Gender {
 	case model.GenderMale:
 		doc.SetFrontMatterField("gender", "male")

@@ -296,7 +296,7 @@ func JoinListOr(strs []string) string {
 
 func JoinSentenceParts(parts ...string) string {
 	var ret string
-	for _, s := range parts {
+	for i, s := range parts {
 		s = strings.TrimSpace(s)
 		if len(s) == 0 {
 			continue
@@ -304,7 +304,11 @@ func JoinSentenceParts(parts ...string) string {
 		if ret != "" && s != ":" {
 			ret += " "
 		}
-		ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
+		if i == 0 {
+			ret += s
+		} else {
+			ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
+		}
 	}
 	return ret
 }

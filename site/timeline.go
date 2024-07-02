@@ -2,7 +2,10 @@ package site
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
@@ -16,21 +19,92 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 	}
 	model.SortTimelineEvents(t.Events)
 
-	fmtr := &TimelineEntryFormatter{
-		pov: pov,
-		enc: enc,
+	logger := logging.Default()
+	if !pov.Person.IsUnknown() {
+		logger = logger.With("id", pov.Person.ID)
 	}
 
-	events := make([]render.Markdown, 0, len(t.Events))
+	fmtr := &TimelineEntryFormatter{
+		pov:    pov,
+		enc:    enc,
+		logger: logger,
+	}
+
+	monthNames := []string{
+		1:  "Jan",
+		2:  "Feb",
+		3:  "Mar",
+		4:  "Apr",
+		5:  "May",
+		6:  "Jun",
+		7:  "Jul",
+		8:  "Aug",
+		9:  "Sep",
+		10: "Oct",
+		11: "Nov",
+		12: "Dec",
+	}
+
+	var row render.TimelineRow
+	events := make([]render.TimelineRow, 0, len(t.Events))
 	for i, ev := range t.Events {
 		title := fmtr.Title(i, ev)
 		if title == "" {
 			continue
 		}
-		events = append(events, render.Markdown(title))
-	}
 
-	enc.UnorderedList(events)
+		dt := ev.GetDate()
+		if dt.IsUnknown() {
+			continue
+		}
+
+		var sy, sd string
+		if y, m, d, ok := dt.YMD(); ok {
+			sy = strconv.Itoa(y)
+			sd = fmt.Sprintf("%d %s", d, monthNames[m])
+		} else {
+			switch d := dt.Date.(type) {
+			case *gdate.BeforeYear:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.AfterYear:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.AboutYear:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.Year:
+				sy = d.String()
+				sd = ""
+			case *gdate.YearQuarter:
+				sy = strconv.Itoa(d.Year())
+				sd = d.MonthRange()
+			case *gdate.MonthYear:
+				sy = strconv.Itoa(d.Year())
+				sd = fmt.Sprintf("%s", monthNames[d.M])
+			default:
+				logger.Warn("timeline: unsupported date type", "type", fmt.Sprintf("%T", d), "value", d.String(), "event", fmt.Sprintf("%T", ev))
+			}
+		}
+
+		if row.Year == sy && row.Date == sd {
+			row.Details = append(row.Details, render.Markdown(title))
+			continue
+		} else {
+			if row.Year != "" {
+				events = append(events, row)
+			}
+			row = render.TimelineRow{
+				Year:    sy,
+				Date:    sd,
+				Details: []render.Markdown{render.Markdown(title)},
+			}
+		}
+	}
+	if row.Year != "" {
+		events = append(events, row)
+	}
+	enc.Timeline(events)
 	return nil
 }
 
@@ -38,6 +112,7 @@ type TimelineEntryFormatter struct {
 	pov      *model.POV
 	enc      render.PageMarkdownEncoder
 	omitDate bool
+	logger   *logging.Logger
 }
 
 func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
@@ -58,7 +133,8 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.ProbateEvent:
 		title = t.probateEventTitle(seq, tev)
 	case *model.IndividualNarrativeEvent:
-		// title = t.generalEventTitle(seq, tev)
+		// does not appear in timeline
+		return ""
 	case *model.ResidenceRecordedEvent:
 		title = t.residenceEventTitle(seq, tev)
 	case *model.MarriageEvent:
@@ -76,15 +152,16 @@ func (t *TimelineEntryFormatter) Title(seq int, ev model.TimelineEvent) string {
 	case *model.InstitutionDepartureEvent:
 		title = t.institutionDepartureEventTitle(seq, tev)
 	case *model.DivorceEvent:
-		logging.Debug("timeline: unhandled divorce event")
+		t.logger.Debug("timeline: unhandled divorce event")
 	case *model.MusterEvent:
 		title = t.musterEventTitle(seq, tev)
 		// title = t.generalEventTitle(seq, tev)
 	default:
-		logging.Debug(fmt.Sprintf("timeline: unhandled event type: %T", ev))
 		title = t.generalEventTitle(seq, tev)
+		t.logger.Debug("timeline: unhandled event type", "type", fmt.Sprintf("%T", ev), "title", title)
 	}
 	if title == "" {
+		t.logger.Debug("timeline: ignored event type", "type", fmt.Sprintf("%T", ev))
 		return ""
 	}
 	title = t.enc.EncodeWithCitations(title, ev.GetCitations())
@@ -98,21 +175,28 @@ func (t *TimelineEntryFormatter) Detail(seq int, ev model.TimelineEvent) string 
 	}
 }
 
+func (t *TimelineEntryFormatter) whenWhat(what string, ev model.TimelineEvent) string {
+	date := ev.GetDate()
+	if !date.IsUnknown() {
+		switch ev.GetDate().Derivation {
+		case model.DateDerivationEstimated:
+			what = text.MaybeWasVerb(what)
+			if strings.HasPrefix(what, "was ") {
+				what = what[4:]
+			}
+			what = "probably " + what + " around this time"
+		case model.DateDerivationCalculated:
+			what = "calculated to " + text.MaybeHaveBeenVerb(what) + " around this time"
+		}
+	}
+	return what
+}
+
 func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTimelineEvent) string {
 	var title string
 
 	principal := ev.GetPrincipal()
 	date := ev.GetDate()
-
-	qual := ""
-	if ev.IsInferred() {
-		qual = "inferred to have"
-	} else if !t.omitDate && !date.IsUnknown() {
-		qual = date.Derivation.Qualifier()
-		if qual != "" {
-			qual += " to have"
-		}
-	}
 
 	includeAge := true
 	if t.omitDate || date.IsUnknown() {
@@ -127,10 +211,12 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 		includeAge = false
 	}
 
+	what := t.whenWhat(ev.What(), ev)
+
 	// Add person info if known and not the pov person
 	if !principal.IsUnknown() {
 		if principal.SameAs(t.pov.Person) {
-			title = text.JoinSentenceParts(title, qual, ev.What())
+			title = text.JoinSentenceParts(title, what)
 			// add their age, if its not their earliest event
 			if includeAge {
 				if ev != t.pov.Person.BestBirthlikeEvent {
@@ -142,7 +228,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 		} else {
 			// This is someone else's event
 			obsContext := t.observerContext(ev)
-			title = text.JoinSentenceParts(title, obsContext, qual, ev.What())
+			title = text.JoinSentenceParts(title, obsContext, what)
 			// add their age, if its not their earliest event
 			if includeAge {
 				if ev != ev.GetPrincipal().BestBirthlikeEvent {
@@ -158,13 +244,8 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 		title = text.JoinSentenceParts(title, "here")
 	}
 
-	// Add date if known
-	if !t.omitDate && !date.IsUnknown() {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
 	return title
@@ -190,7 +271,7 @@ func (t *TimelineEntryFormatter) censusEventTitle(seq int, ev *model.CensusEvent
 		if pl.SameAs(t.pov.Place) {
 			title = text.JoinSentenceParts(title, residing, "here")
 		} else {
-			title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+			title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 		}
 
 	}
@@ -203,26 +284,19 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 	}
 	var title string
 	title = text.JoinSentenceParts(title, t.observerContext(ev))
-
-	if ev.IsInferred() {
-		title = text.JoinSentenceParts(title, "inferred to have")
-	}
-
-	title = text.JoinSentenceParts(title, ev.What())
-	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
+	title = text.JoinSentenceParts(title, t.whenWhat(ev.What(), ev))
 
 	pl := ev.GetPlace()
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+	if pl.SameAs(t.pov.Place) {
+		title = text.JoinSentenceParts(title, "here")
+	} else if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
 
 func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEvent) string {
-	title := "probate was granted"
+	title := text.JoinSentenceParts("probate was granted", t.whenWhat(ev.What(), ev))
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, "here")
@@ -233,13 +307,8 @@ func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEve
 		title = text.JoinSentenceParts(title, "for", t.observerContext(ev))
 	}
 
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "by the", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl), "probate office")
+		title = text.JoinSentenceParts(title, "by the", t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl), "probate office")
 	}
 	return title
 }
@@ -253,13 +322,8 @@ func (t *TimelineEntryFormatter) residenceEventTitle(seq int, ev *model.Residenc
 		title = text.JoinSentenceParts(title, residing, "here")
 	}
 
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -288,7 +352,7 @@ func (t *TimelineEntryFormatter) musterEventTitle(seq int, ev *model.MusterEvent
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
@@ -301,12 +365,7 @@ func (t *TimelineEntryFormatter) arrivalEventTitle(seq int, ev *model.ArrivalEve
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "at", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
-
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
+		title = text.JoinSentenceParts(title, "at", t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
 	return title
@@ -320,12 +379,7 @@ func (t *TimelineEntryFormatter) departureEventTitle(seq int, ev *model.Departur
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "from", t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
-
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
+		title = text.JoinSentenceParts(title, "from", t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
 	return title
@@ -339,12 +393,7 @@ func (t *TimelineEntryFormatter) institutionEntryEventTitle(seq int, ev *model.I
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
-	}
-
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
+		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
 	return title
@@ -358,14 +407,31 @@ func (t *TimelineEntryFormatter) institutionDepartureEventTitle(seq int, ev *mod
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 
+	return title
+}
+
+func (t *TimelineEntryFormatter) occupationEventTitle(seq int, ev model.TimelineEvent) string {
+	var title string
+	title = text.JoinSentenceParts(title, t.observerContext(ev))
+
+	if ev.IsInferred() {
+		title = text.JoinSentenceParts(title, "inferred to have")
+	}
+
+	title = text.JoinSentenceParts(title, ev.What())
+	title = text.JoinSentenceParts(title, ev.GetDetail())
 	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
+	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
 		title = text.JoinSentenceParts(title, date.When())
 	}
 
+	pl := ev.GetPlace()
+	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+	}
 	return title
 }
 
@@ -405,14 +471,9 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.UnionTimel
 
 	}
 
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
 	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredFullName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }

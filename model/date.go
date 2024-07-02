@@ -253,6 +253,20 @@ func (d *Date) YMD() (int, int, int, bool) {
 	return 0, 0, 0, false
 }
 
+func (d *Date) YM() (int, int, bool) {
+	if d == nil {
+		return 0, 0, false
+	}
+
+	if p, ok := gdate.AsPrecise(d.Date); ok {
+		return p.Y, p.M, true
+	}
+	if p, ok := d.Date.(*gdate.MonthYear); ok {
+		return p.Y, p.M, true
+	}
+	return 0, 0, false
+}
+
 func (d *Date) DateInYear(long bool) (string, bool) {
 	if d == nil {
 		return "", false
@@ -276,6 +290,23 @@ func (d *Date) SameYear(other *Date) bool {
 	}
 
 	return dy == oy
+}
+
+func (d *Date) SameDate(other *Date) bool {
+	if d.IsUnknown() || other.IsUnknown() {
+		return false
+	}
+	p1, ok := gdate.AsPrecise(d.Date)
+	if !ok {
+		return false
+	}
+
+	p2, ok := gdate.AsPrecise(other.Date)
+	if !ok {
+		return false
+	}
+
+	return p1.Y == p2.Y && p1.M == p2.M && p1.D == p2.D
 }
 
 func (d *Date) SortsBefore(other *Date) bool {

@@ -2,10 +2,10 @@ package site
 
 import (
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
 	"github.com/iand/genster/render"
@@ -65,7 +65,7 @@ func InferredWhat(what string, ev model.TimelineEvent) string {
 			if strings.HasPrefix(what, "was ") {
 				return "was probably " + what[4:]
 			}
-			return "probably " + what
+			return "probably " + what + " around this time"
 		case model.DateDerivationCalculated:
 			return "is calculated to " + text.MaybeHaveBeenVerb(what)
 		}
@@ -594,7 +594,7 @@ func GenerateOlb(p *model.Person) error {
 	)
 
 	log := false
-	logger := slog.With("id", p.ID, "name", p.PreferredFullName)
+	logger := logging.With("id", p.ID, "name", p.PreferredFullName)
 
 	type BioFacts struct {
 		BirthYear             int
