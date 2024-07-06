@@ -24,6 +24,7 @@ func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error 
 	s := m.FindSource(l.ScopeName, id)
 
 	s.Title = pval(gs.Stitle, "unknown")
+	s.Author = pval(gs.Sauthor, "")
 
 	if len(gs.Reporef) > 0 {
 		// TODO: handle multiple repos

@@ -15,20 +15,22 @@ var (
 )
 
 const (
-	MarkdownTagTitle     = "title"
-	MarkdownTagSummary   = "summary"
-	MarkdownTagLayout    = "layout"
-	MarkdownTagTags      = "tags"
-	MarkdownTagCategory  = "category"
-	MarkdownTagID        = "id"
-	MarkdownTagImage     = "image"
-	MarkdownTagBasePath  = "basepath"
-	MarkdownTagNextPage  = "next"
-	MarkdownTagPrevPage  = "prev"
-	MarkdownTagFirstPage = "first"
-	MarkdownTagLastPage  = "last"
-	MarkdownTagIndexPage = "index"
-	MarkdownTagAliases   = "aliases"
+	MarkdownTagTitle       = "title"
+	MarkdownTagSummary     = "summary"
+	MarkdownTagLayout      = "layout"
+	MarkdownTagTags        = "tags"
+	MarkdownTagCategory    = "category"
+	MarkdownTagID          = "id"
+	MarkdownTagImage       = "image"
+	MarkdownTagBasePath    = "basepath"
+	MarkdownTagNextPage    = "next"
+	MarkdownTagPrevPage    = "prev"
+	MarkdownTagFirstPage   = "first"
+	MarkdownTagLastPage    = "last"
+	MarkdownTagIndexPage   = "index"
+	MarkdownTagAliases     = "aliases"
+	MarkdownTagLinks       = "links"
+	MarkdownTagDescendants = "descendants"
 )
 
 type LinkBuilder interface {
@@ -37,7 +39,7 @@ type LinkBuilder interface {
 
 type Document struct {
 	Encoder
-	frontMatter map[string][]string
+	frontMatter map[string]any
 }
 
 func (b *Document) String() string {
@@ -72,19 +74,20 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 		})
 
 		for _, k := range keys {
-			vs := b.frontMatter[k]
 			bb.WriteString(k)
 			bb.WriteString(": ")
-			if len(vs) == 1 {
-				if safeString.MatchString(vs[0]) && !numericString.MatchString(vs[0]) {
-					bb.WriteString(vs[0])
+
+			switch tv := b.frontMatter[k].(type) {
+			case string:
+				if safeString.MatchString(tv) && !numericString.MatchString(tv) {
+					bb.WriteString(tv)
 				} else {
-					bb.WriteString(fmt.Sprintf("%q", vs[0]))
+					bb.WriteString(fmt.Sprintf("%q", tv))
 				}
 				bb.WriteString("\n")
-			} else {
+			case []string:
 				bb.WriteString("\n")
-				for _, v := range vs {
+				for _, v := range tv {
 					bb.WriteString("- ")
 					if safeString.MatchString(v) && !numericString.MatchString(v) {
 						bb.WriteString(v)
@@ -93,7 +96,36 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 					}
 					bb.WriteString("\n")
 				}
+			case []map[string]string:
+				bb.WriteString("\n")
+				for _, v := range tv {
+					bb.WriteString("- ")
+					indent := false
+
+					for subkey, subval := range v {
+						if indent {
+							bb.WriteString("  ")
+						}
+						indent = true
+
+						if safeString.MatchString(subkey) && !numericString.MatchString(subkey) {
+							bb.WriteString(subkey)
+						} else {
+							bb.WriteString(fmt.Sprintf("%q", subkey))
+						}
+						bb.WriteString(": ")
+						if safeString.MatchString(subval) && !numericString.MatchString(subval) {
+							bb.WriteString(subval)
+						} else {
+							bb.WriteString(fmt.Sprintf("%q", subval))
+						}
+						bb.WriteString("\n")
+					}
+				}
+			default:
+				panic(fmt.Sprintf("unknown front matter type for key %s: %T", k, tv))
 			}
+
 		}
 		bb.WriteString("---\n")
 	}
@@ -115,16 +147,41 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 
 func (b *Document) SetFrontMatterField(k, v string) {
 	if b.frontMatter == nil {
-		b.frontMatter = make(map[string][]string)
+		b.frontMatter = make(map[string]any)
 	}
-	b.frontMatter[k] = []string{v}
+	b.frontMatter[k] = v
 }
 
 func (b *Document) appendFrontMatterField(k, v string) {
 	if b.frontMatter == nil {
-		b.frontMatter = make(map[string][]string)
+		b.frontMatter = make(map[string]any)
 	}
-	b.frontMatter[k] = append(b.frontMatter[k], v)
+
+	val, ok := b.frontMatter[k]
+	if !ok {
+		b.frontMatter[k] = []string{k}
+		return
+	}
+
+	ss := val.([]string)
+	ss = append(ss, v)
+	b.frontMatter[k] = ss
+}
+
+func (b *Document) appendFrontMatterFieldDict(k string, v map[string]string) {
+	if b.frontMatter == nil {
+		b.frontMatter = make(map[string]any)
+	}
+
+	val, ok := b.frontMatter[k]
+	if !ok {
+		b.frontMatter[k] = []map[string]string{v}
+		return
+	}
+
+	ms := val.([]map[string]string)
+	ms = append(ms, v)
+	b.frontMatter[k] = ms
 }
 
 func (b *Document) Title(s string) {
@@ -179,4 +236,25 @@ func (b *Document) AddAlias(s string) {
 		return
 	}
 	b.appendFrontMatterField(MarkdownTagAliases, s)
+}
+
+func (b *Document) AddLink(title string, link string) {
+	if title == "" {
+		return
+	}
+	b.appendFrontMatterFieldDict(MarkdownTagLinks, map[string]string{
+		"title": title,
+		"link":  link,
+	})
+}
+
+func (b *Document) AddDescendant(name string, link string, detail string) {
+	if name == "" {
+		return
+	}
+	b.appendFrontMatterFieldDict(MarkdownTagDescendants, map[string]string{
+		"name":   name,
+		"link":   link,
+		"detail": detail,
+	})
 }

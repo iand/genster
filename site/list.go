@@ -52,9 +52,9 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 
 			links := b.EncodeModelLink("View page", p)
 
-			if p.EditLink != nil {
-				links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
-			}
+			// if p.EditLink != nil {
+			// 	links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
+			// }
 			b.Para(render.Markdown(text.FormatSentence(rel) + " " + links))
 			for _, cat := range categories {
 				al := anomaliesByCategory[cat]
@@ -105,11 +105,11 @@ func (s *Site) WriteInferenceListPages(root string) error {
 		if len(items) > 0 {
 			b := s.NewMarkdownBuilder()
 			b.Heading2(render.Markdown(p.PreferredUniqueName), p.ID)
-			if p.EditLink != nil {
-				b.Para(render.Markdown(b.EncodeModelLink("View page", p) + " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))))
-			} else {
-				b.Para(render.Markdown(b.EncodeModelLink("View page", p)))
-			}
+			// if p.EditLink != nil {
+			// 	b.Para(render.Markdown(b.EncodeModelLink("View page", p) + " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))))
+			// } else {
+			b.Para(render.Markdown(b.EncodeModelLink("View page", p)))
+			// }
 			b.DefinitionList(items)
 			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
 		}
@@ -163,9 +163,9 @@ func (s *Site) WriteTodoListPages(root string) error {
 
 			links := b.EncodeModelLink("View page", p)
 
-			if p.EditLink != nil {
-				links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
-			}
+			// if p.EditLink != nil {
+			// 	links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
+			// }
 			b.Para(render.Markdown(text.FormatSentence(rel) + " " + links))
 
 			for _, cat := range categories {

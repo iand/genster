@@ -148,16 +148,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			continue
 		}
 		if strings.HasPrefix(pgc.Detail, "https://www.ancestry.co.uk/family-tree/person/") {
-			if p.EditLink == nil {
-				p.EditLink = &model.Link{
-					Title: "Edit details at ancestry.co.uk",
-					URL:   pgc.Detail,
-				}
-				continue
-			}
 			p.Links = append(p.Links, model.Link{
-				Title: "Family tree at ancestry.co.uk",
+				Title: "Ancestry",
 				URL:   pgc.Detail,
+			})
+		} else if pgc.Source.Title == "WikiTree" {
+			p.Links = append(p.Links, model.Link{
+				Title: "WikiTree",
+				URL:   "https://www.wikitree.com/wiki/" + pgc.Detail,
 			})
 		}
 	}
@@ -177,12 +175,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			}
 			p.Anomalies = append(p.Anomalies, anom)
 
-			if p.EditLink == nil {
-				p.EditLink = &model.Link{
-					Title: "Edit details at ancestry.co.uk",
-					URL:   att.Value,
-				}
-			}
 		case "wikitree id":
 			anom := &model.Anomaly{
 				Category: model.AnomalyCategoryAttribute,
@@ -190,7 +182,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Context:  "Attribute",
 			}
 			p.Anomalies = append(p.Anomalies, anom)
-			p.WikiTreeID = att.Value
+			p.Links = append(p.Links, model.Link{
+				Title: "WikiTree",
+				URL:   "https://www.wikitree.com/wiki/" + att.Value,
+			})
 		case "illegitimate":
 			p.Illegitimate = true
 		case "unmarried", "never married":

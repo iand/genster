@@ -485,7 +485,7 @@ var personReplacers = map[string]personAnnotaterFunc{
 	"preferredfamilyname":       func(p *model.Person, v any) error { return setString(&p.PreferredFamilyName, v) },
 	"preferredsortname":         func(p *model.Person, v any) error { return setString(&p.PreferredSortName, v) },
 	"preferreduniquename":       func(p *model.Person, v any) error { return setString(&p.PreferredUniqueName, v) },
-	"wikitreeid":                func(p *model.Person, v any) error { return setString(&p.WikiTreeID, v) },
+	// "wikitreeid":                func(p *model.Person, v any) error { return setString(&p.WikiTreeID, v) },
 	// "causeofdeath":              func(p *model.Person, v any) error { return setString(&p.CauseOfDeath, v) },
 
 	"possiblyalive": func(p *model.Person, v any) error { return setBool(&p.PossiblyAlive, v) },

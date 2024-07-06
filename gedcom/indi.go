@@ -467,10 +467,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			personID = "-" + personID[1:]
 		}
 		// TODO: support other ancestry sites
-		p.EditLink = &model.Link{
-			Title: "Edit details at ancestry.co.uk",
+		p.Links = append(p.Links, model.Link{
+			Title: "Ancestry",
 			URL:   fmt.Sprintf("https://www.ancestry.co.uk/family-tree/person/tree/%s/person/%s/facts", id, personID),
-		}
+		})
 	}
 
 	// Add links to other ancestry trees

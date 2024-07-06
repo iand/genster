@@ -64,8 +64,6 @@ type Person struct {
 	Occupations        []*Occupation // list of occupations
 	PrimaryOccupation  string        // simple description of main occupation
 	OccupationGroup    OccupationGroup
-	EditLink           *Link  // link to a page that can be used to edit the details of this person
-	WikiTreeID         string // the wikitree id of this person
 	GrampsID           string // the gramps id of this person
 	Slug               string // a short url-friendly identifier that can be used to refer to this person
 	Links              []Link // list of links to more information relevant to this person

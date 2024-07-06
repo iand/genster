@@ -31,8 +31,14 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 	doc.Title(title)
 
+	sourceDesc := "unknown source"
+
 	if c.Detail != "" && c.Source != nil && c.Source.Title != "" {
-		doc.Para(render.Markdown("Cited from " + c.Source.Title))
+		sourceDesc = c.Source.Title
+		if c.Source.Author != "" {
+			sourceDesc += " (" + c.Source.Author + ")"
+		}
+		doc.Para(render.Markdown("Cited from " + sourceDesc))
 	}
 
 	for _, cmo := range c.MediaObjects {
@@ -79,6 +85,10 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	events := make([]render.Markdown, 0, len(c.EventsCited))
 	for _, ev := range c.EventsCited {
+		if !IncludeInTimeline(ev) {
+			continue
+		}
+
 		events = append(events, render.Markdown(WhoWhatWhenWhere(ev, doc)))
 		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
@@ -164,7 +174,8 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	if len(repos) > 0 {
 		doc.Heading3("Source", "")
-		doc.Para(render.Markdown(c.Source.Title + " available at:"))
+		doc.Para(render.Markdown(sourceDesc))
+		doc.Para("Available at:")
 		doc.UnorderedList(repos)
 	}
 

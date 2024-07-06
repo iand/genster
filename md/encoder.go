@@ -83,7 +83,7 @@ func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
 			bb.WriteString(fmt.Sprintf("<div class=\"source\">%s</div>\n", html.EscapeString(sources[i].name)))
 
 			for ci := range sources[i].citations {
-				bb.WriteString(fmt.Sprintf("<div class=\"citation\"><span class=\"anchor\" id=\"%s\">%s:</span>", sources[i].citations[ci].anchor, sources[i].citations[ci].anchor))
+				bb.WriteString(fmt.Sprintf("<div class=\"citation\"><span class=\"anchor\" id=\"%s\">%s:</span> ", sources[i].citations[ci].anchor, sources[i].citations[ci].anchor))
 				render.Markdown(sources[i].citations[ci].markdown).ToHTML(bb)
 				bb.WriteString("</div>\n")
 			}
@@ -145,7 +145,7 @@ func (e *Encoder) EmptyPara() {
 
 func (b *Encoder) BlockQuote(m render.Markdown) {
 	b.maintext.WriteString("<blockquote>")
-	m.ToHTML(&b.maintext)
+	b.maintext.WriteString(string(m))
 	b.maintext.WriteString("</blockquote>\n")
 }
 
@@ -267,18 +267,18 @@ func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitati
 	return s + sups + "</sup>"
 }
 
-func (b *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
+func (e *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
-	if c.ID != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
-		citationText += " (" + b.EncodeModelLink("more details...", c) + ")"
+	if c.ID != "" && e.LinkBuilder.LinkFor(c) != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
+		citationText += " (" + e.EncodeModelLink("more details...", c) + ")"
 	} else {
 		if c.URL != nil {
-			citationText = string(b.EncodeLink(citationText, c.URL.URL))
+			citationText = string(e.EncodeLink(citationText, c.URL.URL))
 		}
 	}
 
-	return b.EncodeCitationLink(c.SourceTitle(), render.Markdown(citationText), c.ID)
+	return e.EncodeCitationLink(c.SourceTitle(), render.Markdown(citationText), c.ID)
 }
 
 func (b *Encoder) EncodeCitationLink(sourceName string, citationText render.Markdown, citationID string) string {

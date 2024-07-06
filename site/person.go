@@ -2,12 +2,10 @@ package site
 
 import (
 	"fmt"
-	"html"
 	"sort"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
-	"github.com/iand/genster/text"
 )
 
 func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
@@ -121,20 +119,13 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 
 	ap := p.RelationToKeyPerson.Path()
 	if len(ap) > 2 {
-		path := ""
-		path += "<div><b>" + ap[len(ap)-1].PreferredUniqueName + "</b></div>"
-		if p.Olb != "" {
-			path += "<div><i>" + text.FormatSentence(p.Olb) + "<i></div>"
-		}
+		doc.AddDescendant(ap[len(ap)-1].PreferredUniqueName, "", p.Olb)
 		for i := len(ap) - 2; i >= 0; i-- {
 			if ap[i].Redacted {
 				break
 			}
-			path += "<div>↓</div>"
-			path += "<div>" + fmt.Sprintf("<a href=\"%s\">%s</a>", doc.LinkBuilder.LinkFor(ap[i]), html.EscapeString(ap[i].PreferredUniqueName)) + "</div>"
+			doc.AddDescendant(ap[i].PreferredUniqueName, doc.LinkBuilder.LinkFor(ap[i]), "")
 		}
-
-		doc.SetFrontMatterField("ancestorpath", path)
 	}
 
 	// Render narrative
@@ -206,10 +197,14 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 
 	n.Render(pov, doc)
 
-	if p.EditLink != nil {
-		doc.SetFrontMatterField("editlink", p.EditLink.URL)
-		doc.SetFrontMatterField("editlinktitle", p.EditLink.Title)
+	for _, l := range p.Links {
+		doc.AddLink(l.Title, l.URL)
 	}
+
+	// if p.EditLink != nil {
+	// 	doc.SetFrontMatterField("editlink", p.EditLink.URL)
+	// 	doc.SetFrontMatterField("editlinktitle", p.EditLink.Title)
+	// }
 
 	if p.WikiTreeID != "" {
 		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)

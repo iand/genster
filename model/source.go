@@ -8,6 +8,7 @@ type Source struct {
 	ID                  string // canonical id
 	Unknown             bool   // true if this source is known to have existed but no other information is known
 	Title               string
+	Author              string
 	SearchLink          string // link to online search interface
 	RepositoryName      string
 	RepositoryLink      string

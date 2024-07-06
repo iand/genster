@@ -48,6 +48,9 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 	var row render.TimelineRow
 	events := make([]render.TimelineRow, 0, len(t.Events))
 	for i, ev := range t.Events {
+		if !IncludeInTimeline(ev) {
+			continue
+		}
 		title := fmtr.Title(i, ev)
 		if title == "" {
 			continue
@@ -106,6 +109,15 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 	}
 	enc.Timeline(events)
 	return nil
+}
+
+func IncludeInTimeline(ev model.TimelineEvent) bool {
+	switch ev.(type) {
+	case *model.IndividualNarrativeEvent:
+		return false
+	default:
+		return true
+	}
 }
 
 type TimelineEntryFormatter struct {
@@ -179,14 +191,12 @@ func (t *TimelineEntryFormatter) whenWhat(what string, ev model.TimelineEvent) s
 	date := ev.GetDate()
 	if !date.IsUnknown() {
 		switch ev.GetDate().Derivation {
-		case model.DateDerivationEstimated:
+		case model.DateDerivationEstimated, model.DateDerivationCalculated:
 			what = text.MaybeWasVerb(what)
 			if strings.HasPrefix(what, "was ") {
 				what = what[4:]
 			}
 			what = "probably " + what + " around this time"
-		case model.DateDerivationCalculated:
-			what = "calculated to " + text.MaybeHaveBeenVerb(what) + " around this time"
 		}
 	}
 	return what
@@ -338,21 +348,14 @@ func (t *TimelineEntryFormatter) musterEventTitle(seq int, ev *model.MusterEvent
 			title = text.JoinSentenceParts(title, "in the", regiment, "regiment")
 		}
 	}
-	title = text.JoinSentenceParts(title, "at muster taken ")
+	title = text.JoinSentenceParts(title, "at muster")
 
 	pl := ev.GetPlace()
 
 	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "here")
-	}
-
-	date := ev.GetDate()
-	if !t.omitDate && dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		title = text.JoinSentenceParts(title, "taken here")
+	} else if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = text.JoinSentenceParts(title, "taken", pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
 	}
 	return title
 }
