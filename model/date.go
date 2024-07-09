@@ -31,6 +31,17 @@ func (d DateDerivation) Qualifier() string {
 	}
 }
 
+func (d DateDerivation) Abbrev() string {
+	switch d {
+	case DateDerivationEstimated:
+		return "est."
+	case DateDerivationCalculated:
+		return "calc."
+	default:
+		return ""
+	}
+}
+
 func UnknownDate() *Date {
 	return &Date{
 		Date: &gdate.Unknown{},

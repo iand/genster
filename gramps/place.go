@@ -65,10 +65,12 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	}
 
 	if len(gp.Pname) == 0 {
+		pl.Name = "unknown"
 		pl.PreferredName = "unknown"
 		pl.PreferredFullName = "an unknown place"
 		pl.PreferredUniqueName = "an unknown place"
 		pl.PreferredSortName = "unknown place"
+		pl.PreferredLocalityName = "unknown place"
 	} else {
 		// TODO: support multiple place names
 		name := strings.TrimSpace(gp.Pname[0].Value)
@@ -85,10 +87,12 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 			}
 		}
 
+		pl.Name = name
 		pl.PreferredName = name
 		pl.PreferredFullName = name
 		pl.PreferredUniqueName = name
 		pl.PreferredSortName = name
+		pl.PreferredLocalityName = name
 	}
 
 	if gp.Coord != nil {
@@ -140,6 +144,8 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 				}
 			}
 			po := m.FindPlace(l.ScopeName, pval(paro.ID, paro.Handle))
+
+			// handle buildings or streets
 			if !po.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding) {
 				// combine into a single place
 				if po.PreferredName != "" {
@@ -180,6 +186,12 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 				}
 				if po.PreferredSortName != "" {
 					pl.PreferredSortName = po.PreferredSortName + ", " + pl.PreferredSortName
+				}
+
+				if pl.PlaceType == model.PlaceTypeStreet || pl.PlaceType == model.PlaceTypeBuilding {
+					pl.PreferredLocalityName = po.PreferredLocalityName
+				} else {
+					pl.PreferredLocalityName += connector + po.Name
 				}
 			}
 			break

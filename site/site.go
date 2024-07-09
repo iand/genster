@@ -242,11 +242,6 @@ func (s *Site) AssignTags(p *model.Person) error {
 	// 	decade := (y.Year() / 10) * 10
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("died in %ds", decade))
 	// }
-
-	if p.WikiTreeID != "" {
-		p.Tags = append(p.Tags, "WikiTree")
-	}
-
 	return nil
 }
 

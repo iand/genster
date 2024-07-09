@@ -13,8 +13,8 @@ import (
 	"github.com/urfave/cli/v2"
 
 	gegedcom "github.com/iand/genster/gedcom"
+	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
-	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
 	"github.com/iand/gtree"
 )
@@ -30,14 +30,16 @@ func checkFlags(cc *cli.Context) error {
 }
 
 var chartopts struct {
-	gedcomFile    string
-	chartType     string
-	treeID        string
-	configDir     string
-	keyPersonID   string
-	startPersonID string
-	title         string
-	fontScale     float64
+	gedcomFile         string
+	grampsFile         string
+	grampsDatabaseName string
+	chartType          string
+	treeID             string
+	configDir          string
+	keyPersonID        string
+	startPersonID      string
+	title              string
+	fontScale          float64
 
 	outputFilename string
 	outputFormat   string
@@ -57,6 +59,16 @@ var Command = &cli.Command{
 			Aliases:     []string{"g", "input"},
 			Usage:       "GEDCOM file to read from",
 			Destination: &chartopts.gedcomFile,
+		},
+		&cli.StringFlag{
+			Name:        "gramps",
+			Usage:       "Gramps xml file to read from",
+			Destination: &chartopts.grampsFile,
+		},
+		&cli.StringFlag{
+			Name:        "gramps-dbname",
+			Usage:       "Name of the gramps database, used to keep IDs consistent between versions of the same database",
+			Destination: &chartopts.grampsDatabaseName,
 		},
 		&cli.StringFlag{
 			Name:        "type",
@@ -131,9 +143,21 @@ func chartCmd(cc *cli.Context) error {
 
 	logging.Setup()
 
-	l, err := gegedcom.NewLoader(chartopts.gedcomFile)
-	if err != nil {
-		return fmt.Errorf("load gedcom: %w", err)
+	var l tree.Loader
+	var err error
+
+	if chartopts.gedcomFile != "" {
+		l, err = gegedcom.NewLoader(chartopts.gedcomFile)
+		if err != nil {
+			return fmt.Errorf("load gedcom: %w", err)
+		}
+	} else if chartopts.grampsFile != "" {
+		l, err = gramps.NewLoader(chartopts.grampsFile, chartopts.grampsDatabaseName)
+		if err != nil {
+			return fmt.Errorf("load gedcom: %w", err)
+		}
+	} else {
+		return fmt.Errorf("no gedcom or gramps file specified")
 	}
 
 	t, err := tree.LoadTree(chartopts.treeID, chartopts.configDir, l)
@@ -144,18 +168,11 @@ func chartCmd(cc *cli.Context) error {
 	// Look for key person, if any. This is the person who is used to determine
 	// whether a person in the tree is a direct ancestor
 	// assume id is a genster id first
-	var keyPerson *model.Person
-	if chartopts.keyPersonID != "" {
-		var ok bool
-		keyPerson, ok = t.GetPerson(chartopts.keyPersonID)
-		if !ok {
-			keyPerson = t.FindPerson(l.ScopeName, chartopts.keyPersonID)
-		}
-		if keyPerson.IsUnknown() {
-			return fmt.Errorf("key person not found")
-		}
-		t.SetKeyPerson(keyPerson)
+	keyPerson, ok := t.GetPerson(chartopts.keyPersonID)
+	if !ok {
+		keyPerson = t.FindPerson(l.Scope(), chartopts.keyPersonID)
 	}
+	t.SetKeyPerson(keyPerson)
 
 	if err := t.Generate(false); err != nil {
 		return fmt.Errorf("generate tree facts: %w", err)
@@ -165,8 +182,8 @@ func chartCmd(cc *cli.Context) error {
 	// assume id is a genster id first
 	startPerson, ok := t.GetPerson(chartopts.startPersonID)
 	if !ok {
-		// not a genster id, so look for a gedcom id
-		startPerson = t.FindPerson(l.ScopeName, chartopts.startPersonID)
+		// not a genster id, so look for a native id
+		startPerson = t.FindPerson(l.Scope(), chartopts.startPersonID)
 	}
 	if startPerson.IsUnknown() {
 		return fmt.Errorf("person with id %s not found", chartopts.startPersonID)

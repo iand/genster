@@ -5,24 +5,26 @@ import (
 )
 
 type Place struct {
-	ID                  string   // canonical identifier
-	Tags                []string // tags to add to the place's page
-	OriginalText        string   // the original text that was used to fill in the place information
-	Hints               []place.Hint
-	PreferredName       string       // fully parsed name but with just the minimum amount of context, such as "locality, region"
-	PreferredUniqueName string       // fully parsed name but with just enough extra context to make it unique
-	PreferredFullName   string       // the fully parsed name
-	PreferredSortName   string       // name organised for sorting, generally as a reverse hierarchy of country, region, locality
-	Parent              *Place       // the parent of this place in the administrative hierarchy
-	PlaceType           PlaceType    // the type of place, such as "village", "town", "parish"
-	Numbered            bool         // whether the place is a numbered building
-	Singular            bool         // whether the place is a singular member of a group such as the register office or the barracks, not a named church.
-	BuildingKind        BuildingKind // the kind of building, such as "church", "workhouse" or "register office"
-	Timeline            []TimelineEvent
-	Unknown             bool    // true if this place is known to have existed but no other information is known
-	Links               []Link  // list of links to more information relevant to this place
-	Latitude            float64 // latitude of the place in decimal degrees, +ve is east of meridian, -ve is west
-	Longitude           float64 // longitude of the place in decimal degrees, +ve is north of equator, -ve is south
+	ID                    string   // canonical identifier
+	Tags                  []string // tags to add to the place's page
+	OriginalText          string   // the original text that was used to fill in the place information
+	Hints                 []place.Hint
+	Name                  string       // the bare name of the place, could be street name or country name
+	PreferredName         string       // the minimum amount of context, such as "street, locality" or "locality, region"
+	PreferredUniqueName   string       // fully parsed name but with just enough extra context to make it unique
+	PreferredFullName     string       // the fully parsed name
+	PreferredSortName     string       // name organised for sorting, generally as a reverse hierarchy of country, region, locality
+	PreferredLocalityName string       // context starting with locality, i.e. "locality, region"
+	Parent                *Place       // the parent of this place in the administrative hierarchy
+	PlaceType             PlaceType    // the type of place, such as "village", "town", "parish"
+	Numbered              bool         // whether the place is a numbered building
+	Singular              bool         // whether the place is a singular member of a group such as the register office or the barracks, not a named church.
+	BuildingKind          BuildingKind // the kind of building, such as "church", "workhouse" or "register office"
+	Timeline              []TimelineEvent
+	Unknown               bool    // true if this place is known to have existed but no other information is known
+	Links                 []Link  // list of links to more information relevant to this place
+	Latitude              float64 // latitude of the place in decimal degrees, +ve is east of meridian, -ve is west
+	Longitude             float64 // longitude of the place in decimal degrees, +ve is north of equator, -ve is south
 
 	CountryName  *place.PlaceName
 	UKNationName *place.PlaceName

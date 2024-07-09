@@ -182,6 +182,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Context:  "Attribute",
 			}
 			p.Anomalies = append(p.Anomalies, anom)
+			p.WikiTreeID = att.Value
 			p.Links = append(p.Links, model.Link{
 				Title: "WikiTree",
 				URL:   "https://www.wikitree.com/wiki/" + att.Value,

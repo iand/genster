@@ -11,8 +11,8 @@ type TimelineEvent interface {
 	GetNarrative() Text
 	GetCitations() []*GeneralCitation
 	GetAttribute(name string) (string, bool)
-	Type() string                    // name of the type of event, usually a single word
-	ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
+	Type() string // name of the type of event, usually a single word
+	// ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
 	What() string                    // text description of what happened, such as married, born, divorced, in the past tense
 	When() string                    // text description of date
 	Where() string                   // text description of place

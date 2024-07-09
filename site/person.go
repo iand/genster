@@ -201,16 +201,6 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		doc.AddLink(l.Title, l.URL)
 	}
 
-	// if p.EditLink != nil {
-	// 	doc.SetFrontMatterField("editlink", p.EditLink.URL)
-	// 	doc.SetFrontMatterField("editlinktitle", p.EditLink.Title)
-	// }
-
-	if p.WikiTreeID != "" {
-		doc.SetFrontMatterField("wikitreeid", p.WikiTreeID)
-		doc.AddAlias(s.RedirectPath(p.WikiTreeID))
-	}
-
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
 		doc.AddAlias(s.RedirectPath(p.GrampsID))

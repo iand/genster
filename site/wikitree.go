@@ -422,7 +422,6 @@ func (w *WikiTreeEncoder) ParaWithFigure(s render.Markdown, link string, alt str
 func (w *WikiTreeEncoder) Timeline(rows []render.TimelineRow) {
 }
 
-
 func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
 	// avoid text that might have problematic copyright
 	if c.Source == nil || c.Source.RepositoryName == "" {

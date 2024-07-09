@@ -55,10 +55,10 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 				details = append(details, "("+text.UpperFirst(p.RelationToKeyPerson.Name())+")")
 			}
 			if p.BestBirthlikeEvent != nil {
-				details = append(details, p.BestBirthlikeEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
 			}
 			if p.BestDeathlikeEvent != nil {
-				details = append(details, p.BestDeathlikeEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 			}
 
 			return details
@@ -66,10 +66,10 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 		familyDetailFn = func(f *model.Family) []string {
 			var details []string
 			if f.BestStartEvent != nil {
-				details = append(details, f.BestStartEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(f.BestStartEvent))
 			}
 			if f.BestEndEvent != nil {
-				details = append(details, f.BestEndEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(f.BestEndEvent))
 			}
 			return details
 		}
@@ -88,18 +88,10 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 				details = append(details, p.PrimaryOccupation)
 			}
 			if p.BestBirthlikeEvent != nil {
-				if p.BestBirthlikeEvent.GetPlace().IsUnknown() {
-					details = append(details, p.BestBirthlikeEvent.ShortDescription())
-				} else {
-					details = append(details, p.BestBirthlikeEvent.ShortDescription()+", "+p.BestBirthlikeEvent.GetPlace().PreferredName)
-				}
+				details = append(details, model.AbbrevWhatWhenWhere(p.BestBirthlikeEvent))
 			}
 			if p.BestDeathlikeEvent != nil {
-				if p.BestDeathlikeEvent.GetPlace().IsUnknown() {
-					details = append(details, p.BestDeathlikeEvent.ShortDescription())
-				} else {
-					details = append(details, p.BestDeathlikeEvent.ShortDescription()+", "+p.BestDeathlikeEvent.GetPlace().PreferredName)
-				}
+				details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
 			}
 
 			return details
@@ -107,19 +99,10 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 		familyDetailFn = func(f *model.Family) []string {
 			var details []string
 			if f.BestStartEvent != nil {
-				if f.BestStartEvent.GetPlace().IsUnknown() {
-					details = append(details, f.BestStartEvent.ShortDescription())
-				} else {
-					details = append(details, f.BestStartEvent.ShortDescription()+", "+f.BestStartEvent.GetPlace().PreferredName)
-				}
+				details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
 			}
 			if f.BestEndEvent != nil {
-				details = append(details, f.BestEndEvent.ShortDescription())
-				if f.BestEndEvent.GetPlace().IsUnknown() {
-					details = append(details, f.BestEndEvent.ShortDescription())
-				} else {
-					details = append(details, f.BestEndEvent.ShortDescription()+", "+f.BestEndEvent.GetPlace().PreferredName)
-				}
+				details = append(details, model.AbbrevWhatWhenWhere(f.BestEndEvent))
 			}
 			return details
 		}
@@ -155,10 +138,10 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 			name := p.PreferredFullName
 			details = append(details, name)
 			if p.BestBirthlikeEvent != nil {
-				details = append(details, p.BestBirthlikeEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
 			}
 			if p.BestDeathlikeEvent != nil {
-				details = append(details, p.BestDeathlikeEvent.ShortDescription())
+				details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 			}
 
 			return details
@@ -174,16 +157,16 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 				}
 				if p.BestBirthlikeEvent != nil {
 					if p.BestBirthlikeEvent.GetPlace().IsUnknown() {
-						details = append(details, p.BestBirthlikeEvent.ShortDescription())
+						details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
 					} else {
-						details = append(details, p.BestBirthlikeEvent.ShortDescription()+", "+p.BestBirthlikeEvent.GetPlace().PreferredName)
+						details = append(details, model.AbbrevWhatWhenWhere(p.BestBirthlikeEvent))
 					}
 				}
 				if p.BestDeathlikeEvent != nil {
 					if p.BestDeathlikeEvent.GetPlace().IsUnknown() {
-						details = append(details, p.BestDeathlikeEvent.ShortDescription())
+						details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 					} else {
-						details = append(details, p.BestDeathlikeEvent.ShortDescription()+", "+p.BestDeathlikeEvent.GetPlace().PreferredName)
+						details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
 					}
 				}
 			} else {

@@ -212,17 +212,7 @@ func detailLevel3(p *model.Person) string {
 }
 
 func formatEventBrief(ev model.TimelineEvent) string {
-	if ev == nil {
-		return ""
-	}
-	details := ev.ShortDescription()
-
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() {
-		details += " " + pl.PreferredName
-	}
-
-	return details
+	return model.AbbrevWhatWhenWhere(ev)
 }
 
 func formatEventFull(ev model.TimelineEvent) string {
