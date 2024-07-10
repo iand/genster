@@ -190,29 +190,51 @@ func (p *Person) RelationTo(other *Person, dt *Date) string {
 	}
 
 	for _, f := range p.Families {
-		if f.Father.SameAs(other) {
-			// The other person is the husband, so this person is the wife of other
-			if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
-				return "former wife"
-			}
-			if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
-				return "wife"
-			}
-			if f.BestStartEvent == nil {
-				return "wife"
-			}
-		} else if f.Mother.SameAs(other) {
-			// The other person is the wife, so this person is the husband of other
-			if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
-				return "former husband"
-			}
+		if f.Bond == FamilyBondMarried || f.Bond == FamilyBondLikelyMarried {
+			if f.Father.SameAs(other) {
+				// The other person is the husband, so this person is the wife of other
+				if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
+					return "former wife"
+				}
+				if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
+					return "wife"
+				}
+				if f.BestStartEvent == nil {
+					return "wife"
+				}
+			} else if f.Mother.SameAs(other) {
+				// The other person is the wife, so this person is the husband of other
+				if f.BestEndEvent != nil && f.BestEndEvent.GetDate().SortsBefore(dt) {
+					return "former husband"
+				}
 
-			if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
-				return "husband"
-			}
+				if f.BestStartEvent != nil && f.BestStartEvent.GetDate().SortsBefore(dt) {
+					return "husband"
+				}
 
-			if f.BestStartEvent == nil {
-				return "husband"
+				if f.BestStartEvent == nil {
+					return "husband"
+				}
+			}
+		} else {
+			if f.Father.SameAs(other) {
+				switch len(f.Children) {
+				case 0:
+					return "partner"
+				case 1:
+					return f.Children[0].Gender.RelationToParentNoun() + "'s mother"
+				default:
+					return "children's mother"
+				}
+			} else if f.Mother.SameAs(other) {
+				switch len(f.Children) {
+				case 0:
+					return "partner"
+				case 1:
+					return f.Children[0].Gender.RelationToParentNoun() + "'s father"
+				default:
+					return "children's father"
+				}
 			}
 		}
 	}
