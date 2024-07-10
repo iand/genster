@@ -21,10 +21,9 @@ type Place struct {
 	Singular              bool         // whether the place is a singular member of a group such as the register office or the barracks, not a named church.
 	BuildingKind          BuildingKind // the kind of building, such as "church", "workhouse" or "register office"
 	Timeline              []TimelineEvent
-	Unknown               bool    // true if this place is known to have existed but no other information is known
-	Links                 []Link  // list of links to more information relevant to this place
-	Latitude              float64 // latitude of the place in decimal degrees, +ve is east of meridian, -ve is west
-	Longitude             float64 // longitude of the place in decimal degrees, +ve is north of equator, -ve is south
+	Unknown               bool         // true if this place is known to have existed but no other information is known
+	Links                 []Link       // list of links to more information relevant to this place
+	GeoLocation           *GeoLocation // geographic location of the place
 
 	CountryName  *place.PlaceName
 	UKNationName *place.PlaceName
@@ -34,6 +33,11 @@ type Place struct {
 	ResearchNotes []Text              // research notes associated with this place
 	Comments      []Text              // comments associated with this place
 	Gallery       []*CitedMediaObject // images and documents associated with the place
+}
+
+type GeoLocation struct {
+	Latitude  float64 // latitude of the centre in decimal degrees, +ve is east of meridian, -ve is west
+	Longitude float64 // longitude of the centre in decimal degrees, +ve is north of equator, -ve is south
 }
 
 func (p *Place) IsUnknown() bool {

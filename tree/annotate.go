@@ -429,7 +429,7 @@ func setBool(f *bool, v any) error {
 	return nil
 }
 
-func setCoordinates(latf *float64, longf *float64, v any) error {
+func setGeoLocation(gl **model.GeoLocation, v any) error {
 	s, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("expected a string containing a pair of coordinates")
@@ -439,8 +439,10 @@ func setCoordinates(latf *float64, longf *float64, v any) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse coordinates string: %s", s)
 	}
-	*latf = lat
-	*longf = long
+	*gl = &model.GeoLocation{
+		Latitude:  lat,
+		Longitude: long,
+	}
 	return nil
 }
 
@@ -499,7 +501,7 @@ var personReplacers = map[string]personAnnotaterFunc{
 // all possible place replacers
 var placeReplacers = map[string]placeAnnotaterFunc{
 	"preferredname": func(p *model.Place, v any) error { return setString(&p.PreferredName, v) },
-	"latlong":       func(p *model.Place, v any) error { return setCoordinates(&p.Latitude, &p.Longitude, v) },
+	"latlong":       func(p *model.Place, v any) error { return setGeoLocation(&p.GeoLocation, v) },
 }
 
 // all possible source replacers

@@ -97,15 +97,21 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 
 	if gp.Coord != nil {
 		var err error
-		pl.Longitude, err = strconv.ParseFloat(gp.Coord.Long, 64)
+		long, err := strconv.ParseFloat(gp.Coord.Long, 64)
 		if err != nil {
 			logger.Warn("could not parse longitude of place", "long", gp.Coord.Long)
+		} else {
+			lat, err := strconv.ParseFloat(gp.Coord.Lat, 64)
+			if err != nil {
+				logger.Warn("could not parse latitude of place", "long", gp.Coord.Lat)
+			} else {
+				pl.GeoLocation = &model.GeoLocation{
+					Latitude:  lat,
+					Longitude: long,
+				}
+			}
 		}
 
-		pl.Latitude, err = strconv.ParseFloat(gp.Coord.Lat, 64)
-		if err != nil {
-			logger.Warn("could not parse latitude of place", "long", gp.Coord.Lat)
-		}
 	}
 
 	// Add notes
@@ -143,57 +149,62 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 					return fmt.Errorf("populate parent place: %w", err)
 				}
 			}
-			po := m.FindPlace(l.ScopeName, pval(paro.ID, paro.Handle))
+			parent := m.FindPlace(l.ScopeName, pval(paro.ID, paro.Handle))
 
 			// handle buildings or streets
-			if !po.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding) {
+			if !parent.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding) {
 				// combine into a single place
-				if po.PreferredName != "" {
-					pl.PreferredName += " " + po.PreferredName
+				if parent.PreferredName != "" {
+					pl.PreferredName += " " + parent.PreferredName
 				}
-				if po.PreferredFullName != "" {
-					pl.PreferredFullName += " " + po.PreferredFullName
+				if parent.PreferredFullName != "" {
+					pl.PreferredFullName += " " + parent.PreferredFullName
 				}
-				if po.PreferredUniqueName != "" {
-					if po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += " " + po.PreferredUniqueName
+				if parent.PreferredUniqueName != "" {
+					if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
+						pl.PreferredUniqueName += " " + parent.PreferredUniqueName
 					} else {
-						pl.PreferredUniqueName += " " + po.PreferredName
+						pl.PreferredUniqueName += " " + parent.PreferredName
 					}
 				}
-				if po.PreferredSortName != "" {
-					pl.PreferredSortName = po.PreferredSortName + " " + pl.PreferredSortName
+				if parent.PreferredSortName != "" {
+					pl.PreferredSortName = parent.PreferredSortName + " " + pl.PreferredSortName
 				}
-				po = po.Parent
+				parent = parent.Parent
 			}
 
-			if !po.IsUnknown() && po.PlaceType != model.PlaceTypeCategory {
+			if !parent.IsUnknown() && parent.PlaceType != model.PlaceTypeCategory {
 				connector := ", "
 				if pl.Singular {
-					connector = " " + po.InAt() + " "
+					connector = " " + parent.InAt() + " "
 				}
 
-				pl.Parent = po
-				if po.PreferredFullName != "" {
-					pl.PreferredFullName += connector + po.PreferredFullName
+				pl.Parent = parent
+				if parent.PreferredFullName != "" {
+					pl.PreferredFullName += connector + parent.PreferredFullName
 				}
-				if po.PreferredUniqueName != "" {
-					if po.PlaceType == model.PlaceTypeStreet || po.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += connector + po.PreferredUniqueName
+				if parent.PreferredUniqueName != "" {
+					if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
+						pl.PreferredUniqueName += connector + parent.PreferredUniqueName
 					} else {
-						pl.PreferredUniqueName += connector + po.PreferredName
+						pl.PreferredUniqueName += connector + parent.PreferredName
 					}
 				}
-				if po.PreferredSortName != "" {
-					pl.PreferredSortName = po.PreferredSortName + ", " + pl.PreferredSortName
+				if parent.PreferredSortName != "" {
+					pl.PreferredSortName = parent.PreferredSortName + ", " + pl.PreferredSortName
 				}
 
 				if pl.PlaceType == model.PlaceTypeStreet || pl.PlaceType == model.PlaceTypeBuilding {
-					pl.PreferredLocalityName = po.PreferredLocalityName
+					pl.PreferredLocalityName = parent.PreferredLocalityName
 				} else {
-					pl.PreferredLocalityName += connector + po.Name
+					pl.PreferredLocalityName += connector + parent.Name
 				}
 			}
+
+			if pl.GeoLocation == nil && parent.GeoLocation != nil {
+				pl.GeoLocation = parent.GeoLocation
+			}
+
 			break
 		}
 	}
