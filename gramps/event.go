@@ -643,7 +643,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 }
 
 func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
-	return nil, fmt.Errorf("unsupported span")
+	return nil, fmt.Errorf("unsupported span: %s to %s", ds.Start, ds.Stop)
 }
 
 func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.ResidenceRecordedEvent {

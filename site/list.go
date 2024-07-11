@@ -253,7 +253,7 @@ func (s *Site) WritePersonListPages(root string) error {
 		var rel string
 		if s.LinkFor(p) != "" {
 			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
-				rel = string(b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name())))
+				rel = b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name()))
 			}
 		}
 
@@ -354,7 +354,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			var rel string
 			if s.LinkFor(p) != "" {
 				if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
-					rel = string(b.EncodeBold(p.RelationToKeyPerson.Name()))
+					rel = b.EncodeBold(p.RelationToKeyPerson.Name())
 					title = text.AppendClause(title, rel)
 				}
 			}

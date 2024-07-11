@@ -220,11 +220,11 @@ func (s *Site) WriteTreeOverview(root string) error {
 			if i > len(list)-1 {
 				break
 			}
-			list[i] = string(doc.EncodeLink(ancestorSurnames[i], s.LinkForSurnameListPage(ancestorSurnames[i])))
+			list[i] = doc.EncodeLink(ancestorSurnames[i], s.LinkForSurnameListPage(ancestorSurnames[i]))
 		}
 		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
 		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
-		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", string(doc.EncodeLink("all surnames...", s.ListSurnamesDir)))))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", doc.EncodeLink("all surnames...", s.ListSurnamesDir))))
 	}
 
 	if peopleDesc != "" {
@@ -233,7 +233,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	}
 
 	doc.EmptyPara()
-	doc.Para(render.Markdown(text.JoinSentenceParts("See a", string(doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir)), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson))))
+	doc.Para(render.Markdown(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson))))
 
 	// Featured people
 	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
@@ -318,7 +318,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 			dt := p.BestBirthDate()
 			yr, ok := dt.Year()
 			if !ok {
-				return fmt.Sprintf("%s", p.PreferredFamiliarFullName)
+				return p.PreferredFamiliarFullName
 			}
 			return fmt.Sprintf("%s (b. %d)", p.PreferredFamiliarFullName, yr)
 		}, doc))
@@ -431,7 +431,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 	g := 0
 	doc.Heading3("Generation 1", "")
 
-	doc.Para(render.Markdown(text.JoinSentenceParts("1.", string(doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson))))))
+	doc.Para(render.Markdown(text.JoinSentenceParts("1.", doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson)))))
 	for i := range ancestors {
 		ig := -1
 		idx := i + 2
@@ -454,7 +454,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 			}
 		}
 		if ancestors[i] != nil {
-			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), string(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i])))))
+			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i]))))
 
 			var adds []string
 			if ancestors[i].PrimaryOccupation != "" {

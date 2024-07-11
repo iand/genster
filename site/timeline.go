@@ -84,7 +84,7 @@ func RenderTimeline(t *model.Timeline, pov *model.POV, enc render.MarkupBuilder)
 				sd = d.MonthRange()
 			case *gdate.MonthYear:
 				sy = strconv.Itoa(d.Year())
-				sd = fmt.Sprintf("%s", monthNames[d.M])
+				sd = monthNames[d.M]
 			default:
 				logger.Warn("timeline: unsupported date type", "type", fmt.Sprintf("%T", d), "value", d.String(), "event", fmt.Sprintf("%T", ev))
 			}
@@ -193,9 +193,7 @@ func (t *TimelineEntryFormatter) whenWhat(what string, ev model.TimelineEvent) s
 		switch ev.GetDate().Derivation {
 		case model.DateDerivationEstimated, model.DateDerivationCalculated:
 			what = text.MaybeWasVerb(what)
-			if strings.HasPrefix(what, "was ") {
-				what = what[4:]
-			}
+			what = strings.TrimPrefix(what, "was ")
 			what = "probably " + what + " around this time"
 		}
 	}
@@ -416,28 +414,6 @@ func (t *TimelineEntryFormatter) institutionDepartureEventTitle(seq int, ev *mod
 	return title
 }
 
-func (t *TimelineEntryFormatter) occupationEventTitle(seq int, ev model.TimelineEvent) string {
-	var title string
-	title = text.JoinSentenceParts(title, t.observerContext(ev))
-
-	if ev.IsInferred() {
-		title = text.JoinSentenceParts(title, "inferred to have")
-	}
-
-	title = text.JoinSentenceParts(title, ev.What())
-	title = text.JoinSentenceParts(title, ev.GetDetail())
-	date := ev.GetDate()
-	if dateIsKnownOrThereIsNoObserver(date, t.pov) {
-		title = text.JoinSentenceParts(title, date.When())
-	}
-
-	pl := ev.GetPlace()
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
-	}
-	return title
-}
-
 func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.UnionTimelineEvent) string {
 	title := ""
 	if t.pov.Person.IsUnknown() {
@@ -535,10 +511,6 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 	default:
 		return ""
 	}
-}
-
-func dateIsKnownOrThereIsNoObserver(date *model.Date, pov *model.POV) bool {
-	return !date.IsUnknown() || pov.Person.IsUnknown()
 }
 
 func placeIsKnownAndIsNotSameAsPointOfView(pl *model.Place, pov *model.POV) bool {

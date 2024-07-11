@@ -68,7 +68,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	encodeWikiTreeLink := func(p *model.Person) string {
-		return string(doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID)))
+		return doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID))
 	}
 
 	doc.EmptyPara()
@@ -288,11 +288,11 @@ func (w *WikiTreeEncoder) EncodeModelLink(text string, m any) string {
 }
 
 func (w *WikiTreeEncoder) EncodeItalic(m string) string {
-	return "''" + string(m) + "''"
+	return "''" + m + "''"
 }
 
 func (w *WikiTreeEncoder) EncodeBold(m string) string {
-	return "'''" + string(m) + "'''"
+	return "'''" + m + "'''"
 }
 
 func (w *WikiTreeEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
@@ -374,7 +374,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if c.Source != nil {
 		if c.Source.RepositoryName != "" {
 			if c.Source.RepositoryLink != "" {
-				repo = string(w.EncodeLink(text.StripNewlines(c.Source.RepositoryName), c.Source.RepositoryLink))
+				repo = w.EncodeLink(text.StripNewlines(c.Source.RepositoryName), c.Source.RepositoryLink)
 			} else {
 				repo = text.StripNewlines(c.Source.RepositoryName)
 			}
@@ -391,7 +391,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	detail = text.FinishSentence(detail)
 
 	if c.URL != nil {
-		detail = text.AppendIndependentClause(detail, string(w.EncodeLink(c.URL.Title, c.URL.URL)))
+		detail = text.AppendIndependentClause(detail, w.EncodeLink(c.URL.Title, c.URL.URL))
 		detail = text.FinishSentence(detail)
 	}
 

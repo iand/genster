@@ -84,7 +84,7 @@ func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
 
 			for ci := range sources[i].citations {
 				bb.WriteString(fmt.Sprintf("<div class=\"citation\"><span class=\"anchor\" id=\"%s\">%s:</span> ", sources[i].citations[ci].anchor, sources[i].citations[ci].anchor))
-				render.Markdown(sources[i].citations[ci].markdown).ToHTML(bb)
+				sources[i].citations[ci].markdown.ToHTML(bb)
 				bb.WriteString("</div>\n")
 			}
 
@@ -149,19 +149,6 @@ func (b *Encoder) BlockQuote(m render.Markdown) {
 	b.maintext.WriteString("</blockquote>\n")
 }
 
-func (b *Encoder) writeBlockQuote(buf io.StringWriter, s string) {
-	lines := strings.Split(s, "\n")
-	for i, l := range lines {
-		if i > 0 {
-			buf.WriteString("\n")
-			buf.WriteString("> \n")
-		}
-		buf.WriteString("> ")
-		buf.WriteString(l)
-	}
-	buf.WriteString("\n")
-}
-
 func (e *Encoder) UnorderedList(ms []render.Markdown) {
 	e.maintext.WriteString("<ul>\n")
 	for _, m := range ms {
@@ -222,7 +209,7 @@ func (e *Encoder) EncodeModelLink(firstText string, m any) string {
 		}
 	}
 
-	return string(e.EncodeLink(firstText, url))
+	return e.EncodeLink(firstText, url)
 }
 
 func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
@@ -249,7 +236,7 @@ func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string,
 	}
 	b.seenLinks[url] = true
 
-	return string(b.EncodeLink(firstText+suffix, url))
+	return b.EncodeLink(firstText+suffix, url)
 }
 
 func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
@@ -274,7 +261,7 @@ func (e *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
 		citationText += " (" + e.EncodeModelLink("more details...", c) + ")"
 	} else {
 		if c.URL != nil {
-			citationText = string(e.EncodeLink(citationText, c.URL.URL))
+			citationText = e.EncodeLink(citationText, c.URL.URL)
 		}
 	}
 
@@ -444,11 +431,11 @@ func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {
 }
 
 func (e *Encoder) EncodeItalic(m string) string {
-	return "*" + string(m) + "*"
+	return "*" + m + "*"
 }
 
 func (e *Encoder) EncodeBold(m string) string {
-	return "**" + string(m) + "**"
+	return "**" + m + "**"
 }
 
 func (e *Encoder) EncodeImage(alt string, link string) string {
