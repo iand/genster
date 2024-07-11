@@ -543,17 +543,9 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		}
 	}
 
-	if len(s.Family.Children) == 1 {
-		c := s.Family.Children[0]
-		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, true, false, false))
-		}
-		enc.Para(render.Markdown(detail.Text()))
-	} else {
-		enc.Para(render.Markdown(detail.Text()))
-		childList := s.childList(s.Family.Children, enc)
-		enc.UnorderedList(childList)
-	}
+	enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
+	childList := s.childList(s.Family.Children, enc)
+	enc.UnorderedList(childList)
 }
 
 func (s *FamilyStatement) Start() *model.Date {
@@ -683,12 +675,12 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 		}
 
 		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))
+			enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
+			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
 		}
 	} else {
 		panic("Not implemented: renderIllegitimate where person has more than one child or is the father")
 	}
-	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
@@ -743,15 +735,19 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 			detail.Continue("with", otherName)
 		}
 		detail.FinishSentence()
+
 		if !c.Redacted {
-			detail.NewSentence(PersonSummary(c, enc, c.PreferredFullName, !useBirthDateInIntro, false, false))
+			enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
+			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
 		}
+
+		// if !c.Redacted {
+		// 	detail.NewSentence(PersonSummary(c, enc, c.PreferredFullName, !useBirthDateInIntro, false, false))
+		// }
 
 	} else {
 		panic("Not implemented: renderUnmarried where person has more than one child")
 	}
-
-	enc.Para(render.Markdown(detail.Text()))
 }
 
 func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {

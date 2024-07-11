@@ -89,8 +89,8 @@ func (p *Para) FinishSentence() {
 		return
 	}
 
-	current = strings.TrimRight(current, ",:;")
-	if !strings.HasSuffix(current, ".") && !strings.HasSuffix(current, "!") && !strings.HasSuffix(current, "?") {
+	current = strings.TrimRight(current, ",;")
+	if !strings.HasSuffix(current, ".") && !strings.HasSuffix(current, "!") && !strings.HasSuffix(current, "?") && !strings.HasSuffix(current, ":") {
 		current += "."
 	}
 	p.sentences[len(p.sentences)-1] = current

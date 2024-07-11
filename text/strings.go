@@ -407,7 +407,13 @@ func AppendRelated(s, clause string) string {
 }
 
 func StripTerminator(s string) string {
-	return strings.TrimRight(s, ",:;.!?")
+	return strings.TrimRight(s, " ,:;.!?")
+}
+
+func AddListTerminator(s string) string {
+	s = StripTerminator(s)
+	s += " :–"
+	return s
 }
 
 func AppendIndependentClause(s, clause string) string {

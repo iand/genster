@@ -527,25 +527,76 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 
 	dstart, err := dp.Parse(dr.Start)
 	if err != nil {
-		return nil, fmt.Errorf("start value: %w", err)
+		return nil, fmt.Errorf("parse start value %q: %w", dr.Start, err)
 	}
 
-	mystart, ok := dstart.(*gdate.MonthYear)
-	if !ok {
-		return nil, fmt.Errorf("unsupported range")
+	var mystart *gdate.MonthYear
+	switch tstart := dstart.(type) {
+	case *gdate.MonthYear:
+		mystart = tstart
+	case *gdate.Precise:
+		if tstart.D == 1 {
+			mystart = &gdate.MonthYear{
+				C: tstart.C,
+				M: tstart.M,
+				Y: tstart.Y,
+			}
+		}
+	}
+
+	if mystart == nil {
+		return nil, fmt.Errorf("parse start value %q: unsupported start date type", dr.Start)
 	}
 
 	dstop, err := dp.Parse(dr.Stop)
 	if err != nil {
-		return nil, fmt.Errorf("stop value: %w", err)
+		return nil, fmt.Errorf("parse stop value %q: %w", dr.Stop, err)
 	}
-	mystop, ok := dstop.(*gdate.MonthYear)
-	if !ok {
-		return nil, fmt.Errorf("unsupported range")
+	var mystop *gdate.MonthYear
+	switch tstop := dstop.(type) {
+	case *gdate.MonthYear:
+		mystop = tstop
+	case *gdate.Precise:
+		switch tstop.M {
+		case 1, 3, 5, 7, 8, 10, 12:
+			if tstop.D == 31 {
+				mystop = &gdate.MonthYear{
+					C: tstop.C,
+					M: tstop.M,
+					Y: tstop.Y,
+				}
+			}
+		case 4, 6, 9, 11:
+			if tstop.D == 30 {
+				mystop = &gdate.MonthYear{
+					C: tstop.C,
+					M: tstop.M,
+					Y: tstop.Y,
+				}
+			}
+		case 2:
+			if tstop.Y%4 == 0 && (tstop.Y%100 != 0 || tstop.Y%400 == 0) {
+				if tstop.D == 29 {
+					mystop = &gdate.MonthYear{
+						C: tstop.C,
+						M: tstop.M,
+						Y: tstop.Y,
+					}
+				}
+			} else {
+				if tstop.D == 28 {
+					mystop = &gdate.MonthYear{
+						C: tstop.C,
+						M: tstop.M,
+						Y: tstop.Y,
+					}
+				}
+			}
+		}
 	}
 
-	if mystart.C != mystop.C {
-		return nil, fmt.Errorf("unsupported range: mismatched calendars")
+	if mystop == nil {
+		return nil, fmt.Errorf("parse stop value %q: unsupported stop date type", dr.Stop)
 	}
 
 	if mystart.Y == mystop.Y {

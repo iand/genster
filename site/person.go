@@ -256,16 +256,6 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		}
 	}
 
-	links := make([]render.Markdown, 0, len(p.Links))
-	for _, l := range p.Links {
-		links = append(links, render.Markdown(doc.EncodeLink(l.Title, l.URL)))
-	}
-
-	if len(links) > 0 {
-		doc.Heading2("Links", "")
-		doc.UnorderedList(links)
-	}
-
 	if len(p.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes", "")
 		for _, t := range p.ResearchNotes {
