@@ -10,7 +10,7 @@ type Para struct {
 
 func (p *Para) Text() string {
 	p.FinishSentence()
-	return strings.Join(p.sentences, " ")
+	return strings.TrimSpace(strings.Join(p.sentences, " "))
 }
 
 // Continue continues an existing sentence
@@ -55,10 +55,21 @@ func (p *Para) join(ss ...string) string {
 	return str
 }
 
-// NewSentence begins a new sentence by finishing any existing sentence and combining the strings into text which becomes the current sentence.
+// NewSentence begins a new sentence by finishing any existing sentence and combining
+// the strings into text which becomes the current sentence. No punctuation or
+// formatting is performed on the new sentence.
 func (p *Para) NewSentence(ss ...string) {
 	p.FinishSentence()
 	p.Continue(ss...)
+}
+
+// AddCompleteSentence combines the supplied strings into a formatted sentence and adds
+// it to the para. Any open sentence is finished first. The para is left at the start
+// of a new sentence.
+func (p *Para) AddCompleteSentence(ss ...string) {
+	p.FinishSentence()
+	p.NewSentence(ss...)
+	p.FinishSentence()
 }
 
 // DropSentence drops the current sentence
@@ -75,8 +86,15 @@ func (p *Para) ReplaceSentence(s string) {
 	p.NewSentence(s)
 }
 
-// FinishSentence completes the current sentence and leaves the paragraph ready for the next one.
+// FinishSentence completes the current sentence, terminating it with a full stop
+// and leaves the paragraph ready for the next one.
 func (p *Para) FinishSentence() {
+	p.FinishSentenceWithTerminator(".")
+}
+
+// FinishSentence completes the current sentence, terminating it with t
+// and leaves the paragraph ready for the next one.
+func (p *Para) FinishSentenceWithTerminator(t string) {
 	if len(p.sentences) == 0 {
 		return
 	}
@@ -89,10 +107,9 @@ func (p *Para) FinishSentence() {
 		return
 	}
 
-	current = strings.TrimRight(current, ",;")
-	if !strings.HasSuffix(current, ".") && !strings.HasSuffix(current, "!") && !strings.HasSuffix(current, "?") && !strings.HasSuffix(current, ":") {
-		current += "."
-	}
+	current = strings.TrimRight(current, ",;:-!?.")
+	current += t
+
 	p.sentences[len(p.sentences)-1] = current
 	p.sentences = append(p.sentences, "")
 }

@@ -191,7 +191,7 @@ func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string 
 	case model.ModeOfDeathDrowned:
 		modeWhat = "drowned"
 	case model.ModeOfDeathSuicide:
-		modeWhat = "died by suicide"
+		modeWhat = "died by own hand"
 	case model.ModeOfDeathExecuted:
 		modeWhat = "executed"
 	}

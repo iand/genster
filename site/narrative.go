@@ -499,7 +499,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 	if len(s.Family.Children) == 0 {
 		// single parents already dealt with
 		if s.Principal.Childless {
-			detail.Continue("they had no children")
+			detail.AddCompleteSentence("they had no children")
 		}
 	} else {
 
@@ -543,8 +543,14 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		}
 	}
 
-	enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
 	childList := s.childList(s.Family.Children, enc)
+	if len(childList) == 0 {
+		enc.Para(render.Markdown(detail.Text()))
+		return
+	}
+
+	detail.FinishSentenceWithTerminator(":–")
+	enc.Para(render.Markdown(detail.Text()))
 	enc.UnorderedList(childList)
 }
 
@@ -674,8 +680,11 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 			))
 		}
 
-		if !c.Redacted {
-			enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
+		if c.Redacted {
+			enc.Para(render.Markdown(detail.Text()))
+		} else {
+			detail.FinishSentenceWithTerminator(":–")
+			enc.Para(render.Markdown(detail.Text()))
 			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
 		}
 	} else {
@@ -736,14 +745,13 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 		}
 		detail.FinishSentence()
 
-		if !c.Redacted {
-			enc.Para(render.Markdown(text.AddListTerminator(detail.Text())))
+		if c.Redacted {
+			enc.Para(render.Markdown(detail.Text()))
+		} else {
+			detail.FinishSentenceWithTerminator(":–")
+			enc.Para(render.Markdown(detail.Text()))
 			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
 		}
-
-		// if !c.Redacted {
-		// 	detail.NewSentence(PersonSummary(c, enc, c.PreferredFullName, !useBirthDateInIntro, false, false))
-		// }
 
 	} else {
 		panic("Not implemented: renderUnmarried where person has more than one child")
