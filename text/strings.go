@@ -451,27 +451,27 @@ func MaybePossessiveSuffix(s string) string {
 	return s + "'s"
 }
 
-// TODO: remove MaybeWasVerb
-func MaybeWasVerb(verb string) string {
-	fs := strings.Fields(verb)
-	if len(fs) == 0 {
-		return verb
-	}
-	switch fs[0] {
-	case "born", "baptised", "buried", "cremated", "executed", "lost", "killed", "promoted", "demoted":
-		return "was " + verb
-	default:
-		return verb
-	}
-}
+// // TODO: remove MaybeWasVerb
+// func MaybeWasVerb(verb string) string {
+// 	fs := strings.Fields(verb)
+// 	if len(fs) == 0 {
+// 		return verb
+// 	}
+// 	switch fs[0] {
+// 	case "born", "baptised", "buried", "cremated", "executed", "lost", "killed", "promoted", "demoted":
+// 		return "was " + verb
+// 	default:
+// 		return verb
+// 	}
+// }
 
-func MaybeHaveBeenVerb(verb string) string {
-	st := MaybeWasVerb(verb)
-	if strings.HasPrefix(st, "was ") {
-		return "have been " + st[4:]
-	}
-	return "have " + st
-}
+// func MaybeHaveBeenVerb(verb string) string {
+// 	st := MaybeWasVerb(verb)
+// 	if strings.HasPrefix(st, "was ") {
+// 		return "have been " + st[4:]
+// 	}
+// 	return "have " + st
+// }
 
 func StripWasIs(st string) string {
 	if strings.HasPrefix(st, "was ") {

@@ -80,6 +80,11 @@ func (c CensusEntryMaritalStatus) String() string {
 
 type ModeOfDeath string
 
+var (
+	_ Whater          = (ModeOfDeath)("")
+	_ IrregularWhater = (ModeOfDeath)("")
+)
+
 const (
 	ModeOfDeathNatural        ModeOfDeath = ""
 	ModeOfDeathSuicide        ModeOfDeath = "suicide"
@@ -97,15 +102,77 @@ func (m ModeOfDeath) What() string {
 	case ModeOfDeathSuicide:
 		return "died by own hand"
 	case ModeOfDeathLostAtSea:
-		return ""
+		return "lost at sea"
 	case ModeOfDeathKilledInAction:
-		return ""
+		return "killed in action"
 	case ModeOfDeathDrowned:
-		return ""
+		return "drowned"
 	case ModeOfDeathExecuted:
-		return ""
+		return "executed"
 
 	default:
 		return string(m)
+	}
+}
+
+func (m ModeOfDeath) PassiveWhat() string {
+	switch m {
+	case ModeOfDeathNatural:
+		return "died"
+	case ModeOfDeathSuicide:
+		return "died by own hand"
+	case ModeOfDeathDrowned:
+		return "drowned"
+	default:
+		return "was " + m.What()
+	}
+}
+
+func (m ModeOfDeath) ConditionalWhat(adverb string) string {
+	switch m {
+	default:
+		return adverb + " " + m.What()
+	}
+}
+
+func (m ModeOfDeath) PassiveConditionalWhat(adverb string) string {
+	switch m {
+
+	case ModeOfDeathNatural:
+		return adverb + " died"
+	case ModeOfDeathSuicide:
+		return adverb + " died by own hand"
+	case ModeOfDeathDrowned:
+		return adverb + " drowned"
+	default:
+		return "was " + adverb + " " + m.What()
+	}
+}
+
+func (m ModeOfDeath) PresentPerfectWhat() string {
+	switch m {
+
+	case ModeOfDeathNatural:
+		return "have died"
+	case ModeOfDeathSuicide:
+		return "have died by own hand"
+	case ModeOfDeathDrowned:
+		return "have drowned"
+	default:
+		return "have been " + m.What()
+	}
+}
+
+func (m ModeOfDeath) PastPerfectWhat() string {
+	switch m {
+
+	case ModeOfDeathNatural:
+		return "had died"
+	case ModeOfDeathSuicide:
+		return "had died by own hand"
+	case ModeOfDeathDrowned:
+		return "had drowned"
+	default:
+		return "had been " + m.What()
 	}
 }

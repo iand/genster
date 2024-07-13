@@ -3,7 +3,6 @@ package site
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
@@ -187,17 +186,15 @@ func (t *TimelineEntryFormatter) Detail(seq int, ev model.TimelineEvent) string 
 	}
 }
 
-func (t *TimelineEntryFormatter) whenWhat(what string, ev model.TimelineEvent) string {
+func (t *TimelineEntryFormatter) whenWhat(ev model.TimelineEvent) string {
 	date := ev.GetDate()
 	if !date.IsUnknown() {
 		switch ev.GetDate().Derivation {
 		case model.DateDerivationEstimated, model.DateDerivationCalculated:
-			what = text.MaybeWasVerb(what)
-			what = strings.TrimPrefix(what, "was ")
-			what = "probably " + what + " around this time"
+			return model.ConditionalWhat(ev, "probably") + " around this time"
 		}
 	}
-	return what
+	return model.What(ev)
 }
 
 func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTimelineEvent) string {
@@ -219,7 +216,7 @@ func (t *TimelineEntryFormatter) vitalEventTitle(seq int, ev model.IndividualTim
 		includeAge = false
 	}
 
-	what := t.whenWhat(ev.What(), ev)
+	what := t.whenWhat(ev)
 
 	// Add person info if known and not the pov person
 	if !principal.IsUnknown() {
@@ -292,7 +289,7 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 	}
 	var title string
 	title = text.JoinSentenceParts(title, t.observerContext(ev))
-	title = text.JoinSentenceParts(title, t.whenWhat(ev.What(), ev))
+	title = text.JoinSentenceParts(title, t.whenWhat(ev))
 
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -304,7 +301,7 @@ func (t *TimelineEntryFormatter) generalEventTitle(seq int, ev model.TimelineEve
 }
 
 func (t *TimelineEntryFormatter) probateEventTitle(seq int, ev model.TimelineEvent) string {
-	title := text.JoinSentenceParts("probate was granted", t.whenWhat(ev.What(), ev))
+	title := t.whenWhat(ev)
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, "here")
@@ -427,9 +424,9 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.UnionTimel
 		case *model.MarriageEvent:
 			title = text.JoinSentenceParts(party1Link, "married", party2Link)
 		case *model.MarriageLicenseEvent:
-			title = text.JoinSentenceParts("license was obtained for the marriage of ", party1Link, "and", party2Link)
+			title = text.JoinSentenceParts(model.What(ev), "for the marriage of ", party1Link, "and", party2Link)
 		case *model.MarriageBannsEvent:
-			title = text.JoinSentenceParts("banns were read for the marriage of ", party1Link, "and", party2Link)
+			title = text.JoinSentenceParts(model.What(ev), "for the marriage of ", party1Link, "and", party2Link)
 		default:
 			panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 		}
@@ -441,9 +438,9 @@ func (t *TimelineEntryFormatter) marriageEventTitle(seq int, ev model.UnionTimel
 		case *model.MarriageEvent:
 			title = text.JoinSentenceParts("married", spouseLink)
 		case *model.MarriageLicenseEvent:
-			title = text.JoinSentenceParts("obtained license to marry", spouseLink)
+			title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
 		case *model.MarriageBannsEvent:
-			title = text.JoinSentenceParts("banns were read to marry", spouseLink)
+			title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
 		default:
 			panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 		}

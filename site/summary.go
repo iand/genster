@@ -42,36 +42,32 @@ func WhoWhatWhenWhere(ev model.TimelineEvent, enc render.PageMarkdownEncoder) st
 }
 
 func EventWhatWhenWhere(ev model.TimelineEvent, enc render.PageMarkdownEncoder) string {
-	return WhatWhenWhere(InferredWhat(ev.What(), ev), ev.GetDate(), ev.GetPlace(), enc)
+	return WhatWhenWhere(InferredWhat(ev, ev), ev.GetDate(), ev.GetPlace(), enc)
 }
 
 func EventWhatWhere(ev model.TimelineEvent, enc render.PageMarkdownEncoder) string {
-	return WhatWhere(InferredWhat(ev.What(), ev), ev.GetPlace(), enc)
+	return WhatWhere(InferredWhat(ev, ev), ev.GetPlace(), enc)
 }
 
 func EventWhenWhere(ev model.TimelineEvent, enc render.PageMarkdownEncoder) string {
 	return WhenWhere(ev.GetDate(), ev.GetPlace(), enc)
 }
 
-func InferredWhat(what string, ev model.TimelineEvent) string {
+func InferredWhat(w model.Whater, ev model.TimelineEvent) string {
 	if ev.IsInferred() {
-		return "is inferred to " + text.MaybeHaveBeenVerb(what)
+		return "is inferred to " + model.PresentPerfectWhat(w)
 	}
 
 	if !ev.GetDate().IsUnknown() {
 		switch ev.GetDate().Derivation {
 		case model.DateDerivationEstimated:
-			what = text.MaybeWasVerb(what)
-			if strings.HasPrefix(what, "was ") {
-				return "was probably " + what[4:]
-			}
-			return "probably " + what + " around this time"
+			return model.PassiveConditionalWhat(w, "probably")
 		case model.DateDerivationCalculated:
-			return "is calculated to " + text.MaybeHaveBeenVerb(what)
+			return "is calculated to " + model.PresentPerfectWhat(w)
 		}
 	}
 
-	return text.MaybeWasVerb(what)
+	return model.PassiveWhat(w)
 }
 
 func WhatWhenWhere(what string, dt *model.Date, pl *model.Place, enc render.PageMarkdownEncoder) string {
@@ -182,31 +178,16 @@ func FollowingWhatWhenWhere(what string, dt *model.Date, pl *model.Place, preced
 }
 
 func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string {
-	var modeWhat string
-	switch mode {
-	case model.ModeOfDeathLostAtSea:
-		modeWhat = "lost at sea"
-	case model.ModeOfDeathKilledInAction:
-		modeWhat = "killed in action"
-	case model.ModeOfDeathDrowned:
-		modeWhat = "drowned"
-	case model.ModeOfDeathSuicide:
-		modeWhat = "died by own hand"
-	case model.ModeOfDeathExecuted:
-		modeWhat = "executed"
-	}
-
-	if modeWhat == "" {
-		return InferredWhat(ev.What(), ev)
-	}
-
 	switch ev.(type) {
 	case *model.DeathEvent:
-		return InferredWhat(modeWhat, ev)
+		if mode == model.ModeOfDeathNatural {
+			return InferredWhat(ev, ev)
+		}
+		return InferredWhat(mode, ev)
 	case *model.BurialEvent:
-		return text.JoinSentenceParts(text.MaybeWasVerb(modeWhat), "and", InferredWhat(ev.What(), ev))
+		return text.JoinSentenceParts(model.PassiveWhat(mode), "and", InferredWhat(ev, ev))
 	case *model.CremationEvent:
-		return text.JoinSentenceParts(text.MaybeWasVerb(modeWhat), "and", InferredWhat(ev.What(), ev))
+		return text.JoinSentenceParts(model.PassiveWhat(mode), "and", InferredWhat(ev, ev))
 	default:
 		panic("unhandled deathlike event in DeathWhat")
 	}
@@ -505,7 +486,7 @@ func PersonDeathSummary(p *model.Person, enc render.PageMarkdownEncoder, name st
 
 	var para text.Para
 	para.NewSentence(name)
-	deathWhat := text.MaybeWasVerb(bev.What())
+	deathWhat := model.PassiveWhat(bev)
 	if death != nil {
 		deathWhat = DeathWhat(death, p.ModeOfDeath)
 	}

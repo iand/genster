@@ -11,9 +11,8 @@ type TimelineEvent interface {
 	GetNarrative() Text
 	GetCitations() []*GeneralCitation
 	GetAttribute(name string) (string, bool)
-	Type() string // name of the type of event, usually a single word
-	// ShortDescription() string        // returns the abbreviated name of the event and its date, e.g. "b. 4 Jul 1928"
-	What() string                    // text description of what happened, such as married, born, divorced, in the past tense
+	Type() string                    // name of the type of event, usually a single word
+	What() string                    // text description of what happened, an active verb in the past tense, such as married, born, died
 	When() string                    // text description of date
 	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
@@ -381,9 +380,15 @@ type DeathEvent struct {
 	GeneralIndividualEvent
 }
 
-func (e *DeathEvent) Type() string             { return "death" }
-func (e *DeathEvent) ShortDescription() string { return e.abbrev("d") }
-func (e *DeathEvent) What() string             { return "died" }
+func (e *DeathEvent) Type() string                                { return "death" }
+func (e *DeathEvent) ShortDescription() string                    { return e.abbrev("d") }
+func (e *DeathEvent) What() string                                { return "died" }
+func (e *DeathEvent) PassiveWhat() string                         { return "died" }
+func (e *DeathEvent) ConditionalWhat(adverb string) string        { return adverb + " died" }
+func (e *DeathEvent) PassiveConditionalWhat(adverb string) string { return adverb + " died" }
+func (e *DeathEvent) PresentPerfectWhat() string                  { return "have died" }
+func (e *DeathEvent) PastPerfectWhat() string                     { return "had died" }
+
 func (e *DeathEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *BirthEvent, *BaptismEvent:
@@ -396,6 +401,7 @@ func (e *DeathEvent) SortsBefore(other TimelineEvent) bool {
 var (
 	_ TimelineEvent           = (*DeathEvent)(nil)
 	_ IndividualTimelineEvent = (*DeathEvent)(nil)
+	_ IrregularWhater         = (*DeathEvent)(nil)
 )
 
 // BurialEvent represents the burial of a person in their timeline
@@ -609,7 +615,7 @@ type CensusEntry struct {
 
 func (e *CensusEvent) Type() string             { return "census" }
 func (e *CensusEvent) ShortDescription() string { return e.abbrev("cens") }
-func (e *CensusEvent) What() string             { return "appeared in census" }
+func (e *CensusEvent) What() string             { return "recorded in the census" }
 
 func (e *CensusEvent) DirectlyInvolves(p *Person) bool {
 	if p.IsUnknown() {
@@ -677,11 +683,22 @@ type ProbateEvent struct {
 var (
 	_ TimelineEvent           = (*ProbateEvent)(nil)
 	_ IndividualTimelineEvent = (*ProbateEvent)(nil)
+	_ IrregularWhater         = (*ProbateEvent)(nil)
 )
 
 func (e *ProbateEvent) Type() string             { return "probate" }
 func (e *ProbateEvent) ShortDescription() string { return e.abbrev("prob") }
-func (e *ProbateEvent) What() string             { return "had probate granted" }
+func (e *ProbateEvent) What() string             { return "probate granted" }
+func (e *ProbateEvent) PassiveWhat() string      { return "probate was read" }
+func (e *ProbateEvent) ConditionalWhat(adverb string) string {
+	return "probate " + adverb + " granted"
+}
+
+func (e *ProbateEvent) PassiveConditionalWhat(adverb string) string {
+	return "probate was " + adverb + " granted"
+}
+func (e *ProbateEvent) PresentPerfectWhat() string { return "have had probate granted" }
+func (e *ProbateEvent) PastPerfectWhat() string    { return "had probate granted" }
 
 // WillEvent represents the writing of a will by a person in their timeline
 type WillEvent struct {
@@ -821,11 +838,24 @@ type MarriageLicenseEvent struct {
 var (
 	_ TimelineEvent      = (*MarriageLicenseEvent)(nil)
 	_ UnionTimelineEvent = (*MarriageLicenseEvent)(nil)
+	_ IrregularWhater    = (*MarriageLicenseEvent)(nil)
 )
 
 func (e *MarriageLicenseEvent) Type() string             { return "marriage license" }
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
-func (e *MarriageLicenseEvent) What() string             { return "obtained licensed to marry" }
+func (e *MarriageLicenseEvent) What() string             { return "marriage license obtained" }
+
+func (e *MarriageLicenseEvent) PassiveWhat() string { return "marriage license was obtained" }
+func (e *MarriageLicenseEvent) ConditionalWhat(adverb string) string {
+	return "marriage license " + adverb + " obtained"
+}
+
+func (e *MarriageLicenseEvent) PassiveConditionalWhat(adverb string) string {
+	return "marriage license was " + adverb + " obtained"
+}
+func (e *MarriageLicenseEvent) PresentPerfectWhat() string { return "have obtained a marriage license" }
+func (e *MarriageLicenseEvent) PastPerfectWhat() string    { return "had obtained a marriage license" }
+
 func (e *MarriageLicenseEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
@@ -844,11 +874,23 @@ type MarriageBannsEvent struct {
 var (
 	_ TimelineEvent      = (*MarriageBannsEvent)(nil)
 	_ UnionTimelineEvent = (*MarriageBannsEvent)(nil)
+	_ IrregularWhater    = (*MarriageBannsEvent)(nil)
 )
 
 func (e *MarriageBannsEvent) Type() string             { return "marriage banns" }
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
-func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
+func (e *MarriageBannsEvent) What() string             { return "marriage banns read" }
+func (e *MarriageBannsEvent) PassiveWhat() string      { return "marriage banns were read" }
+func (e *MarriageBannsEvent) ConditionalWhat(adverb string) string {
+	return "marriage banns " + adverb + " read"
+}
+
+func (e *MarriageBannsEvent) PassiveConditionalWhat(adverb string) string {
+	return "marriage banns were " + adverb + " read"
+}
+func (e *MarriageBannsEvent) PresentPerfectWhat() string { return "have had marriage banns read" }
+func (e *MarriageBannsEvent) PastPerfectWhat() string    { return "had marriage banns read" }
+
 func (e *MarriageBannsEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
