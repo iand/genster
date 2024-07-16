@@ -31,6 +31,8 @@ type Family struct {
 	Bond           string  // the kind of bond between the parents in the family
 	EndReason      string  // the reason the family unit ended
 	EndDeathPerson *Person // the person whose death ended the family unit, if any
+
+	PublishChildren bool // true if this family's children should always be included in the publish set
 }
 
 func (f *Family) OtherParent(p *Person) *Person {

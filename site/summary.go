@@ -535,7 +535,7 @@ func PersonMarriageSummary(p *model.Person, enc render.PageMarkdownEncoder, name
 		// more detail
 		f := fams[0]
 		other := f.OtherParent(p)
-		what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFullName, other)
+		what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFamiliarFullName, other)
 		marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), nil, enc)), f.BestStartEvent.GetCitations()))
 	} else {
 		var prev model.TimelineEvent
@@ -545,10 +545,10 @@ func PersonMarriageSummary(p *model.Person, enc render.PageMarkdownEncoder, name
 			y, _ := f.BestStartEvent.GetDate().AsYear()
 
 			if prev != nil {
-				what := enc.EncodeModelLink(other.PreferredFullName, other)
+				what := enc.EncodeModelLink(other.PreferredFamiliarFullName, other)
 				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, nil, enc)), f.BestStartEvent.GetCitations()))
 			} else {
-				what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFullName, other)
+				what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(other.PreferredFamiliarFullName, other)
 				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, nil, enc)), f.BestStartEvent.GetCitations()))
 			}
 

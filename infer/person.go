@@ -17,14 +17,23 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	logging.Debug("redacting person", "id", p.ID, "name", p.PreferredFullName)
 	p.Redacted = true
 	p.RedactNames("(living or recently deceased person)")
-
 	p.Olb = "information withheld to preserve privacy"
 	p.Gender = model.GenderUnknown
+
+	// redact all citations that might mention the person
+	cits := p.AllCitations()
+	for _, c := range cits {
+		c.Redacted = true
+	}
+
 	p.Tags = []string{}
 	p.Timeline = []model.TimelineEvent{}
 	p.Occupations = []*model.Occupation{}
+	p.Associations = []model.Association{}
 	p.Links = []model.Link{}
 	p.VitalYears = "-?-"
+	p.FeatureImage = nil
+	p.Gallery = []*model.CitedMediaObject{}
 
 	var birthDecade int
 	var hasBirthDecade bool

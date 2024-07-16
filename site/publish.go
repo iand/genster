@@ -708,6 +708,20 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		}
 	}
 
+	maybeIncludeCitation := func(c *model.GeneralCitation) {
+		if c.Redacted {
+			return
+		}
+		ps.Citations[c.ID] = c
+	}
+
+	maybeIncludeMediaObject := func(mo *model.MediaObject) {
+		if mo.Redacted {
+			return
+		}
+		ps.MediaObjects[mo.ID] = mo
+	}
+
 	for _, p := range t.People {
 		if !include(p) {
 			continue
@@ -725,32 +739,32 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 
 		if p.CauseOfDeath != nil {
 			for _, c := range p.CauseOfDeath.Citations {
-				ps.Citations[c.ID] = c
+				maybeIncludeCitation(c)
 			}
 		}
 
 		for _, n := range p.KnownNames {
 			for _, c := range n.Citations {
-				ps.Citations[c.ID] = c
+				maybeIncludeCitation(c)
 			}
 		}
 		for _, f := range p.MiscFacts {
 			for _, c := range f.Citations {
-				ps.Citations[c.ID] = c
+				maybeIncludeCitation(c)
 			}
 		}
 		for _, o := range p.Occupations {
 			for _, c := range o.Citations {
-				ps.Citations[c.ID] = c
+				maybeIncludeCitation(c)
 			}
 		}
 		for _, a := range p.Associations {
 			for _, c := range a.Citations {
-				ps.Citations[c.ID] = c
+				maybeIncludeCitation(c)
 			}
 		}
 		for _, cmo := range p.Gallery {
-			ps.MediaObjects[cmo.Object.ID] = cmo.Object
+			maybeIncludeMediaObject(cmo.Object)
 		}
 
 		includePlacesInTexts(p.ResearchNotes...)
@@ -772,7 +786,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		}
 
 		for _, c := range ev.GetCitations() {
-			ps.Citations[c.ID] = c
+			maybeIncludeCitation(c)
 		}
 
 		// include any places mentioned in texts
@@ -784,7 +798,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		includePlacesInTexts(c.Comments...)
 
 		for _, cmo := range c.MediaObjects {
-			ps.MediaObjects[cmo.Object.ID] = cmo.Object
+			maybeIncludeMediaObject(cmo.Object)
 		}
 		if c.Source != nil {
 			ps.Sources[c.Source.ID] = c.Source
@@ -796,7 +810,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 
 	for _, pl := range ps.Places {
 		for _, cmo := range pl.Gallery {
-			ps.MediaObjects[cmo.Object.ID] = cmo.Object
+			maybeIncludeMediaObject(cmo.Object)
 		}
 		includePlacesInTexts(pl.ResearchNotes...)
 		includePlacesInTexts(pl.Comments...)

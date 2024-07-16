@@ -199,15 +199,20 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
 			}
-
-			// seenSource := make(map[*model.Source]bool)
-			// for _, c := range ev.GetCitations() {
-			// 	if c.Source != nil && !seenSource[c.Source] {
-			// 		c.Source.EventsCiting = append(c.Source.EventsCiting, ev)
-			// 		seenSource[c.Source] = true
-			// 	}
-			// }
 		}
+
+		for _, tref := range fr.Tagref {
+			tag, ok := l.TagsByHandle[tref.Hlink]
+			if !ok {
+				logger.Warn("could not find tag", "hlink", tref.Hlink)
+				continue
+			}
+			switch strings.ToLower(tag.Name) {
+			case "publish":
+				fam.PublishChildren = true
+			}
+		}
+
 	}
 
 	return nil

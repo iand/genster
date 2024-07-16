@@ -243,15 +243,22 @@ func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitati
 	if len(citations) == 0 {
 		return s
 	}
-	sups := "<sup class=\"citref\">"
+	sups := ""
 	for i, cit := range citations {
+		if cit.Redacted {
+			continue
+		}
 		if i > 0 && sups != "" {
 			sups += ","
 		}
 		sups += b.EncodeCitationDetail(cit)
 	}
 
-	return s + sups + "</sup>"
+	if sups == "" {
+		return s
+	}
+
+	return s + "<sup class=\"citref\">" + sups + "</sup>"
 }
 
 func (e *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {

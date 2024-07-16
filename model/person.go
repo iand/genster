@@ -339,6 +339,44 @@ func (p *Person) OccupationAt(dt *Date) *Occupation {
 	return occ
 }
 
+// AllCitations returns a list of citations pertaining to this person
+func (p *Person) AllCitations() []*GeneralCitation {
+	cmap := make(map[string]*GeneralCitation)
+	for _, ev := range p.Timeline {
+		for _, c := range ev.GetCitations() {
+			cmap[c.ID] = c
+		}
+	}
+
+	for _, n := range p.KnownNames {
+		for _, c := range n.Citations {
+			cmap[c.ID] = c
+		}
+	}
+	for _, f := range p.MiscFacts {
+		for _, c := range f.Citations {
+			cmap[c.ID] = c
+		}
+	}
+	for _, o := range p.Occupations {
+		for _, c := range o.Citations {
+			cmap[c.ID] = c
+		}
+	}
+	for _, a := range p.Associations {
+		for _, c := range a.Citations {
+			cmap[c.ID] = c
+		}
+	}
+
+	cits := make([]*GeneralCitation, 0, len(cmap))
+	for _, c := range cmap {
+		cits = append(cits, c)
+	}
+
+	return cits
+}
+
 func UnknownPerson() *Person {
 	return &Person{
 		PreferredFullName:         "an unknown person",

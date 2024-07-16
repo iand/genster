@@ -516,6 +516,10 @@ func (t *Tree) AddSpouses(f *model.Family) error {
 }
 
 func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
+	if f.BestStartEvent != nil && (f.Bond == model.FamilyBondMarried || f.Bond == model.FamilyBondLikelyMarried) {
+		f.BestStartDate = f.BestStartEvent.GetDate()
+	}
+
 	if f.BestEndDate == nil {
 		if f.Mother == nil || f.Mother.BestDeathlikeEvent == nil {
 			if f.Father != nil && f.Father.BestDeathlikeEvent != nil {
@@ -551,7 +555,7 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 
 		// Set family start date to the be about person's birth if it is better than the current start date
 		if p.BestBirthlikeEvent != nil {
-			if f.BestStartDate == nil || p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate) {
+			if f.BestStartDate == nil || ((f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) && p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate)) {
 				_, isBirth := p.BestBirthlikeEvent.(*model.BirthEvent)
 
 				if isBirth && (f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) {

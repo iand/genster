@@ -41,6 +41,7 @@ type GeneralCitation struct {
 	MediaObjects      []*CitedMediaObject
 	EventsCited       []TimelineEvent
 	PeopleCited       []*Person
+	Redacted          bool // true if the citation's details should be redacted
 }
 
 type CitedMediaObject struct {

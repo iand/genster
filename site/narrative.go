@@ -688,7 +688,7 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
 		}
 	} else {
-		panic("Not implemented: renderIllegitimate where person has more than one child or is the father")
+		panic(fmt.Sprintf("Not implemented: renderIllegitimate where person has more than one child or is the father (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 	}
 }
 
@@ -713,12 +713,7 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 	useBirthDateInIntro := childFirmBirthdate
 
 	other := s.Family.OtherParent(s.Principal)
-	var otherName string
-	if other.IsUnknown() {
-		otherName = "an unknown " + s.Principal.Gender.Opposite().Noun()
-	} else {
-		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc)
-	}
+	otherName := intro.IntroducePerson(seq, other, s.Start(), false, enc)
 
 	var detail text.Para
 	if oneChild {
@@ -754,12 +749,31 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 		}
 
 	} else {
-		panic("Not implemented: renderUnmarried where person has more than one child")
+		c := s.Family.Children[0]
+		detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
+
+		childCardinal := s.childCardinal(s.Family.Children)
+		detail.Continue("had", childCardinal)
+
+		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc)
+		detail.Continue("with", otherName)
+
+		childList := s.childList(s.Family.Children, enc)
+		if len(childList) == 0 {
+			enc.Para(render.Markdown(detail.Text()))
+			return
+		}
+
+		detail.FinishSentenceWithTerminator(":–")
+		enc.Para(render.Markdown(detail.Text()))
+		enc.UnorderedList(childList)
+
 	}
 }
 
 func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
 	// married or unknown relationship but the other parent is unknown
+	// panic(fmt.Sprintf("Not implemented: renderUnknownPartner (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 }
 
 type FamilyEndStatement struct {

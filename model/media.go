@@ -22,6 +22,7 @@ type MediaObject struct {
 	Width       int
 	Height      int
 	Citations   []*GeneralCitation
+	Redacted    bool // true if the object's details should be redacted
 }
 
 type Region struct {
