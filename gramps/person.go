@@ -305,6 +305,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "cremation":
+			ev = &model.CremationEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "memorial":
+			ev = &model.MemorialEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
 		case "census":
 			censusDate, fixed := maybeFixCensusDate(grev)
 			if fixed {

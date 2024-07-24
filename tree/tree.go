@@ -720,7 +720,14 @@ func (t *Tree) ExpandPersonTimeline(p *model.Person) error {
 	// 	}
 	// }
 
-	// TODO: add parent deaths to child timelines
+	// add parent deaths to child timelines
+	if p.Father != nil && p.Father.BestDeathlikeEvent != nil {
+		p.Timeline = append(p.Timeline, p.Father.BestDeathlikeEvent)
+	}
+	if p.Mother != nil && p.Mother.BestDeathlikeEvent != nil {
+		p.Timeline = append(p.Timeline, p.Mother.BestDeathlikeEvent)
+	}
+
 	// TODO: add sibling deaths to person timelines
 
 	return nil
@@ -745,14 +752,14 @@ EventLoop:
 			}
 		}
 
-		// Skip events before the person's birth
+		// Skip other events before the person's birth
 		if p.BestBirthlikeEvent != nil {
 			if ev.GetDate().SortsBefore(p.BestBirthlikeEvent.GetDate()) {
 				continue
 			}
 		}
 
-		// Skip events after the person's birth
+		// Skip other events after the person's birth
 		if p.BestDeathlikeEvent != nil {
 			if p.BestDeathlikeEvent.GetDate().SortsBefore(ev.GetDate()) {
 				continue

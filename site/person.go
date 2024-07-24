@@ -221,12 +221,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		Events: make([]model.TimelineEvent, 0, len(p.Timeline)),
 	}
 	for _, ev := range p.Timeline {
-		if ev.GetDate().IsUnknown() && ev.GetPlace().IsUnknown() {
-			p.MiscFacts = append(p.MiscFacts, model.Fact{
-				Category: ev.What(),
-				Detail:   ev.GetDetail(),
-			})
-		} else {
+		if !ev.GetDate().IsUnknown() || !ev.GetPlace().IsUnknown() {
 			t.Events = append(t.Events, ev)
 		}
 	}

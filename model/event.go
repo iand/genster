@@ -433,9 +433,13 @@ type CremationEvent struct {
 	GeneralIndividualEvent
 }
 
-func (e *CremationEvent) Type() string             { return "cremation" }
-func (e *CremationEvent) ShortDescription() string { return e.abbrev("crem") }
-func (e *CremationEvent) What() string             { return "cremated" }
+var (
+	_ TimelineEvent           = (*CremationEvent)(nil)
+	_ IndividualTimelineEvent = (*CremationEvent)(nil)
+)
+
+func (e *CremationEvent) Type() string { return "cremation" }
+func (e *CremationEvent) What() string { return "cremated" }
 func (e *CremationEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *BirthEvent, *BaptismEvent, *DeathEvent:
@@ -445,10 +449,27 @@ func (e *CremationEvent) SortsBefore(other TimelineEvent) bool {
 	}
 }
 
+// MemorialEvent represents the memorial of a person in their timeline
+type MemorialEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
 var (
-	_ TimelineEvent           = (*CremationEvent)(nil)
-	_ IndividualTimelineEvent = (*CremationEvent)(nil)
+	_ TimelineEvent           = (*MemorialEvent)(nil)
+	_ IndividualTimelineEvent = (*MemorialEvent)(nil)
 )
+
+func (e *MemorialEvent) Type() string { return "memorial" }
+func (e *MemorialEvent) What() string { return "memorial" }
+func (e *MemorialEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent, *DeathEvent, *BurialEvent, *CremationEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 // EnlistmentEvent represents the enlisting of a person to a military service
 type EnlistmentEvent struct {

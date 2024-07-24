@@ -243,7 +243,7 @@ func (p *Person) RelationTo(other *Person, dt *Date) string {
 }
 
 func (p *Person) BestBirthDate() *Date {
-	if p.BestBirthlikeEvent == nil {
+	if p == nil || p.BestBirthlikeEvent == nil {
 		return UnknownDate()
 	}
 
@@ -251,7 +251,7 @@ func (p *Person) BestBirthDate() *Date {
 }
 
 func (p *Person) BestDeathDate() *Date {
-	if p.BestDeathlikeEvent == nil {
+	if p == nil || p.BestDeathlikeEvent == nil {
 		return UnknownDate()
 	}
 

@@ -466,7 +466,7 @@ func (t *TimelineEntryFormatter) observerContext(ev model.TimelineEvent) string 
 		if observer.IsUnknown() || tev.GetDate().IsUnknown() {
 			return t.enc.EncodeModelLinkDedupe(principal.PreferredFullName, principal.PreferredFullName, principal)
 		}
-		name := t.enc.EncodeModelLinkDedupe(principal.PreferredFullName, principal.PreferredGivenName, principal)
+		name := t.enc.EncodeModelLinkDedupe(principal.PreferredFamiliarFullName, principal.PreferredFamiliarName, principal)
 		return text.AppendAside(principal.RelationTo(t.pov.Person, tev.GetDate()), name)
 	case model.MultipartyTimelineEvent:
 		if tev.DirectlyInvolves(observer) {

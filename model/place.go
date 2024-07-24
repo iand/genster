@@ -5,16 +5,30 @@ import (
 )
 
 type Place struct {
-	ID                    string   // canonical identifier
-	Tags                  []string // tags to add to the place's page
-	OriginalText          string   // the original text that was used to fill in the place information
-	Hints                 []place.Hint
+	ID           string   // canonical identifier
+	Tags         []string // tags to add to the place's page
+	OriginalText string   // the original text that was used to fill in the place information
+	Hints        []place.Hint
+	// TODO: consolidate these name fields
+	// Need names that are:
+	//  - just the name of the place
+	//  - the name of the place with all levels before parish/town
+	//  - the name of the place with all levels up to parish/town
+	//  - the name of the place with all levels up to county/state
+	//  - the full name including all levels up to country
+	//  - the sort name including all levels up to country, reverse order
+	//  - parish/town level up to county/state
+	//  - parish/town level including all levels up to country
+	// Area naming:
+	//  - region: county/state
+	//  - district: town/parish
+
 	Name                  string       // the bare name of the place, could be street name or country name
 	PreferredName         string       // the minimum amount of context, such as "street, locality" or "locality, region"
 	PreferredUniqueName   string       // fully parsed name but with just enough extra context to make it unique
 	PreferredFullName     string       // the fully parsed name
 	PreferredSortName     string       // name organised for sorting, generally as a reverse hierarchy of country, region, locality
-	PreferredLocalityName string       // context starting with locality, i.e. "locality, region"
+	PreferredLocalityName string       // name excluding specific building or street, instead starting with locality, i.e. "locality, region"
 	Parent                *Place       // the parent of this place in the administrative hierarchy
 	PlaceType             PlaceType    // the type of place, such as "village", "town", "parish"
 	Numbered              bool         // whether the place is a numbered building
@@ -90,20 +104,21 @@ func UnknownPlace() *Place {
 type PlaceType string
 
 const (
-	PlaceTypeUnknown      = "place"
-	PlaceTypeAddress      = "address"
-	PlaceTypeCountry      = "country"
-	PlaceTypeBuilding     = "building"
-	PlaceTypeBurialGround = "burial ground"
-	PlaceTypeStreet       = "street"
-	PlaceTypeShip         = "ship"
-	PlaceTypeCategory     = "category" // used ony for grouping related places
-	PlaceTypeCity         = "city"
-	PlaceTypeTown         = "town"
-	PlaceTypeVillage      = "village"
-	PlaceTypeHamlet       = "hamlet"
-	PlaceTypeParish       = "parish"
-	PlaceTypeCounty       = "county"
+	PlaceTypeUnknown              = "place"
+	PlaceTypeAddress              = "address"
+	PlaceTypeCountry              = "country"
+	PlaceTypeBuilding             = "building"
+	PlaceTypeBurialGround         = "burial ground"
+	PlaceTypeStreet               = "street"
+	PlaceTypeShip                 = "ship"
+	PlaceTypeCategory             = "category" // used ony for grouping related places
+	PlaceTypeCity                 = "city"
+	PlaceTypeTown                 = "town"
+	PlaceTypeVillage              = "village"
+	PlaceTypeHamlet               = "hamlet"
+	PlaceTypeParish               = "parish"
+	PlaceTypeCounty               = "county"
+	PlaceTypeRegistrationDistrict = "registration district"
 )
 
 func (p PlaceType) String() string {

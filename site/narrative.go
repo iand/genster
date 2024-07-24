@@ -1260,6 +1260,9 @@ func (s *NarrativeStatement) End() *model.Date {
 }
 
 func (s *NarrativeStatement) NarrativeSequence() int {
+	if !s.Event.GetDate().SortsBefore(s.Principal.BestDeathDate()) {
+		return NarrativeSequenceDeath
+	}
 	return NarrativeSequenceLifeStory
 }
 

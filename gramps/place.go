@@ -60,6 +60,8 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		pl.PlaceType = model.PlaceTypeVillage
 	case "hamlet":
 		pl.PlaceType = model.PlaceTypeHamlet
+	case "registration district":
+		pl.PlaceType = model.PlaceTypeRegistrationDistrict
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
@@ -93,6 +95,11 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		pl.PreferredUniqueName = name
 		pl.PreferredSortName = name
 		pl.PreferredLocalityName = name
+
+		if pl.PlaceType == model.PlaceTypeRegistrationDistrict {
+			pl.PreferredName = strings.TrimSuffix(pl.PreferredName, "Registration District")
+		}
+
 	}
 
 	if gp.Coord != nil {
@@ -138,6 +145,7 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		}
 	}
 
+	// Enhance names with parent context
 	if len(gp.Placeref) > 0 {
 		for _, pr := range gp.Placeref {
 			paro, ok := l.PlacesByHandle[pr.Hlink]
