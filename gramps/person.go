@@ -17,6 +17,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	id := pval(gp.ID, gp.Handle)
 	p := m.FindPerson(l.ScopeName, id)
 
+	changeTime, err := changeToTime(gp.Change)
+	if err == nil {
+		p.LastUpdated = &changeTime
+	}
+
 	if gp.ID != nil {
 		p.GrampsID = *gp.ID
 	}

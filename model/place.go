@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/iand/genster/place"
 )
 
@@ -47,6 +49,8 @@ type Place struct {
 	ResearchNotes []Text              // research notes associated with this place
 	Comments      []Text              // comments associated with this place
 	Gallery       []*CitedMediaObject // images and documents associated with the place
+
+	LastUpdated *time.Time // time of last update, if known
 }
 
 type GeoLocation struct {

@@ -15,6 +15,11 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	id := pval(gp.ID, gp.Handle)
 	pl := m.FindPlace(l.ScopeName, id)
 
+	changeTime, err := changeToTime(gp.Change)
+	if err == nil {
+		pl.LastUpdated = &changeTime
+	}
+
 	logger := logging.With("id", pl.ID)
 	logger.Debug("populating from place record", "handle", gp.Handle)
 

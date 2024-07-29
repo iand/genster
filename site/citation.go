@@ -14,6 +14,9 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 
 	doc.Layout(PageLayoutCitation.String())
 	doc.Category(PageCategoryCitation)
+	if c.LastUpdated != nil {
+		doc.LastUpdated(*c.LastUpdated)
+	}
 	doc.ID(c.ID)
 
 	if c.GrampsID != "" {

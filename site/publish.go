@@ -172,6 +172,7 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 
 func (s *Site) NewDocument() *md.Document {
 	doc := &md.Document{}
+	doc.LastUpdated(s.PublishSet.LastUpdated)
 	doc.BasePath(s.BaseURL)
 	doc.SetLinkBuilder(s)
 	return doc
@@ -670,6 +671,7 @@ type PublishSet struct {
 	Families     map[string]*model.Family
 	MediaObjects map[string]*model.MediaObject
 	Events       map[model.TimelineEvent]bool
+	LastUpdated  time.Time
 }
 
 func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, error) {
@@ -833,6 +835,28 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 				ps.Repositories[rr.Repository.ID] = rr.Repository
 			}
 		}
+	}
+
+	for _, p := range ps.People {
+		if p.LastUpdated != nil && p.LastUpdated.After(ps.LastUpdated) {
+			ps.LastUpdated = *p.LastUpdated
+		}
+	}
+
+	for _, p := range ps.Places {
+		if p.LastUpdated != nil && p.LastUpdated.After(ps.LastUpdated) {
+			ps.LastUpdated = *p.LastUpdated
+		}
+	}
+
+	for _, c := range ps.Citations {
+		if c.LastUpdated != nil && c.LastUpdated.After(ps.LastUpdated) {
+			ps.LastUpdated = *c.LastUpdated
+		}
+	}
+
+	if ps.LastUpdated.IsZero() {
+		ps.LastUpdated = time.Now()
 	}
 
 	return ps, nil

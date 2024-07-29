@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
@@ -273,4 +275,13 @@ func pval[T any](v *T, def T) T {
 
 func p[T any](v T) *T {
 	return &v
+}
+
+func changeToTime(s string) (time.Time, error) {
+	sec, err := strconv.Atoi(s)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(int64(sec), 0), nil
 }

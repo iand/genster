@@ -70,6 +70,10 @@ func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationre
 			})
 			continue
 		}
+		changeTime, err := changeToTime(gc.Change)
+		if err == nil {
+			pc.LastUpdated = &changeTime
+		}
 		cits = append(cits, pc)
 	}
 	return cits, anomalies

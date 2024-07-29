@@ -14,6 +14,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	doc := s.NewDocument()
 	doc.Layout(PageLayoutPerson.String())
 	doc.Category(PageCategoryPerson)
+	if p.LastUpdated != nil {
+		doc.LastUpdated(*p.LastUpdated)
+	}
 	doc.ID(p.ID)
 	doc.Title(p.PreferredUniqueName)
 	if p.Redacted {

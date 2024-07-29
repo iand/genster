@@ -2,6 +2,7 @@ package model
 
 import (
 	"sort"
+	"time"
 
 	"github.com/iand/gdate"
 )
@@ -80,6 +81,8 @@ type Person struct {
 	ResearchNotes      []Text              // research notes associated with this person
 	Comments           []Text              // comments associated with this person
 	Gallery            []*CitedMediaObject // images and documents associated with the person
+
+	LastUpdated *time.Time // time of last update
 }
 
 func (p *Person) IsUnknown() bool {

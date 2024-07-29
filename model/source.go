@@ -2,6 +2,7 @@ package model
 
 import (
 	"strings"
+	"time"
 )
 
 type Source struct {
@@ -41,7 +42,8 @@ type GeneralCitation struct {
 	MediaObjects      []*CitedMediaObject
 	EventsCited       []TimelineEvent
 	PeopleCited       []*Person
-	Redacted          bool // true if the citation's details should be redacted
+	Redacted          bool       // true if the citation's details should be redacted
+	LastUpdated       *time.Time // time of last update, if known
 }
 
 type CitedMediaObject struct {

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 var (
@@ -31,6 +32,7 @@ const (
 	MarkdownTagAliases     = "aliases"
 	MarkdownTagLinks       = "links"
 	MarkdownTagDescendants = "descendants"
+	MarkdownTagLastMod     = "lastmod"
 )
 
 type LinkBuilder interface {
@@ -213,6 +215,10 @@ func (b *Document) Image(s string) {
 
 func (b *Document) BasePath(s string) {
 	b.SetFrontMatterField(MarkdownTagBasePath, s)
+}
+
+func (b *Document) LastUpdated(t time.Time) {
+	b.SetFrontMatterField(MarkdownTagLastMod, t.Format(time.RFC3339))
 }
 
 func (b *Document) AddTag(s string) {
