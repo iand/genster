@@ -108,7 +108,7 @@ func (s *Site) WriteInferenceListPages(root string) error {
 			// if p.EditLink != nil {
 			// 	b.Para(render.Markdown(b.EncodeModelLink("View page", p) + " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))))
 			// } else {
-			b.Para(md.Text(b.EncodeModelLink("View page", p)))
+			b.Para(b.EncodeModelLink("View page", p))
 			// }
 			b.DefinitionList(items)
 			pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
@@ -282,7 +282,7 @@ func (s *Site) WritePlaceListPages(root string) error {
 		items := make([][2]md.Text, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]md.Text{
-			md.Text(b.EncodeModelLink(b.EncodeText(p.PreferredUniqueName), p)),
+			b.EncodeModelLink(b.EncodeText(p.PreferredUniqueName), p),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
@@ -302,7 +302,7 @@ func (s *Site) WriteSourceListPages(root string) error {
 		items := make([][2]md.Text, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]md.Text{
-			md.Text(b.EncodeModelLink(b.EncodeText(so.Title), so)),
+			b.EncodeModelLink(b.EncodeText(so.Title), so),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(so.Title+"~"+so.ID, so.Title, b.String())
@@ -360,7 +360,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			}
 
 			if p.Olb != "" {
-				summary = md.Text(b.EncodeItalic(b.EncodeText(text.FormatSentence(p.Olb)))+"<br>") + summary
+				summary = b.EncodeItalic(b.EncodeText(text.FormatSentence(p.Olb))) + "<br>" + summary
 			}
 
 			items = append(items, [2]md.Text{

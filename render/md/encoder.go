@@ -440,11 +440,11 @@ func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {
 }
 
 func (e *Encoder) EncodeItalic(m Text) Text {
-	return Text("*" + m + "*")
+	return "*" + m + "*"
 }
 
 func (e *Encoder) EncodeBold(m Text) Text {
-	return Text("**" + m + "**")
+	return "**" + m + "**"
 }
 
 func (e *Encoder) EncodeImage(alt string, link string) string {

@@ -1,9 +1,9 @@
 package site
 
 import (
-	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
+	"github.com/iand/genster/render/md"
 )
 
 func RenderSourcePage(s *Site, so *model.Source) (render.Page[md.Text], error) {

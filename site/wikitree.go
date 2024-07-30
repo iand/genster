@@ -32,7 +32,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 		return doc, nil
 	}
 
-	doc.Para(md.Text(doc.EncodeModelLink(doc.EncodeText("Main page for "+p.PreferredFamiliarName), p)))
+	doc.Para(doc.EncodeModelLink(doc.EncodeText("Main page for "+p.PreferredFamiliarName), p))
 
 	if p.BestBirthlikeEvent != nil {
 		doc.EmptyPara()
@@ -281,11 +281,11 @@ func (w *WikiTreeEncoder) Markdown(s string) {
 }
 
 func (w *WikiTreeEncoder) EncodeItalic(m md.Text) md.Text {
-	return md.Text("''" + m + "''")
+	return "''" + m + "''"
 }
 
 func (w *WikiTreeEncoder) EncodeBold(m md.Text) md.Text {
-	return md.Text("'''" + m + "'''")
+	return "'''" + m + "'''"
 }
 
 func (w *WikiTreeEncoder) EncodeLink(text md.Text, url string) md.Text {

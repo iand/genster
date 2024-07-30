@@ -31,7 +31,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
 		name += " in " + doc.EncodeModelLinkDedupe(doc.EncodeText(p.Parent.PreferredUniqueName), doc.EncodeText(p.Parent.PreferredName), p.Parent).String()
 	}
 
-	doc.Para(md.Text(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name)))))
+	doc.Para(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name))))
 
 	for _, t := range p.Comments {
 		RenderText(t, doc)
