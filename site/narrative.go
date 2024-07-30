@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/iand/genster/logging"
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
@@ -265,7 +266,7 @@ type IntroStatement[T render.EncodedText] struct {
 	SuppressRelation bool
 }
 
-var _ Statement[render.Markdown] = (*IntroStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*IntroStatement[md.Text])(nil)
 
 func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	var birth string
@@ -419,7 +420,7 @@ type FamilyStatement[T render.EncodedText] struct {
 	Family    *model.Family
 }
 
-var _ Statement[render.Markdown] = (*FamilyStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*FamilyStatement[md.Text])(nil)
 
 func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
@@ -781,7 +782,7 @@ type FamilyEndStatement[T render.EncodedText] struct {
 	Family    *model.Family
 }
 
-var _ Statement[render.Markdown] = (*FamilyEndStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*FamilyEndStatement[md.Text])(nil)
 
 func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	endDate := s.Family.BestEndDate
@@ -847,7 +848,7 @@ type DeathStatement[T render.EncodedText] struct {
 	Principal *model.Person
 }
 
-var _ Statement[render.Markdown] = (*DeathStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*DeathStatement[md.Text])(nil)
 
 func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	var detail string
@@ -1062,7 +1063,7 @@ type CensusStatement[T render.EncodedText] struct {
 	Event     *model.CensusEvent
 }
 
-var _ Statement[render.Markdown] = (*CensusStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*CensusStatement[md.Text])(nil)
 
 func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	ce, found := s.Event.Entry(s.Principal)
@@ -1227,7 +1228,7 @@ type NarrativeStatement[T render.EncodedText] struct {
 	Event     model.TimelineEvent
 }
 
-var _ Statement[render.Markdown] = (*NarrativeStatement[render.Markdown])(nil)
+var _ Statement[md.Text] = (*NarrativeStatement[md.Text])(nil)
 
 func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	narrative := EventNarrativeDetail(s.Event, enc)

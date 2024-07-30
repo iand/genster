@@ -3,6 +3,7 @@ package site
 import (
 	"net/url"
 
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
@@ -33,8 +34,8 @@ type CitationSkippingEncoder[T render.EncodedText] struct {
 }
 
 var (
-	_ render.PageBuilder[render.Markdown] = (*CitationSkippingEncoder[render.Markdown])(nil)
-	_ render.TextEncoder[render.Markdown] = (*CitationSkippingEncoder[render.Markdown])(nil)
+	_ render.PageBuilder[md.Text] = (*CitationSkippingEncoder[md.Text])(nil)
+	_ render.TextEncoder[md.Text] = (*CitationSkippingEncoder[md.Text])(nil)
 )
 
 func (e *CitationSkippingEncoder[T]) EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T {

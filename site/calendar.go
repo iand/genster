@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
@@ -13,7 +14,7 @@ type Calendar struct {
 	Events []model.TimelineEvent
 }
 
-func (c *Calendar) RenderPage(s *Site) (render.Page[render.Markdown], error) {
+func (c *Calendar) RenderPage(s *Site) (render.Page[md.Text], error) {
 	monthNames := []string{
 		1:  "January",
 		2:  "February",
@@ -41,7 +42,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Page[render.Markdown], error) {
 	var eventDays []eventDay
 
 	month := 0
-	items := []render.Markdown{}
+	items := []md.Text{}
 	for _, ev := range c.Events {
 		y, m, d, ok := ev.GetDate().YMD()
 		if !ok {
@@ -112,10 +113,10 @@ func (c *Calendar) RenderPage(s *Site) (render.Page[render.Markdown], error) {
 			}
 
 			day = evd.day
-			doc.Heading2(render.Markdown(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day))), fmt.Sprintf("day%d", day))
+			doc.Heading2(md.Text(fmt.Sprintf("%d%s", day, text.CardinalSuffix(day))), fmt.Sprintf("day%d", day))
 		}
 
-		items = append(items, render.Markdown(evd.text))
+		items = append(items, md.Text(evd.text))
 
 	}
 

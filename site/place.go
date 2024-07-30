@@ -3,12 +3,13 @@ package site
 import (
 	"fmt"
 
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderPlacePage(s *Site, p *model.Place) (render.Page[render.Markdown], error) {
+func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
 	pov := &model.POV{Place: p}
 
 	doc := s.NewDocument()
@@ -30,7 +31,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page[render.Markdown], err
 		name += " in " + doc.EncodeModelLinkDedupe(doc.EncodeText(p.Parent.PreferredUniqueName), doc.EncodeText(p.Parent.PreferredName), p.Parent).String()
 	}
 
-	doc.Para(render.Markdown(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name)))))
+	doc.Para(md.Text(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name)))))
 
 	for _, t := range p.Comments {
 		RenderText(t, doc)

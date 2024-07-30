@@ -3,12 +3,13 @@ package site
 import (
 	"slices"
 
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[render.Markdown], error) {
+func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text], error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 
@@ -86,19 +87,19 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[render.M
 
 	var cites string
 
-	events := make([]render.Markdown, 0, len(c.EventsCited))
+	events := make([]md.Text, 0, len(c.EventsCited))
 	for _, ev := range c.EventsCited {
 		if !IncludeInTimeline(ev) {
 			continue
 		}
 
-		events = append(events, render.Markdown(WhoWhatWhenWhere(ev, doc)))
+		events = append(events, md.Text(WhoWhatWhenWhere(ev, doc)))
 		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
 		}
 	}
 
-	people := make([]render.Markdown, 0, len(c.PeopleCited))
+	people := make([]md.Text, 0, len(c.PeopleCited))
 	for _, p := range c.PeopleCited {
 		if peopleInCitations[p] {
 			continue
@@ -150,7 +151,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[render.M
 	doc.Heading3("Full Citation", "")
 	doc.Para(doc.EncodeText(text.FinishSentence(c.String())))
 
-	repos := make([]render.Markdown, 0)
+	repos := make([]md.Text, 0)
 	if c.URL != nil {
 		repos = append(repos, doc.EncodeLink(doc.EncodeText(c.URL.Title), c.URL.URL))
 	}

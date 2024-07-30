@@ -708,7 +708,7 @@ func (s *Site) NewDocument() *md.Document {
 	return doc
 }
 
-func (s *Site) NewMarkdownBuilder() render.PageBuilder[render.Markdown] {
+func (s *Site) NewMarkdownBuilder() render.PageBuilder[md.Text] {
 	enc := &md.Encoder{}
 	enc.SetLinkBuilder(s)
 
@@ -732,7 +732,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	desc := s.Tree.Description
 
 	if desc != "" {
-		doc.Para(render.Markdown(text.FormatSentence(desc)))
+		doc.Para(md.Text(text.FormatSentence(desc)))
 	}
 
 	peopleDesc := ""
@@ -760,11 +760,11 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	if peopleDesc != "" {
 		doc.EmptyPara()
-		doc.Para(render.Markdown(peopleDesc))
+		doc.Para(md.Text(peopleDesc))
 	}
 
 	doc.EmptyPara()
-	doc.Para(render.Markdown(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir).String(), "for", doc.EncodeModelLink(doc.EncodeText(s.Tree.KeyPerson.PreferredFamiliarFullName), s.Tree.KeyPerson).String())))
+	doc.Para(md.Text(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir).String(), "for", doc.EncodeModelLink(doc.EncodeText(s.Tree.KeyPerson.PreferredFamiliarFullName), s.Tree.KeyPerson).String())))
 
 	// Featured people
 	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
@@ -777,9 +777,9 @@ func (s *Site) WriteTreeOverview(root string) error {
 		model.SortPeopleByName(featuredPeople)
 		doc.EmptyPara()
 		doc.Heading2("Featured", "")
-		items := make([]render.Markdown, len(featuredPeople))
+		items := make([]md.Text, len(featuredPeople))
 		for i, p := range featuredPeople {
-			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p).String(), p.Olb))
+			items[i] = md.Text(text.AppendRelated(doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p).String(), p.Olb))
 		}
 		doc.UnorderedList(items)
 	}
@@ -796,7 +796,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.EmptyPara()
 		doc.Heading2("Currently puzzling over", "")
 		doc.Para("These people are the focus of current research or are brick walls that we can't currently move past.")
-		items := make([]render.Markdown, len(puzzlePeople))
+		items := make([]md.Text, len(puzzlePeople))
 		for i, p := range puzzlePeople {
 			desc := p.Olb
 			for _, rn := range p.ResearchNotes {
@@ -805,7 +805,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 					break
 				}
 			}
-			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p).String(), desc))
+			items[i] = md.Text(text.AppendRelated(doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p).String(), desc))
 		}
 		doc.UnorderedList(items)
 	}
@@ -836,7 +836,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
 			return p.PreferredFamiliarFullName
 		}, doc))
-		doc.Para(render.Markdown(text.FormatSentence(detail)))
+		doc.Para(md.Text(text.FormatSentence(detail)))
 	}
 
 	doc.Heading2("Statistics and Records", "")
@@ -853,7 +853,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 			}
 			return fmt.Sprintf("%s (b. %d)", p.PreferredFamiliarFullName, yr)
 		}, doc))
-		doc.Para(render.Markdown(text.FormatSentence(detail)))
+		doc.Para(md.Text(text.FormatSentence(detail)))
 
 	}
 
@@ -865,7 +865,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 			age, _ := p.AgeInYearsAtDeath()
 			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
 		}, doc))
-		doc.Para(render.Markdown(text.FormatSentence(detail)))
+		doc.Para(md.Text(text.FormatSentence(detail)))
 
 	}
 
@@ -914,7 +914,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		detail := text.JoinSentenceParts("The people with the largest number of children:", EncodePeopleListInline(greatestChildrenPeopleDedupe, func(p *model.Person) string {
 			return fmt.Sprintf("%s (%d)", p.PreferredFamiliarFullName, len(p.Children))
 		}, doc))
-		doc.Para(render.Markdown(text.FormatSentence(detail)))
+		doc.Para(md.Text(text.FormatSentence(detail)))
 
 	}
 
@@ -935,7 +935,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	if len(notes) > 0 {
 		doc.EmptyPara()
 		doc.Heading3("Notes", "")
-		doc.Para(render.Markdown(text.FormatSentence(notes)))
+		doc.Para(md.Text(text.FormatSentence(notes)))
 	}
 
 	if err := writePage(doc, root, fname); err != nil {
@@ -962,7 +962,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 	g := 0
 	doc.Heading3("Generation 1", "")
 
-	doc.Para(render.Markdown(text.JoinSentenceParts("1.", doc.EncodeLink(doc.EncodeText(s.Tree.KeyPerson.PreferredFamiliarFullName), doc.LinkBuilder.LinkFor(s.Tree.KeyPerson)).String())))
+	doc.Para(md.Text(text.JoinSentenceParts("1.", doc.EncodeLink(doc.EncodeText(s.Tree.KeyPerson.PreferredFamiliarFullName), doc.LinkBuilder.LinkFor(s.Tree.KeyPerson)).String())))
 	for i := range ancestors {
 		ig := -1
 		idx := i + 2
@@ -981,7 +981,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 			} else if g == 4 {
 				doc.Heading3("Generation 5: Great-Great-Grandparents", "gggp")
 			} else {
-				doc.Heading3(render.Markdown(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)), "")
+				doc.Heading3(md.Text(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)), "")
 			}
 		}
 		if ancestors[i] != nil {
@@ -999,7 +999,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 			}
 
 			detail = text.AppendClause(detail, text.JoinList(adds))
-			doc.Para(render.Markdown(detail))
+			doc.Para(md.Text(detail))
 		} else {
 
 			name := "Not known"
@@ -1034,7 +1034,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 				}
 			}
 
-			doc.Para(render.Markdown(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name)))
+			doc.Para(md.Text(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name)))
 		}
 	}
 
