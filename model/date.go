@@ -1,7 +1,9 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/iand/gdate"
@@ -367,6 +369,45 @@ func (d *Date) DecadeStart() (int, bool) {
 	return (yearer.Year() / 10) * 10, true
 }
 
+// Gedcom returns the date formatted for gedcom
+func (d *Date) Gedcom() string {
+	var prefix string
+	switch d.Derivation {
+	case DateDerivationEstimated:
+		prefix = "EST "
+	case DateDerivationCalculated:
+		prefix = "CAL "
+	}
+
+	switch dt := d.Date.(type) {
+	case *gdate.Precise:
+		return fmt.Sprintf("%s%d %s %d", prefix, dt.D, strings.ToUpper(shortMonthNames[dt.M]), dt.Y)
+	case *gdate.MonthYear:
+		return fmt.Sprintf("%s%s %d", prefix, strings.ToUpper(shortMonthNames[dt.M]), dt.Y)
+	case *gdate.Year:
+		return fmt.Sprintf("%s%d", prefix, dt.Y)
+	case *gdate.YearQuarter:
+		switch dt.Q {
+		case 1:
+			return fmt.Sprintf("%sBET 1 JAN %d AND 31 MAR %[2]d", prefix, dt.Y)
+		case 2:
+			return fmt.Sprintf("%sBET 1 APR %d AND 30 JUN %[2]d", prefix, dt.Y)
+		case 3:
+			return fmt.Sprintf("%sBET 1 JUL %d AND 30 SEP %[2]d", prefix, dt.Y)
+		case 4:
+			return fmt.Sprintf("%sBET 1 OCT %d AND 31 DEC %[2]d", prefix, dt.Y)
+		default:
+			panic(fmt.Sprintf("unsupported date quarter in Gedcom conversion: %v", dt.Q))
+		}
+	case *gdate.BeforeYear:
+		return fmt.Sprintf("%sBEF %d", prefix, dt.Y)
+	case *gdate.AfterYear:
+		return fmt.Sprintf("%sAFT %d", prefix, dt.Y)
+	default:
+		panic(fmt.Sprintf("unsupported date type in Gedcom conversion: %T", dt))
+	}
+}
+
 func IntervalSince(d *Date) *Interval {
 	if d.IsUnknown() {
 		return UnknownInterval()
@@ -431,4 +472,19 @@ func (in *Interval) YMD() (int, int, int, bool) {
 		return p.Y, p.M, p.D, true
 	}
 	return 0, 0, 0, false
+}
+
+var shortMonthNames = []string{
+	1:  "Jan",
+	2:  "Feb",
+	3:  "Mar",
+	4:  "Apr",
+	5:  "May",
+	6:  "Jun",
+	7:  "Jul",
+	8:  "Aug",
+	9:  "Sep",
+	10: "Oct",
+	11: "Nov",
+	12: "Dec",
 }

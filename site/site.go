@@ -2,16 +2,24 @@ package site
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gosimple/slug"
+	"github.com/iand/gedcom"
+	"github.com/iand/genster/chart"
+	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
+	"github.com/iand/gtree"
 )
 
 type PageLayout string
@@ -88,6 +96,7 @@ type Site struct {
 
 	ChartAncestorsDir string
 	ChartTreesDir     string
+	GedcomDir         string
 
 	IncludePrivate     bool
 	TimelineExperiment bool
@@ -159,6 +168,7 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 
 		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
 		ChartTreesDir:     path.Join(PageSectionChart, "trees"),
+		GedcomDir:         path.Join(PageSectionChart, "gedcom"),
 
 		PublishSet: nil,
 	}
@@ -531,4 +541,673 @@ func FlattenMapByValueDesc[M ~map[K]V, K simplevalue, V simplevalue](m M) []Tupl
 	list := FlattenMap(m)
 	sort.Slice(list, func(i, j int) bool { return list[i].V > list[j].V })
 	return list
+}
+
+func (s *Site) WritePages(contentDir string, mediaDir string) error {
+	for _, p := range s.PublishSet.People {
+		if s.LinkFor(p) == "" {
+			continue
+		}
+		d, err := RenderPersonPage(s, p)
+		if err != nil {
+			return fmt.Errorf("render person page: %w", err)
+		}
+
+		if err := writePage(d, contentDir, fmt.Sprintf(s.PersonFilePattern, p.ID)); err != nil {
+			return fmt.Errorf("write person page: %w", err)
+		}
+
+		if s.GenerateWikiTree {
+			d, err := RenderWikiTreePage(s, p)
+			if err != nil {
+				return fmt.Errorf("render wikitree page: %w", err)
+			}
+
+			if err := writePage(d, contentDir, fmt.Sprintf(s.WikiTreeFilePattern, p.ID)); err != nil {
+				return fmt.Errorf("write wikitree page: %w", err)
+			}
+		}
+	}
+
+	for _, p := range s.PublishSet.Places {
+		if s.LinkFor(p) == "" {
+			continue
+		}
+		d, err := RenderPlacePage(s, p)
+		if err != nil {
+			return fmt.Errorf("render place page: %w", err)
+		}
+
+		if err := writePage(d, contentDir, fmt.Sprintf(s.PlaceFilePattern, p.ID)); err != nil {
+			return fmt.Errorf("write place page: %w", err)
+		}
+	}
+
+	for _, c := range s.PublishSet.Citations {
+		if s.LinkFor(c) == "" {
+			continue
+		}
+		d, err := RenderCitationPage(s, c)
+		if err != nil {
+			return fmt.Errorf("render citation page: %w", err)
+		}
+		if err := writePage(d, contentDir, fmt.Sprintf(s.CitationFilePattern, c.ID)); err != nil {
+			return fmt.Errorf("write citation page: %w", err)
+		}
+	}
+
+	// Not publishing sources at this time
+	// for _, so := range s.PublishSet.Sources {
+	// 	if s.LinkFor(so) == "" {
+	// 		continue
+	// 	}
+	// 	d, err := RenderSourcePage(s, so)
+	// 	if err != nil {
+	// 		return fmt.Errorf("render source page: %w", err)
+	// 	}
+	// 	if err := writePage(d, contentDir, fmt.Sprintf(s.SourceFilePattern, so.ID)); err != nil {
+	// 		return fmt.Errorf("write source page: %w", err)
+	// 	}
+	// }
+
+	for _, mo := range s.PublishSet.MediaObjects {
+		// TODO: redaction
+
+		// var ext string
+		// switch mo.MediaType {
+		// case "image/jpeg":
+		// 	ext = "jpg"
+		// case "image/png":
+		// 	ext = "png"
+		// case "image/gif":
+		// 	ext = "gif"
+		// default:
+		// 	return fmt.Errorf("unsupported media type: %v", mo.MediaType)
+		// }
+
+		fname := filepath.Join(mediaDir, fmt.Sprintf("%s/%s", s.MediaDir, mo.FileName))
+
+		if err := CopyFile(fname, mo.SrcFilePath); err != nil {
+			return fmt.Errorf("copy media object: %w", err)
+		}
+	}
+
+	s.BuildCalendar()
+
+	for month, c := range s.Calendars {
+		d, err := c.RenderPage(s)
+		if err != nil {
+			return fmt.Errorf("generate markdown: %w", err)
+		}
+
+		fname := fmt.Sprintf(s.CalendarFilePattern, month)
+
+		f, err := CreateFile(filepath.Join(contentDir, fname))
+		if err != nil {
+			return fmt.Errorf("create calendar file: %w", err)
+		}
+		if _, err := d.WriteTo(f); err != nil {
+			return fmt.Errorf("write calendar markdown: %w", err)
+		}
+		f.Close()
+	}
+
+	if err := s.WritePersonListPages(contentDir); err != nil {
+		return fmt.Errorf("write people list pages: %w", err)
+	}
+
+	if err := s.WritePlaceListPages(contentDir); err != nil {
+		return fmt.Errorf("write place list pages: %w", err)
+	}
+
+	// Not publishing sources at this time
+	// if err := s.WriteSourceListPages(contentDir); err != nil {
+	// 	return fmt.Errorf("write source list pages: %w", err)
+	// }
+
+	if err := s.WriteSurnameListPages(contentDir); err != nil {
+		return fmt.Errorf("write surname list pages: %w", err)
+	}
+
+	if err := s.WriteInferenceListPages(contentDir); err != nil {
+		return fmt.Errorf("write inferences pages: %w", err)
+	}
+
+	if err := s.WriteAnomalyListPages(contentDir); err != nil {
+		return fmt.Errorf("write anomalies pages: %w", err)
+	}
+
+	if err := s.WriteTodoListPages(contentDir); err != nil {
+		return fmt.Errorf("write todo pages: %w", err)
+	}
+
+	if err := s.WriteTreeOverview(contentDir); err != nil {
+		return fmt.Errorf("write tree overview: %w", err)
+	}
+
+	if err := s.WriteChartAncestors(contentDir); err != nil {
+		return fmt.Errorf("write ancestor chart: %w", err)
+	}
+
+	if err := s.WriteGedcom(contentDir); err != nil {
+		return fmt.Errorf("write ancestor chart: %w", err)
+	}
+
+	// if err := s.WriteChartTrees(root); err != nil {
+	// 	return fmt.Errorf("write chart trees: %w", err)
+	// }
+
+	return nil
+}
+
+func (s *Site) NewDocument() *md.Document {
+	doc := &md.Document{}
+	doc.LastUpdated(s.PublishSet.LastUpdated)
+	doc.BasePath(s.BaseURL)
+	doc.SetLinkBuilder(s)
+	return doc
+}
+
+func (s *Site) NewMarkdownBuilder() render.MarkupBuilder {
+	enc := &md.Encoder{}
+	enc.SetLinkBuilder(s)
+
+	return enc
+}
+
+func (s *Site) WriteTreeOverview(root string) error {
+	doc := s.NewDocument()
+	if s.Tree.Name != "" {
+		doc.Title(s.Tree.Name)
+	} else {
+		doc.Title("Tree Overview")
+	}
+	doc.Layout(PageLayoutTreeOverview.String())
+
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	desc := s.Tree.Description
+
+	if desc != "" {
+		doc.Para(render.Markdown(text.FormatSentence(desc)))
+	}
+
+	peopleDesc := ""
+
+	numberOfPeople := s.PublishSet.NumberOfPeople()
+	if numberOfPeople > 0 {
+		doc.EmptyPara()
+		peopleDesc = text.FormatSentence(fmt.Sprintf("There are %d people in this tree", numberOfPeople))
+	}
+
+	// ancestorSurnames := FlattenMapByValueDesc(s.PublishSet.AncestorSurnameDistribution())
+	ancestorSurnames := s.PublishSet.AncestorSurnameGroupList()
+	if len(ancestorSurnames) > 0 {
+		list := make([]string, 16)
+		for i := range ancestorSurnames {
+			if i > len(list)-1 {
+				break
+			}
+			list[i] = doc.EncodeLink(ancestorSurnames[i], s.LinkForSurnameListPage(ancestorSurnames[i]))
+		}
+		detail := text.JoinSentenceParts("The principle surnames are ", text.JoinList(list))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(detail))
+		peopleDesc = text.JoinSentences(peopleDesc, text.FormatSentence(text.JoinSentenceParts("See", doc.EncodeLink("all surnames...", s.ListSurnamesDir))))
+	}
+
+	if peopleDesc != "" {
+		doc.EmptyPara()
+		doc.Para(render.Markdown(peopleDesc))
+	}
+
+	doc.EmptyPara()
+	doc.Para(render.Markdown(text.JoinSentenceParts("See a", doc.EncodeLink("full list of ancestors", s.ChartAncestorsDir), "for", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson))))
+
+	// Featured people
+	featuredPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
+		return p.Featured
+	}, 8)
+	if len(featuredPeople) > 0 {
+		model.SortPeopleByName(featuredPeople)
+		doc.EmptyPara()
+		doc.Heading2("Featured", "")
+		items := make([]render.Markdown, len(featuredPeople))
+		for i, p := range featuredPeople {
+			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), p.Olb))
+		}
+		doc.UnorderedList(items)
+	}
+
+	// Currently puzzling over
+	puzzlePeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
+		return p.Puzzle && !p.Featured
+	}, 8)
+	if len(puzzlePeople) > 0 {
+		model.SortPeopleByName(puzzlePeople)
+		doc.EmptyPara()
+		doc.Heading2("Currently puzzling over", "")
+		doc.Para("These people are the focus of current research or are brick walls that we can't currently move past.")
+		items := make([]render.Markdown, len(puzzlePeople))
+		for i, p := range puzzlePeople {
+			desc := p.Olb
+			for _, rn := range p.ResearchNotes {
+				if rn.Title != "" {
+					desc = rn.Title
+					break
+				}
+			}
+			items[i] = render.Markdown(text.AppendRelated(doc.EncodeModelLink(p.PreferredUniqueName, p), desc))
+		}
+		doc.UnorderedList(items)
+	}
+
+	// People with research notes
+	rnPeople := s.Tree.ListPeopleMatching(func(p *model.Person) bool {
+		if s.LinkFor(p) == "" {
+			return false
+		}
+		if len(p.ResearchNotes) == 0 {
+			return false
+		}
+		for _, pp := range puzzlePeople {
+			if pp.SameAs(p) {
+				return false
+			}
+		}
+		for _, pp := range featuredPeople {
+			if pp.SameAs(p) {
+				return false
+			}
+		}
+		return true
+	}, 3)
+	if len(rnPeople) > 0 {
+		model.SortPeopleByName(rnPeople)
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
+			return p.PreferredFamiliarFullName
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+	}
+
+	doc.Heading2("Statistics and Records", "")
+
+	// Oldest people
+	earliestPeople := s.PublishSet.EarliestBorn(3)
+	if len(earliestPeople) > 0 {
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("The earliest known births are:", EncodePeopleListInline(earliestPeople, func(p *model.Person) string {
+			dt := p.BestBirthDate()
+			yr, ok := dt.Year()
+			if !ok {
+				return p.PreferredFamiliarFullName
+			}
+			return fmt.Sprintf("%s (b. %d)", p.PreferredFamiliarFullName, yr)
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+
+	}
+
+	// Oldest people
+	oldestPeople := s.PublishSet.OldestPeople(3)
+	if len(oldestPeople) > 0 {
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("The people who lived the longest:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
+			age, _ := p.AgeInYearsAtDeath()
+			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+
+	}
+
+	// Greatest number of children people
+	greatestChildrenPeople := s.PublishSet.GreatestChildren(6)
+	if len(greatestChildrenPeople) > 0 {
+		greatestChildrenPeopleDedupe := make([]*model.Person, 0, len(greatestChildrenPeople))
+		for _, p := range greatestChildrenPeople {
+			skipAddPerson := false
+			for k, other := range greatestChildrenPeopleDedupe {
+				if p.Gender == other.Gender {
+					continue
+				}
+				if len(p.Children) != len(other.Children) {
+					continue
+				}
+				// check if they were married
+				married := false
+				for _, sp := range p.Spouses {
+					if sp.SameAs(other) {
+						married = true
+						break
+					}
+				}
+
+				if married {
+					skipAddPerson = true
+					// keep the female
+					if p.Gender == model.GenderFemale {
+						greatestChildrenPeopleDedupe[k] = p
+					}
+					break
+				}
+			}
+
+			if !skipAddPerson {
+				greatestChildrenPeopleDedupe = append(greatestChildrenPeopleDedupe, p)
+			}
+		}
+
+		if len(greatestChildrenPeopleDedupe) > 3 {
+			greatestChildrenPeopleDedupe = greatestChildrenPeopleDedupe[:3]
+		}
+
+		doc.EmptyPara()
+		detail := text.JoinSentenceParts("The people with the largest number of children:", EncodePeopleListInline(greatestChildrenPeopleDedupe, func(p *model.Person) string {
+			return fmt.Sprintf("%s (%d)", p.PreferredFamiliarFullName, len(p.Children))
+		}, doc))
+		doc.Para(render.Markdown(text.FormatSentence(detail)))
+
+	}
+
+	var notes string
+	if !s.Tree.KeyPerson.IsUnknown() {
+		doc.EmptyPara()
+
+		detail := text.JoinSentenceParts("In this family tree,", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson), "acts as the primary reference point, with all relationships defined in relation to", s.Tree.KeyPerson.Gender.ObjectPronoun())
+		notes = text.JoinSentences(notes, text.FormatSentence(detail))
+		notes = text.JoinSentences(notes, text.FormatSentence(text.JoinSentenceParts("Names suffixed by the", md.DirectAncestorMarker, "symbol indicate direct ancestors")))
+	}
+
+	if !s.IncludePrivate {
+		detail := text.JoinSentenceParts("The tree excludes information on people who are possibly alive or who have died within the past twenty years")
+		notes = text.JoinSentences(notes, text.FormatSentence(detail))
+	}
+
+	if len(notes) > 0 {
+		doc.EmptyPara()
+		doc.Heading3("Notes", "")
+		doc.Para(render.Markdown(text.FormatSentence(notes)))
+	}
+
+	if err := writePage(doc, root, fname); err != nil {
+		return fmt.Errorf("write page: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Site) WriteChartAncestors(root string) error {
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	generations := 8
+	ancestors := s.PublishSet.Ancestors(s.Tree.KeyPerson, generations)
+
+	doc := s.NewDocument()
+	doc.Title("Ancestors of " + s.Tree.KeyPerson.PreferredFamiliarFullName)
+	doc.Summary(text.JoinSentenceParts("This is a full list of ancestors of", doc.EncodeModelLink(s.Tree.KeyPerson.PreferredFamiliarFullName, s.Tree.KeyPerson)))
+	doc.Layout(PageLayoutChartAncestors.String())
+
+	g := 0
+	doc.Heading3("Generation 1", "")
+
+	doc.Para(render.Markdown(text.JoinSentenceParts("1.", doc.EncodeLink(s.Tree.KeyPerson.PreferredFamiliarFullName, doc.LinkBuilder.LinkFor(s.Tree.KeyPerson)))))
+	for i := range ancestors {
+		ig := -1
+		idx := i + 2
+		for idx > 0 {
+			idx >>= 1
+			ig++
+		}
+		if ig != g {
+			g = ig
+			if g == 1 {
+				doc.Heading3("Generation 2: Parents", "p")
+			} else if g == 2 {
+				doc.Heading3("Generation 3: Grandparents", "gp")
+			} else if g == 3 {
+				doc.Heading3("Generation 4: Great-Grandparents", "ggp")
+			} else if g == 4 {
+				doc.Heading3("Generation 5: Great-Great-Grandparents", "gggp")
+			} else {
+				doc.Heading3(render.Markdown(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)), "")
+			}
+		}
+		if ancestors[i] != nil {
+			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredFullName, doc.LinkBuilder.LinkFor(ancestors[i]))))
+
+			var adds []string
+			if ancestors[i].PrimaryOccupation != "" {
+				adds = append(adds, ancestors[i].PrimaryOccupation)
+			}
+			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
+			}
+			if ancestors[i].BestDeathlikeEvent != nil && !ancestors[i].BestDeathlikeEvent.GetDate().IsUnknown() {
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc))
+			}
+
+			detail = text.AppendClause(detail, text.JoinList(adds))
+			doc.Para(render.Markdown(detail))
+		} else {
+
+			name := "Not known"
+			// Odd numbers are female, even numbers are male.
+			// The child of entry n is found at (n-2)/2 if n is even and (n-3)/2 if n is odd.
+
+			if i%2 == 0 {
+				// male
+				lb := (i - 2) / 2
+				if lb >= 0 && ancestors[lb] != nil {
+					name += " (father of " + ancestors[lb].PreferredFullName + ")"
+				} else {
+					lb = (lb - 2) / 2
+					if lb >= 0 && ancestors[lb] != nil {
+						name += " (grandfather of " + ancestors[lb].PreferredFullName + ")"
+					} else {
+						name += " (male)"
+					}
+				}
+			} else {
+				// female
+				lb := (i - 3) / 2
+				if lb >= 0 && ancestors[lb] != nil {
+					name += " (mother of " + ancestors[lb].PreferredFullName + ")"
+				} else {
+					lb = (lb - 2) / 2
+					if lb >= 0 && ancestors[lb] != nil {
+						name += " (grandmother of " + ancestors[lb].PreferredFullName + ")"
+					} else {
+						name += " (female)"
+					}
+				}
+			}
+
+			doc.Para(render.Markdown(text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), name)))
+		}
+	}
+
+	baseDir := filepath.Join(root, s.ChartAncestorsDir)
+	if err := writePage(doc, baseDir, fname); err != nil {
+		return fmt.Errorf("failed to write ancestor overview: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Site) WriteChartTrees(root string) error {
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	generations := 8
+	ancestors := s.PublishSet.Ancestors(s.Tree.KeyPerson, generations)
+
+	doc := s.NewDocument()
+	doc.Title("Family Trees")
+	doc.Summary(text.JoinSentenceParts("This is a list of family trees generated for various people"))
+	doc.Layout(PageLayoutChartTrees.String())
+
+	// index 14-29 are great-great grandparents, only produce chart if they have no known parents
+	for i := 14; i <= 29; i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+
+		if ancestors[i].Father != nil || ancestors[i].Mother != nil {
+			continue
+		}
+
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 2); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
+	}
+
+	// index 30-61 are great-great-great grandparents, only produce chart if they have no known parents, but at a greater depth
+	for i := 30; i <= 61; i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+
+		if ancestors[i].Father != nil || ancestors[i].Mother != nil {
+			continue
+		}
+
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 3); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
+	}
+
+	// produce chart for each member of a later generation
+	for i := 62; i < len(ancestors); i++ {
+		if ancestors[i] == nil {
+			continue
+		}
+		fname := filepath.Join(s.ChartTreesDir, ancestors[i].ID+".svg")
+		if err := s.WriteDescendantTree(filepath.Join(root, fname), ancestors[i], 4); err != nil {
+			return fmt.Errorf("failed to write descendant tree: %w", err)
+		}
+		doc.Para(render.Markdown(doc.EncodeBold(doc.EncodeLink(ancestors[i].PreferredUniqueName, ancestors[i].ID+".svg"))))
+	}
+
+	baseDir := filepath.Join(root, s.ChartTreesDir)
+	if err := writePage(doc, baseDir, fname); err != nil {
+		return fmt.Errorf("failed to write chart trees index: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) error {
+	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true)
+	if err != nil {
+		return fmt.Errorf("build lineage: %w", err)
+	}
+
+	ch.Title = "Descendants of " + p.PreferredUniqueName
+	ch.Notes = []string{}
+	ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+	if !s.Tree.KeyPerson.IsUnknown() {
+		ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+s.Tree.KeyPerson.PreferredFamiliarFullName+")")
+	}
+
+	opts := gtree.DefaultLayoutOptions()
+	lay := ch.Layout(opts)
+
+	svg, err := gtree.SVG(lay)
+	if err != nil {
+		return fmt.Errorf("render SVG: %w", err)
+	}
+	f, err := CreateFile(fname)
+	if err != nil {
+		return fmt.Errorf("create SVG file: %w", err)
+	}
+	defer f.Close()
+	if err = os.WriteFile(fname, []byte(svg), 0o666); err != nil {
+		return fmt.Errorf("write svg: %w", err)
+	}
+	return nil
+}
+
+func (s *Site) WriteGedcom(root string) error {
+	fname := "all.ged"
+
+	g, err := s.PublishSet.Gedcom()
+	if err != nil {
+		return fmt.Errorf("generate gedcom: %w", err)
+	}
+	f, err := CreateFile(filepath.Join(root, fname))
+	if err != nil {
+		return fmt.Errorf("create gedcom file: %w", err)
+	}
+	defer f.Close()
+
+	enc := gedcom.NewEncoder(f)
+	if err := enc.Encode(g); err != nil {
+		return fmt.Errorf("encode gedcom: %w", err)
+	}
+
+	return nil
+}
+
+func groupRelation(rel *model.Relation) (string, int) {
+	var group string
+	var groupPriority int
+	distance := rel.Distance()
+	if distance < 5 {
+		group = "Close relations"
+		groupPriority = 1
+	} else if rel.IsDirectAncestor() {
+		group = "Direct ancestors"
+		groupPriority = 2
+	} else if rel.IsCloseToDirectAncestor() {
+		group = "Family of ancestors"
+		groupPriority = 3
+	} else if distance < 12 {
+		group = "Distant relations"
+		groupPriority = 4
+	} else {
+		group = "Others"
+		groupPriority = 5
+	}
+
+	return group, groupPriority
+}
+
+func writePage(p io.WriterTo, root string, fname string) error {
+	f, err := CreateFile(filepath.Join(root, fname))
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
+	if _, err := p.WriteTo(f); err != nil {
+		return fmt.Errorf("write file content: %w", err)
+	}
+	return f.Close()
+}
+
+func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
+	subset, err := NewPublishSet(s.Tree, m)
+	if err != nil {
+		return fmt.Errorf("build publish set: %w", err)
+	}
+
+	s.PublishSet = subset
+	return nil
 }
