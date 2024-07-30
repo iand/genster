@@ -2,17 +2,17 @@ package site
 
 import (
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
+	"github.com/iand/genster/render/wt"
 	"github.com/iand/genster/text"
 )
 
 func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 	pov := &model.POV{Person: p}
+	_ = pov
 
 	doc := s.NewDocument()
 	doc.Layout(PageLayoutPerson.String())
@@ -33,6 +33,9 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 	}
 
 	doc.Para(doc.EncodeModelLink(doc.EncodeText("Main page for "+p.PreferredFamiliarName), p))
+	if p.WikiTreeID != "" {
+		doc.Para(doc.EncodeLink(doc.EncodeText("WikiTree page for "+p.WikiTreeID), "https://www.wikitree.com/wiki/"+p.WikiTreeID))
+	}
 
 	if p.BestBirthlikeEvent != nil {
 		doc.EmptyPara()
@@ -142,276 +145,18 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 		doc.Para(md.Text("Children: " + children))
 	}
 
-	tldoc := &WikiTreeEncoder{}
+	wtenc := &wt.Encoder{}
 
 	if p.Olb != "" {
-		tldoc.EmptyPara()
-		tldoc.Para(md.Text(tldoc.EncodeBold("One line bio:").String() + " " + p.Olb))
+		wtenc.Para(wtenc.EncodeItalic(wt.Text(text.FormatSentence(p.Olb))))
 	}
 
-	t := &model.Timeline{
-		Events: make([]model.TimelineEvent, 0, len(p.Timeline)),
-	}
-	for _, ev := range p.Timeline {
-		if !ev.DirectlyInvolves(p) {
-			continue
-		}
-		if ev.GetDate().IsUnknown() && ev.GetPlace().IsUnknown() {
-			continue
-		}
-		t.Events = append(t.Events, ev)
-	}
+	wtenc.Heading2("Biography", "")
 
-	if len(t.Events) > 0 {
-		tldoc.EmptyPara()
-		tldoc.Heading2("Timeline", "")
-		if err := RenderTimeline(t, pov, tldoc); err != nil {
-			return nil, fmt.Errorf("render timeline narrative: %w", err)
-		}
-	}
+	summary := PersonSummary(p, wtenc, FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false)
+	wtenc.Para(summary)
 
-	doc.Pre(tldoc.String())
-
-	doc.EmptyPara()
-	doc.Para("Annotation stub:")
-
-	wikiTreeID := p.WikiTreeID
-	if wikiTreeID == "" {
-		wikiTreeID = "TBD"
-	}
-
-	ann := fmt.Sprintf(`    {
-      "id": "%s",
-      "comment": "%s",
-      "replace": {
-        "wikitreeid": "%s"
-      }
-    },`, p.ID, p.PreferredUniqueName, wikiTreeID)
-	doc.Pre(ann)
+	doc.Pre(wtenc.String())
 
 	return doc, nil
-}
-
-var _ render.PageBuilder[md.Text] = (*WikiTreeEncoder)(nil)
-
-type WikiTreeEncoder struct {
-	main strings.Builder
-
-	citationidx int
-	citationMap map[string]int
-}
-
-func (w *WikiTreeEncoder) String() string {
-	s := new(strings.Builder)
-	s.WriteString(w.main.String())
-	s.WriteString("\n")
-
-	if w.citationidx > 0 {
-		s.WriteString("== Sources ==\n")
-		s.WriteString("<references />")
-	}
-	return s.String()
-}
-
-func (w *WikiTreeEncoder) Para(m md.Text) {
-	w.main.WriteString("\n")
-	w.main.WriteString(string(m))
-	w.main.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) EmptyPara() {
-	w.main.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) Heading2(m md.Text, id string) {
-	w.main.WriteString("\n")
-	w.main.WriteString("== " + string(m) + " ==")
-	w.main.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) Heading3(m md.Text, id string) {
-	w.main.WriteString("\n")
-	w.main.WriteString("=== " + string(m) + " ===")
-	w.main.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) Heading4(m md.Text, id string) {
-	w.main.WriteString("\n")
-	w.main.WriteString("==== " + string(m) + " ====")
-	w.main.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) UnorderedList(items []md.Text) {
-	for _, item := range items {
-		w.main.WriteString("*" + string(item) + "\n")
-	}
-}
-
-func (w *WikiTreeEncoder) OrderedList(items []md.Text) {
-	for _, item := range items {
-		w.main.WriteString("#" + string(item) + "\n")
-	}
-}
-
-func (w *WikiTreeEncoder) DefinitionList(items [][2]md.Text) {
-	for _, item := range items {
-		w.main.WriteString(fmt.Sprintf("%s\n", string(item[0])))
-		if len(item[1]) > 0 {
-			w.main.WriteString(text.PrefixLines(string(item[1]), ":"))
-			w.main.WriteString("\n")
-		}
-		w.main.WriteString("\n")
-	}
-}
-
-func (w *WikiTreeEncoder) BlockQuote(m md.Text) {
-	w.main.WriteString("<blockquote>\n")
-	m.ToHTML(&w.main)
-	w.main.WriteString("</blockquote>\n")
-}
-
-func (w *WikiTreeEncoder) Pre(s string) {
-	w.main.WriteString("<pre>\n")
-	w.main.WriteString(s)
-	w.main.WriteString("</pre>\n")
-}
-
-func (w *WikiTreeEncoder) Markdown(s string) {
-	// m.ToHTML(&w.main)
-}
-
-func (w *WikiTreeEncoder) EncodeItalic(m md.Text) md.Text {
-	return "''" + m + "''"
-}
-
-func (w *WikiTreeEncoder) EncodeBold(m md.Text) md.Text {
-	return "'''" + m + "'''"
-}
-
-func (w *WikiTreeEncoder) EncodeLink(text md.Text, url string) md.Text {
-	return w.EncodeText(fmt.Sprintf("[%s %s]", url, text))
-}
-
-func (w *WikiTreeEncoder) EncodeModelLink(text md.Text, m any) md.Text {
-	buf := new(strings.Builder)
-	w.writeModelLink(buf, text, m)
-	return w.EncodeText(buf.String())
-}
-
-func (w *WikiTreeEncoder) EncodeModelLinkDedupe(firstText md.Text, subsequentText md.Text, m any) md.Text {
-	buf := new(strings.Builder)
-	w.writeModelLink(buf, firstText, m)
-	return w.EncodeText(buf.String())
-}
-
-func (w *WikiTreeEncoder) writeModelLink(buf io.StringWriter, text md.Text, v any) {
-	if p, ok := v.(*model.Person); ok && p.WikiTreeID != "" {
-		buf.WriteString(fmt.Sprintf("[[%s|%s]]", p.WikiTreeID, text))
-		return
-	}
-
-	// TODO:review whether to use Render instead
-	buf.WriteString(text.String())
-}
-
-func (w *WikiTreeEncoder) EncodeWithCitations(s md.Text, citations []*model.GeneralCitation) md.Text {
-	sups := md.Text("")
-	for i, cit := range citations {
-		if i > 0 && sups != "" {
-			sups += ","
-		}
-		sups += w.encodeCitationDetail(cit)
-	}
-	return s + sups
-}
-
-func (w *WikiTreeEncoder) encodeCitationDetail(c *model.GeneralCitation) md.Text {
-	var detail string
-
-	detail = text.AppendIndependentClause(detail, text.StripNewlines(c.Detail))
-
-	if !hasExcludedTranscriptionSource(c) {
-		if len(c.TranscriptionText) > 0 {
-			for _, t := range c.TranscriptionText {
-				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(w.EncodeText(text.StripNewlines(t.Text))).String()+`"`)
-			}
-		}
-	}
-
-	if c.Source != nil && c.Source.Title != "" {
-		detail = text.AppendIndependentClause(detail, text.StripNewlines(c.Source.Title))
-	}
-
-	var repo string
-	if c.Source != nil {
-		if c.Source.RepositoryName != "" {
-			if c.Source.RepositoryLink != "" {
-				repo = w.EncodeLink(w.EncodeText(text.StripNewlines(c.Source.RepositoryName)), c.Source.RepositoryLink).String()
-			} else {
-				repo = text.StripNewlines(c.Source.RepositoryName)
-			}
-		} else {
-			if c.Source.RepositoryLink != "" {
-				repo = text.StripNewlines(c.Source.RepositoryLink)
-			}
-		}
-	}
-
-	if repo != "" {
-		detail = text.AppendIndependentClause(detail, w.EncodeItalic(w.EncodeText(repo)).String())
-	}
-	detail = text.FinishSentence(detail)
-
-	if c.URL != nil {
-		detail = text.AppendIndependentClause(detail, w.EncodeLink(w.EncodeText(c.URL.Title), c.URL.URL).String())
-		detail = text.FinishSentence(detail)
-	}
-
-	detail = text.FinishSentence(detail)
-
-	if w.citationMap == nil {
-		w.citationMap = make(map[string]int)
-	}
-	if c.ID != "" {
-		idx, exists := w.citationMap[c.ID]
-		if exists {
-			return w.EncodeText(fmt.Sprintf(`<ref name="cit_%d" />`, idx))
-		}
-	}
-
-	w.citationidx++
-	idx := w.citationidx
-	if c.ID != "" {
-		w.citationMap[c.ID] = idx
-	}
-
-	return w.EncodeText(fmt.Sprintf(`<ref name="cit_%d">%s</ref>`, idx, detail))
-}
-
-func (w *WikiTreeEncoder) ParaWithFigure(s md.Text, link string, alt string, caption md.Text) {
-}
-
-func (w *WikiTreeEncoder) Timeline(rows []render.TimelineRow[md.Text]) {
-}
-
-func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
-	// avoid text that might have problematic copyright
-	if c.Source == nil || c.Source.RepositoryName == "" {
-		return false
-	}
-
-	if c.Source.RepositoryName == "The British Newspaper Archive" {
-		return true
-	}
-
-	return false
-}
-
-func (w *WikiTreeEncoder) EncodeText(ss ...string) md.Text {
-	if len(ss) == 0 {
-		return ""
-	} else if len(ss) == 1 {
-		return md.Text(ss[0])
-	}
-	return md.Text(strings.Join(ss, ""))
 }

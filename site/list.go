@@ -248,7 +248,7 @@ func (s *Site) WritePersonListPages(root string) error {
 		items := make([][2]md.Text, 0)
 		b := &CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
 
-		summary := PersonSummary(p, b, b.EncodeText(p.PreferredFamiliarName), true, true, false)
+		summary := PersonSummary(p, b, DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true)
 
 		var rel string
 		if s.LinkFor(p) != "" {
@@ -349,7 +349,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			b := &CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
 
 			title := b.EncodeModelLink(b.EncodeText(p.PreferredSortName), p)
-			summary := PersonSummary(p, b, b.EncodeText(p.PreferredFamiliarName), true, true, false)
+			summary := PersonSummary(p, b, DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true)
 
 			var rel string
 			if s.LinkFor(p) != "" {

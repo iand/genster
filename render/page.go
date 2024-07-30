@@ -9,7 +9,6 @@ import (
 type EncodedText interface {
 	String() string
 	IsZero() bool
-	Render(w io.Writer) error
 }
 
 type Page[T EncodedText] interface {

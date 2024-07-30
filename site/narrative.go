@@ -273,7 +273,7 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
 		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
-		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWhere(s.Principal.BestBirthlikeEvent, enc))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
+		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWhere(s.Principal.BestBirthlikeEvent, enc, DefaultNameChooser{}))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
 	}
 	// TODO: position in family
 
@@ -348,7 +348,7 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	// Insert baptism here if there is only one, otherwise leave for a new para
 	if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent {
-		bapDetail := AgeWhenWhere(s.Baptisms[0], enc)
+		bapDetail := AgeWhenWhere(s.Baptisms[0], enc, DefaultNameChooser{})
 		if bapDetail != "" {
 
 			if twinClause {
@@ -389,7 +389,7 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			} else {
 				evDetail += "and again"
 			}
-			aww := AgeWhenWhere(bev, enc)
+			aww := AgeWhenWhere(bev, enc, DefaultNameChooser{})
 			if aww != "" {
 				bapDetail = text.JoinSentenceParts(bapDetail, evDetail, enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String())
 			}
@@ -488,7 +488,7 @@ func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 			event += " " + otherName
 		}
 		if s.Family.BestStartEvent != nil && !s.Family.BestStartEvent.GetPlace().IsUnknown() {
-			event = WhatWhere(event, s.Family.BestStartEvent.GetPlace(), enc)
+			event = WhatWhere(event, s.Family.BestStartEvent.GetPlace(), enc, DefaultNameChooser{})
 		}
 		if s.Family.BestStartEvent != nil {
 			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(event), s.Family.BestStartEvent.GetCitations()).String())
@@ -619,7 +619,7 @@ func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.PageBui
 			redactedCount++
 			continue
 		}
-		childList = append(childList, PersonSummary(c, enc, enc.EncodeText(c.PreferredGivenName), true, false, true))
+		childList = append(childList, PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredGivenName), true, false, true, true))
 	}
 	if len(childList) == 0 {
 		return childList
@@ -660,7 +660,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
 			detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
 			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
-			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWhere(c.BestBirthlikeEvent, enc)), c.BestBirthlikeEvent.GetCitations()).String())
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWhere(c.BestBirthlikeEvent, enc, DefaultNameChooser{})), c.BestBirthlikeEvent.GetCitations()).String())
 
 		} else {
 			// this form: "At the age of thirty-four, Annie had a"
@@ -669,7 +669,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 			detail.Continue("had a", c.Gender.RelationToParentNoun())
 			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
 			detail.Continue("who")
-			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(c.BestBirthlikeEvent, enc)), c.BestBirthlikeEvent.GetCitations()).String())
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(c.BestBirthlikeEvent, enc, DefaultNameChooser{})), c.BestBirthlikeEvent.GetCitations()).String())
 
 		}
 
@@ -686,7 +686,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
 			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, enc.EncodeText(c.PreferredFamiliarName), false, false, false)})
+			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true)})
 		}
 	} else {
 		panic(fmt.Sprintf("Not implemented: renderIllegitimate where person has more than one child or is the father (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
@@ -746,7 +746,7 @@ func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], 
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
 			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, enc.EncodeText(c.PreferredFamiliarName), false, false, false)})
+			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true)})
 		}
 
 	} else {
@@ -808,7 +808,7 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 		if !other.IsUnknown() {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
-		detail.NewSentence(PersonDeathSummary(other, enc, enc.EncodeText(name), true, false).String())
+		detail.NewSentence(PersonDeathSummary(other, enc, DefaultNameChooser{}, enc.EncodeText(name), true, false).String())
 		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
 			detail.NewSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		}
@@ -1081,7 +1081,7 @@ func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 	if narrative != "" {
 		var detail text.Para
 		detail.NewSentence(intro.Pronoun(seq, s.Start()))
-		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc, DefaultNameChooser{})), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
 		detail.NewSentence(narrative)
 		detail.FinishSentence()
 		enc.Para(enc.EncodeText(detail.Text()))
@@ -1102,7 +1102,7 @@ func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 		fmt.Sprintf("in the %d census %s was living", year, intro.Pronoun(seq, s.Start())),
 	)
 
-	detail.NewSentence(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(what, s.Event.GetPlace(), enc)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
+	detail.NewSentence(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(what, s.Event.GetPlace(), enc, DefaultNameChooser{})), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
 
 	var spouse *model.CensusEntry
 	var father *model.CensusEntry
@@ -1242,7 +1242,7 @@ func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 	default:
 		// prepend an intro
 		detail.NewSentence(intro.Pronoun(seq, s.Start()))
-		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(s.Event, enc)), s.Event.GetCitations()).String())
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(s.Event, enc, DefaultNameChooser{})), s.Event.GetCitations()).String())
 	}
 
 	detail.NewSentence(narrative)

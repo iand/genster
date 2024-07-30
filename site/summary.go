@@ -12,6 +12,11 @@ import (
 	"github.com/iand/genster/text"
 )
 
+type NameChooser interface {
+	FirstUse(any) string   // name to use for first occurrence
+	Subsequent(any) string // name to use for subsequent occurrences
+}
+
 func AgeQualifier(age int) string {
 	if age == 0 {
 		return "as an infant"
@@ -21,36 +26,36 @@ func AgeQualifier(age int) string {
 	return fmt.Sprintf("at the age of %s", text.CardinalNoun(age))
 }
 
-func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T]) string {
+func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
 	var title string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(tev.GetPrincipal().PreferredFullName), tev.GetPrincipal()).String()
+		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
 	case model.UnionTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(tev.GetHusband().PreferredFullName), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(tev.GetWife().PreferredFullName), tev.GetWife()).String()
+		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 	case model.MultipartyTimelineEvent:
 		var names []string
 		for _, p := range tev.GetPrincipals() {
-			names = append(names, enc.EncodeModelLink(enc.EncodeText(p.PreferredFullName), p).String())
+			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
 		}
 		title = text.JoinList(names)
 	}
 
-	title = text.JoinSentenceParts(title, EventWhatWhenWhere(ev, enc))
+	title = text.JoinSentenceParts(title, EventWhatWhenWhere(ev, enc, nc))
 
 	return title
 }
 
-func EventWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T]) string {
-	return WhatWhenWhere(InferredWhat(ev, ev), ev.GetDate(), ev.GetPlace(), enc)
+func EventWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
+	return WhatWhenWhere(InferredWhat(ev, ev), ev.GetDate(), ev.GetPlace(), enc, nc)
 }
 
-func EventWhatWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T]) string {
-	return WhatWhere(InferredWhat(ev, ev), ev.GetPlace(), enc)
+func EventWhatWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
+	return WhatWhere(InferredWhat(ev, ev), ev.GetPlace(), enc, nc)
 }
 
-func EventWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T]) string {
-	return WhenWhere(ev.GetDate(), ev.GetPlace(), enc)
+func EventWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
+	return WhenWhere(ev.GetDate(), ev.GetPlace(), enc, nc)
 }
 
 func InferredWhat(w model.Whater, ev model.TimelineEvent) string {
@@ -70,30 +75,30 @@ func InferredWhat(w model.Whater, ev model.TimelineEvent) string {
 	return model.PassiveWhat(w)
 }
 
-func WhatWhenWhere[T render.EncodedText](what string, dt *model.Date, pl *model.Place, enc render.TextEncoder[T]) string {
-	return text.JoinSentenceParts(what, WhenWhere(dt, pl, enc))
+func WhatWhenWhere[T render.EncodedText](what string, dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
+	return text.JoinSentenceParts(what, WhenWhere(dt, pl, enc, nc))
 }
 
-func WhatWhere[T render.EncodedText](what string, pl *model.Place, enc render.TextEncoder[T]) string {
+func WhatWhere[T render.EncodedText](what string, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
 	if !pl.IsUnknown() {
-		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
+		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
 	}
 	return what
 }
 
-func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T]) string {
+func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
 	title := ""
 	if !dt.IsUnknown() {
 		title = text.JoinSentenceParts(title, dt.When())
 	}
 
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
 	}
 	return title
 }
 
-func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T]) string {
+func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
 	title := ""
 
 	date := ev.GetDate()
@@ -106,7 +111,7 @@ func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc re
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
 	}
 	return title
 }
@@ -191,18 +196,6 @@ func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string 
 	default:
 		panic("unhandled deathlike event in DeathWhat")
 	}
-}
-
-// WhoFormalDoing returns a persons unique or full name with their occupation as an aside if known.
-func WhoFormalDoing[T render.EncodedText](p *model.Person, dt *model.Date, enc render.TextEncoder[T]) string {
-	detail := enc.EncodeModelLinkDedupe(enc.EncodeText(p.PreferredUniqueName), enc.EncodeText(p.PreferredFamiliarFullName), p).String()
-
-	occ := p.OccupationAt(dt)
-	if !occ.IsUnknown() {
-		detail += ", " + occ.String() + ","
-	}
-
-	return detail
 }
 
 // WhoDoing returns a persons full or familiar name with their occupation as an aside if known.
@@ -307,18 +300,18 @@ func PersonParentage[T render.EncodedText](p *model.Person, enc render.TextEncod
 	}
 }
 
-func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], name T, includeBirth bool, includeParentage bool, activeTense bool) T {
+func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool) T {
 	var empty T
 	if !name.IsZero() {
 		if p.Redacted {
 			return enc.EncodeItalic(name)
 		}
 
-		if enc.EncodeModelLink(empty, p).String() == "" {
+		if !linkname || enc.EncodeModelLink(empty, p).String() == "" {
 			name = enc.EncodeItalic(name)
+		} else {
+			name = enc.EncodeModelLink(name, p)
 		}
-
-		name = enc.EncodeModelLink(name, p)
 
 		if p.NickName != "" {
 			name = enc.EncodeText(text.JoinSentenceParts(name.String(), fmt.Sprintf("(known as %s)", p.NickName)))
@@ -327,7 +320,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 
 	var para text.Para
 	if includeBirth {
-		birth := PersonBirthSummary(p, enc, name, true, true, includeParentage, activeTense)
+		birth := PersonBirthSummary(p, enc, nc, name, true, true, includeParentage, activeTense)
 		if !birth.IsZero() {
 			para.NewSentence(birth.String())
 			if activeTense {
@@ -338,7 +331,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
-	marrs := PersonMarriageSummary(p, enc, name, false, activeTense)
+	marrs := PersonMarriageSummary(p, enc, nc, name, false, activeTense)
 	if !marrs.IsZero() {
 		para.NewSentence(marrs.String())
 		if activeTense {
@@ -348,7 +341,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
-	death := PersonDeathSummary(p, enc, name, false, activeTense)
+	death := PersonDeathSummary(p, enc, nc, name, false, activeTense)
 	if !death.IsZero() {
 		para.NewSentence(death.String())
 	}
@@ -361,6 +354,13 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	finalDetail := ""
 	if p.Unmarried {
 		finalDetail = "never married"
+		if p.Childless {
+			finalDetail += " and had no children"
+		}
+	} else {
+		if p.Childless {
+			finalDetail += "had no children"
+		}
 	}
 
 	if finalDetail != "" {
@@ -370,7 +370,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	return enc.EncodeText(para.Text())
 }
 
-func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], name T, allowInferred bool, includeBirthDate bool, includeParentage bool, activeTense bool) T {
+func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, includeBirthDate bool, includeParentage bool, activeTense bool) T {
 	var empty T
 	var birth *model.BirthEvent
 	var bev model.IndividualTimelineEvent
@@ -422,9 +422,9 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 				}
 			}
 		}
-		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhenWhere(bev, enc)), bev.GetCitations()).String())
+		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhenWhere(bev, enc, nc)), bev.GetCitations()).String())
 	} else {
-		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhere(bev, enc)), bev.GetCitations()).String())
+		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhere(bev, enc, nc)), bev.GetCitations()).String())
 	}
 
 	if includeParentage {
@@ -444,7 +444,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	return enc.EncodeText(para.Text())
 }
 
-func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], name T, allowInferred bool, activeTense bool) T {
+func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool) T {
 	var empty T
 	var death *model.DeathEvent
 	var bev model.IndividualTimelineEvent
@@ -493,7 +493,7 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	if death != nil {
 		deathWhat = DeathWhat(death, p.ModeOfDeath)
 	}
-	para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(deathWhat, bev.GetDate(), bev.GetPlace(), enc)), bev.GetCitations()).String())
+	para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(deathWhat, bev.GetDate(), bev.GetPlace(), enc, nc)), bev.GetCitations()).String())
 
 	if age, ok := p.AgeInYearsAt(bev.GetDate()); ok {
 		if age < 1 {
@@ -511,7 +511,7 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	return enc.EncodeText(para.Text())
 }
 
-func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], name T, allowInferred bool, activeTense bool) T {
+func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool) T {
 	var empty T
 	tense := func(st string) T {
 		if activeTense {
@@ -540,7 +540,7 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		f := fams[0]
 		other := f.OtherParent(p)
 		what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
-		marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), nil, enc)), f.BestStartEvent.GetCitations()).String())
+		marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 	} else {
 		var prev model.TimelineEvent
 		for _, f := range fams {
@@ -550,10 +550,10 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 
 			if prev != nil {
 				what := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other)
-				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what.String(), y, nil, enc)), f.BestStartEvent.GetCitations()).String())
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what.String(), y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 			} else {
 				what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
-				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, nil, enc)), f.BestStartEvent.GetCitations()).String())
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 			}
 
 			prev = f.BestStartEvent
@@ -1096,4 +1096,57 @@ func GenerateOlb(p *model.Person) error {
 		logger.Debug("generated olb: " + p.Olb)
 	}
 	return nil
+}
+
+type DefaultNameChooser struct{}
+
+var _ NameChooser = DefaultNameChooser{}
+
+func (c DefaultNameChooser) FirstUse(v any) string {
+	switch vt := v.(type) {
+	case *model.Person:
+		return vt.PreferredUniqueName
+	case *model.Place:
+		return vt.PreferredUniqueName
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
+}
+
+func (c DefaultNameChooser) Subsequent(v any) string {
+	switch vt := v.(type) {
+	case *model.Person:
+		return vt.PreferredFamiliarName
+	case *model.Place:
+		return vt.PreferredName
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
+}
+
+// FullNameChooser always returns the full name
+type FullNameChooser struct{}
+
+var _ NameChooser = FullNameChooser{}
+
+func (c FullNameChooser) FirstUse(v any) string {
+	switch vt := v.(type) {
+	case *model.Person:
+		return vt.PreferredFullName
+	case *model.Place:
+		return vt.PreferredFullName
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
+}
+
+func (c FullNameChooser) Subsequent(v any) string {
+	switch vt := v.(type) {
+	case *model.Person:
+		return vt.PreferredFullName
+	case *model.Place:
+		return vt.PreferredFullName
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
 }

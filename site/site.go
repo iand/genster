@@ -992,10 +992,10 @@ func (s *Site) WriteChartAncestors(root string) error {
 				adds = append(adds, ancestors[i].PrimaryOccupation)
 			}
 			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc))
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc, DefaultNameChooser{}))
 			}
 			if ancestors[i].BestDeathlikeEvent != nil && !ancestors[i].BestDeathlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc))
+				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc, DefaultNameChooser{}))
 			}
 
 			detail = text.AppendClause(detail, text.JoinList(adds))

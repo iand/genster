@@ -93,7 +93,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text]
 			continue
 		}
 
-		events = append(events, md.Text(WhoWhatWhenWhere(ev, doc)))
+		events = append(events, md.Text(WhoWhatWhenWhere(ev, doc, FullNameChooser{})))
 		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
 		}

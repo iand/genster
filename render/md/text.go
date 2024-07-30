@@ -12,20 +12,13 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// Text is a piece of markdown encoded text
 type Text string
 
 func (m Text) String() string { return string(m) }
 func (m Text) IsZero() bool   { return m == "" }
 
 func (m Text) ToHTML(w io.Writer) error {
-	if err := md.Convert([]byte(m), w); err != nil {
-		return fmt.Errorf("goldmark: %v", err)
-	}
-
-	return nil
-}
-
-func (m Text) Render(w io.Writer) error {
 	if err := md.Convert([]byte(m), w); err != nil {
 		return fmt.Errorf("goldmark: %v", err)
 	}
