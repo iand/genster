@@ -8,8 +8,8 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/iand/genster/logging"
-	"github.com/iand/genster/md"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
 )
 

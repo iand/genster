@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/iand/genster/md"
+	"github.com/iand/genster/render/md"
 )
 
 type Paginator struct {
