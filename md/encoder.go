@@ -32,6 +32,8 @@ type Encoder struct {
 	SuppressCitations bool
 }
 
+var _ render.PageBuilder[render.Markdown] = (*Encoder)(nil)
+
 type citationAnchor struct {
 	anchor  string
 	display string
@@ -100,9 +102,9 @@ func (e *Encoder) SetBody(s string) {
 	e.maintext.WriteString(s)
 }
 
-func (e *Encoder) RawMarkdown(s render.Markdown) {
+func (e *Encoder) Markdown(s string) {
 	e.maintext.WriteString("\n")
-	e.maintext.WriteString(string(s))
+	e.maintext.WriteString(s)
 }
 
 func (e *Encoder) Heading2(m render.Markdown, id string) {
@@ -187,16 +189,16 @@ func (e *Encoder) ResetSeenLinks() {
 	e.seenLinks = make(map[string]bool)
 }
 
-func (e *Encoder) EncodeLink(text string, url string) string {
+func (e *Encoder) EncodeLink(text render.Markdown, url string) render.Markdown {
 	if url == "" {
 		return text
 	}
 
 	// return fmt.Sprintf("<a href=\"%s\">%s</a>", url, html.EscapeString(text))
-	return fmt.Sprintf("[%s](%s)", text, url)
+	return e.EncodeText(fmt.Sprintf("[%s](%s)", text, url))
 }
 
-func (e *Encoder) EncodeModelLink(firstText string, m any) string {
+func (e *Encoder) EncodeModelLink(firstText render.Markdown, m any) render.Markdown {
 	if e.seenLinks == nil {
 		e.seenLinks = make(map[string]bool)
 	}
@@ -212,34 +214,34 @@ func (e *Encoder) EncodeModelLink(firstText string, m any) string {
 	return e.EncodeLink(firstText, url)
 }
 
-func (b *Encoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
-	suffix := ""
+func (e *Encoder) EncodeModelLinkDedupe(firstText render.Markdown, subsequentText render.Markdown, m any) render.Markdown {
+	suffix := render.Markdown("")
 	if p, ok := m.(*model.Person); ok {
 		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
-			suffix = DirectAncestorMarker
+			suffix = render.Markdown(DirectAncestorMarker)
 		}
 	}
 
-	if b.LinkBuilder == nil {
+	if e.LinkBuilder == nil {
 		return firstText + suffix
 	}
 
-	url := b.LinkBuilder.LinkFor(m)
+	url := e.LinkBuilder.LinkFor(m)
 
 	// Only encode the first mention of a link
-	if b.seenLinks == nil {
-		b.seenLinks = make(map[string]bool)
+	if e.seenLinks == nil {
+		e.seenLinks = make(map[string]bool)
 	}
 
-	if b.seenLinks[url] {
+	if e.seenLinks[url] {
 		return subsequentText
 	}
-	b.seenLinks[url] = true
+	e.seenLinks[url] = true
 
-	return b.EncodeLink(firstText+suffix, url)
+	return e.EncodeLink(firstText+suffix, url)
 }
 
-func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
+func (e *Encoder) EncodeWithCitations(s render.Markdown, citations []*model.GeneralCitation) render.Markdown {
 	if len(citations) == 0 {
 		return s
 	}
@@ -251,31 +253,31 @@ func (b *Encoder) EncodeWithCitations(s string, citations []*model.GeneralCitati
 		if i > 0 && sups != "" {
 			sups += ","
 		}
-		sups += b.EncodeCitationDetail(cit)
+		sups += e.encodeCitationDetail(cit)
 	}
 
 	if sups == "" {
 		return s
 	}
 
-	return s + "<sup class=\"citref\">" + sups + "</sup>"
+	return e.EncodeText(s.String() + "<sup class=\"citref\">" + sups + "</sup>")
 }
 
-func (e *Encoder) EncodeCitationDetail(c *model.GeneralCitation) string {
+func (e *Encoder) encodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
 	if c.ID != "" && e.LinkBuilder.LinkFor(c) != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
-		citationText += " (" + e.EncodeModelLink("more details...", c) + ")"
+		citationText += " (" + e.EncodeModelLink("more details...", c).String() + ")"
 	} else {
 		if c.URL != nil {
-			citationText = e.EncodeLink(citationText, c.URL.URL)
+			citationText = e.EncodeLink(e.EncodeText(citationText), c.URL.URL).String()
 		}
 	}
 
-	return e.EncodeCitationLink(c.SourceTitle(), render.Markdown(citationText), c.ID)
+	return e.encodeCitationLink(c.SourceTitle(), render.Markdown(citationText), c.ID)
 }
 
-func (b *Encoder) EncodeCitationLink(sourceName string, citationText render.Markdown, citationID string) string {
+func (b *Encoder) encodeCitationLink(sourceName string, citationText render.Markdown, citationID string) string {
 	if b.SuppressCitations {
 		return ""
 	}
@@ -399,7 +401,7 @@ func (e *Encoder) Figure(link string, alt string, caption render.Markdown, highl
 	e.maintext.WriteString("</figure>\n")
 }
 
-func (e *Encoder) Timeline(rows []render.TimelineRow) {
+func (e *Encoder) Timeline(rows []render.TimelineRow[render.Markdown]) {
 	e.maintext.WriteString("<dl class=\"timeline\">\n")
 	yr := ""
 	for _, row := range rows {
@@ -437,16 +439,25 @@ func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {
 	return nil
 }
 
-func (e *Encoder) EncodeItalic(m string) string {
-	return "*" + m + "*"
+func (e *Encoder) EncodeItalic(m render.Markdown) render.Markdown {
+	return render.Markdown("*" + m + "*")
 }
 
-func (e *Encoder) EncodeBold(m string) string {
-	return "**" + m + "**"
+func (e *Encoder) EncodeBold(m render.Markdown) render.Markdown {
+	return render.Markdown("**" + m + "**")
 }
 
 func (e *Encoder) EncodeImage(alt string, link string) string {
 	buf := new(strings.Builder)
 	e.writeImage(buf, alt, link)
 	return buf.String()
+}
+
+func (e *Encoder) EncodeText(ss ...string) render.Markdown {
+	if len(ss) == 0 {
+		return ""
+	} else if len(ss) == 1 {
+		return render.Markdown(ss[0])
+	}
+	return render.Markdown(strings.Join(ss, ""))
 }

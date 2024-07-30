@@ -50,12 +50,12 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 				rel = p.RelationToKeyPerson.Name()
 			}
 
-			links := b.EncodeModelLink("View page", p)
+			links := b.EncodeModelLink("View page", p).String()
 
 			// if p.EditLink != nil {
 			// 	links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
 			// }
-			b.Para(render.Markdown(text.FormatSentence(rel) + " " + links))
+			b.Para(b.EncodeText(text.FormatSentence(rel) + " " + links))
 			for _, cat := range categories {
 				al := anomaliesByCategory[cat]
 				items := make([][2]render.Markdown, 0, len(al))
@@ -161,12 +161,12 @@ func (s *Site) WriteTodoListPages(root string) error {
 				rel = p.RelationToKeyPerson.Name()
 			}
 
-			links := b.EncodeModelLink("View page", p)
+			links := b.EncodeModelLink("View page", p).String()
 
 			// if p.EditLink != nil {
 			// 	links += " or " + string(b.EncodeLink(text.LowerFirst(p.EditLink.Title), p.EditLink.URL))
 			// }
-			b.Para(render.Markdown(text.FormatSentence(rel) + " " + links))
+			b.Para(b.EncodeText(text.FormatSentence(rel) + " " + links))
 
 			for _, cat := range categories {
 				al := todosByCategory[cat]
@@ -246,20 +246,20 @@ func (s *Site) WritePersonListPages(root string) error {
 			continue
 		}
 		items := make([][2]render.Markdown, 0)
-		b := &CitationSkippingEncoder{s.NewMarkdownBuilder()}
+		b := &CitationSkippingEncoder[render.Markdown]{s.NewMarkdownBuilder()}
 
-		summary := PersonSummary(p, b, p.PreferredFamiliarName, true, true, false)
+		summary := PersonSummary(p, b, b.EncodeText(p.PreferredFamiliarName), true, true, false)
 
 		var rel string
 		if s.LinkFor(p) != "" {
 			if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
-				rel = b.EncodeBold(text.FormatSentence(p.RelationToKeyPerson.Name()))
+				rel = b.EncodeBold(b.EncodeText(text.FormatSentence(p.RelationToKeyPerson.Name()))).String()
 			}
 		}
 
 		items = append(items, [2]render.Markdown{
-			render.Markdown(text.AppendClause(b.EncodeModelLink(p.PreferredSortName, p), rel)),
-			render.Markdown(summary),
+			b.EncodeText(text.AppendClause(b.EncodeModelLink(b.EncodeText(p.PreferredSortName), p).String(), rel)),
+			summary,
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
@@ -282,7 +282,7 @@ func (s *Site) WritePlaceListPages(root string) error {
 		items := make([][2]render.Markdown, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]render.Markdown{
-			render.Markdown(b.EncodeModelLink(p.PreferredUniqueName, p)),
+			render.Markdown(b.EncodeModelLink(b.EncodeText(p.PreferredUniqueName), p)),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())
@@ -302,7 +302,7 @@ func (s *Site) WriteSourceListPages(root string) error {
 		items := make([][2]render.Markdown, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]render.Markdown{
-			render.Markdown(b.EncodeModelLink(so.Title, so)),
+			render.Markdown(b.EncodeModelLink(b.EncodeText(so.Title), so)),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(so.Title+"~"+so.ID, so.Title, b.String())
@@ -346,26 +346,26 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 		for _, p := range people {
 			items := make([][2]render.Markdown, 0)
-			b := &CitationSkippingEncoder{s.NewMarkdownBuilder()}
+			b := &CitationSkippingEncoder[render.Markdown]{s.NewMarkdownBuilder()}
 
-			title := b.EncodeModelLink(p.PreferredSortName, p)
-			summary := PersonSummary(p, b, p.PreferredFamiliarName, true, true, false)
+			title := b.EncodeModelLink(b.EncodeText(p.PreferredSortName), p)
+			summary := PersonSummary(p, b, b.EncodeText(p.PreferredFamiliarName), true, true, false)
 
 			var rel string
 			if s.LinkFor(p) != "" {
 				if p.RelationToKeyPerson != nil && !p.RelationToKeyPerson.IsSelf() {
-					rel = b.EncodeBold(p.RelationToKeyPerson.Name())
-					title = text.AppendClause(title, rel)
+					rel = b.EncodeBold(b.EncodeText(p.RelationToKeyPerson.Name())).String()
+					title = b.EncodeText(text.AppendClause(title.String(), rel))
 				}
 			}
 
 			if p.Olb != "" {
-				summary = b.EncodeItalic(text.FormatSentence(p.Olb)) + "<br>" + summary
+				summary = render.Markdown(b.EncodeItalic(b.EncodeText(text.FormatSentence(p.Olb)))+"<br>") + summary
 			}
 
 			items = append(items, [2]render.Markdown{
-				render.Markdown(text.FormatSentence(title)),
-				render.Markdown(summary),
+				b.EncodeText(text.FormatSentence(title.String())),
+				summary,
 			})
 
 			b.DefinitionList(items)
@@ -402,7 +402,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	alist := make([]render.Markdown, 0, len(surnames))
 	for _, surname := range surnames {
-		alist = append(alist, render.Markdown(doc.EncodeLink(surname, s.LinkForSurnameListPage(surname))))
+		alist = append(alist, doc.EncodeLink(doc.EncodeText(surname), s.LinkForSurnameListPage(surname)))
 	}
 	doc.UnorderedList(alist)
 

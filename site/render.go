@@ -9,26 +9,26 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderText(t model.Text, enc render.Page) error {
+func RenderText[T render.EncodedText](t model.Text, enc render.PageBuilder[T]) error {
 	if t.Title != "" {
-		enc.Heading3(render.Markdown(t.Title), t.ID)
+		enc.Heading3(enc.EncodeText(t.Title), t.ID)
 	}
 	if t.Formatted {
 		enc.Pre(t.Text)
 		enc.Pre("")
 	} else if t.Markdown {
 		txt := EncodeText(t, enc)
-		enc.RawMarkdown(render.Markdown(txt))
+		enc.Markdown(txt)
 		enc.EmptyPara()
 	} else {
-		enc.Para(render.Markdown(text.FormatSentence(t.Text)))
+		enc.Para(enc.EncodeText(text.FormatSentence(t.Text)))
 		enc.EmptyPara()
 	}
 
 	return nil
 }
 
-func EncodeText(t model.Text, enc render.MarkupBuilder) string {
+func EncodeText[T render.EncodedText](t model.Text, enc render.TextEncoder[T]) string {
 	if len(t.Links) == 0 {
 		return t.Text
 	}
@@ -45,14 +45,14 @@ func EncodeText(t model.Text, enc render.MarkupBuilder) string {
 	for _, l := range t.Links {
 		formatted += string(text[cursor:l.Start])
 		linktext := string(text[l.Start:l.End])
-		formatted += enc.EncodeModelLink(linktext, l.Object)
+		formatted += enc.EncodeModelLink(enc.EncodeText(linktext), l.Object).String()
 		cursor = l.End
 	}
 	formatted += string(text[cursor:])
 	return formatted
 }
 
-func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) error {
+func RenderFacts[T render.EncodedText](facts []model.Fact, pov *model.POV, enc render.PageBuilder[T]) error {
 	enc.EmptyPara()
 
 	categories := make([]string, 0)
@@ -73,16 +73,16 @@ func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) e
 
 	sort.Strings(categories)
 
-	factlist := make([][2]render.Markdown, 0, len(categories))
+	factlist := make([][2]T, 0, len(categories))
 	for _, cat := range categories {
 		fl, ok := factsByCategory[cat]
 		if !ok {
 			continue
 		}
 		if len(fl) == 0 {
-			factlist = append(factlist, [2]render.Markdown{
-				render.Markdown(cat),
-				render.Markdown(fl[0].Detail),
+			factlist = append(factlist, [2]T{
+				enc.EncodeText(cat),
+				enc.EncodeText(fl[0].Detail),
 			})
 			continue
 		}
@@ -91,11 +91,11 @@ func RenderFacts(facts []model.Fact, pov *model.POV, enc render.MarkupBuilder) e
 			if i > 0 {
 				buf.WriteString("\n")
 			}
-			buf.WriteString(enc.EncodeWithCitations(f.Detail, f.Citations))
+			buf.WriteString(enc.EncodeWithCitations(enc.EncodeText(f.Detail), f.Citations).String())
 		}
-		factlist = append(factlist, [2]render.Markdown{
-			render.Markdown(cat),
-			render.Markdown(buf.String()),
+		factlist = append(factlist, [2]T{
+			enc.EncodeText(cat),
+			enc.EncodeText(buf.String()),
 		})
 	}
 
@@ -125,12 +125,12 @@ func Tagify(s string) string {
 	return s
 }
 
-func RenderNames(names []*model.Name, enc render.MarkupBuilder) error {
+func RenderNames[T render.EncodedText](names []*model.Name, enc render.PageBuilder[T]) error {
 	enc.EmptyPara()
 
-	namelist := make([]render.Markdown, 0, len(names))
+	namelist := make([]T, 0, len(names))
 	for _, n := range names {
-		namelist = append(namelist, render.Markdown(enc.EncodeWithCitations(n.Name, n.Citations)))
+		namelist = append(namelist, enc.EncodeWithCitations(enc.EncodeText(n.Name), n.Citations))
 	}
 
 	enc.UnorderedList(namelist)

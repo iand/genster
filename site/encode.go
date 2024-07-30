@@ -8,7 +8,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func EncodeRawLink(u string, enc render.InlineMarkdownEncoder) string {
+func EncodeRawLink[T render.EncodedText](u string, enc render.TextEncoder[T]) string {
 	text := u
 
 	pu, err := url.Parse(u)
@@ -16,32 +16,31 @@ func EncodeRawLink(u string, enc render.InlineMarkdownEncoder) string {
 		text = pu.Host
 	}
 
-	return enc.EncodeLink(text, u)
+	return enc.EncodeLink(enc.EncodeText(text), u).String()
 }
 
 // EncodePeopleListInline encodes a list of people as a comma separated list
-func EncodePeopleListInline(ps []*model.Person, formatter func(*model.Person) string, enc render.InlineMarkdownEncoder) string {
+func EncodePeopleListInline[T render.EncodedText](ps []*model.Person, formatter func(*model.Person) string, enc render.TextEncoder[T]) string {
 	ss := make([]string, len(ps))
 	for i := range ps {
-		ss[i] = enc.EncodeModelLink(formatter(ps[i]), ps[i])
+		ss[i] = enc.EncodeModelLink(enc.EncodeText(formatter(ps[i])), ps[i]).String()
 	}
 	return text.JoinList(ss)
 }
 
-type CitationSkippingEncoder struct {
-	render.MarkupBuilder
+type CitationSkippingEncoder[T render.EncodedText] struct {
+	render.PageBuilder[T]
 }
 
-var _ render.InlineMarkdownEncoder = (*CitationSkippingEncoder)(nil)
+var (
+	_ render.PageBuilder[render.Markdown] = (*CitationSkippingEncoder[render.Markdown])(nil)
+	_ render.TextEncoder[render.Markdown] = (*CitationSkippingEncoder[render.Markdown])(nil)
+)
 
-func (e *CitationSkippingEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
+func (e *CitationSkippingEncoder[T]) EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T {
 	return firstText
 }
 
-func (e *CitationSkippingEncoder) EncodeCitationDetail(c *model.GeneralCitation) string {
-	return ""
-}
-
-func (e *CitationSkippingEncoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
+func (e *CitationSkippingEncoder[T]) EncodeWithCitations(s T, citations []*model.GeneralCitation) T {
 	return s
 }

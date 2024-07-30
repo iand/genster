@@ -11,11 +11,11 @@ import (
 	"github.com/iand/genster/text"
 )
 
-type Narrative struct {
-	Statements []Statement
+type Narrative[T render.EncodedText] struct {
+	Statements []Statement[T]
 }
 
-type IntroGenerator struct {
+type IntroGenerator[T render.EncodedText] struct {
 	POV              *model.POV
 	NameMinSeq       int                 // the minimum sequence that the person's name may be used in an intro
 	AgeMinSeq        int                 // the minimum sequence that the person's age may be used in an intro
@@ -23,7 +23,7 @@ type IntroGenerator struct {
 	PeopleIntroduced map[string][]string // a lookup of occupations for people who have been introduced
 }
 
-func (n *IntroGenerator) Default(seq int, dt *model.Date) string {
+func (n *IntroGenerator[T]) Default(seq int, dt *model.Date) string {
 	part1 := n.RelativeTime(seq, dt, true)
 	part2 := n.Pronoun(seq, dt)
 
@@ -38,7 +38,7 @@ func (n *IntroGenerator) Default(seq int, dt *model.Date) string {
 	return part1 + ", " + part2
 }
 
-func (n *IntroGenerator) Pronoun(seq int, dt *model.Date) string {
+func (n *IntroGenerator[T]) Pronoun(seq int, dt *model.Date) string {
 	defer func() {
 		n.LastIntroDate = dt
 	}()
@@ -54,7 +54,7 @@ func (n *IntroGenerator) Pronoun(seq int, dt *model.Date) string {
 	return n.POV.Person.Gender.SubjectPronoun()
 }
 
-func (n *IntroGenerator) RelativeTime(seq int, dt *model.Date, includeFullDate bool) string {
+func (n *IntroGenerator[T]) RelativeTime(seq int, dt *model.Date, includeFullDate bool) string {
 	defer func() {
 		n.LastIntroDate = dt
 	}()
@@ -141,7 +141,7 @@ func (n *IntroGenerator) RelativeTime(seq int, dt *model.Date, includeFullDate b
 	return ""
 }
 
-func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc render.PageMarkdownEncoder) string {
+func (n *IntroGenerator[T]) IntroducePerson(seq int, p *model.Person, dt *model.Date, suppressSameSurname bool, enc render.TextEncoder[T]) string {
 	if n.PeopleIntroduced == nil {
 		n.PeopleIntroduced = make(map[string][]string)
 	}
@@ -161,9 +161,9 @@ func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Dat
 		n.PeopleIntroduced[p.ID] = append(n.PeopleIntroduced[p.ID], occDetail)
 		detail := ""
 		if suppressSameSurname && p.PreferredFamilyName == n.POV.Person.PreferredFamilyName {
-			detail = enc.EncodeModelLinkDedupe(p.PreferredGivenName, p.PreferredGivenName, p)
+			detail = enc.EncodeModelLinkDedupe(enc.EncodeText(p.PreferredGivenName), enc.EncodeText(p.PreferredGivenName), p).String()
 		} else {
-			detail = enc.EncodeModelLinkDedupe(p.PreferredUniqueName, p.PreferredFullName, p)
+			detail = enc.EncodeModelLinkDedupe(enc.EncodeText(p.PreferredUniqueName), enc.EncodeText(p.PreferredFullName), p).String()
 		}
 		if occDetail != "" {
 			detail += ", " + occDetail + ","
@@ -182,11 +182,11 @@ func (n *IntroGenerator) IntroducePerson(seq int, p *model.Person, dt *model.Dat
 			hadPreviousOccupation = true
 		}
 		if occDetail == od {
-			return enc.EncodeModelLinkDedupe(name, p.PreferredGivenName, p)
+			return enc.EncodeModelLinkDedupe(enc.EncodeText(name), enc.EncodeText(p.PreferredGivenName), p).String()
 		}
 	}
 	n.PeopleIntroduced[p.ID] = append(n.PeopleIntroduced[p.ID], occDetail)
-	detail := enc.EncodeModelLinkDedupe(name, p.PreferredGivenName, p)
+	detail := enc.EncodeModelLinkDedupe(enc.EncodeText(name), enc.EncodeText(p.PreferredGivenName), p).String()
 	if occDetail != "" {
 		if hadPreviousOccupation {
 			detail += ", now " + occDetail + ","
@@ -205,7 +205,7 @@ const (
 	NarrativeSequencePostDeath = 4
 )
 
-func (n *Narrative) Render(pov *model.POV, b render.MarkupBuilder) {
+func (n *Narrative[T]) Render(pov *model.POV, b render.PageBuilder[T]) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
 			if n.Statements[i].Start().SameDate(n.Statements[j].Start()) {
@@ -218,7 +218,7 @@ func (n *Narrative) Render(pov *model.POV, b render.MarkupBuilder) {
 
 	currentNarrativeSequence := NarrativeSequenceIntro
 	sequenceInNarrative := 0
-	nintro := IntroGenerator{
+	nintro := IntroGenerator[T]{
 		POV: pov,
 	}
 	for _, s := range n.Statements {
@@ -251,28 +251,28 @@ type GrammarHints struct {
 	DateInferred bool
 }
 
-type Statement interface {
-	RenderDetail(int, *IntroGenerator, render.MarkupBuilder, *GrammarHints)
+type Statement[T render.EncodedText] interface {
+	RenderDetail(int, *IntroGenerator[T], render.PageBuilder[T], *GrammarHints)
 	Start() *model.Date
 	End() *model.Date
 	NarrativeSequence() int
 	Priority() int // priority within a narrative against another statement with same date, higher will be rendered first
 }
 
-type IntroStatement struct {
+type IntroStatement[T render.EncodedText] struct {
 	Principal        *model.Person
 	Baptisms         []*model.BaptismEvent
 	SuppressRelation bool
 }
 
-var _ Statement = (*IntroStatement)(nil)
+var _ Statement[render.Markdown] = (*IntroStatement[render.Markdown])(nil)
 
-func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	var birth string
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
 		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
-		birth = enc.EncodeWithCitations(text.LowerFirst(EventWhatWhenWhere(s.Principal.BestBirthlikeEvent, enc)), s.Principal.BestBirthlikeEvent.GetCitations())
+		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWhere(s.Principal.BestBirthlikeEvent, enc))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
 	}
 	// TODO: position in family
 
@@ -337,9 +337,9 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			if as.Kind != model.AssociationKindTwin {
 				continue
 			}
-			twinLink := enc.EncodeModelLink(as.Other.PreferredFamiliarName, as.Other)
+			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
 
-			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", s.Principal.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations))
+			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", s.Principal.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations).String())
 			twinClause = true
 			break
 		}
@@ -356,7 +356,7 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 				detail = text.JoinSentenceParts(text.FinishSentence(detail), text.UpperFirst(s.Principal.Gender.SubjectPronoun()))
 			}
 
-			detail = text.JoinSentenceParts(detail, "was baptised", enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
+			detail = text.JoinSentenceParts(detail, "was baptised", enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String())
 			detail = text.FinishSentence(detail)
 		}
 
@@ -367,12 +367,12 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 	// ---------------------------------------
 	if !s.SuppressRelation {
 		if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
-			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is " + enc.EncodeModelLink(text.MaybePossessiveSuffix(s.Principal.RelationToKeyPerson.From.PreferredFamiliarName), s.Principal.RelationToKeyPerson.From) + " " + s.Principal.RelationToKeyPerson.Name()
+			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is " + enc.EncodeModelLink(enc.EncodeText(text.MaybePossessiveSuffix(s.Principal.RelationToKeyPerson.From.PreferredFamiliarName)), s.Principal.RelationToKeyPerson.From).String() + " " + s.Principal.RelationToKeyPerson.Name()
 		}
 	}
 
 	detail = text.FinishSentence(detail)
-	enc.Para(render.Markdown(detail))
+	enc.Para(enc.EncodeText(detail))
 
 	if len(s.Baptisms) > 1 {
 
@@ -390,38 +390,38 @@ func (s *IntroStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 			aww := AgeWhenWhere(bev, enc)
 			if aww != "" {
-				bapDetail = text.JoinSentenceParts(bapDetail, evDetail, enc.EncodeWithCitations(bapDetail, s.Baptisms[0].GetCitations()))
+				bapDetail = text.JoinSentenceParts(bapDetail, evDetail, enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String())
 			}
 		}
 		bapDetail = text.FinishSentence(text.JoinSentenceParts(intro.Pronoun(seq, s.Start()), bapDetail))
-		enc.Para(render.Markdown(bapDetail))
+		enc.Para(enc.EncodeText(bapDetail))
 	}
 }
 
-func (s *IntroStatement) Start() *model.Date {
+func (s *IntroStatement[T]) Start() *model.Date {
 	return s.Principal.BestBirthDate()
 }
 
-func (s *IntroStatement) End() *model.Date {
+func (s *IntroStatement[T]) End() *model.Date {
 	return s.Principal.BestBirthDate()
 }
 
-func (s *IntroStatement) NarrativeSequence() int {
+func (s *IntroStatement[T]) NarrativeSequence() int {
 	return NarrativeSequenceIntro
 }
 
-func (s *IntroStatement) Priority() int {
+func (s *IntroStatement[T]) Priority() int {
 	return 10
 }
 
-type FamilyStatement struct {
+type FamilyStatement[T render.EncodedText] struct {
 	Principal *model.Person
 	Family    *model.Family
 }
 
-var _ Statement = (*FamilyStatement)(nil)
+var _ Statement[render.Markdown] = (*FamilyStatement[render.Markdown])(nil)
 
-func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 	other := s.Family.OtherParent(s.Principal)
@@ -490,7 +490,7 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 			event = WhatWhere(event, s.Family.BestStartEvent.GetPlace(), enc)
 		}
 		if s.Family.BestStartEvent != nil {
-			detail.Continue(enc.EncodeWithCitations(event, s.Family.BestStartEvent.GetCitations()))
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(event), s.Family.BestStartEvent.GetCitations()).String())
 		} else {
 			detail.Continue(event)
 		}
@@ -545,32 +545,32 @@ func (s *FamilyStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 
 	childList := s.childList(s.Family.Children, enc)
 	if len(childList) == 0 {
-		enc.Para(render.Markdown(detail.Text()))
+		enc.Para(enc.EncodeText(detail.Text()))
 		return
 	}
 
 	detail.FinishSentenceWithTerminator(":–")
-	enc.Para(render.Markdown(detail.Text()))
+	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)
 }
 
-func (s *FamilyStatement) Start() *model.Date {
+func (s *FamilyStatement[T]) Start() *model.Date {
 	return s.Family.BestStartDate
 }
 
-func (s *FamilyStatement) End() *model.Date {
+func (s *FamilyStatement[T]) End() *model.Date {
 	return s.Family.BestEndDate
 }
 
-func (s *FamilyStatement) NarrativeSequence() int {
+func (s *FamilyStatement[T]) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
 }
 
-func (s *FamilyStatement) Priority() int {
+func (s *FamilyStatement[T]) Priority() int {
 	return 5
 }
 
-func (s *FamilyStatement) childCardinal(clist []*model.Person) string {
+func (s *FamilyStatement[T]) childCardinal(clist []*model.Person) string {
 	// TODO: note how many children survived if some died
 	allSameGender := true
 	if s.Family.Children[0].Redacted {
@@ -598,7 +598,7 @@ func (s *FamilyStatement) childCardinal(clist []*model.Person) string {
 	return text.CardinalWithUnit(len(s.Family.Children), "child", "children")
 }
 
-func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuilder) []render.Markdown {
+func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.PageBuilder[T]) []T {
 	sort.Slice(clist, func(i, j int) bool {
 		var d1, d2 *model.Date
 		if clist[i].BestBirthlikeEvent != nil {
@@ -612,25 +612,25 @@ func (s *FamilyStatement) childList(clist []*model.Person, enc render.MarkupBuil
 	})
 
 	redactedCount := 0
-	childList := make([]render.Markdown, 0, len(clist))
+	childList := make([]T, 0, len(clist))
 	for _, c := range clist {
 		if c.Redacted {
 			redactedCount++
 			continue
 		}
-		childList = append(childList, render.Markdown(PersonSummary(c, enc, c.PreferredGivenName, true, false, true)))
+		childList = append(childList, PersonSummary(c, enc, enc.EncodeText(c.PreferredGivenName), true, false, true))
 	}
 	if len(childList) == 0 {
 		return childList
 	}
 	if redactedCount > 0 {
-		childList = append(childList, render.Markdown(text.CardinalWithUnit(redactedCount, "other child", "other children")+" living or recently died"))
+		childList = append(childList, enc.EncodeText(text.CardinalWithUnit(redactedCount, "other child", "other children")+" living or recently died"))
 	}
 
 	return childList
 }
 
-func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	// unmarried and the other parent is not known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -658,17 +658,17 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
 			detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
-			detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFullName, c))
-			detail.Continue(enc.EncodeWithCitations(EventWhenWhere(c.BestBirthlikeEvent, enc), c.BestBirthlikeEvent.GetCitations()))
+			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWhere(c.BestBirthlikeEvent, enc)), c.BestBirthlikeEvent.GetCitations()).String())
 
 		} else {
 			// this form: "At the age of thirty-four, Annie had a"
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate()))
 			detail.Continue("had a", c.Gender.RelationToParentNoun())
-			detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFullName, c))
+			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
 			detail.Continue("who")
-			detail.Continue(enc.EncodeWithCitations(EventWhatWhenWhere(c.BestBirthlikeEvent, enc), c.BestBirthlikeEvent.GetCitations()))
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(c.BestBirthlikeEvent, enc)), c.BestBirthlikeEvent.GetCitations()).String())
 
 		}
 
@@ -681,18 +681,18 @@ func (s *FamilyStatement) renderIllegitimate(seq int, intro *IntroGenerator, enc
 		}
 
 		if c.Redacted {
-			enc.Para(render.Markdown(detail.Text()))
+			enc.Para(enc.EncodeText(detail.Text()))
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
-			enc.Para(render.Markdown(detail.Text()))
-			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
+			enc.Para(enc.EncodeText(detail.Text()))
+			enc.UnorderedList([]T{PersonSummary(c, enc, enc.EncodeText(c.PreferredFamiliarName), false, false, false)})
 		}
 	} else {
 		panic(fmt.Sprintf("Not implemented: renderIllegitimate where person has more than one child or is the father (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 	}
 }
 
-func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	// unmarried but the other parent is known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -724,7 +724,7 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 			detail.Continue("gave birth to a")
 			detail.Continue(c.Gender.RelationToParentNoun())
 			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFamiliarName, c))
+				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
 			}
 			detail.AppendClause("the child of")
 			detail.Continue(otherName)
@@ -734,18 +734,18 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 				"had a "+c.Gender.RelationToParentNoun(),
 			))
 			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(c.PreferredFamiliarName, c))
+				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
 			}
 			detail.Continue("with", otherName)
 		}
 		detail.FinishSentence()
 
 		if c.Redacted {
-			enc.Para(render.Markdown(detail.Text()))
+			enc.Para(enc.EncodeText(detail.Text()))
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
-			enc.Para(render.Markdown(detail.Text()))
-			enc.UnorderedList([]render.Markdown{render.Markdown(PersonSummary(c, enc, c.PreferredFamiliarName, false, false, false))})
+			enc.Para(enc.EncodeText(detail.Text()))
+			enc.UnorderedList([]T{PersonSummary(c, enc, enc.EncodeText(c.PreferredFamiliarName), false, false, false)})
 		}
 
 	} else {
@@ -760,30 +760,30 @@ func (s *FamilyStatement) renderUnmarried(seq int, intro *IntroGenerator, enc re
 
 		childList := s.childList(s.Family.Children, enc)
 		if len(childList) == 0 {
-			enc.Para(render.Markdown(detail.Text()))
+			enc.Para(enc.EncodeText(detail.Text()))
 			return
 		}
 
 		detail.FinishSentenceWithTerminator(":–")
-		enc.Para(render.Markdown(detail.Text()))
+		enc.Para(enc.EncodeText(detail.Text()))
 		enc.UnorderedList(childList)
 
 	}
 }
 
-func (s *FamilyStatement) renderUnknownPartner(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	// married or unknown relationship but the other parent is unknown
 	// panic(fmt.Sprintf("Not implemented: renderUnknownPartner (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 }
 
-type FamilyEndStatement struct {
+type FamilyEndStatement[T render.EncodedText] struct {
 	Principal *model.Person
 	Family    *model.Family
 }
 
-var _ Statement = (*FamilyEndStatement)(nil)
+var _ Statement[render.Markdown] = (*FamilyEndStatement[render.Markdown])(nil)
 
-func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	endDate := s.Family.BestEndDate
 	if endDate.IsUnknown() {
 		return
@@ -807,7 +807,7 @@ func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc re
 		if !other.IsUnknown() {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
-		detail.NewSentence(PersonDeathSummary(other, enc, name, true, false))
+		detail.NewSentence(PersonDeathSummary(other, enc, enc.EncodeText(name), true, false).String())
 		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
 			detail.NewSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		}
@@ -820,36 +820,36 @@ func (s *FamilyEndStatement) RenderDetail(seq int, intro *IntroGenerator, enc re
 		detail.Continue(end)
 	}
 
-	enc.Para(render.Markdown(detail.Text()))
+	enc.Para(enc.EncodeText(detail.Text()))
 }
 
-func (s *FamilyEndStatement) Start() *model.Date {
+func (s *FamilyEndStatement[T]) Start() *model.Date {
 	return s.Family.BestEndDate
 }
 
-func (s *FamilyEndStatement) End() *model.Date {
+func (s *FamilyEndStatement[T]) End() *model.Date {
 	return s.Family.BestEndDate
 }
 
-func (s *FamilyEndStatement) NarrativeSequence() int {
+func (s *FamilyEndStatement[T]) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
 }
 
-func (s *FamilyEndStatement) endedWithDeathOf(p *model.Person) bool {
+func (s *FamilyEndStatement[T]) endedWithDeathOf(p *model.Person) bool {
 	return p.SameAs(s.Family.EndDeathPerson)
 }
 
-func (s *FamilyEndStatement) Priority() int {
+func (s *FamilyEndStatement[T]) Priority() int {
 	return 4
 }
 
-type DeathStatement struct {
+type DeathStatement[T render.EncodedText] struct {
 	Principal *model.Person
 }
 
-var _ Statement = (*DeathStatement)(nil)
+var _ Statement[render.Markdown] = (*DeathStatement[render.Markdown])(nil)
 
-func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	var detail string
 
 	bev := s.Principal.BestDeathlikeEvent
@@ -920,7 +920,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 	}
 	if !bev.GetPlace().IsUnknown() {
 		pl := bev.GetPlace()
-		evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+		evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
 	}
 
 	detail += s.Principal.PreferredFamiliarName + " " + evDetail
@@ -929,7 +929,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 
 	if s.Principal.CauseOfDeath != nil {
 		detail = text.FinishSentence(detail)
-		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(s.Principal.CauseOfDeath.Detail, s.Principal.CauseOfDeath.Citations)))
+		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(s.Principal.CauseOfDeath.Detail), s.Principal.CauseOfDeath.Citations).String()))
 		burialRunOnSentence = false
 	}
 
@@ -940,10 +940,10 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 		detail = text.JoinSentences(detail, additionalDetailFromDeathEvent)
 	}
 
-	detail = enc.EncodeWithCitations(detail, bev.GetCitations())
+	detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
 
 	if !burialRunOnSentence {
-		enc.Para(render.Markdown(detail))
+		enc.Para(enc.EncodeText(detail))
 		detail = ""
 	}
 
@@ -996,7 +996,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 		}
 		if !funeralEvent.GetPlace().IsUnknown() {
 			pl := funeralEvent.GetPlace()
-			evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(pl.PreferredUniqueName, pl.PreferredName, pl))
+			evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
 		}
 
 		if detail == "" {
@@ -1009,7 +1009,7 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 		}
 
-		detail = text.JoinSentenceParts(detail, enc.EncodeWithCitations(evDetail, funeralEvent.GetCitations()))
+		detail = text.JoinSentenceParts(detail, enc.EncodeWithCitations(enc.EncodeText(evDetail), funeralEvent.GetCitations()).String())
 
 	}
 
@@ -1038,33 +1038,33 @@ func (s *DeathStatement) RenderDetail(seq int, intro *IntroGenerator, enc render
 			}
 		}
 	}
-	enc.Para(render.Markdown(detail))
+	enc.Para(enc.EncodeText(detail))
 }
 
-func (s *DeathStatement) Start() *model.Date {
+func (s *DeathStatement[T]) Start() *model.Date {
 	return s.Principal.BestDeathlikeEvent.GetDate()
 }
 
-func (s *DeathStatement) End() *model.Date {
+func (s *DeathStatement[T]) End() *model.Date {
 	return s.Principal.BestDeathlikeEvent.GetDate()
 }
 
-func (s *DeathStatement) NarrativeSequence() int {
+func (s *DeathStatement[T]) NarrativeSequence() int {
 	return NarrativeSequenceDeath
 }
 
-func (s *DeathStatement) Priority() int {
+func (s *DeathStatement[T]) Priority() int {
 	return 5
 }
 
-type CensusStatement struct {
+type CensusStatement[T render.EncodedText] struct {
 	Principal *model.Person
 	Event     *model.CensusEvent
 }
 
-var _ Statement = (*CensusStatement)(nil)
+var _ Statement[render.Markdown] = (*CensusStatement[render.Markdown])(nil)
 
-func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	ce, found := s.Event.Entry(s.Principal)
 	if !found {
 		return
@@ -1080,10 +1080,10 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 	if narrative != "" {
 		var detail text.Para
 		detail.NewSentence(intro.Pronoun(seq, s.Start()))
-		detail.Continue(enc.EncodeWithCitations(WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc), s.Event.GetCitations())) // fmt.Sprintf("in the %d census", year)
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(fmt.Sprintf("was recorded in the %d census", year), s.Event.GetPlace(), enc)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
 		detail.NewSentence(narrative)
 		detail.FinishSentence()
-		enc.Para(render.Markdown(detail.Text()))
+		enc.Para(enc.EncodeText(detail.Text()))
 		return
 	}
 	// TODO: construct narrative of census
@@ -1101,7 +1101,7 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		fmt.Sprintf("in the %d census %s was living", year, intro.Pronoun(seq, s.Start())),
 	)
 
-	detail.NewSentence(enc.EncodeWithCitations(WhatWhere(what, s.Event.GetPlace(), enc), s.Event.GetCitations())) // fmt.Sprintf("in the %d census", year)
+	detail.NewSentence(enc.EncodeWithCitations(enc.EncodeText(WhatWhere(what, s.Event.GetPlace(), enc)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
 
 	var spouse *model.CensusEntry
 	var father *model.CensusEntry
@@ -1177,7 +1177,7 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		if len(siblings) > 0 {
 			if len(siblings) == 1 {
 				rel := strings.ToLower(siblings[0].Principal.RelationTo(s.Principal, s.Event.GetDate()))
-				peopleList = append(peopleList, rel+" "+enc.EncodeModelLink(siblings[0].Principal.PreferredGivenName, siblings[0].Principal))
+				peopleList = append(peopleList, rel+" "+enc.EncodeModelLink(enc.EncodeText(siblings[0].Principal.PreferredGivenName), siblings[0].Principal).String())
 			} else {
 
 				ens := make([]string, 0, len(siblings))
@@ -1200,36 +1200,36 @@ func (s *CensusStatement) RenderDetail(seq int, intro *IntroGenerator, enc rende
 		detail.Continue(text.JoinList(peopleList))
 	}
 
-	enc.Para(render.Markdown(detail.Text()))
+	enc.Para(enc.EncodeText(detail.Text()))
 }
 
-func (s *CensusStatement) Start() *model.Date {
+func (s *CensusStatement[T]) Start() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *CensusStatement) End() *model.Date {
+func (s *CensusStatement[T]) End() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *CensusStatement) NarrativeSequence() int {
+func (s *CensusStatement[T]) NarrativeSequence() int {
 	return NarrativeSequenceLifeStory
 }
 
-func (s *CensusStatement) Priority() int {
+func (s *CensusStatement[T]) Priority() int {
 	return 4
 }
 
 // A NarrativeStatement is used for any general event that includes a narrative.
 // If the Event is an IndividualNarrativeEvent then the narrative field is used in
 // place of any generated text. Otherwise an introductory sentence is prepended.
-type NarrativeStatement struct {
+type NarrativeStatement[T render.EncodedText] struct {
 	Principal *model.Person
 	Event     model.TimelineEvent
 }
 
-var _ Statement = (*NarrativeStatement)(nil)
+var _ Statement[render.Markdown] = (*NarrativeStatement[render.Markdown])(nil)
 
-func (s *NarrativeStatement) RenderDetail(seq int, intro *IntroGenerator, enc render.MarkupBuilder, hints *GrammarHints) {
+func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
 	narrative := EventNarrativeDetail(s.Event, enc)
 	if narrative == "" {
 		return
@@ -1241,32 +1241,32 @@ func (s *NarrativeStatement) RenderDetail(seq int, intro *IntroGenerator, enc re
 	default:
 		// prepend an intro
 		detail.NewSentence(intro.Pronoun(seq, s.Start()))
-		detail.Continue(enc.EncodeWithCitations(EventWhatWhenWhere(s.Event, enc), s.Event.GetCitations()))
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWhere(s.Event, enc)), s.Event.GetCitations()).String())
 	}
 
 	detail.NewSentence(narrative)
 	detail.FinishSentence()
 
 	// enc.ParaWithFigure(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations()), "/trees/cg/media/6V7KWAJR2LCVK.png", "alt text", "this is a caption")
-	enc.Para(render.Markdown(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations())))
+	enc.Para(enc.EncodeWithCitations(enc.EncodeText(detail.Text()), s.Event.GetCitations()))
 }
 
-func (s *NarrativeStatement) Start() *model.Date {
+func (s *NarrativeStatement[T]) Start() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *NarrativeStatement) End() *model.Date {
+func (s *NarrativeStatement[T]) End() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *NarrativeStatement) NarrativeSequence() int {
+func (s *NarrativeStatement[T]) NarrativeSequence() int {
 	if !s.Event.GetDate().SortsBefore(s.Principal.BestDeathDate()) {
 		return NarrativeSequenceDeath
 	}
 	return NarrativeSequenceLifeStory
 }
 
-func (s *NarrativeStatement) Priority() int {
+func (s *NarrativeStatement[T]) Priority() int {
 	return 0
 }
 
@@ -1276,7 +1276,7 @@ func ChooseFrom(n int, alternatives ...string) string {
 	return alternatives[n%len(alternatives)]
 }
 
-func EventNarrativeDetail(ev model.TimelineEvent, enc render.MarkupBuilder) string {
+func EventNarrativeDetail[T render.EncodedText](ev model.TimelineEvent, enc render.PageBuilder[T]) string {
 	narr := ev.GetNarrative()
 	if narr.Text == "" {
 		detail := strings.ToLower(ev.GetDetail())

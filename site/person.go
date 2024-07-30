@@ -8,7 +8,7 @@ import (
 	"github.com/iand/genster/render"
 )
 
-func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
+func RenderPersonPage(s *Site, p *model.Person) (render.Page[render.Markdown], error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
@@ -132,12 +132,12 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	// Render narrative
-	n := &Narrative{
-		Statements: make([]Statement, 0),
+	n := &Narrative[render.Markdown]{
+		Statements: make([]Statement[render.Markdown], 0),
 	}
 
 	// Everyone has an intro
-	intro := &IntroStatement{
+	intro := &IntroStatement[render.Markdown]{
 		Principal: p,
 	}
 	for _, ev := range p.Timeline {
@@ -148,13 +148,13 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 			}
 		case *model.CensusEvent:
 			if tev.DirectlyInvolves(p) {
-				n.Statements = append(n.Statements, &CensusStatement{
+				n.Statements = append(n.Statements, &CensusStatement[render.Markdown]{
 					Principal: p,
 					Event:     tev,
 				})
 			}
 		case *model.IndividualNarrativeEvent:
-			n.Statements = append(n.Statements, &NarrativeStatement{
+			n.Statements = append(n.Statements, &NarrativeStatement[render.Markdown]{
 				Principal: p,
 				Event:     tev,
 			})
@@ -164,7 +164,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 		case *model.CremationEvent:
 		default:
 			if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
-				n.Statements = append(n.Statements, &NarrativeStatement{
+				n.Statements = append(n.Statements, &NarrativeStatement[render.Markdown]{
 					Principal: p,
 					Event:     tev,
 				})
@@ -180,18 +180,18 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page, error) {
 
 	// If death is known, add it
 	if p.BestDeathlikeEvent != nil {
-		n.Statements = append(n.Statements, &DeathStatement{
+		n.Statements = append(n.Statements, &DeathStatement[render.Markdown]{
 			Principal: p,
 		})
 	}
 
 	for _, f := range p.Families {
-		n.Statements = append(n.Statements, &FamilyStatement{
+		n.Statements = append(n.Statements, &FamilyStatement[render.Markdown]{
 			Principal: p,
 			Family:    f,
 		})
 		if !f.BestEndDate.IsUnknown() && f.BestEndEvent != nil && !f.BestEndEvent.IsInferred() {
-			n.Statements = append(n.Statements, &FamilyEndStatement{
+			n.Statements = append(n.Statements, &FamilyEndStatement[render.Markdown]{
 				Principal: p,
 				Family:    f,
 			})

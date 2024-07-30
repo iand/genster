@@ -5,7 +5,7 @@ import (
 	"github.com/iand/genster/render"
 )
 
-func RenderSourcePage(s *Site, so *model.Source) (render.Page, error) {
+func RenderSourcePage(s *Site, so *model.Source) (render.Page[render.Markdown], error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 

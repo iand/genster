@@ -13,9 +13,9 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-type Page interface {
-	PageMarkdownEncoder
-	MarkupBuilder
+type Page[T EncodedText] interface {
+	TextEncoder[T]
+	PageBuilder[T]
 	WriteTo(w io.Writer) (int64, error)
 	SetFrontMatterField(k, v string)
 	Title(s string)
@@ -28,47 +28,49 @@ type Page interface {
 	ResetSeenLinks()
 }
 
-// A PageMarkdownEncoder provides methods that encode as markdown but require
-// or add additional context at the page level.
-type PageMarkdownEncoder interface {
-	InlineMarkdownEncoder
-	EncodeCitationDetail(c *model.GeneralCitation) string
-	EncodeWithCitations(s string, citations []*model.GeneralCitation) string
-	EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string
-}
-
-type MarkupBuilder interface {
-	InlineMarkdownEncoder
-	PageMarkdownEncoder
+type PageBuilder[T EncodedText] interface {
+	TextEncoder[T]
 	String() string // used by list pages
-	RawMarkdown(Markdown)
-	Para(Markdown)
+	Markdown(string)
+	Para(T)
 	Pre(string)
 	EmptyPara()
-	Heading2(m Markdown, id string)
-	Heading3(m Markdown, id string)
-	Heading4(m Markdown, id string)
-	UnorderedList([]Markdown)
-	OrderedList([]Markdown)
-	DefinitionList([][2]Markdown)
-	BlockQuote(Markdown)
-	Timeline([]TimelineRow)
+	Heading2(m T, id string)
+	Heading3(m T, id string)
+	Heading4(m T, id string)
+	UnorderedList([]T)
+	OrderedList([]T)
+	DefinitionList([][2]T)
+	BlockQuote(T)
+	Timeline([]TimelineRow[T])
 }
 
-type TimelineRow struct {
+type TimelineRow[T EncodedText] struct {
 	Year    string
 	Date    string
-	Details []Markdown
+	Details []T
 }
 
-type InlineMarkdownEncoder interface {
-	EncodeItalic(m string) string
-	EncodeBold(m string) string
-	EncodeLink(text string, url string) string
-	EncodeModelLink(text string, m any) string
+type TextEncoder[T EncodedText] interface {
+	EncodeText(ss ...string) T
+	EncodeItalic(T) T
+	EncodeBold(T) T
+	EncodeLink(s T, url string) T
+	EncodeModelLink(s T, m any) T
+	EncodeWithCitations(s T, citations []*model.GeneralCitation) T
+	EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T
+}
+
+type EncodedText interface {
+	String() string
+	IsZero() bool
+	Render(w io.Writer) error
 }
 
 type Markdown string
+
+func (m Markdown) String() string { return string(m) }
+func (m Markdown) IsZero() bool   { return m == "" }
 
 var md = goldmark.New(
 	goldmark.WithRendererOptions(
@@ -143,6 +145,14 @@ func init() {
 }
 
 func (m Markdown) ToHTML(w io.Writer) error {
+	if err := md.Convert([]byte(m), w); err != nil {
+		return fmt.Errorf("goldmark: %v", err)
+	}
+
+	return nil
+}
+
+func (m Markdown) Render(w io.Writer) error {
 	if err := md.Convert([]byte(m), w); err != nil {
 		return fmt.Errorf("goldmark: %v", err)
 	}

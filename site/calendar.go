@@ -13,7 +13,7 @@ type Calendar struct {
 	Events []model.TimelineEvent
 }
 
-func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
+func (c *Calendar) RenderPage(s *Site) (render.Page[render.Markdown], error) {
 	monthNames := []string{
 		1:  "January",
 		2:  "February",
@@ -59,15 +59,15 @@ func (c *Calendar) RenderPage(s *Site) (render.Page, error) {
 
 		switch tev := ev.(type) {
 		case *model.BirthEvent:
-			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was born."
+			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Principal.PreferredUniqueName), tev.Principal).String() + " was born."
 		case *model.BaptismEvent:
-			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was baptised."
+			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Principal.PreferredUniqueName), tev.Principal).String() + " was baptised."
 		case *model.DeathEvent:
-			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " died."
+			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Principal.PreferredUniqueName), tev.Principal).String() + " died."
 		case *model.BurialEvent:
-			evd.text = doc.EncodeModelLink(tev.Principal.PreferredUniqueName, tev.Principal) + " was buried."
+			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Principal.PreferredUniqueName), tev.Principal).String() + " was buried."
 		case *model.MarriageEvent:
-			evd.text = doc.EncodeModelLink(tev.Husband.PreferredUniqueName, tev.Husband) + " and " + doc.EncodeModelLink(tev.Wife.PreferredUniqueName, tev.Wife) + " were married."
+			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Husband.PreferredUniqueName), tev.Husband).String() + " and " + doc.EncodeModelLink(doc.EncodeText(tev.Wife.PreferredUniqueName), tev.Wife).String() + " were married."
 		default:
 			evd.text = EventWhatWhenWhere(tev, doc)
 		}

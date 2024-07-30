@@ -10,7 +10,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
+func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[render.Markdown], error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
@@ -31,7 +31,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 		return doc, nil
 	}
 
-	doc.Para(render.Markdown(doc.EncodeModelLink("Main page for "+p.PreferredFamiliarName, p)))
+	doc.Para(render.Markdown(doc.EncodeModelLink(doc.EncodeText("Main page for "+p.PreferredFamiliarName), p)))
 
 	if p.BestBirthlikeEvent != nil {
 		doc.EmptyPara()
@@ -68,7 +68,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 	}
 
 	encodeWikiTreeLink := func(p *model.Person) string {
-		return doc.EncodeLink(p.PreferredUniqueName, fmt.Sprintf(s.WikiTreeLinkPattern, p.ID))
+		return doc.EncodeLink(doc.EncodeText(p.PreferredUniqueName), fmt.Sprintf(s.WikiTreeLinkPattern, p.ID)).String()
 	}
 
 	doc.EmptyPara()
@@ -145,7 +145,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 
 	if p.Olb != "" {
 		tldoc.EmptyPara()
-		tldoc.Para(render.Markdown(tldoc.EncodeBold("One line bio:") + " " + p.Olb))
+		tldoc.Para(render.Markdown(tldoc.EncodeBold("One line bio:").String() + " " + p.Olb))
 	}
 
 	t := &model.Timeline{
@@ -191,7 +191,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page, error) {
 	return doc, nil
 }
 
-var _ render.MarkupBuilder = (*WikiTreeEncoder)(nil)
+var _ render.PageBuilder[render.Markdown] = (*WikiTreeEncoder)(nil)
 
 type WikiTreeEncoder struct {
 	main strings.Builder
@@ -219,19 +219,25 @@ func (w *WikiTreeEncoder) Para(m render.Markdown) {
 }
 
 func (w *WikiTreeEncoder) EmptyPara() {
-	w.writeEmptyPara(&w.main)
+	w.main.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) Heading2(m render.Markdown, id string) {
-	w.writeHeading2(&w.main, m)
+	w.main.WriteString("\n")
+	w.main.WriteString("== " + string(m) + " ==")
+	w.main.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) Heading3(m render.Markdown, id string) {
-	w.writeHeading3(&w.main, m)
+	w.main.WriteString("\n")
+	w.main.WriteString("=== " + string(m) + " ===")
+	w.main.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) Heading4(m render.Markdown, id string) {
-	w.writeHeading4(&w.main, m)
+	w.main.WriteString("\n")
+	w.main.WriteString("==== " + string(m) + " ====")
+	w.main.WriteString("\n")
 }
 
 func (w *WikiTreeEncoder) UnorderedList(items []render.Markdown) {
@@ -264,96 +270,61 @@ func (w *WikiTreeEncoder) BlockQuote(m render.Markdown) {
 }
 
 func (w *WikiTreeEncoder) Pre(s string) {
-	w.writePre(&w.main, s)
+	w.main.WriteString("<pre>\n")
+	w.main.WriteString(s)
+	w.main.WriteString("</pre>\n")
 }
 
-func (w *WikiTreeEncoder) RawMarkdown(m render.Markdown) {
-	m.ToHTML(&w.main)
+func (w *WikiTreeEncoder) Markdown(s string) {
+	// m.ToHTML(&w.main)
 }
 
-func (w *WikiTreeEncoder) EncodeEmptyPara() string {
-	buf := new(strings.Builder)
-	w.writeEmptyPara(buf)
-	return buf.String()
+func (w *WikiTreeEncoder) EncodeItalic(m render.Markdown) render.Markdown {
+	return render.Markdown("''" + m + "''")
 }
 
-func (w *WikiTreeEncoder) EncodeLink(text string, url string) string {
-	return fmt.Sprintf("[%s %s]", url, text)
+func (w *WikiTreeEncoder) EncodeBold(m render.Markdown) render.Markdown {
+	return render.Markdown("'''" + m + "'''")
 }
 
-func (w *WikiTreeEncoder) EncodeModelLink(text string, m any) string {
+func (w *WikiTreeEncoder) EncodeLink(text render.Markdown, url string) render.Markdown {
+	return w.EncodeText(fmt.Sprintf("[%s %s]", url, text))
+}
+
+func (w *WikiTreeEncoder) EncodeModelLink(text render.Markdown, m any) render.Markdown {
 	buf := new(strings.Builder)
 	w.writeModelLink(buf, text, m)
-	return buf.String()
+	return w.EncodeText(buf.String())
 }
 
-func (w *WikiTreeEncoder) EncodeItalic(m string) string {
-	return "''" + m + "''"
-}
-
-func (w *WikiTreeEncoder) EncodeBold(m string) string {
-	return "'''" + m + "'''"
-}
-
-func (w *WikiTreeEncoder) EncodeModelLinkDedupe(firstText string, subsequentText string, m any) string {
+func (w *WikiTreeEncoder) EncodeModelLinkDedupe(firstText render.Markdown, subsequentText render.Markdown, m any) render.Markdown {
 	buf := new(strings.Builder)
 	w.writeModelLink(buf, firstText, m)
-	return buf.String()
+	return w.EncodeText(buf.String())
 }
 
-func (w *WikiTreeEncoder) EncodeCitationSeperator() string {
-	return ","
-}
-
-func (w *WikiTreeEncoder) writeEmptyPara(buf io.StringWriter) {
-	buf.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) writeHeading2(buf io.StringWriter, m render.Markdown) {
-	buf.WriteString("\n")
-	buf.WriteString("== " + string(m) + " ==")
-	buf.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) writeHeading3(buf io.StringWriter, m render.Markdown) {
-	buf.WriteString("\n")
-	buf.WriteString("=== " + string(m) + " ===")
-	buf.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) writeHeading4(buf io.StringWriter, m render.Markdown) {
-	buf.WriteString("\n")
-	buf.WriteString("==== " + string(m) + " ====")
-	buf.WriteString("\n")
-}
-
-func (w *WikiTreeEncoder) writePre(buf io.StringWriter, s string) {
-	buf.WriteString("<pre>\n")
-	buf.WriteString(s)
-	buf.WriteString("</pre>\n")
-}
-
-func (w *WikiTreeEncoder) writeModelLink(buf io.StringWriter, text string, v any) {
+func (w *WikiTreeEncoder) writeModelLink(buf io.StringWriter, text render.Markdown, v any) {
 	if p, ok := v.(*model.Person); ok && p.WikiTreeID != "" {
 		buf.WriteString(fmt.Sprintf("[[%s|%s]]", p.WikiTreeID, text))
 		return
 	}
 
-	buf.WriteString(text)
+	// TODO:review whether to use Render instead
+	buf.WriteString(text.String())
 }
 
-func (w *WikiTreeEncoder) EncodeWithCitations(s string, citations []*model.GeneralCitation) string {
-	sups := ""
+func (w *WikiTreeEncoder) EncodeWithCitations(s render.Markdown, citations []*model.GeneralCitation) render.Markdown {
+	sups := render.Markdown("")
 	for i, cit := range citations {
 		if i > 0 && sups != "" {
 			sups += ","
 		}
-		sups += w.EncodeCitationDetail(cit)
+		sups += w.encodeCitationDetail(cit)
 	}
 	return s + sups
 }
 
-func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string {
+func (w *WikiTreeEncoder) encodeCitationDetail(c *model.GeneralCitation) render.Markdown {
 	var detail string
 
 	detail = text.AppendIndependentClause(detail, text.StripNewlines(c.Detail))
@@ -361,7 +332,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if !hasExcludedTranscriptionSource(c) {
 		if len(c.TranscriptionText) > 0 {
 			for _, t := range c.TranscriptionText {
-				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(text.StripNewlines(t.Text))+`"`)
+				detail = text.AppendIndependentClause(detail, `"`+w.EncodeItalic(w.EncodeText(text.StripNewlines(t.Text))).String()+`"`)
 			}
 		}
 	}
@@ -374,7 +345,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if c.Source != nil {
 		if c.Source.RepositoryName != "" {
 			if c.Source.RepositoryLink != "" {
-				repo = w.EncodeLink(text.StripNewlines(c.Source.RepositoryName), c.Source.RepositoryLink)
+				repo = w.EncodeLink(w.EncodeText(text.StripNewlines(c.Source.RepositoryName)), c.Source.RepositoryLink).String()
 			} else {
 				repo = text.StripNewlines(c.Source.RepositoryName)
 			}
@@ -386,12 +357,12 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	}
 
 	if repo != "" {
-		detail = text.AppendIndependentClause(detail, w.EncodeItalic(repo))
+		detail = text.AppendIndependentClause(detail, w.EncodeItalic(w.EncodeText(repo)).String())
 	}
 	detail = text.FinishSentence(detail)
 
 	if c.URL != nil {
-		detail = text.AppendIndependentClause(detail, w.EncodeLink(c.URL.Title, c.URL.URL))
+		detail = text.AppendIndependentClause(detail, w.EncodeLink(w.EncodeText(c.URL.Title), c.URL.URL).String())
 		detail = text.FinishSentence(detail)
 	}
 
@@ -403,7 +374,7 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 	if c.ID != "" {
 		idx, exists := w.citationMap[c.ID]
 		if exists {
-			return fmt.Sprintf(`<ref name="cit_%d" />`, idx)
+			return w.EncodeText(fmt.Sprintf(`<ref name="cit_%d" />`, idx))
 		}
 	}
 
@@ -413,13 +384,13 @@ func (w *WikiTreeEncoder) EncodeCitationDetail(c *model.GeneralCitation) string 
 		w.citationMap[c.ID] = idx
 	}
 
-	return fmt.Sprintf(`<ref name="cit_%d">%s</ref>`, idx, detail)
+	return w.EncodeText(fmt.Sprintf(`<ref name="cit_%d">%s</ref>`, idx, detail))
 }
 
 func (w *WikiTreeEncoder) ParaWithFigure(s render.Markdown, link string, alt string, caption render.Markdown) {
 }
 
-func (w *WikiTreeEncoder) Timeline(rows []render.TimelineRow) {
+func (w *WikiTreeEncoder) Timeline(rows []render.TimelineRow[render.Markdown]) {
 }
 
 func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
@@ -433,4 +404,13 @@ func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
 	}
 
 	return false
+}
+
+func (w *WikiTreeEncoder) EncodeText(ss ...string) render.Markdown {
+	if len(ss) == 0 {
+		return ""
+	} else if len(ss) == 1 {
+		return render.Markdown(ss[0])
+	}
+	return render.Markdown(strings.Join(ss, ""))
 }

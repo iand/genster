@@ -8,7 +8,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
+func RenderPlacePage(s *Site, p *model.Place) (render.Page[render.Markdown], error) {
 	pov := &model.POV{Place: p}
 
 	doc := s.NewDocument()
@@ -27,10 +27,10 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 	name := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
 
 	if !p.Parent.IsUnknown() {
-		name += " in " + doc.EncodeModelLinkDedupe(p.Parent.PreferredUniqueName, p.Parent.PreferredName, p.Parent)
+		name += " in " + doc.EncodeModelLinkDedupe(doc.EncodeText(p.Parent.PreferredUniqueName), doc.EncodeText(p.Parent.PreferredName), p.Parent).String()
 	}
 
-	doc.Para(render.Markdown(doc.EncodeItalic(text.FinishSentence(name))))
+	doc.Para(render.Markdown(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name)))))
 
 	for _, t := range p.Comments {
 		RenderText(t, doc)
@@ -52,7 +52,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page, error) {
 	if len(p.Links) > 0 {
 		doc.Heading2("Links", "")
 		for _, l := range p.Links {
-			doc.Para(render.Markdown(doc.EncodeLink(l.Title, l.URL)))
+			doc.Para(doc.EncodeLink(doc.EncodeText(l.Title), l.URL))
 		}
 	}
 

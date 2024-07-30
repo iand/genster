@@ -163,9 +163,9 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 				group = pg.Group
 			}
 			if pg.FirstKey == pg.LastKey {
-				list = append(list, render.Markdown(doc.EncodeLink(pg.FirstTitle, pg.Name)))
+				list = append(list, doc.EncodeLink(doc.EncodeText(pg.FirstTitle), pg.Name))
 			} else {
-				list = append(list, render.Markdown(doc.EncodeLink(fmt.Sprintf("%s to %s", pg.FirstTitle, pg.LastTitle), pg.Name)))
+				list = append(list, doc.EncodeLink(doc.EncodeText(fmt.Sprintf("%s to %s", pg.FirstTitle, pg.LastTitle)), pg.Name))
 			}
 		}
 

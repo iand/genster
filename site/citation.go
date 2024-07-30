@@ -8,7 +8,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) {
+func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[render.Markdown], error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 
@@ -41,14 +41,14 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 		if c.Source.Author != "" {
 			sourceDesc += " (" + c.Source.Author + ")"
 		}
-		doc.Para(render.Markdown("Cited from " + sourceDesc))
+		doc.Para(doc.EncodeText("Cited from " + sourceDesc))
 	}
 
 	for _, cmo := range c.MediaObjects {
 		link := s.LinkFor(cmo.Object)
 		if link != "" {
 			doc.EmptyPara()
-			doc.Figure(link, cmo.Object.ID, render.Markdown(cmo.Object.Title), cmo.Highlight)
+			doc.Figure(link, cmo.Object.ID, doc.EncodeText(cmo.Object.Title), cmo.Highlight)
 		}
 	}
 
@@ -63,15 +63,15 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 				doc.Pre(t.Text)
 				// doc.Pre("")
 			} else if t.Markdown {
-				doc.RawMarkdown(render.Markdown(t.Text))
+				doc.Markdown(t.Text)
 				// doc.Pre("")
 			} else {
-				doc.BlockQuote(render.Markdown(t.Text))
+				doc.BlockQuote(doc.EncodeText(t.Text))
 				// doc.BlockQuote("")
 			}
 		}
 		if !c.TranscriptionDate.IsUnknown() {
-			doc.BlockQuote(render.Markdown("-- transcribed " + c.TranscriptionDate.When()))
+			doc.BlockQuote(doc.EncodeText("-- transcribed " + c.TranscriptionDate.When()))
 		}
 	}
 
@@ -103,7 +103,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 		if peopleInCitations[p] {
 			continue
 		}
-		people = append(people, render.Markdown(doc.EncodeModelLink(p.PreferredFullName, p)))
+		people = append(people, doc.EncodeModelLink(doc.EncodeText(p.PreferredFullName), p))
 	}
 
 	if len(events) > 0 || len(people) > 0 {
@@ -116,7 +116,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 				cites = text.JoinSentenceParts(text.SmallCardinalNoun(len(c.EventsCited)), "events have been derived from this evidence:")
 			}
 			doc.EmptyPara()
-			doc.Para(render.Markdown(text.FormatSentence(cites)))
+			doc.Para(doc.EncodeText(text.FormatSentence(cites)))
 
 			doc.UnorderedList(events)
 		}
@@ -140,7 +140,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 			}
 
 			doc.EmptyPara()
-			doc.Para(render.Markdown(text.UpperFirst(peopleIntro)))
+			doc.Para(doc.EncodeText(text.UpperFirst(peopleIntro)))
 			slices.Sort(people)
 			doc.UnorderedList(people)
 		}
@@ -148,11 +148,11 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 	}
 
 	doc.Heading3("Full Citation", "")
-	doc.Para(render.Markdown(text.FinishSentence(c.String())))
+	doc.Para(doc.EncodeText(text.FinishSentence(c.String())))
 
 	repos := make([]render.Markdown, 0)
 	if c.URL != nil {
-		repos = append(repos, render.Markdown(doc.EncodeLink(c.URL.Title, c.URL.URL)))
+		repos = append(repos, doc.EncodeLink(doc.EncodeText(c.URL.Title), c.URL.URL))
 	}
 
 	if c.Source != nil && len(c.Source.RepositoryRefs) > 0 {
@@ -170,14 +170,14 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page, error) 
 			}
 
 			if s != "" {
-				repos = append(repos, render.Markdown(s))
+				repos = append(repos, doc.EncodeText(s))
 			}
 		}
 	}
 
 	if len(repos) > 0 {
 		doc.Heading3("Source", "")
-		doc.Para(render.Markdown(sourceDesc))
+		doc.Para(doc.EncodeText(sourceDesc))
 		doc.Para("Available at:")
 		doc.UnorderedList(repos)
 	}
