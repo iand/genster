@@ -11,7 +11,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc render.PageBuilder[T]) error {
+func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc render.PageBuilder[T], fmtr TimelineEntryFormatter[T]) error {
 	enc.EmptyPara()
 	if len(t.Events) == 0 {
 		return nil
@@ -21,12 +21,6 @@ func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc
 	logger := logging.Default()
 	if !pov.Person.IsUnknown() {
 		logger = logger.With("id", pov.Person.ID)
-	}
-
-	fmtr := &TimelineEntryFormatter[T]{
-		pov:    pov,
-		enc:    enc,
-		logger: logger,
 	}
 
 	monthNames := []string{
@@ -119,14 +113,19 @@ func IncludeInTimeline(ev model.TimelineEvent) bool {
 	}
 }
 
-type TimelineEntryFormatter[T render.EncodedText] struct {
+type TimelineEntryFormatter[T render.EncodedText] interface {
+	Title(seq int, ev model.TimelineEvent) string
+	Detail(seq int, ev model.TimelineEvent) string
+}
+
+type NarrativeTimelineEntryFormatter[T render.EncodedText] struct {
 	pov      *model.POV
 	enc      render.TextEncoder[T]
 	omitDate bool
 	logger   *logging.Logger
 }
 
-func (t *TimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEvent) string {
 	title := ""
 	switch tev := ev.(type) {
 	case *model.CensusEvent:
@@ -179,14 +178,14 @@ func (t *TimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEvent) strin
 	return text.FormatSentence(title)
 }
 
-func (t *TimelineEntryFormatter[T]) Detail(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) Detail(seq int, ev model.TimelineEvent) string {
 	switch tev := ev.(type) {
 	default:
 		return tev.GetDetail()
 	}
 }
 
-func (t *TimelineEntryFormatter[T]) whenWhat(ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) whenWhat(ev model.TimelineEvent) string {
 	date := ev.GetDate()
 	if !date.IsUnknown() {
 		switch ev.GetDate().Derivation {
@@ -197,7 +196,7 @@ func (t *TimelineEntryFormatter[T]) whenWhat(ev model.TimelineEvent) string {
 	return model.What(ev)
 }
 
-func (t *TimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.IndividualTimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.IndividualTimelineEvent) string {
 	var title string
 
 	principal := ev.GetPrincipal()
@@ -256,7 +255,7 @@ func (t *TimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.Individual
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model.CensusEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model.CensusEvent) string {
 	var title string
 	title = text.JoinSentenceParts(title, t.observerContext(ev), "recorded in the")
 	year, ok := ev.GetDate().Year()
@@ -283,7 +282,7 @@ func (t *TimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model.CensusEv
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) generalEventTitle(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) generalEventTitle(seq int, ev model.TimelineEvent) string {
 	if ev.What() == "" {
 		return ""
 	}
@@ -300,7 +299,7 @@ func (t *TimelineEntryFormatter[T]) generalEventTitle(seq int, ev model.Timeline
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) probateEventTitle(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(seq int, ev model.TimelineEvent) string {
 	title := t.whenWhat(ev)
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -318,7 +317,7 @@ func (t *TimelineEntryFormatter[T]) probateEventTitle(seq int, ev model.Timeline
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *model.ResidenceRecordedEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *model.ResidenceRecordedEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
 
 	pl := ev.GetPlace()
@@ -333,7 +332,7 @@ func (t *TimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *model.Resid
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model.MusterEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model.MusterEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
 
 	if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
@@ -355,7 +354,7 @@ func (t *TimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model.MusterEv
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *model.ArrivalEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *model.ArrivalEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "arrived")
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -369,7 +368,7 @@ func (t *TimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *model.Arrival
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) departureEventTitle(seq int, ev *model.DepartureEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(seq int, ev *model.DepartureEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "departed")
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -383,7 +382,7 @@ func (t *TimelineEntryFormatter[T]) departureEventTitle(seq int, ev *model.Depar
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) institutionEntryEventTitle(seq int, ev *model.InstitutionEntryEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int, ev *model.InstitutionEntryEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "entered")
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -397,7 +396,7 @@ func (t *TimelineEntryFormatter[T]) institutionEntryEventTitle(seq int, ev *mode
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) institutionDepartureEventTitle(seq int, ev *model.InstitutionDepartureEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(seq int, ev *model.InstitutionDepartureEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "left")
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
@@ -411,7 +410,7 @@ func (t *TimelineEntryFormatter[T]) institutionDepartureEventTitle(seq int, ev *
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) marriageEventTitle(seq int, ev model.UnionTimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev model.UnionTimelineEvent) string {
 	title := ""
 	if t.pov.Person.IsUnknown() {
 		party1 := ev.GetHusband()
@@ -454,7 +453,7 @@ func (t *TimelineEntryFormatter[T]) marriageEventTitle(seq int, ev model.UnionTi
 	return title
 }
 
-func (t *TimelineEntryFormatter[T]) observerContext(ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) observerContext(ev model.TimelineEvent) string {
 	observer := t.pov.Person
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:

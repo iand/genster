@@ -353,9 +353,22 @@ func (b *Encoder) encodeCitationLink(sourceName string, citationText Text, citat
 	return ret
 }
 
+var htmlEscaper = strings.NewReplacer(
+	`&`, "&amp;",
+	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+	`<`, "&lt;",
+	`>`, "&gt;",
+	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+)
+
 func (e *Encoder) Pre(s string) {
 	e.maintext.WriteString("<pre>\n")
-	e.maintext.WriteString(html.EscapeString(s))
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		e.maintext.WriteString(htmlEscaper.Replace(line))
+		e.maintext.WriteString("\n")
+	}
 	e.maintext.WriteString("</pre>\n")
 }
 

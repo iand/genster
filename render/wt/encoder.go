@@ -188,6 +188,24 @@ func (w *Encoder) ParaWithFigure(s Text, link string, alt string, caption Text) 
 }
 
 func (w *Encoder) Timeline(rows []render.TimelineRow[Text]) {
+	yr := ""
+	for _, row := range rows {
+		if len(row.Details) == 0 {
+			continue
+		}
+		if yr != row.Year {
+			w.main.WriteString(fmt.Sprintf("'''%s'''\n", row.Year))
+			yr = row.Year
+		}
+		for _, d := range row.Details {
+			if row.Date != "" {
+				w.main.WriteString(fmt.Sprintf(":'''%s''' %s\n", row.Date, d))
+			} else {
+				w.main.WriteString(fmt.Sprintf(": %s\n", d))
+			}
+		}
+
+	}
 }
 
 func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {

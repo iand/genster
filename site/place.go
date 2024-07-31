@@ -3,6 +3,7 @@ package site
 import (
 	"fmt"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
@@ -45,7 +46,13 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
 		doc.EmptyPara()
 		doc.Heading2("Timeline", "")
 
-		if err := RenderTimeline(t, pov, doc); err != nil {
+		fmtr := &NarrativeTimelineEntryFormatter[md.Text]{
+			pov:    pov,
+			enc:    doc,
+			logger: logging.Default(),
+		}
+
+		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}

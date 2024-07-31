@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
@@ -232,7 +233,14 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 		doc.Heading2("Timeline", "")
 
 		doc.ResetSeenLinks()
-		if err := RenderTimeline(t, pov, doc); err != nil {
+
+		fmtr := &NarrativeTimelineEntryFormatter[md.Text]{
+			pov:    pov,
+			enc:    doc,
+			logger: logging.With("id", p.ID),
+		}
+
+		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
 		}
 	}

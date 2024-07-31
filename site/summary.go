@@ -508,6 +508,10 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 		}
 	}
 
+	if p.CauseOfDeath != nil {
+		para.NewSentence(p.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(p.CauseOfDeath.Detail), p.CauseOfDeath.Citations).String())
+	}
+
 	return enc.EncodeText(para.Text())
 }
 
