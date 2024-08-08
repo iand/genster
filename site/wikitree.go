@@ -177,7 +177,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 	}
 
 	wtenc.Heading2("Biography", "")
-	summary := PersonSummary(p, wtenc, FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false)
+	summary := PersonSummary(p, wtenc, FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false, false)
 	wtenc.Para(summary)
 
 	t := &model.Timeline{

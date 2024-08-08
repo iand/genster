@@ -619,7 +619,7 @@ func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.PageBui
 			redactedCount++
 			continue
 		}
-		childList = append(childList, PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredGivenName), true, false, true, true))
+		childList = append(childList, PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true))
 	}
 	if len(childList) == 0 {
 		return childList
@@ -686,7 +686,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
 			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true)})
+			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
 		}
 	} else {
 		panic(fmt.Sprintf("Not implemented: renderIllegitimate where person has more than one child or is the father (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
@@ -746,7 +746,7 @@ func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], 
 		} else {
 			detail.FinishSentenceWithTerminator(":–")
 			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true)})
+			enc.UnorderedList([]T{PersonSummary(c, enc, DefaultNameChooser{}, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
 		}
 
 	} else {
@@ -808,7 +808,7 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 		if !other.IsUnknown() {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
-		detail.NewSentence(PersonDeathSummary(other, enc, DefaultNameChooser{}, enc.EncodeText(name), true, false).String())
+		detail.NewSentence(PersonDeathSummary(other, enc, DefaultNameChooser{}, enc.EncodeText(name), true, false, true).String())
 		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
 			detail.NewSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		}

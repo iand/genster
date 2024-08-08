@@ -300,7 +300,7 @@ func PersonParentage[T render.EncodedText](p *model.Person, enc render.TextEncod
 	}
 }
 
-func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool) T {
+func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
 	var empty T
 	if !name.IsZero() {
 		if p.Redacted {
@@ -341,7 +341,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
-	death := PersonDeathSummary(p, enc, nc, name, false, activeTense)
+	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal)
 	if !death.IsZero() {
 		para.NewSentence(death.String())
 	}
@@ -444,7 +444,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	return enc.EncodeText(para.Text())
 }
 
-func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool) T {
+func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool, minimal bool) T {
 	var empty T
 	var death *model.DeathEvent
 	var bev model.IndividualTimelineEvent
@@ -508,7 +508,7 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 		}
 	}
 
-	if p.CauseOfDeath != nil {
+	if p.CauseOfDeath != nil && !minimal {
 		para.NewSentence(p.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(p.CauseOfDeath.Detail), p.CauseOfDeath.Citations).String())
 	}
 

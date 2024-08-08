@@ -18,7 +18,6 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	p.Redacted = true
 	p.RedactNames("(living or recently deceased person)")
 	p.Olb = "information withheld to preserve privacy"
-	p.Gender = model.GenderUnknown
 
 	// redact all citations that might mention the person
 	cits := p.AllCitations()

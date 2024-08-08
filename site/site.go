@@ -1148,7 +1148,7 @@ func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) err
 func (s *Site) WriteGedcom(root string) error {
 	fname := "all.ged"
 
-	g, err := s.PublishSet.Gedcom()
+	g, err := s.BuildGedcom()
 	if err != nil {
 		return fmt.Errorf("generate gedcom: %w", err)
 	}
@@ -1210,4 +1210,218 @@ func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
 
 	s.PublishSet = subset
 	return nil
+}
+
+func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
+	includedPeople := make(map[string]*model.Person)
+	for _, p := range s.PublishSet.People {
+		includedPeople[p.ID] = p
+	}
+
+	if s.Tree.KeyPerson != nil {
+		// Walk ancestors from key person and add to included list
+		// until we hit people from the publish set
+		queue := []*model.Person{
+			s.Tree.KeyPerson,
+		}
+		for len(queue) > 0 {
+			p := queue[0]
+			queue = queue[1:]
+
+			if _, ok := includedPeople[p.ID]; ok {
+				// already included
+				continue
+			}
+			includedPeople[p.ID] = p
+
+			if !p.Father.IsUnknown() {
+				queue = append(queue, p.Father)
+			}
+			if !p.Mother.IsUnknown() {
+				queue = append(queue, p.Mother)
+			}
+		}
+	}
+
+	// Records to include in the gedcom
+	irs := make(map[string]*gedcom.IndividualRecord)
+	frs := make(map[string]*gedcom.FamilyRecord)
+
+	includeIndividual := func(p *model.Person) *gedcom.IndividualRecord {
+		ir, ok := irs[p.ID]
+		if ok {
+			return ir
+		}
+		ir = new(gedcom.IndividualRecord)
+		ir.Xref = p.ID
+		irs[p.ID] = ir
+
+		n := new(gedcom.NameRecord)
+		if p.Redacted && !p.RedactionKeepsName {
+			n.Name = "private"
+		} else {
+			n.Name = strings.Replace(p.PreferredFullName, p.PreferredFamilyName, "/"+p.PreferredFamilyName+"/", 1)
+		}
+		ir.Name = append(ir.Name, n)
+
+		if p.Gender.IsMale() {
+			ir.Sex = "M"
+		} else if p.Gender.IsFemale() {
+			ir.Sex = "F"
+		}
+
+		if !p.Redacted {
+			if p.BestBirthlikeEvent != nil {
+				er := &gedcom.EventRecord{}
+
+				ev := p.BestBirthlikeEvent
+
+				switch ev.(type) {
+				case *model.BirthEvent:
+					er.Tag = "BIRT"
+				case *model.BaptismEvent:
+					er.Tag = "BAPM"
+				default:
+					panic(fmt.Sprintf("unhandled birthlike event type: %T", ev))
+				}
+				if !ev.GetDate().IsUnknown() {
+					er.Date = ev.GetDate().Gedcom()
+				}
+				if !ev.GetPlace().IsUnknown() {
+					er.Place = gedcom.PlaceRecord{
+						Name: ev.GetPlace().PreferredFullName,
+					}
+				}
+				ir.Event = append(ir.Event, er)
+			}
+
+			if p.BestDeathlikeEvent != nil {
+				er := &gedcom.EventRecord{}
+
+				ev := p.BestDeathlikeEvent
+
+				switch ev.(type) {
+				case *model.DeathEvent:
+					er.Tag = "DEAT"
+				case *model.BurialEvent:
+					er.Tag = "BURI"
+				case *model.CremationEvent:
+					er.Tag = "CREM"
+				default:
+					panic(fmt.Sprintf("unhandled deathlike event type: %T", ev))
+				}
+				if !ev.GetDate().IsUnknown() {
+					er.Date = ev.GetDate().Gedcom()
+				}
+				if !ev.GetPlace().IsUnknown() {
+					er.Place = gedcom.PlaceRecord{
+						Name: ev.GetPlace().PreferredFullName,
+					}
+				}
+				ir.Event = append(ir.Event, er)
+			}
+		}
+		return ir
+	}
+
+	includeFamily := func(f *model.Family) *gedcom.FamilyRecord {
+		fr, ok := frs[f.ID]
+		if ok {
+			return fr
+		}
+
+		fr = new(gedcom.FamilyRecord)
+		fr.Xref = f.ID
+		frs[f.ID] = fr
+
+		if !f.Father.IsUnknown() {
+			fr.Husband = includeIndividual(f.Father)
+			flr := new(gedcom.FamilyLinkRecord)
+			flr.Family = fr
+			fr.Husband.Family = append(fr.Husband.Family, flr)
+		}
+		if !f.Mother.IsUnknown() {
+			fr.Wife = includeIndividual(f.Mother)
+			flr := new(gedcom.FamilyLinkRecord)
+			flr.Family = fr
+			fr.Wife.Family = append(fr.Wife.Family, flr)
+		}
+		for _, c := range f.Children {
+			if c.IsUnknown() {
+				continue
+			}
+			cr := includeIndividual(c)
+			fr.Child = append(fr.Child, cr)
+			plr := new(gedcom.FamilyLinkRecord)
+			plr.Family = fr
+			cr.Parents = append(cr.Parents, plr)
+		}
+
+		return fr
+	}
+
+	// Seed the gedcom lists from the publish set
+	for _, p := range includedPeople {
+		includeIndividual(p)
+		if p.ParentFamily != nil {
+			includeFamily(p.ParentFamily)
+		}
+		// Only include families of people in publish set
+		if !s.PublishSet.Includes(p) {
+			continue
+		}
+		for _, f := range p.Families {
+			includeFamily(f)
+		}
+	}
+
+	sub := &gedcom.SubmitterRecord{
+		Xref: "SUBM",
+		Name: "Not known",
+	}
+
+	g := new(gedcom.Gedcom)
+
+	g.Submitter = append(g.Submitter, sub)
+
+	g.Header = &gedcom.Header{
+		SourceSystem: gedcom.SystemRecord{
+			Xref:       "genster",
+			SourceName: "genster",
+		},
+		Submitter:    sub,
+		Filename:     "all.ged",
+		CharacterSet: "UTF-8",
+		Language:     "English",
+		Version:      "5.5.1",
+		Form:         "LINEAGE-LINKED",
+	}
+
+	g.Trailer = &gedcom.Trailer{}
+
+	kpid := ""
+	if s.Tree.KeyPerson != nil {
+		// put the key person first in the file for some systems
+		// that use the first individual as the root
+		if ir, ok := irs[s.Tree.KeyPerson.ID]; ok {
+			g.Individual = append(g.Individual, ir)
+			kpid = s.Tree.KeyPerson.ID
+			g.Header.UserDefined = append(g.Header.UserDefined, gedcom.UserDefinedTag{
+				Tag:  "_ROOT",
+				Xref: kpid,
+			})
+		}
+	}
+
+	for id, ir := range irs {
+		if id == kpid {
+			continue
+		}
+		g.Individual = append(g.Individual, ir)
+	}
+
+	for _, fr := range frs {
+		g.Family = append(g.Family, fr)
+	}
+	return g, nil
 }
