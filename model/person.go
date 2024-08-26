@@ -16,7 +16,7 @@ type Person struct {
 	ID                        string    // canonical identifier
 	Tags                      []string  // tags to add to the person's page
 	PreferredFullName         string    // full legal name
-	PreferredGivenName        string    // name that can be used in prose, usually just the first name
+	PreferredGivenName        string    // name that can be used in prose, usually he first names without the family name
 	PreferredFamiliarName     string    // name that can be used in prose, usually just the first name or a nickname
 	PreferredFamiliarFullName string    // full name using just the first name or a nickname
 	PreferredFamilyName       string    // family name, or surname

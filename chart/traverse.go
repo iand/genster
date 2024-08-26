@@ -5,21 +5,27 @@ import (
 	"github.com/iand/gtree"
 )
 
-func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, personDetailFn func(*model.Person) []string, familyDetailFn func(*model.Family) []string) *gtree.DescendantPerson {
-	tp := &gtree.DescendantPerson{ID: seq.next(), Details: personDetailFn(p)}
+func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, compact bool, personDetailFn func(*model.Person) ([]string, []string), familyDetailFn func(*model.Family) []string) *gtree.DescendantPerson {
+	headings, details := personDetailFn(p)
+
+	tp := &gtree.DescendantPerson{ID: seq.next(), Headings: headings, Details: details}
 	if !directOnly || p.IsDirectAncestor() {
 		if generations > 0 {
 			for _, f := range p.Families {
 				tf := new(gtree.DescendantFamily)
-				tf.Details = familyDetailFn(f)
 				tp.Families = append(tp.Families, tf)
-				o := f.OtherParent(p)
-				if o != nil {
-					tf.Other = &gtree.DescendantPerson{ID: seq.next(), Details: personDetailFn(o)}
+				// Show spouses separately unless compact has been requested
+				if !compact {
+					tf.Details = familyDetailFn(f)
+					o := f.OtherParent(p)
+					if o != nil {
+						oh, od := personDetailFn(o)
+						tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
+					}
 				}
 				// TODO: sort by date
 				for _, c := range f.Children {
-					tf.Children = append(tf.Children, descendants(c, seq, generations-1, directOnly, personDetailFn, familyDetailFn))
+					tf.Children = append(tf.Children, descendants(c, seq, generations-1, directOnly, compact, personDetailFn, familyDetailFn))
 				}
 			}
 		}
@@ -30,7 +36,8 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 					tf := new(gtree.DescendantFamily)
 					tf.Details = familyDetailFn(f)
 					tp.Families = append(tp.Families, tf)
-					tf.Other = &gtree.DescendantPerson{ID: seq.next(), Details: personDetailFn(f.OtherParent(p))}
+					oh, od := personDetailFn(f.OtherParent(p))
+					tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
 					break
 				}
 			}

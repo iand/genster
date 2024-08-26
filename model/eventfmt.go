@@ -1,6 +1,9 @@
 package model
 
 func AbbrevWhatWhen(ev TimelineEvent) string {
+	if ev == nil {
+		return "unk."
+	}
 	prefix := "ev"
 	switch ev.(type) {
 	case *BirthEvent:
@@ -25,9 +28,16 @@ func AbbrevWhatWhen(ev TimelineEvent) string {
 		prefix = "anul"
 	}
 
+	return prefix + ". " + AbbrevWhen(ev)
+}
+
+func AbbrevWhen(ev TimelineEvent) string {
+	if ev == nil {
+		return "unk."
+	}
 	dt := ev.GetDate()
 	if dt.IsUnknown() {
-		return prefix + ". ?"
+		return "unk."
 	}
 
 	qual := dt.Derivation.Abbrev()
@@ -35,11 +45,24 @@ func AbbrevWhatWhen(ev TimelineEvent) string {
 		qual += " "
 	}
 
-	return prefix + ". " + qual + dt.Date.String()
+	return qual + dt.Date.String()
+}
+
+func AbbrevWhenWhere(ev TimelineEvent) string {
+	if ev == nil {
+		return "unk."
+	}
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
+		return AbbrevWhen(ev)
+	}
+	return AbbrevWhen(ev) + ", " + ev.GetPlace().PreferredLocalityName
 }
 
 func AbbrevWhatWhenWhere(ev TimelineEvent) string {
-	if ev.GetPlace().IsUnknown() {
+	if ev == nil {
+		return "unk."
+	}
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
 		return AbbrevWhatWhen(ev)
 	}
 	return AbbrevWhatWhen(ev) + ", " + ev.GetPlace().PreferredLocalityName

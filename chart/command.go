@@ -47,6 +47,7 @@ var chartopts struct {
 	generations    int
 	detail         int
 	directOnly     bool
+	compact        bool
 }
 
 var Command = &cli.Command{
@@ -120,6 +121,12 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &chartopts.directOnly,
 		},
+		&cli.BoolFlag{
+			Name:        "compact",
+			Usage:       "attempt to compact displayed information (for descendant charts)",
+			Value:       false,
+			Destination: &chartopts.compact,
+		},
 		&cli.Float64Flag{
 			Name:        "font-scale",
 			Usage:       "scale all fonts by this factor",
@@ -192,7 +199,7 @@ func chartCmd(cc *cli.Context) error {
 	var lay gtree.Layout
 	switch chartopts.chartType {
 	case "descendant":
-		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.directOnly)
+		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.directOnly, chartopts.compact)
 		if err != nil {
 			return fmt.Errorf("build descendant chart: %w", err)
 		}
@@ -204,7 +211,7 @@ func chartCmd(cc *cli.Context) error {
 		ch.Notes = []string{}
 
 		ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
-		if !keyPerson.IsUnknown() {
+		if !startPerson.RelationToKeyPerson.IsUnknown() {
 			ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+keyPerson.PreferredFamiliarFullName+")")
 		}
 
@@ -226,14 +233,15 @@ func chartCmd(cc *cli.Context) error {
 
 		opts := gtree.DefaultAncestorLayoutOptions()
 
-		opts.TitleFontSize = scaleFont(opts.TitleFontSize, chartopts.fontScale)
-		opts.TitleLineHeight = scaleFont(opts.TitleLineHeight, chartopts.fontScale)
-		opts.NoteFontSize = scaleFont(opts.NoteFontSize, chartopts.fontScale)
-		opts.NoteLineHeight = scaleFont(opts.NoteLineHeight, chartopts.fontScale)
-		opts.HeadingFontSize = scaleFont(opts.HeadingFontSize, chartopts.fontScale)
-		opts.HeadingLineHeight = scaleFont(opts.HeadingLineHeight, chartopts.fontScale)
-		opts.DetailFontSize = scaleFont(opts.DetailFontSize, chartopts.fontScale)
-		opts.DetailLineHeight = scaleFont(opts.DetailLineHeight, chartopts.fontScale)
+		opts.TitleStyle.FontSize = scaleFont(opts.TitleStyle.FontSize, chartopts.fontScale)
+		opts.TitleStyle.LineHeight = scaleFont(opts.TitleStyle.LineHeight, chartopts.fontScale)
+		opts.NoteStyle.FontSize = scaleFont(opts.NoteStyle.FontSize, chartopts.fontScale)
+		opts.NoteStyle.LineHeight = scaleFont(opts.NoteStyle.LineHeight, chartopts.fontScale)
+		opts.HeadingStyle.FontSize = scaleFont(opts.HeadingStyle.FontSize, chartopts.fontScale)
+		opts.HeadingStyle.LineHeight = scaleFont(opts.HeadingStyle.LineHeight, chartopts.fontScale)
+		opts.DetailStyle.FontSize = scaleFont(opts.DetailStyle.FontSize, chartopts.fontScale)
+		opts.DetailStyle.LineHeight = scaleFont(opts.DetailStyle.LineHeight, chartopts.fontScale)
+		opts.DetailWrapWidth = scaleFont(opts.DetailWrapWidth, chartopts.fontScale)
 
 		lay = ch.Layout(opts)
 
