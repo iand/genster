@@ -256,19 +256,31 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		}
 	}
 
-	// // collect occupation events and attempt to consolidate them later
-	// occupationEvents := make([]model.GeneralEvent, 0)
-
 	for _, grer := range gp.Eventref {
-		role := pval(grer.Role, "unknown")
-		if role != "Primary" {
-			continue
-		}
-
 		grev, ok := l.EventsByHandle[grer.Hlink]
 		if !ok {
 			logger.Warn("could not find event", "hlink", grer.Hlink)
 			continue
+		}
+
+		role := strings.ToLower(pval(grer.Role, "unknown"))
+		evtype := strings.ToLower(pval(grev.Type, "unknown"))
+
+		if role != "primary" {
+			if evtype == "census" && role == "unknown" {
+				// allow this but flag as an anomaly
+				logger.Warn("census event has an unknown role, should be primary", "hlink", grer.Hlink)
+				anom := &model.Anomaly{
+					Category: model.AnomalyCategoryEvent,
+					Text:     "Census event has an unknown role, should be primary",
+					Context:  "Role",
+				}
+				p.Anomalies = append(p.Anomalies, anom)
+			} else {
+				// ignore event for this person
+				// TODO: support more roles
+				continue
+			}
 		}
 
 		gev, eventAnomalies, err := l.parseEvent(m, grev, &grer, logger)
@@ -487,6 +499,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			}
 		case "institution departure":
 			ev = &model.InstitutionDepartureEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "court":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.CourtEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}

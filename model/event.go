@@ -797,20 +797,20 @@ func (e *InstitutionDepartureEvent) Type() string             { return "institut
 func (e *InstitutionDepartureEvent) ShortDescription() string { return e.abbrev("adm") }
 func (e *InstitutionDepartureEvent) What() string             { return "left" }
 
-// InstitutionEvent represents the discharge of a person from an institution
-type InstitutionEvent struct {
-	GeneralEvent
-	GeneralIndividualEvent
-}
+// // InstitutionEvent represents the discharge of a person from an institution
+// type InstitutionEvent struct {
+// 	GeneralEvent
+// 	GeneralIndividualEvent
+// }
 
-var (
-	_ TimelineEvent           = (*InstitutionEvent)(nil)
-	_ IndividualTimelineEvent = (*InstitutionEvent)(nil)
-)
+// var (
+// 	_ TimelineEvent           = (*InstitutionEvent)(nil)
+// 	_ IndividualTimelineEvent = (*InstitutionEvent)(nil)
+// )
 
-func (e *InstitutionEvent) Type() string             { return "institution discharge" }
-func (e *InstitutionEvent) ShortDescription() string { return e.abbrev("adm") }
-func (e *InstitutionEvent) What() string             { return "absent" }
+// func (e *InstitutionEvent) Type() string             { return "institution" }
+// func (e *InstitutionEvent) ShortDescription() string { return e.abbrev("adm") }
+// func (e *InstitutionEvent) What() string             { return "absent" }
 
 // EconomicStatusEvent represents the economic status of a person
 type EconomicStatusEvent struct {
@@ -825,6 +825,20 @@ var (
 
 func (e *EconomicStatusEvent) Type() string             { return "economic status" }
 func (e *EconomicStatusEvent) ShortDescription() string { return e.abbrev("anul") }
+
+// CourtEvent represents the appearance of a person in a court or a court hearing they are involved in
+type CourtEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*CourtEvent)(nil)
+	_ IndividualTimelineEvent = (*CourtEvent)(nil)
+)
+
+func (e *CourtEvent) Type() string             { return "court" }
+func (e *CourtEvent) ShortDescription() string { return e.abbrev("crt") }
 
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {

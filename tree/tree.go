@@ -472,12 +472,13 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 		}
 	}
 
-	// if startYear+120 > time.Now().Year() {
-	// 	logging.Debug("marking person as possibly alive since they were born within 120 years from present", "id", p.ID)
-	// 	p.PossiblyAlive = true
-	// }
+	if startYear+120 > time.Now().Year() {
+		logging.Debug("marking person as possibly alive since they were born within 120 years from present", "id", p.ID)
+		p.PossiblyAlive = true
+	}
 
 	if p.BestDeathlikeEvent != nil {
+		p.PossiblyAlive = false
 		if year, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
 			endYear = year
 		}

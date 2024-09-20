@@ -48,7 +48,7 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 }
 
 func ancestors(p *model.Person, seq *sequence, generation int, maxGeneration int, personDetailFn func(*model.Person, int) []string) *gtree.AncestorPerson {
-	tp := &gtree.AncestorPerson{ID: seq.next(), Details: personDetailFn(p, generation)}
+	tp := &gtree.AncestorPerson{ID: seq.next(), Headings: []string{p.PreferredFullName}, Details: personDetailFn(p, generation)}
 	if generation < maxGeneration {
 		if p.Father != nil {
 			tp.Father = ancestors(p.Father, seq, generation+1, maxGeneration, personDetailFn)

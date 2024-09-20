@@ -86,6 +86,13 @@ func WhatWhere[T render.EncodedText](what string, pl *model.Place, enc render.Te
 	return what
 }
 
+func WhatWhen[T render.EncodedText](what string, dt *model.Date, enc render.TextEncoder[T]) string {
+	if !dt.IsUnknown() {
+		return text.JoinSentenceParts(what, dt.When())
+	}
+	return what
+}
+
 func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
 	title := ""
 	if !dt.IsUnknown() {
@@ -301,6 +308,8 @@ func PersonParentage[T render.EncodedText](p *model.Person, enc render.TextEncod
 }
 
 func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
+	enc = &PersonLinkingTextEncoder[T]{enc}
+
 	var empty T
 	if !name.IsZero() {
 		if p.Redacted {
@@ -319,6 +328,23 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	}
 
 	var para text.Para
+	if age, ok := p.AgeInYearsAtDeath(); ok && age < 14 {
+		if !name.IsZero() {
+			if age < 1 {
+				para.NewSentence(name.String(), " died in infancy")
+			} else {
+				para.NewSentence(name.String(), fmt.Sprintf(" died age %s, ", text.CardinalNoun(age)))
+			}
+			name = empty
+			para.FinishSentence()
+		}
+
+		if p.BestBirthlikeEvent != nil && p.BestDeathlikeEvent != nil && p.BestBirthlikeEvent.GetPlace().SameAs(p.BestDeathlikeEvent.GetPlace()) {
+			para.NewSentence(YoungPersonOnePlaceSummary(p, enc, nc, name, includeBirth, includeParentage, activeTense, linkname, minimal).String())
+			return enc.EncodeText(para.Text())
+		}
+	}
+
 	if includeBirth {
 		birth := PersonBirthSummary(p, enc, nc, name, true, true, includeParentage, activeTense)
 		if !birth.IsZero() {
@@ -365,6 +391,51 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 
 	if finalDetail != "" {
 		para.NewSentence(p.Gender.SubjectPronoun(), finalDetail)
+	}
+
+	return enc.EncodeText(para.Text())
+}
+
+func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
+	var para text.Para
+	para.NewSentence(name.String())
+
+	var death *model.DeathEvent
+
+	switch tev := p.BestDeathlikeEvent.(type) {
+	case *model.DeathEvent:
+		death = tev
+	}
+
+	var birthWhat string
+	if activeTense {
+		birthWhat = model.What(p.BestBirthlikeEvent)
+	} else {
+		birthWhat = model.PassiveWhat(p.BestBirthlikeEvent)
+	}
+	para.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhen(birthWhat, p.BestBirthlikeEvent.GetDate(), enc)), p.BestBirthlikeEvent.GetCitations()).String())
+
+	var deathWhat string
+	deathWhat = model.What(p.BestDeathlikeEvent)
+
+	if death != nil {
+		deathWhat = DeathWhat(death, p.ModeOfDeath)
+	}
+	para.Continue("and", enc.EncodeWithCitations(enc.EncodeText(WhatWhen(deathWhat, p.BestDeathlikeEvent.GetDate(), enc)), p.BestDeathlikeEvent.GetCitations()).String())
+
+	pl := p.BestBirthlikeEvent.GetPlace()
+	if !pl.IsUnknown() {
+		para.Continue(", both", pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
+	}
+
+	if len(p.Associations) > 0 {
+		for _, as := range p.Associations {
+			if as.Kind != model.AssociationKindTwin {
+				continue
+			}
+			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
+			para.NewSentence(p.Gender.SubjectPronoun(), "was the twin to", p.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations).String())
+		}
 	}
 
 	return enc.EncodeText(para.Text())

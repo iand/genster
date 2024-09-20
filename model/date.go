@@ -403,6 +403,8 @@ func (d *Date) Gedcom() string {
 		return fmt.Sprintf("%sBEF %d", prefix, dt.Y)
 	case *gdate.AfterYear:
 		return fmt.Sprintf("%sAFT %d", prefix, dt.Y)
+	case *gdate.AboutYear:
+		return fmt.Sprintf("%sABT %d", prefix, dt.Y)
 	default:
 		panic(fmt.Sprintf("unsupported date type in Gedcom conversion: %T", dt))
 	}

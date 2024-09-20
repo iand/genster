@@ -45,3 +45,24 @@ func (e *CitationSkippingEncoder[T]) EncodeModelLinkDedupe(firstText T, subseque
 func (e *CitationSkippingEncoder[T]) EncodeWithCitations(s T, citations []*model.GeneralCitation) T {
 	return s
 }
+
+// A PersonLinkingTextEncoder is a [TextEncoder] that only generates links for people.
+type PersonLinkingTextEncoder[T render.EncodedText] struct {
+	render.TextEncoder[T]
+}
+
+var _ render.TextEncoder[md.Text] = (*PersonLinkingTextEncoder[md.Text])(nil)
+
+func (e *PersonLinkingTextEncoder[T]) EncodeModelLink(text T, m any) T {
+	if _, ok := m.(*model.Person); ok {
+		return e.TextEncoder.EncodeModelLink(text, m)
+	}
+	return text
+}
+
+func (e *PersonLinkingTextEncoder[T]) EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T {
+	if _, ok := m.(*model.Person); ok {
+		return e.TextEncoder.EncodeModelLinkDedupe(firstText, subsequentText, m)
+	}
+	return firstText
+}

@@ -1128,7 +1128,10 @@ func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) err
 	}
 
 	opts := gtree.DefaultLayoutOptions()
-	lay := ch.Layout(opts)
+	lay, err := ch.Layout(opts)
+	if err != nil {
+		return fmt.Errorf("layout chart: %w", err)
+	}
 
 	svg, err := gtree.SVG(lay)
 	if err != nil {

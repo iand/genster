@@ -216,9 +216,12 @@ func chartCmd(cc *cli.Context) error {
 		}
 
 		opts := gtree.DefaultLayoutOptions()
-		lay = ch.Layout(opts)
+		lay, err = ch.Layout(opts)
+		if err != nil {
+			return fmt.Errorf("layout chart: %w", err)
+		}
 	case "ancestor":
-		ch, err := BuildAncestorChart(t, startPerson, chartopts.detail, chartopts.generations)
+		ch, err := BuildAncestorChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.compact)
 		if err != nil {
 			return fmt.Errorf("build ancestor chart: %w", err)
 		}
@@ -243,7 +246,10 @@ func chartCmd(cc *cli.Context) error {
 		opts.DetailStyle.LineHeight = scaleFont(opts.DetailStyle.LineHeight, chartopts.fontScale)
 		opts.DetailWrapWidth = scaleFont(opts.DetailWrapWidth, chartopts.fontScale)
 
-		lay = ch.Layout(opts)
+		lay, err = ch.Layout(opts)
+		if err != nil {
+			return fmt.Errorf("layout chart: %w", err)
+		}
 
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)

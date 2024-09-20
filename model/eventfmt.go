@@ -68,6 +68,16 @@ func AbbrevWhatWhenWhere(ev TimelineEvent) string {
 	return AbbrevWhatWhen(ev) + ", " + ev.GetPlace().PreferredLocalityName
 }
 
+func AbbrevWhere(ev TimelineEvent) string {
+	if ev == nil {
+		return "unk."
+	}
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
+		return "unk."
+	}
+	return ev.GetPlace().PreferredLocalityName
+}
+
 type Whater interface {
 	What() string
 }

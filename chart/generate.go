@@ -159,27 +159,29 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 	return ch, nil
 }
 
-func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, depth int) (*gtree.AncestorChart, error) {
+func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, depth int, compact bool) (*gtree.AncestorChart, error) {
 	var personDetailFn func(*model.Person, int) []string
 	switch detail {
 	case 0:
 		personDetailFn = func(p *model.Person, generation int) []string {
-			name := p.PreferredFullName
-			return []string{name}
+			return []string{}
 		}
 	case 1:
 		personDetailFn = func(p *model.Person, generation int) []string {
 			var details []string
-			name := p.PreferredFullName
-			details = append(details, name)
-			details = append(details, p.VitalYears)
+			if p.VitalYears != model.UnknownDateRangePlaceholder {
+				details = append(details, p.VitalYears)
+			}
 			return details
 		}
 	case 2:
 		personDetailFn = func(p *model.Person, generation int) []string {
 			var details []string
-			name := p.PreferredFullName
-			details = append(details, name)
+			if p.Olb != "" {
+				details = append(details, p.Olb)
+			} else if p.PrimaryOccupation != "" {
+				details = append(details, p.PrimaryOccupation)
+			}
 			if p.BestBirthlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
 			}
@@ -192,28 +194,43 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 	case 3:
 		personDetailFn = func(p *model.Person, generation int) []string {
 			var details []string
-			name := p.PreferredFullName
-			details = append(details, name)
-			if generation < 6 {
-				if p.PrimaryOccupation != "" {
-					details = append(details, p.PrimaryOccupation)
-				}
+			if p.NickName != "" {
+				details = append(details, "Known as \""+p.NickName+"\"")
+			}
+			if p.Olb != "" {
+				details = append(details, p.Olb)
+			} else if p.PrimaryOccupation != "" {
+				details = append(details, p.PrimaryOccupation)
+			}
+			if generation <= depth {
 				if p.BestBirthlikeEvent != nil {
 					if p.BestBirthlikeEvent.GetPlace().IsUnknown() {
 						details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
 					} else {
-						details = append(details, model.AbbrevWhatWhenWhere(p.BestBirthlikeEvent))
+						if compact {
+							details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
+							details = append(details, model.AbbrevWhere(p.BestBirthlikeEvent))
+						} else {
+							details = append(details, model.AbbrevWhatWhenWhere(p.BestBirthlikeEvent))
+						}
 					}
 				}
 				if p.BestDeathlikeEvent != nil {
 					if p.BestDeathlikeEvent.GetPlace().IsUnknown() {
 						details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 					} else {
-						details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
+						if compact {
+							details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
+							details = append(details, model.AbbrevWhere(p.BestDeathlikeEvent))
+						} else {
+							details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
+						}
 					}
 				}
 			} else {
-				details = append(details, p.VitalYears)
+				if p.VitalYears != model.UnknownDateRangePlaceholder {
+					details = append(details, p.VitalYears)
+				}
 			}
 
 			return details
