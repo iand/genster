@@ -100,36 +100,54 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 		}
 	}
 
-	for _, er := range fr.Eventref {
-		grev, ok := l.EventsByHandle[er.Hlink]
+	for _, grer := range fr.Eventref {
+		grev, ok := l.EventsByHandle[grer.Hlink]
 		if !ok {
-			logger.Warn("could not find event", "hlink", er.Hlink)
+			logger.Warn("could not find event", "hlink", grer.Hlink)
 			continue
 		}
-		pl := l.findPlaceForEvent(m, grev)
 
-		dt, err := EventDate(grev)
+		gev, anoms, err := l.parseGeneralEvent(m, grev, &grer, logger)
 		if err != nil {
-			logger.Warn("could not parse event date", "hlink", er.Hlink)
-		}
-
-		gev := model.GeneralEvent{
-			Date:       dt,
-			Place:      pl,
-			Detail:     "", // TODO: notes
-			Title:      pval(grev.Description, ""),
-			Attributes: make(map[string]string),
-		}
-		for _, att := range grev.Attribute {
-			if pval(att.Priv, false) {
-				logging.Debug("skipping event attribute marked as private", "id", fam.ID, "type", att.Type)
-				continue
+			logger.Warn("could not parse event", "error", err.Error(), "hlink", grer.Hlink)
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryEvent,
+				Text:     err.Error(),
+				Context:  "Parsing event data",
 			}
-			gev.Attributes[strings.ToLower(att.Type)] = att.Value
+			if fatherPresent {
+				father.Anomalies = append(father.Anomalies, anom)
+			}
+			if motherPresent {
+				mother.Anomalies = append(mother.Anomalies, anom)
+			}
+			continue
 		}
 
-		var anoms []*model.Anomaly
-		gev.Citations, anoms = l.parseCitationRecords(m, grev.Citationref, logger)
+		// pl := l.findPlaceForEvent(m, grev)
+
+		// dt, err := EventDate(grev)
+		// if err != nil {
+		// 	logger.Warn("could not parse event date", "hlink", er.Hlink)
+		// }
+
+		// gev := model.GeneralEvent{
+		// 	Date:       dt,
+		// 	Place:      pl,
+		// 	Detail:     "", // TODO: notes
+		// 	Title:      pval(grev.Description, ""),
+		// 	Attributes: make(map[string]string),
+		// }
+		// for _, att := range grev.Attribute {
+		// 	if pval(att.Priv, false) {
+		// 		logging.Debug("skipping event attribute marked as private", "id", fam.ID, "type", att.Type)
+		// 		continue
+		// 	}
+		// 	gev.Attributes[strings.ToLower(att.Type)] = att.Value
+		// }
+
+		// var anoms []*model.Anomaly
+		// gev.Citations, anoms = l.parseCitationRecords(m, grev.Citationref, logger)
 		for _, anom := range anoms {
 			if fatherPresent {
 				father.Anomalies = append(father.Anomalies, anom)
@@ -184,7 +202,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			fam.BestEndEvent = ev
 			fam.BestEndDate = ev.GetDate()
 		default:
-			logger.Warn("unhandled family event type", "hlink", er.Hlink, "type", pval(grev.Type, "unknown"))
+			logger.Warn("unhandled family event type", "hlink", grer.Hlink, "type", pval(grev.Type, "unknown"))
 
 		}
 
@@ -196,6 +214,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			if !father.IsUnknown() {
 				father.Timeline = append(father.Timeline, ev)
 			}
+			pl := ev.GetPlace()
 			if !pl.IsUnknown() {
 				pl.Timeline = append(pl.Timeline, ev)
 			}

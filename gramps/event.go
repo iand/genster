@@ -13,7 +13,7 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-func (l *Loader) parseEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
+func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
 	pl := l.findPlaceForEvent(m, grev)
 
 	dt, err := EventDate(grev)

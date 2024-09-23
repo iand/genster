@@ -190,11 +190,11 @@ func FollowingWhatWhenWhere[T render.EncodedText](what string, dt *model.Date, p
 }
 
 func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string {
+	if mode == model.ModeOfDeathNatural {
+		return InferredWhat(ev, ev)
+	}
 	switch ev.(type) {
 	case *model.DeathEvent:
-		if mode == model.ModeOfDeathNatural {
-			return InferredWhat(ev, ev)
-		}
 		return InferredWhat(mode, ev)
 	case *model.BurialEvent:
 		return text.JoinSentenceParts(model.PassiveWhat(mode), "and", InferredWhat(ev, ev))

@@ -857,29 +857,6 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	evDetail := DeathWhat(bev, s.Principal.ModeOfDeath)
 
-	// switch bev.(type) {
-	// case *model.DeathEvent:
-	// 	if bev.IsInferred() {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have died")
-	// 	} else {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "died")
-	// 	}
-	// case *model.BurialEvent:
-	// 	if bev.IsInferred() {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been buried")
-	// 	} else {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "was buried")
-	// 	}
-	// case *model.CremationEvent:
-	// 	if bev.IsInferred() {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "is inferred to have been cremated")
-	// 	} else {
-	// 		evDetail = text.JoinSentenceParts(evDetail, "was cremated")
-	// 	}
-	// default:
-	// 	panic("unhandled deathlike event in DeathStatement")
-	// }
-
 	if !bev.GetDate().IsUnknown() {
 		if age, ok := s.Principal.AgeInYearsAt(bev.GetDate()); ok {
 			ageDetail := ""
@@ -924,9 +901,9 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
 	}
 
-	detail += s.Principal.PreferredFamiliarName + " " + evDetail
-
 	burialRunOnSentence := true
+
+	detail += s.Principal.PreferredFamiliarName + " " + evDetail
 
 	if s.Principal.CauseOfDeath != nil {
 		detail = text.FinishSentence(detail)

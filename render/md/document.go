@@ -161,7 +161,7 @@ func (b *Document) appendFrontMatterField(k, v string) {
 
 	val, ok := b.frontMatter[k]
 	if !ok {
-		b.frontMatter[k] = []string{k}
+		b.frontMatter[k] = []string{v}
 		return
 	}
 

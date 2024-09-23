@@ -171,11 +171,11 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 					pl.PreferredName += " " + parent.PreferredName
 				}
 				if parent.PreferredFullName != "" {
-					pl.PreferredFullName += " " + parent.PreferredFullName
+					pl.PreferredFullName += " " + parent.PreferredName
 				}
 				if parent.PreferredUniqueName != "" {
 					if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += " " + parent.PreferredUniqueName
+						pl.PreferredUniqueName += " " + parent.PreferredName
 					} else {
 						pl.PreferredUniqueName += " " + parent.PreferredName
 					}
