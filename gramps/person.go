@@ -162,7 +162,13 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Title: "WikiTree",
 				URL:   "https://www.wikitree.com/wiki/" + pgc.Detail,
 			})
+		} else if strings.HasPrefix(pgc.Detail, "https://www.familysearch.org/tree/person/") {
+			p.Links = append(p.Links, model.Link{
+				Title: "FamilySearch",
+				URL:   pgc.Detail,
+			})
 		}
+
 	}
 
 	// Add attributes
