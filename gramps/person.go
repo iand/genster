@@ -192,6 +192,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Title: "WikiTree",
 				URL:   "https://www.wikitree.com/wiki/" + att.Value,
 			})
+		case "wikitree category":
+			p.WikiTreeCategories = append(p.WikiTreeCategories, att.Value)
 		case "illegitimate":
 			p.Illegitimate = true
 		case "unmarried", "never married":
@@ -493,11 +495,17 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				}
 			}
 		case "institution entry":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
 			ev = &model.InstitutionEntryEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
 		case "institution departure":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
 			ev = &model.InstitutionDepartureEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
@@ -604,6 +612,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			t := l.parseNote(gn, m)
 			t.Markdown = true
 			p.ResearchNotes = append(p.ResearchNotes, t)
+		case "intro":
+			intro := l.parseNote(gn, m)
+			p.Intro = &intro
 		default:
 			// ignore note
 		}

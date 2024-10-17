@@ -64,6 +64,12 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "death through old age"
 	case "morbus cordis":
 		comment = "heart disease"
+	case "albuminuria":
+		comment = "kidney disease"
+	case "palsy":
+		comment = "paralysis"
+	case "apoplexy":
+		comment = "incapacity resulting from a stroke"
 	}
 
 	if comment != "" {

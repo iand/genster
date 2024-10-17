@@ -65,10 +65,11 @@ type Person struct {
 	Occupations        []*Occupation // list of occupations
 	PrimaryOccupation  string        // simple description of main occupation
 	OccupationGroup    OccupationGroup
-	WikiTreeID         string // the wikitree id of this person
-	GrampsID           string // the gramps id of this person
-	Slug               string // a short url-friendly identifier that can be used to refer to this person
-	Links              []Link // list of links to more information relevant to this person
+	WikiTreeID         string   // the wikitree id of this person
+	WikiTreeCategories []string // wikitree categories for this person
+	GrampsID           string   // the gramps id of this person
+	Slug               string   // a short url-friendly identifier that can be used to refer to this person
+	Links              []Link   // list of links to more information relevant to this person
 
 	Redacted           bool                // true if the person's details should be redacted
 	RedactionKeepsName bool                // true if this person's name should be kept during redaction
@@ -81,6 +82,7 @@ type Person struct {
 	ResearchNotes      []Text              // research notes associated with this person
 	Comments           []Text              // comments associated with this person
 	Gallery            []*CitedMediaObject // images and documents associated with the person
+	Intro              *Text               // introductory note associated with this person
 
 	LastUpdated *time.Time // time of last update
 }

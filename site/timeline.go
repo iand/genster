@@ -168,7 +168,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEve
 		// title = t.generalEventTitle(seq, tev)
 	default:
 		title = t.generalEventTitle(seq, tev)
-		t.logger.Debug("timeline: unhandled event type", "type", fmt.Sprintf("%T", ev), "title", title)
+		// t.logger.Debug("timeline: unhandled event type", "type", fmt.Sprintf("%T", ev), "title", title)
 	}
 	if title == "" {
 		t.logger.Debug("timeline: ignored event type", "type", fmt.Sprintf("%T", ev))
@@ -383,7 +383,10 @@ func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(seq int, ev *mo
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int, ev *model.InstitutionEntryEvent) string {
-	title := text.JoinSentenceParts(t.observerContext(ev), "entered")
+	title := ev.GetDetail()
+	if title == "" {
+		title = text.JoinSentenceParts(t.observerContext(ev), "entered")
+	}
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, "here")
@@ -397,7 +400,10 @@ func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int,
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(seq int, ev *model.InstitutionDepartureEvent) string {
-	title := text.JoinSentenceParts(t.observerContext(ev), "left")
+	title := ev.GetDetail()
+	if title == "" {
+		title = text.JoinSentenceParts(t.observerContext(ev), "left")
+	}
 	pl := ev.GetPlace()
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, "here")

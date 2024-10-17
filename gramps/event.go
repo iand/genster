@@ -24,7 +24,7 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 	gev := model.GeneralEvent{
 		Date:       dt,
 		Place:      pl,
-		Detail:     "",
+		Detail:     pval(grev.Description, ""),
 		Title:      pval(grev.Type, ""),
 		Attributes: make(map[string]string),
 	}

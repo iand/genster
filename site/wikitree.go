@@ -2,6 +2,7 @@ package site
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
@@ -172,10 +173,38 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 		doc.UnorderedList(cits)
 	}
 
+	// Write categories
+	categories := make(map[string]bool)
+	for _, cat := range p.WikiTreeCategories {
+		categories[cat] = true
+	}
+
+	if p.BestBirthlikeEvent != nil {
+		if cat, ok := WikiTreeCategoryForPlace(p.BestBirthlikeEvent.GetPlace()); ok {
+			categories[cat] = true
+		}
+	}
+	if p.BestDeathlikeEvent != nil {
+		if cat, ok := WikiTreeCategoryForPlace(p.BestDeathlikeEvent.GetPlace()); ok {
+			categories[cat] = true
+		}
+	}
+
+	catlist := make([]string, 0, len(categories))
+	for cat := range categories {
+		catlist = append(catlist, cat)
+	}
+	sort.Strings(catlist)
+
+	for _, cat := range catlist {
+		wtenc.Para(wtenc.EncodeText(fmt.Sprintf("[[Category: %s]]", cat)))
+	}
+
 	if p.Olb != "" {
 		wtenc.Para(wtenc.EncodeItalic(wt.Text(text.FormatSentence(p.Olb))))
 	}
 
+	// Write main Biography
 	wtenc.Heading2("Biography", "")
 	summary := PersonSummary(p, wtenc, FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false, false)
 	wtenc.Para(summary)
@@ -271,4 +300,20 @@ func (t *WikiTreeTimelineEntryFormatter[T]) Detail(seq int, ev model.TimelineEve
 	default:
 		return tev.GetDetail()
 	}
+}
+
+func WikiTreeCategoryForPlace(pl *model.Place) (string, bool) {
+	p := pl
+	for p != nil {
+		if p.PlaceType == model.PlaceTypeParish && p.Parent != nil && p.Parent.PlaceType == model.PlaceTypeCounty {
+			return p.PreferredName + ", " + p.Parent.PreferredName, true
+		}
+		p = p.Parent
+	}
+
+
+
+
+
+	return "", false
 }

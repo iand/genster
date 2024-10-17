@@ -747,9 +747,24 @@ func (e *ResidenceRecordedEvent) ShortDescription() string { return e.abbrev("re
 func (e *ResidenceRecordedEvent) What() string             { return "resided" }
 func (e *ResidenceRecordedEvent) GetTitle() string         { return "residence" }
 
+func (e *ResidenceRecordedEvent) PassiveWhat() string { return "was resident" }
+func (e *ResidenceRecordedEvent) ConditionalWhat(adverb string) string {
+	return adverb + " resident"
+}
+
+func (e *ResidenceRecordedEvent) PassiveConditionalWhat(adverb string) string {
+	return adverb + " resident"
+}
+
+func (e *ResidenceRecordedEvent) PresentPerfectWhat() string {
+	return "have resided"
+}
+func (e *ResidenceRecordedEvent) PastPerfectWhat() string { return "had resided" }
+
 var (
 	_ TimelineEvent           = (*ResidenceRecordedEvent)(nil)
 	_ MultipartyTimelineEvent = (*ResidenceRecordedEvent)(nil)
+	_ IrregularWhater         = (*ResidenceRecordedEvent)(nil)
 )
 
 // SaleOfPropertyEvent represents the sale of some property person in their timeline
@@ -796,21 +811,6 @@ var (
 func (e *InstitutionDepartureEvent) Type() string             { return "institution departure" }
 func (e *InstitutionDepartureEvent) ShortDescription() string { return e.abbrev("adm") }
 func (e *InstitutionDepartureEvent) What() string             { return "left" }
-
-// // InstitutionEvent represents the discharge of a person from an institution
-// type InstitutionEvent struct {
-// 	GeneralEvent
-// 	GeneralIndividualEvent
-// }
-
-// var (
-// 	_ TimelineEvent           = (*InstitutionEvent)(nil)
-// 	_ IndividualTimelineEvent = (*InstitutionEvent)(nil)
-// )
-
-// func (e *InstitutionEvent) Type() string             { return "institution" }
-// func (e *InstitutionEvent) ShortDescription() string { return e.abbrev("adm") }
-// func (e *InstitutionEvent) What() string             { return "absent" }
 
 // EconomicStatusEvent represents the economic status of a person
 type EconomicStatusEvent struct {

@@ -808,7 +808,7 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 		if !other.IsUnknown() {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
-		detail.NewSentence(PersonDeathSummary(other, enc, DefaultNameChooser{}, enc.EncodeText(name), true, false, true).String())
+		detail.NewSentence(PersonDeathSummary(other, enc, DefaultNameChooser{}, enc.EncodeText(name), true, false, true, true).String())
 		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
 			detail.NewSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		}
@@ -906,6 +906,7 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	detail += s.Principal.PreferredFamiliarName + " " + evDetail
 
 	if s.Principal.CauseOfDeath != nil {
+		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
 		detail = text.FinishSentence(detail)
 		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(s.Principal.CauseOfDeath.Detail), s.Principal.CauseOfDeath.Citations).String()))
 		burialRunOnSentence = false
@@ -914,15 +915,16 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	additionalDetailFromDeathEvent := EventNarrativeDetail(bev, enc)
 	if additionalDetailFromDeathEvent != "" {
 		burialRunOnSentence = false
+		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
 		detail = text.FinishSentence(detail)
 		detail = text.JoinSentences(detail, additionalDetailFromDeathEvent)
 	}
 
-	detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
-
 	if !burialRunOnSentence {
 		enc.Para(enc.EncodeText(detail))
 		detail = ""
+	} else {
+		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
 	}
 
 	funerals := []model.IndividualTimelineEvent{}

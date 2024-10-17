@@ -130,6 +130,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 		}
 	}
 
+	if p.Intro != nil {
+		RenderText(*p.Intro, doc)
+	}
+
 	// Render narrative
 	n := &Narrative[md.Text]{
 		Statements: make([]Statement[md.Text], 0),

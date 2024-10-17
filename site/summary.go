@@ -327,6 +327,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
+	includeAgeAtDeathIfKnown := true
 	var para text.Para
 	if age, ok := p.AgeInYearsAtDeath(); ok && age < 14 {
 		if !name.IsZero() {
@@ -335,6 +336,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 			} else {
 				para.NewSentence(name.String(), fmt.Sprintf(" died age %s, ", text.CardinalNoun(age)))
 			}
+			includeAgeAtDeathIfKnown = false
 			name = empty
 			para.FinishSentence()
 		}
@@ -367,7 +369,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
-	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal)
+	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal, includeAgeAtDeathIfKnown)
 	if !death.IsZero() {
 		para.NewSentence(death.String())
 	}
@@ -413,20 +415,19 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 	} else {
 		birthWhat = model.PassiveWhat(p.BestBirthlikeEvent)
 	}
-	para.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhen(birthWhat, p.BestBirthlikeEvent.GetDate(), enc)), p.BestBirthlikeEvent.GetCitations()).String())
+	para.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhenWhere(birthWhat, p.BestBirthlikeEvent.GetDate(), p.BestBirthlikeEvent.GetPlace(), enc, nc)), p.BestBirthlikeEvent.GetCitations()).String())
 
 	var deathWhat string
 	deathWhat = model.What(p.BestDeathlikeEvent)
 
 	if death != nil {
 		deathWhat = DeathWhat(death, p.ModeOfDeath)
+
+		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
+			deathWhat += " there"
+		}
 	}
 	para.Continue("and", enc.EncodeWithCitations(enc.EncodeText(WhatWhen(deathWhat, p.BestDeathlikeEvent.GetDate(), enc)), p.BestDeathlikeEvent.GetCitations()).String())
-
-	pl := p.BestBirthlikeEvent.GetPlace()
-	if !pl.IsUnknown() {
-		para.Continue(", both", pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
-	}
 
 	if len(p.Associations) > 0 {
 		for _, as := range p.Associations {
@@ -515,7 +516,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	return enc.EncodeText(para.Text())
 }
 
-func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool, minimal bool) T {
+func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool, minimal bool, includeAge bool) T {
 	var empty T
 	var death *model.DeathEvent
 	var bev model.IndividualTimelineEvent
@@ -566,16 +567,18 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	}
 	para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(deathWhat, bev.GetDate(), bev.GetPlace(), enc, nc)), bev.GetCitations()).String())
 
-	if age, ok := p.AgeInYearsAt(bev.GetDate()); ok {
-		if age < 1 {
-			page, ok := p.PreciseAgeAt(bev.GetDate())
-			if !ok {
-				para.Continue("in infancy")
+	if includeAge {
+		if age, ok := p.AgeInYearsAt(bev.GetDate()); ok {
+			if age < 1 {
+				page, ok := p.PreciseAgeAt(bev.GetDate())
+				if !ok {
+					para.Continue("in infancy")
+				} else {
+					para.Continue("aged", page.Rough())
+				}
 			} else {
-				para.Continue("aged", page.Rough())
+				para.Continue(fmt.Sprintf("at the age of %s", text.CardinalNoun(age)))
 			}
-		} else {
-			para.Continue(fmt.Sprintf("at the age of %s", text.CardinalNoun(age)))
 		}
 	}
 
