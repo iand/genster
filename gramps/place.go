@@ -67,6 +67,12 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		pl.PlaceType = model.PlaceTypeHamlet
 	case "registration district":
 		pl.PlaceType = model.PlaceTypeRegistrationDistrict
+	case "prestegjeld":
+		// Norwegian parish equivalent to a modern municipality
+		pl.PlaceType = model.PlaceTypeParish
+	case "kirkesokn":
+		// Norwegian sub-parish
+		pl.PlaceType = model.PlaceTypeParish
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
