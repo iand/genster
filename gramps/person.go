@@ -87,7 +87,15 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		case 1:
 			prefName.surname = name.Surname[0].Surname
 		default:
-			return fmt.Errorf("multiple surnames not supported yet (person id: %s)", pval(gp.ID, gp.Handle))
+			var sb strings.Builder
+			for i, s := range name.Surname {
+				if i > 0 {
+					sb.WriteString(" ")
+				}
+				sb.WriteString(s.Surname)
+			}
+			prefName.surname = sb.String()
+			// return fmt.Errorf("multiple surnames not supported yet (person id: %s)", pval(gp.ID, gp.Handle))
 		}
 
 		prefName.given = strings.ReplaceAll(prefName.given, "-?-", model.UnknownNamePlaceholder)
@@ -712,8 +720,12 @@ func formatName(n grampsxml.Name) string {
 	case 1:
 		name += " " + n.Surname[0].Surname
 	default:
-		name += " " + n.Surname[0].Surname
-		// TODO: multiple surnames
+		for i, s := range n.Surname {
+			if i > 0 {
+				name += " "
+			}
+			name += s.Surname
+		}
 	}
 	name = strings.ReplaceAll(name, "-?-", model.UnknownNamePlaceholder)
 

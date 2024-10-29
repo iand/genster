@@ -51,7 +51,7 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 	t := NewTree(id, im, g, a)
 
 	if err := loader.Load(t); err != nil {
-		return nil, fmt.Errorf("load gedcom: %w", err)
+		return nil, fmt.Errorf("load data: %w", err)
 	}
 
 	if err := SaveIdentityMap(identityMapFilename, im); err != nil {
