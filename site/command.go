@@ -2,6 +2,7 @@ package site
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/iand/genster/debug"
@@ -74,6 +75,12 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &genopts.includePrivate,
 		},
+		&cli.BoolFlag{
+			Name:        "debug",
+			Usage:       "Include debug info as inline comments.",
+			Value:       false,
+			Destination: &genopts.debug,
+		},
 		&cli.StringFlag{
 			Name:        "config",
 			Aliases:     []string{"c"},
@@ -130,6 +137,7 @@ var genopts struct {
 	verbose            bool
 	veryverbose        bool
 	relation           string
+	debug              bool
 }
 
 func gen(cc *cli.Context) error {
@@ -184,6 +192,7 @@ func gen(cc *cli.Context) error {
 
 	s := NewSite(genopts.basePath, genopts.generateHugo, t)
 	s.IncludePrivate = genopts.includePrivate
+	s.IncludeDebugInfo = genopts.debug
 	s.GenerateWikiTree = genopts.generateWikiTree
 
 	// Look for key individual, assume id is a genster id first
@@ -254,7 +263,7 @@ func gen(cc *cli.Context) error {
 			if !ok {
 				return fmt.Errorf("no person found with id %s", id)
 			}
-			return debug.DumpPerson(p)
+			return debug.DumpPerson(p, os.Stdout)
 		} else {
 			return fmt.Errorf("unrecognised object to inspect: %s", genopts.inspect)
 		}

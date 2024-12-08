@@ -1,3 +1,4 @@
+// Package wt provides types and functions for encoding markdown
 package md
 
 import (
@@ -263,4 +264,13 @@ func (b *Document) AddDescendant(name string, link string, detail string) {
 		"link":   link,
 		"detail": detail,
 	})
+}
+
+func (b *Document) Comment(s string) {
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		b.maintext.WriteString("<!--- ")
+		b.maintext.WriteString(htmlEscaper.Replace(line))
+		b.maintext.WriteString(" --->\n")
+	}
 }

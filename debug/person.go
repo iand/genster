@@ -2,179 +2,189 @@ package debug
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/iand/genster/model"
 )
 
-func DumpPerson(p *model.Person) error {
-	fmt.Println("ID:", p.ID)
-	fmt.Println("Redacted:", p.Redacted)
-	fmt.Println("PreferredFullName:", p.PreferredFullName)
-	fmt.Println("PreferredGivenName:", p.PreferredGivenName)
-	fmt.Println("PreferredFamiliarName:", p.PreferredFamiliarName)
-	fmt.Println("PreferredFamiliarFullName:", p.PreferredFamiliarFullName)
-	fmt.Println("PreferredFamilyName:", p.PreferredFamilyName)
-	fmt.Println("PreferredSortName:", p.PreferredSortName)
-	fmt.Println("PreferredUniqueName:", p.PreferredUniqueName)
-	fmt.Println("NickName:", p.NickName)
-	fmt.Println("Olb:", p.Olb)
-	fmt.Println("Gender:", p.Gender)
-	fmt.Println("VitalYears:", p.VitalYears)
-	fmt.Println("PossiblyAlive:", p.PossiblyAlive)
-	fmt.Println("Unknown:", p.Unknown)
-	fmt.Println("Unmarried:", p.Unmarried)
-	fmt.Println("Childless:", p.Childless)
+func DumpPerson(p *model.Person, w io.Writer) error {
+	fmt.Fprintln(w, "ID:", p.ID)
+	fmt.Fprintln(w, "Redacted:", p.Redacted)
+	fmt.Fprintln(w, "PreferredFullName:", p.PreferredFullName)
+	fmt.Fprintln(w, "PreferredGivenName:", p.PreferredGivenName)
+	fmt.Fprintln(w, "PreferredFamiliarName:", p.PreferredFamiliarName)
+	fmt.Fprintln(w, "PreferredFamiliarFullName:", p.PreferredFamiliarFullName)
+	fmt.Fprintln(w, "PreferredFamilyName:", p.PreferredFamilyName)
+	fmt.Fprintln(w, "PreferredSortName:", p.PreferredSortName)
+	fmt.Fprintln(w, "PreferredUniqueName:", p.PreferredUniqueName)
+	fmt.Fprintln(w, "NickName:", p.NickName)
+	if len(p.KnownNames) == 0 {
+		fmt.Fprintln(w, "Known Names: none")
+	} else {
+		fmt.Fprintln(w, "Known Names:")
+		for _, n := range p.KnownNames {
+			fmt.Fprintf(w, " - %s\n", n.Name)
+		}
+	}
 
-	fmt.Println("BestBirthlikeEvent:", ObjectTitle(p.BestBirthlikeEvent))
-	fmt.Println("BestDeathlikeEvent:", ObjectTitle(p.BestDeathlikeEvent))
+	fmt.Fprintln(w, "Olb:", p.Olb)
+	fmt.Fprintln(w, "Gender:", p.Gender)
+	fmt.Fprintln(w, "VitalYears:", p.VitalYears)
+	fmt.Fprintln(w, "PossiblyAlive:", p.PossiblyAlive)
+	fmt.Fprintln(w, "Unknown:", p.Unknown)
+	fmt.Fprintln(w, "Unmarried:", p.Unmarried)
+	fmt.Fprintln(w, "Childless:", p.Childless)
 
-	fmt.Println("Tags:", strings.Join(p.Tags, ", "))
+	fmt.Fprintln(w, "BestBirthlikeEvent:", ObjectTitle(p.BestBirthlikeEvent))
+	fmt.Fprintln(w, "BestDeathlikeEvent:", ObjectTitle(p.BestDeathlikeEvent))
 
-	fmt.Println()
+	fmt.Fprintln(w, "Tags:", strings.Join(p.Tags, ", "))
 
-	fmt.Println("Father:", ObjectTitle(p.Father))
-	fmt.Println("Mother:", ObjectTitle(p.Mother))
+	fmt.Fprintln(w)
 
-	fmt.Println()
+	fmt.Fprintln(w, "Father:", ObjectTitle(p.Father))
+	fmt.Fprintln(w, "Mother:", ObjectTitle(p.Mother))
+
+	fmt.Fprintln(w)
 
 	if len(p.Spouses) == 0 {
-		fmt.Println("Spouses: none")
+		fmt.Fprintln(w, "SPOUSES: none")
 	} else {
-		fmt.Println("Spouses:")
+		fmt.Fprintln(w, "SPOUSES:")
 		for _, s := range p.Spouses {
-			fmt.Printf(" - %s (%s)\n", s.PreferredUniqueName, s.ID)
+			fmt.Fprintf(w, " - %s (%s)\n", s.PreferredUniqueName, s.ID)
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Children) == 0 {
-		fmt.Println("Children: none")
+		fmt.Fprintln(w, "CHILDREN: none")
 	} else {
-		fmt.Println("Children:")
+		fmt.Fprintln(w, "CHILDREN:")
 		for _, c := range p.Children {
-			fmt.Printf(" - %s\n", ObjectTitle(c))
+			fmt.Fprintf(w, " - %s\n", ObjectTitle(c))
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Families) == 0 {
-		fmt.Println("Families: none")
+		fmt.Fprintln(w, "FAMILIES: none")
 	} else {
-		fmt.Println("Families:")
+		fmt.Fprintln(w, "FAMILIES:")
 		for i, f := range p.Families {
 			if i > 0 {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
-			fmt.Println("  ID:", f.ID)
-			fmt.Println("  Father:", ObjectTitle(f.Father))
-			fmt.Println("  Mother:", ObjectTitle(f.Mother))
+			fmt.Fprintln(w, "  ID:", f.ID)
+			fmt.Fprintln(w, "  Father:", ObjectTitle(f.Father))
+			fmt.Fprintln(w, "  Mother:", ObjectTitle(f.Mother))
 
 			if len(f.Children) == 0 {
-				fmt.Println("  Children: none")
+				fmt.Fprintln(w, "  Children: none")
 			} else {
-				fmt.Println("  Children:")
+				fmt.Fprintln(w, "  Children:")
 				for _, c := range f.Children {
-					fmt.Printf("   - %s (%s)\n", c.PreferredUniqueName, c.ID)
+					fmt.Fprintf(w, "   - %s (%s)\n", c.PreferredUniqueName, c.ID)
 				}
 			}
 
-			fmt.Println("  PreferredUniqueName:", f.PreferredUniqueName)
-			fmt.Println("  Bond:", f.Bond)
-			fmt.Println("  BestStartDate:", ObjectTitle(f.BestStartDate))
-			fmt.Println("  BestEndDate:", ObjectTitle(f.BestEndDate))
-			fmt.Println("  BestStartEvent:", ObjectTitle(f.BestStartEvent))
-			fmt.Println("  BestEndEvent:", ObjectTitle(f.BestEndEvent))
-			fmt.Println("  EndReason:", f.EndReason)
-			fmt.Println("  EndDeathPerson:", ObjectTitle(f.EndDeathPerson))
+			fmt.Fprintln(w, "  PreferredUniqueName:", f.PreferredUniqueName)
+			fmt.Fprintln(w, "  Bond:", f.Bond)
+			fmt.Fprintln(w, "  BestStartDate:", ObjectTitle(f.BestStartDate))
+			fmt.Fprintln(w, "  BestEndDate:", ObjectTitle(f.BestEndDate))
+			fmt.Fprintln(w, "  BestStartEvent:", ObjectTitle(f.BestStartEvent))
+			fmt.Fprintln(w, "  BestEndEvent:", ObjectTitle(f.BestEndEvent))
+			fmt.Fprintln(w, "  EndReason:", f.EndReason)
+			fmt.Fprintln(w, "  EndDeathPerson:", ObjectTitle(f.EndDeathPerson))
 
 			if len(f.Timeline) == 0 {
-				fmt.Println("  Timeline events:", "none")
+				fmt.Fprintln(w, "  Timeline events:", "none")
 			} else {
-				fmt.Println("  Timeline events:")
+				fmt.Fprintln(w, "  Timeline events:")
 				for _, ev := range f.Timeline {
-					fmt.Printf("   - %s\n", ObjectTitle(ev))
+					fmt.Fprintf(w, "   - %s\n", ObjectTitle(ev))
 				}
 			}
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Timeline) == 0 {
-		fmt.Println("Timeline events:", "none")
+		fmt.Fprintln(w, "TIMELINE EVENTS:", "none")
 	} else {
-		fmt.Println("Timeline events:")
+		fmt.Fprintln(w, "TIMELINE EVENTS:")
 		for _, ev := range p.Timeline {
-			fmt.Printf("   - %s\n", ObjectTitle(ev))
+			fmt.Fprintf(w, "   - %s\n", ObjectTitle(ev))
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Occupations) == 0 {
-		fmt.Println("Occupations:", "none")
+		fmt.Fprintln(w, "OCCUPATIONS:", "none")
 	} else {
-		fmt.Println("Occupations:")
+		fmt.Fprintln(w, "OCCUPATIONS:")
 		for i, o := range p.Occupations {
 			if i > 0 {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
-			fmt.Println("  Title:", o.Name)
-			fmt.Println("  Detail:", o.Detail)
-			fmt.Println("  Occurrences:", o.Occurrences)
-			fmt.Println("  StartDate:", ObjectTitle(o.StartDate))
-			fmt.Println("  EndDate:", ObjectTitle(o.EndDate))
-			fmt.Println("  Place:", ObjectTitle(o.Place))
+			fmt.Fprintln(w, "  Title:", o.Name)
+			fmt.Fprintln(w, "  Detail:", o.Detail)
+			fmt.Fprintln(w, "  Occurrences:", o.Occurrences)
+			fmt.Fprintln(w, "  StartDate:", ObjectTitle(o.StartDate))
+			fmt.Fprintln(w, "  EndDate:", ObjectTitle(o.EndDate))
+			fmt.Fprintln(w, "  Place:", ObjectTitle(o.Place))
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.MiscFacts) == 0 {
-		fmt.Println("MiscFacts:", "none")
+		fmt.Fprintln(w, "MISC FACTS:", "none")
 	} else {
-		fmt.Println("MiscFacts:")
+		fmt.Fprintln(w, "MISC FACTS:")
 		for i, f := range p.MiscFacts {
 			if i > 0 {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
-			fmt.Println("  Category:", f.Category)
-			fmt.Println("  Detail:", f.Detail)
+			fmt.Fprintln(w, "  Category:", f.Category)
+			fmt.Fprintln(w, "  Detail:", f.Detail)
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Inferences) == 0 {
-		fmt.Println("Inferences:", "none")
+		fmt.Fprintln(w, "INFERENCES:", "none")
 	} else {
-		fmt.Println("Inferences:")
+		fmt.Fprintln(w, "INFERENCES:")
 		for i, f := range p.Inferences {
 			if i > 0 {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
-			fmt.Println("  Type:", f.Type)
-			fmt.Println("  Value:", f.Value)
-			fmt.Println("  Reason:", f.Reason)
+			fmt.Fprintln(w, "  Type:", f.Type)
+			fmt.Fprintln(w, "  Value:", f.Value)
+			fmt.Fprintln(w, "  Reason:", f.Reason)
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	if len(p.Anomalies) == 0 {
-		fmt.Println("Anomalies:", "none")
+		fmt.Fprintln(w, "ANOMALIES:", "none")
 	} else {
-		fmt.Println("Anomalies:")
+		fmt.Fprintln(w, "ANOMALIES:")
 		for i, f := range p.Anomalies {
 			if i > 0 {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
-			fmt.Println("  Category:", f.Category)
-			fmt.Println("  Text:", f.Text)
-			fmt.Println("  Context:", f.Context)
+			fmt.Fprintln(w, "  Category:", f.Category)
+			fmt.Fprintln(w, "  Text:", f.Text)
+			fmt.Fprintln(w, "  Context:", f.Context)
 		}
 	}
 

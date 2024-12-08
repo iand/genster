@@ -79,8 +79,7 @@ func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
 		})
 
 		bb.WriteString("<div class=\"footnotes\">\n\n")
-		bb.WriteString("<h2>Citations and Notes</h2\n")
-		bb.WriteString("<hr>\n")
+		bb.WriteString("<h2>Citations and Notes</h2>\n")
 		for i := range sources {
 			bb.WriteString(fmt.Sprintf("<div class=\"source\">%s</div>\n", html.EscapeString(sources[i].name)))
 

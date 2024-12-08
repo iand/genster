@@ -1,3 +1,4 @@
+// Package wt provides types and functions for encoding wikitree markup
 package wt
 
 import (

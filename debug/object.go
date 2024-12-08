@@ -19,6 +19,9 @@ func ObjectTitle(obj any) string {
 	case model.TimelineEvent:
 		return fmt.Sprintf("%s [d=%s; pl=%s]", tobj.What(), ObjectTitle(tobj.GetDate()), ObjectTitle(tobj.GetPlace()))
 	case *model.Person:
+		if tobj == nil {
+			return "<nil>"
+		}
 		return fmt.Sprintf("%s (%s)", tobj.PreferredUniqueName, tobj.ID)
 	case *model.Place:
 		if tobj == nil {

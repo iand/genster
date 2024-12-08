@@ -99,6 +99,7 @@ type Site struct {
 	GedcomDir         string
 
 	IncludePrivate     bool
+	IncludeDebugInfo   bool
 	TimelineExperiment bool
 
 	GenerateHugo bool

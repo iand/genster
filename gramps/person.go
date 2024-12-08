@@ -720,10 +720,8 @@ func formatName(n grampsxml.Name) string {
 	case 1:
 		name += " " + n.Surname[0].Surname
 	default:
-		for i, s := range n.Surname {
-			if i > 0 {
-				name += " "
-			}
+		for _, s := range n.Surname {
+			name += " "
 			name += s.Surname
 		}
 	}

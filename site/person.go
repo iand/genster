@@ -1,9 +1,11 @@
 package site
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 
+	"github.com/iand/genster/debug"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
@@ -269,6 +271,12 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 		for _, t := range p.ResearchNotes {
 			RenderText(t, doc)
 		}
+	}
+
+	if s.IncludeDebugInfo {
+		var buf bytes.Buffer
+		debug.DumpPerson(p, &buf)
+		doc.Comment(buf.String())
 	}
 
 	return doc, nil
