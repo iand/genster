@@ -41,7 +41,7 @@ type LinkBuilder interface {
 }
 
 type Document struct {
-	Encoder
+	Content
 	frontMatter map[string]any
 }
 
@@ -139,7 +139,7 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 		return n, fmt.Errorf("write front matter: %w", err)
 	}
 
-	n1, err := b.Encoder.WriteTo(w)
+	n1, err := b.Content.WriteTo(w)
 	n += n1
 	if err != nil {
 		return n, fmt.Errorf("write body: %w", err)
@@ -273,4 +273,8 @@ func (b *Document) Comment(s string) {
 		b.maintext.WriteString(htmlEscaper.Replace(line))
 		b.maintext.WriteString(" --->\n")
 	}
+}
+
+func (b *Document) PageBreak() {
+	// NOOP
 }

@@ -6,13 +6,14 @@ import (
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/render/wt"
 	"github.com/iand/genster/text"
 )
 
-func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) {
+func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], error) {
 	pov := &model.POV{Person: p}
 	_ = pov
 
@@ -105,7 +106,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 		case model.FamilyBondMarried:
 			action += "married"
 		case model.FamilyBondLikelyMarried:
-			action += ChooseFrom(seq, "likely married", "probably married")
+			action += narrative.ChooseFrom(seq, "likely married", "probably married")
 		default:
 			action += "met"
 		}
@@ -206,7 +207,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 
 	// Write main Biography
 	wtenc.Heading2("Biography", "")
-	summary := PersonSummary(p, wtenc, FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false, false)
+	summary := narrative.PersonSummary(p, wtenc, narrative.FullNameChooser{}, wt.Text(p.PreferredFullName), true, true, false, false, false)
 	wtenc.Para(summary)
 
 	t := &model.Timeline{
@@ -243,7 +244,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 		wtenc.Heading2("Timeline", "")
 		fmtr := &WikiTreeTimelineEntryFormatter[wt.Text]{
 			pov:      pov,
-			nc:       FullNameChooser{},
+			nc:       narrative.FullNameChooser{},
 			enc:      wtenc,
 			omitDate: true,
 			logger:   logging.Default(),
@@ -260,7 +261,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Page[md.Text], error) 
 
 type WikiTreeTimelineEntryFormatter[T render.EncodedText] struct {
 	pov      *model.POV
-	nc       NameChooser
+	nc       narrative.NameChooser
 	enc      render.TextEncoder[T]
 	omitDate bool
 	logger   *logging.Logger
@@ -282,9 +283,9 @@ func (t *WikiTreeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEven
 	}
 
 	if t.omitDate {
-		title = WhatWhere(what, ev.GetPlace(), t.enc, t.nc)
+		title = narrative.WhatWhere(what, ev.GetPlace(), t.enc, t.nc)
 	} else {
-		title = WhatWhenWhere(what, ev.GetDate(), ev.GetPlace(), t.enc, t.nc)
+		title = narrative.WhatWhenWhere(what, ev.GetDate(), ev.GetPlace(), t.enc, t.nc)
 	}
 
 	if title == "" {
@@ -310,10 +311,6 @@ func WikiTreeCategoryForPlace(pl *model.Place) (string, bool) {
 		}
 		p = p.Parent
 	}
-
-
-
-
 
 	return "", false
 }

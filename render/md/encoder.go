@@ -23,7 +23,7 @@ type (
 	MarkupText string
 )
 
-type Encoder struct {
+type Content struct {
 	LinkBuilder       LinkBuilder
 	maintext          strings.Builder
 	citationAnchors   map[string]citationAnchor // map of citation ids to html anchors
@@ -32,7 +32,7 @@ type Encoder struct {
 	SuppressCitations bool
 }
 
-var _ render.PageBuilder[Text] = (*Encoder)(nil)
+var _ render.ContentBuilder[Text] = (*Content)(nil)
 
 type citationAnchor struct {
 	anchor  string
@@ -53,17 +53,17 @@ type citationEntry struct {
 	markdown Text
 }
 
-func (e *Encoder) SetLinkBuilder(l LinkBuilder) {
+func (e *Content) SetLinkBuilder(l LinkBuilder) {
 	e.LinkBuilder = l
 }
 
-func (e *Encoder) String() string {
+func (e *Content) String() string {
 	s := new(strings.Builder)
 	e.WriteTo(s)
 	return s.String()
 }
 
-func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
+func (e *Content) WriteTo(w io.Writer) (int64, error) {
 	bb := new(bytes.Buffer)
 
 	bb.WriteString(e.maintext.String())
@@ -96,17 +96,17 @@ func (e *Encoder) WriteTo(w io.Writer) (int64, error) {
 	return bb.WriteTo(w)
 }
 
-func (e *Encoder) SetBody(s string) {
+func (e *Content) SetBody(s string) {
 	e.maintext = strings.Builder{}
 	e.maintext.WriteString(s)
 }
 
-func (e *Encoder) Markdown(s string) {
+func (e *Content) Markdown(s string) {
 	e.maintext.WriteString("\n")
 	e.maintext.WriteString(s)
 }
 
-func (e *Encoder) Heading2(m Text, id string) {
+func (e *Content) Heading2(m Text, id string) {
 	e.maintext.WriteString("<h2>")
 	m.ToHTML(&e.maintext)
 	if id != "" {
@@ -115,7 +115,7 @@ func (e *Encoder) Heading2(m Text, id string) {
 	e.maintext.WriteString("</h2>\n")
 }
 
-func (e *Encoder) Heading3(m Text, id string) {
+func (e *Content) Heading3(m Text, id string) {
 	e.maintext.WriteString("<h3>")
 	m.ToHTML(&e.maintext)
 	if id != "" {
@@ -124,7 +124,7 @@ func (e *Encoder) Heading3(m Text, id string) {
 	e.maintext.WriteString("</h3>\n")
 }
 
-func (e *Encoder) Heading4(m Text, id string) {
+func (e *Content) Heading4(m Text, id string) {
 	e.maintext.WriteString("<h4>")
 	m.ToHTML(&e.maintext)
 	if id != "" {
@@ -133,24 +133,24 @@ func (e *Encoder) Heading4(m Text, id string) {
 	e.maintext.WriteString("</h4>\n")
 }
 
-func (b *Encoder) Para(m Text) {
+func (b *Content) Para(m Text) {
 	b.maintext.WriteString("<p>")
 	m.ToHTML(&b.maintext)
 	b.maintext.WriteString("</p>\n")
 }
 
-func (e *Encoder) EmptyPara() {
+func (e *Content) EmptyPara() {
 	e.maintext.WriteString("<p></p>\n")
 	// e.writeEmptyPara(&b.maintext)
 }
 
-func (b *Encoder) BlockQuote(m Text) {
+func (b *Content) BlockQuote(m Text) {
 	b.maintext.WriteString("<blockquote>")
 	b.maintext.WriteString(string(m))
 	b.maintext.WriteString("</blockquote>\n")
 }
 
-func (e *Encoder) UnorderedList(ms []Text) {
+func (e *Content) UnorderedList(ms []Text) {
 	e.maintext.WriteString("<ul>\n")
 	for _, m := range ms {
 		e.maintext.WriteString("<li>")
@@ -160,7 +160,7 @@ func (e *Encoder) UnorderedList(ms []Text) {
 	e.maintext.WriteString("</ul>\n")
 }
 
-func (e *Encoder) OrderedList(ms []Text) {
+func (e *Content) OrderedList(ms []Text) {
 	e.maintext.WriteString("<ol>\n")
 	for _, m := range ms {
 		e.maintext.WriteString("<li>")
@@ -170,7 +170,7 @@ func (e *Encoder) OrderedList(ms []Text) {
 	e.maintext.WriteString("</ol>\n")
 }
 
-func (e *Encoder) DefinitionList(markups [][2]Text) {
+func (e *Content) DefinitionList(markups [][2]Text) {
 	e.maintext.WriteString("<dl>\n")
 	for _, markup := range markups {
 		e.maintext.WriteString("<dt>")
@@ -184,11 +184,11 @@ func (e *Encoder) DefinitionList(markups [][2]Text) {
 	e.maintext.WriteString("</dl>\n")
 }
 
-func (e *Encoder) ResetSeenLinks() {
+func (e *Content) ResetSeenLinks() {
 	e.seenLinks = make(map[string]bool)
 }
 
-func (e *Encoder) EncodeLink(text Text, url string) Text {
+func (e *Content) EncodeLink(text Text, url string) Text {
 	if url == "" {
 		return text
 	}
@@ -197,7 +197,7 @@ func (e *Encoder) EncodeLink(text Text, url string) Text {
 	return e.EncodeText(fmt.Sprintf("[%s](%s)", text, url))
 }
 
-func (e *Encoder) EncodeModelLink(firstText Text, m any) Text {
+func (e *Content) EncodeModelLink(firstText Text, m any) Text {
 	if e.seenLinks == nil {
 		e.seenLinks = make(map[string]bool)
 	}
@@ -213,7 +213,7 @@ func (e *Encoder) EncodeModelLink(firstText Text, m any) Text {
 	return e.EncodeLink(firstText, url)
 }
 
-func (e *Encoder) EncodeModelLinkDedupe(firstText Text, subsequentText Text, m any) Text {
+func (e *Content) EncodeModelLinkDedupe(firstText Text, subsequentText Text, m any) Text {
 	suffix := Text("")
 	if p, ok := m.(*model.Person); ok {
 		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
@@ -240,7 +240,7 @@ func (e *Encoder) EncodeModelLinkDedupe(firstText Text, subsequentText Text, m a
 	return e.EncodeLink(firstText+suffix, url)
 }
 
-func (e *Encoder) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
+func (e *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
 	if len(citations) == 0 {
 		return s
 	}
@@ -262,7 +262,7 @@ func (e *Encoder) EncodeWithCitations(s Text, citations []*model.GeneralCitation
 	return e.EncodeText(s.String() + "<sup class=\"citref\">" + sups + "</sup>")
 }
 
-func (e *Encoder) encodeCitationDetail(c *model.GeneralCitation) string {
+func (e *Content) encodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
 	if c.ID != "" && e.LinkBuilder.LinkFor(c) != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
@@ -276,7 +276,7 @@ func (e *Encoder) encodeCitationDetail(c *model.GeneralCitation) string {
 	return e.encodeCitationLink(c.SourceTitle(), Text(citationText), c.ID)
 }
 
-func (b *Encoder) encodeCitationLink(sourceName string, citationText Text, citationID string) string {
+func (b *Content) encodeCitationLink(sourceName string, citationText Text, citationID string) string {
 	if b.SuppressCitations {
 		return ""
 	}
@@ -360,7 +360,7 @@ var htmlEscaper = strings.NewReplacer(
 	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
 )
 
-func (e *Encoder) Pre(s string) {
+func (e *Content) Pre(s string) {
 	e.maintext.WriteString("<pre>\n")
 	lines := strings.Split(s, "\n")
 	for _, line := range lines {
@@ -371,15 +371,15 @@ func (e *Encoder) Pre(s string) {
 	e.maintext.WriteString("</pre>\n")
 }
 
-func (e *Encoder) Image(alt string, link string) {
+func (e *Content) Image(alt string, link string) {
 	e.writeImage(&e.maintext, alt, link)
 }
 
-func (b *Encoder) writeImage(buf io.StringWriter, alt string, link string) {
+func (b *Content) writeImage(buf io.StringWriter, alt string, link string) {
 	buf.WriteString(fmt.Sprintf("![%s](%s)\n", alt, link))
 }
 
-func (e *Encoder) ParaWithFigure(text Text, link string, alt string, caption Text) {
+func (e *Content) ParaWithFigure(text Text, link string, alt string, caption Text) {
 	e.maintext.WriteString("<p>")
 	e.maintext.WriteString("<figure class=\"inline-right\">")
 	e.maintext.WriteString(fmt.Sprintf("<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
@@ -393,7 +393,7 @@ func (e *Encoder) ParaWithFigure(text Text, link string, alt string, caption Tex
 	e.maintext.WriteString("</p>\n")
 }
 
-func (e *Encoder) Figure(link string, alt string, caption Text, highlight *model.Region) {
+func (e *Content) Figure(link string, alt string, caption Text, highlight *model.Region) {
 	e.maintext.WriteString("<figure>")
 	if highlight == nil {
 		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
@@ -413,7 +413,7 @@ func (e *Encoder) Figure(link string, alt string, caption Text, highlight *model
 	e.maintext.WriteString("</figure>\n")
 }
 
-func (e *Encoder) Timeline(rows []render.TimelineRow[Text]) {
+func (e *Content) Timeline(rows []render.TimelineRow[Text]) {
 	e.maintext.WriteString("<dl class=\"timeline\">\n")
 	yr := ""
 	for _, row := range rows {
@@ -443,7 +443,7 @@ func (e *Encoder) Timeline(rows []render.TimelineRow[Text]) {
 	e.maintext.WriteString("</dl>\n")
 }
 
-func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {
+func (e *Content) ConvertMarkdown(text string, w io.Writer) error {
 	if err := goldmark.Convert([]byte(text), w); err != nil {
 		return fmt.Errorf("goldmark: %v", err)
 	}
@@ -451,21 +451,21 @@ func (e *Encoder) ConvertMarkdown(text string, w io.Writer) error {
 	return nil
 }
 
-func (e *Encoder) EncodeItalic(m Text) Text {
+func (e *Content) EncodeItalic(m Text) Text {
 	return "*" + m + "*"
 }
 
-func (e *Encoder) EncodeBold(m Text) Text {
+func (e *Content) EncodeBold(m Text) Text {
 	return "**" + m + "**"
 }
 
-func (e *Encoder) EncodeImage(alt string, link string) string {
+func (e *Content) EncodeImage(alt string, link string) string {
 	buf := new(strings.Builder)
 	e.writeImage(buf, alt, link)
 	return buf.String()
 }
 
-func (e *Encoder) EncodeText(ss ...string) Text {
+func (e *Content) EncodeText(ss ...string) Text {
 	if len(ss) == 0 {
 		return ""
 	} else if len(ss) == 1 {

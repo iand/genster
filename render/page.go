@@ -11,9 +11,9 @@ type EncodedText interface {
 	IsZero() bool
 }
 
-type Page[T EncodedText] interface {
+type Document[T EncodedText] interface {
 	TextEncoder[T]
-	PageBuilder[T]
+	ContentBuilder[T]
 	WriteTo(w io.Writer) (int64, error)
 	SetFrontMatterField(k, v string)
 	Title(s string)
@@ -24,9 +24,10 @@ type Page[T EncodedText] interface {
 	AddTag(s string)
 	AddTags(ss []string)
 	ResetSeenLinks()
+	PageBreak()
 }
 
-type PageBuilder[T EncodedText] interface {
+type ContentBuilder[T EncodedText] interface {
 	TextEncoder[T]
 	String() string // used by list pages
 	Markdown(string)

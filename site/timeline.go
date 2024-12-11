@@ -7,11 +7,12 @@ import (
 	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
 )
 
-func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc render.PageBuilder[T], fmtr TimelineEntryFormatter[T]) error {
+func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc render.ContentBuilder[T], fmtr TimelineEntryFormatter[T]) error {
 	enc.EmptyPara()
 	if len(t.Events) == 0 {
 		return nil
@@ -225,7 +226,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 			if includeAge {
 				if ev != t.pov.Person.BestBirthlikeEvent {
 					if age, ok := t.pov.Person.AgeInYearsAt(date); ok {
-						title = text.JoinSentenceParts(title, AgeQualifier(age))
+						title = text.JoinSentenceParts(title, narrative.AgeQualifier(age))
 					}
 				}
 			}
@@ -237,7 +238,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 			if includeAge {
 				if ev != ev.GetPrincipal().BestBirthlikeEvent {
 					if age, ok := ev.GetPrincipal().AgeInYearsAt(date); ok {
-						title = text.JoinSentenceParts(title, AgeQualifier(age))
+						title = text.JoinSentenceParts(title, narrative.AgeQualifier(age))
 					}
 				}
 			}
@@ -271,7 +272,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		residing := ChooseFrom(seq, "residing", "", "living")
+		residing := narrative.ChooseFrom(seq, "residing", "", "living")
 		if pl.SameAs(t.pov.Place) {
 			title = text.JoinSentenceParts(title, residing, "here")
 		} else {
@@ -321,7 +322,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *mo
 	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
 
 	pl := ev.GetPlace()
-	residing := ChooseFrom(seq, "as residing", "as living")
+	residing := narrative.ChooseFrom(seq, "as residing", "as living")
 	if pl.SameAs(t.pov.Place) {
 		title = text.JoinSentenceParts(title, residing, "here")
 	}

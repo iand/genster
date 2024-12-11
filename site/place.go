@@ -5,12 +5,13 @@ import (
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
 )
 
-func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
+func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) {
 	pov := &model.POV{Place: p}
 
 	doc := s.NewDocument()
@@ -35,7 +36,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
 	doc.Para(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name))))
 
 	for _, t := range p.Comments {
-		RenderText(t, doc)
+		narrative.RenderText(t, doc)
 	}
 
 	t := &model.Timeline{
@@ -67,7 +68,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Page[md.Text], error) {
 	if len(p.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes", "")
 		for _, t := range p.ResearchNotes {
-			RenderText(t, doc)
+			narrative.RenderText(t, doc)
 		}
 	}
 

@@ -51,15 +51,6 @@ type CitedMediaObject struct {
 	Highlight *Region
 }
 
-type Text struct {
-	ID        string
-	Title     string
-	Text      string
-	Formatted bool
-	Markdown  bool
-	Links     []ObjectLink
-}
-
 // An ObjectLink is a specification of where to insert a link to an object in some text
 type ObjectLink struct {
 	Object any

@@ -9,6 +9,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
 )
@@ -246,9 +247,9 @@ func (s *Site) WritePersonListPages(root string) error {
 			continue
 		}
 		items := make([][2]md.Text, 0)
-		b := &CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
+		b := &narrative.CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
 
-		summary := PersonSummary(p, b, DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
+		summary := narrative.PersonSummary(p, b, narrative.DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
 
 		var rel string
 		if s.LinkFor(p) != "" {
@@ -346,10 +347,10 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 		for _, p := range people {
 			items := make([][2]md.Text, 0)
-			b := &CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
+			b := &narrative.CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
 
 			title := b.EncodeModelLink(b.EncodeText(p.PreferredSortName), p)
-			summary := PersonSummary(p, b, DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
+			summary := narrative.PersonSummary(p, b, narrative.DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
 
 			var rel string
 			if s.LinkFor(p) != "" {

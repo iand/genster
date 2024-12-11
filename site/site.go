@@ -15,6 +15,7 @@ import (
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
@@ -709,8 +710,8 @@ func (s *Site) NewDocument() *md.Document {
 	return doc
 }
 
-func (s *Site) NewMarkdownBuilder() render.PageBuilder[md.Text] {
-	enc := &md.Encoder{}
+func (s *Site) NewMarkdownBuilder() render.ContentBuilder[md.Text] {
+	enc := &md.Content{}
 	enc.SetLinkBuilder(s)
 
 	return enc
@@ -834,7 +835,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	if len(rnPeople) > 0 {
 		model.SortPeopleByName(rnPeople)
 		doc.EmptyPara()
-		detail := text.JoinSentenceParts("Other people with research notes:", EncodePeopleListInline(rnPeople, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("Other people with research notes:", narrative.EncodePeopleListInline(rnPeople, func(p *model.Person) string {
 			return p.PreferredFamiliarFullName
 		}, doc))
 		doc.Para(md.Text(text.FormatSentence(detail)))
@@ -846,7 +847,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	earliestPeople := s.PublishSet.EarliestBorn(3)
 	if len(earliestPeople) > 0 {
 		doc.EmptyPara()
-		detail := text.JoinSentenceParts("The earliest known births are:", EncodePeopleListInline(earliestPeople, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("The earliest known births are:", narrative.EncodePeopleListInline(earliestPeople, func(p *model.Person) string {
 			dt := p.BestBirthDate()
 			yr, ok := dt.Year()
 			if !ok {
@@ -862,7 +863,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	oldestPeople := s.PublishSet.OldestPeople(3)
 	if len(oldestPeople) > 0 {
 		doc.EmptyPara()
-		detail := text.JoinSentenceParts("The people who lived the longest:", EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("The people who lived the longest:", narrative.EncodePeopleListInline(oldestPeople, func(p *model.Person) string {
 			age, _ := p.AgeInYearsAtDeath()
 			return fmt.Sprintf("%s (%d years)", p.PreferredFamiliarFullName, age)
 		}, doc))
@@ -912,7 +913,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		}
 
 		doc.EmptyPara()
-		detail := text.JoinSentenceParts("The people with the largest number of children:", EncodePeopleListInline(greatestChildrenPeopleDedupe, func(p *model.Person) string {
+		detail := text.JoinSentenceParts("The people with the largest number of children:", narrative.EncodePeopleListInline(greatestChildrenPeopleDedupe, func(p *model.Person) string {
 			return fmt.Sprintf("%s (%d)", p.PreferredFamiliarFullName, len(p.Children))
 		}, doc))
 		doc.Para(md.Text(text.FormatSentence(detail)))
@@ -993,10 +994,10 @@ func (s *Site) WriteChartAncestors(root string) error {
 				adds = append(adds, ancestors[i].PrimaryOccupation)
 			}
 			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc, DefaultNameChooser{}))
+				adds = append(adds, narrative.EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc, narrative.DefaultNameChooser{}))
 			}
 			if ancestors[i].BestDeathlikeEvent != nil && !ancestors[i].BestDeathlikeEvent.GetDate().IsUnknown() {
-				adds = append(adds, EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc, DefaultNameChooser{}))
+				adds = append(adds, narrative.EventWhatWhenWhere(ancestors[i].BestDeathlikeEvent, doc, narrative.DefaultNameChooser{}))
 			}
 
 			detail = text.AppendClause(detail, text.JoinList(adds))

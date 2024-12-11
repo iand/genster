@@ -17,7 +17,7 @@ type Text string
 func (m Text) String() string { return string(m) }
 func (m Text) IsZero() bool   { return m == "" }
 
-var _ render.PageBuilder[Text] = (*Encoder)(nil)
+var _ render.ContentBuilder[Text] = (*Encoder)(nil)
 
 type Encoder struct {
 	main        strings.Builder

@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
@@ -14,7 +15,7 @@ type Calendar struct {
 	Events []model.TimelineEvent
 }
 
-func (c *Calendar) RenderPage(s *Site) (render.Page[md.Text], error) {
+func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 	monthNames := []string{
 		1:  "January",
 		2:  "February",
@@ -70,7 +71,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Page[md.Text], error) {
 		case *model.MarriageEvent:
 			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Husband.PreferredUniqueName), tev.Husband).String() + " and " + doc.EncodeModelLink(doc.EncodeText(tev.Wife.PreferredUniqueName), tev.Wife).String() + " were married."
 		default:
-			evd.text = EventWhatWhenWhere(tev, doc, DefaultNameChooser{})
+			evd.text = narrative.EventWhatWhenWhere(tev, doc, narrative.DefaultNameChooser{})
 		}
 
 		if tev, ok := ev.(model.IndividualTimelineEvent); ok {

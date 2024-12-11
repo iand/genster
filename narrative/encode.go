@@ -1,4 +1,4 @@
-package site
+package narrative
 
 import (
 	"net/url"
@@ -30,12 +30,12 @@ func EncodePeopleListInline[T render.EncodedText](ps []*model.Person, formatter 
 }
 
 type CitationSkippingEncoder[T render.EncodedText] struct {
-	render.PageBuilder[T]
+	render.ContentBuilder[T]
 }
 
 var (
-	_ render.PageBuilder[md.Text] = (*CitationSkippingEncoder[md.Text])(nil)
-	_ render.TextEncoder[md.Text] = (*CitationSkippingEncoder[md.Text])(nil)
+	_ render.ContentBuilder[md.Text] = (*CitationSkippingEncoder[md.Text])(nil)
+	_ render.TextEncoder[md.Text]    = (*CitationSkippingEncoder[md.Text])(nil)
 )
 
 func (e *CitationSkippingEncoder[T]) EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T {

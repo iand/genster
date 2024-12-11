@@ -1,4 +1,4 @@
-package site
+package narrative
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-type Narrative[T render.EncodedText] struct {
+type PersonNarrative[T render.EncodedText] struct {
 	Statements []Statement[T]
 }
 
@@ -206,7 +206,7 @@ const (
 	NarrativeSequencePostDeath = 4
 )
 
-func (n *Narrative[T]) Render(pov *model.POV, b render.PageBuilder[T]) {
+func (n *PersonNarrative[T]) Render(pov *model.POV, b render.ContentBuilder[T]) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
 			if n.Statements[i].Start().SameDate(n.Statements[j].Start()) {
@@ -253,7 +253,7 @@ type GrammarHints struct {
 }
 
 type Statement[T render.EncodedText] interface {
-	RenderDetail(int, *IntroGenerator[T], render.PageBuilder[T], *GrammarHints)
+	RenderDetail(int, *IntroGenerator[T], render.ContentBuilder[T], *GrammarHints)
 	Start() *model.Date
 	End() *model.Date
 	NarrativeSequence() int
@@ -268,7 +268,7 @@ type IntroStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*IntroStatement[md.Text])(nil)
 
-func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	var birth string
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
@@ -422,7 +422,7 @@ type FamilyStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*FamilyStatement[md.Text])(nil)
 
-func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 	other := s.Family.OtherParent(s.Principal)
@@ -599,7 +599,7 @@ func (s *FamilyStatement[T]) childCardinal(clist []*model.Person) string {
 	return text.CardinalWithUnit(len(s.Family.Children), "child", "children")
 }
 
-func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.PageBuilder[T]) []T {
+func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.ContentBuilder[T]) []T {
 	sort.Slice(clist, func(i, j int) bool {
 		var d1, d2 *model.Date
 		if clist[i].BestBirthlikeEvent != nil {
@@ -631,7 +631,7 @@ func (s *FamilyStatement[T]) childList(clist []*model.Person, enc render.PageBui
 	return childList
 }
 
-func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	// unmarried and the other parent is not known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -693,7 +693,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 	}
 }
 
-func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	// unmarried but the other parent is known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -772,7 +772,7 @@ func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], 
 	}
 }
 
-func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	// married or unknown relationship but the other parent is unknown
 	// panic(fmt.Sprintf("Not implemented: renderUnknownPartner (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 }
@@ -784,7 +784,7 @@ type FamilyEndStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*FamilyEndStatement[md.Text])(nil)
 
-func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	endDate := s.Family.BestEndDate
 	if endDate.IsUnknown() {
 		return
@@ -850,7 +850,7 @@ type DeathStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*DeathStatement[md.Text])(nil)
 
-func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	var detail string
 
 	bev := s.Principal.BestDeathlikeEvent
@@ -1044,7 +1044,7 @@ type CensusStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*CensusStatement[md.Text])(nil)
 
-func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	ce, found := s.Event.Entry(s.Principal)
 	if !found {
 		return
@@ -1209,7 +1209,7 @@ type NarrativeStatement[T render.EncodedText] struct {
 
 var _ Statement[md.Text] = (*NarrativeStatement[md.Text])(nil)
 
-func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.PageBuilder[T], hints *GrammarHints) {
+func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], hints *GrammarHints) {
 	narrative := EventNarrativeDetail(s.Event, enc)
 	if narrative == "" {
 		return
@@ -1256,7 +1256,7 @@ func ChooseFrom(n int, alternatives ...string) string {
 	return alternatives[n%len(alternatives)]
 }
 
-func EventNarrativeDetail[T render.EncodedText](ev model.TimelineEvent, enc render.PageBuilder[T]) string {
+func EventNarrativeDetail[T render.EncodedText](ev model.TimelineEvent, enc render.ContentBuilder[T]) string {
 	narr := ev.GetNarrative()
 	if narr.Text == "" {
 		detail := strings.ToLower(ev.GetDetail())

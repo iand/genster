@@ -4,12 +4,13 @@ import (
 	"slices"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/text"
 )
 
-func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text], error) {
+func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Document[md.Text], error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 
@@ -79,7 +80,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text]
 	if len(c.Comments) > 0 {
 		doc.Heading3("Comments", "")
 		for _, t := range c.Comments {
-			RenderText(t, doc)
+			narrative.RenderText(t, doc)
 		}
 	}
 
@@ -93,7 +94,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text]
 			continue
 		}
 
-		events = append(events, md.Text(WhoWhatWhenWhere(ev, doc, FullNameChooser{})))
+		events = append(events, md.Text(narrative.WhoWhatWhenWhere(ev, doc, narrative.FullNameChooser{})))
 		for _, p := range ev.GetParticipants() {
 			peopleInCitations[p.Person] = true
 		}
@@ -186,7 +187,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Page[md.Text]
 	if len(c.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes", "")
 		for _, t := range c.ResearchNotes {
-			RenderText(t, doc)
+			narrative.RenderText(t, doc)
 		}
 	}
 

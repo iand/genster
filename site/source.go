@@ -6,7 +6,7 @@ import (
 	"github.com/iand/genster/render/md"
 )
 
-func RenderSourcePage(s *Site, so *model.Source) (render.Page[md.Text], error) {
+func RenderSourcePage(s *Site, so *model.Source) (render.Document[md.Text], error) {
 	doc := s.NewDocument()
 	doc.SuppressCitations = true
 

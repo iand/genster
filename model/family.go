@@ -16,8 +16,10 @@ const (
 type Family struct {
 	ID string // canonical id
 	// Page                string   // path to page in site
-	Tags                []string // tags to add to the person's page
-	PreferredUniqueName string   // name used to identify the family
+	Tags []string // tags to add to the person's page
+
+	// TODO: populate
+	PreferredUniqueName string // name used to identify the family
 	Father              *Person
 	Mother              *Person
 	Children            []*Person

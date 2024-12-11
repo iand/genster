@@ -11,6 +11,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/iand/genster/book"
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/report"
 	"github.com/iand/genster/site"
@@ -25,6 +26,7 @@ func main() {
 			site.Command,
 			chart.Command,
 			report.Command,
+			book.Command,
 		},
 	}
 

@@ -8,11 +8,12 @@ import (
 	"github.com/iand/genster/debug"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
 )
 
-func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
+func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error) {
 	pov := &model.POV{Person: p}
 
 	doc := s.NewDocument()
@@ -133,16 +134,16 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 	}
 
 	if p.Intro != nil {
-		RenderText(*p.Intro, doc)
+		narrative.RenderText(*p.Intro, doc)
 	}
 
 	// Render narrative
-	n := &Narrative[md.Text]{
-		Statements: make([]Statement[md.Text], 0),
+	n := &narrative.PersonNarrative[md.Text]{
+		Statements: make([]narrative.Statement[md.Text], 0),
 	}
 
 	// Everyone has an intro
-	intro := &IntroStatement[md.Text]{
+	intro := &narrative.IntroStatement[md.Text]{
 		Principal: p,
 	}
 	for _, ev := range p.Timeline {
@@ -153,13 +154,13 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 			}
 		case *model.CensusEvent:
 			if tev.DirectlyInvolves(p) {
-				n.Statements = append(n.Statements, &CensusStatement[md.Text]{
+				n.Statements = append(n.Statements, &narrative.CensusStatement[md.Text]{
 					Principal: p,
 					Event:     tev,
 				})
 			}
 		case *model.IndividualNarrativeEvent:
-			n.Statements = append(n.Statements, &NarrativeStatement[md.Text]{
+			n.Statements = append(n.Statements, &narrative.NarrativeStatement[md.Text]{
 				Principal: p,
 				Event:     tev,
 			})
@@ -169,7 +170,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 		case *model.CremationEvent:
 		default:
 			if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
-				n.Statements = append(n.Statements, &NarrativeStatement[md.Text]{
+				n.Statements = append(n.Statements, &narrative.NarrativeStatement[md.Text]{
 					Principal: p,
 					Event:     tev,
 				})
@@ -185,18 +186,18 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 
 	// If death is known, add it
 	if p.BestDeathlikeEvent != nil {
-		n.Statements = append(n.Statements, &DeathStatement[md.Text]{
+		n.Statements = append(n.Statements, &narrative.DeathStatement[md.Text]{
 			Principal: p,
 		})
 	}
 
 	for _, f := range p.Families {
-		n.Statements = append(n.Statements, &FamilyStatement[md.Text]{
+		n.Statements = append(n.Statements, &narrative.FamilyStatement[md.Text]{
 			Principal: p,
 			Family:    f,
 		})
 		if !f.BestEndDate.IsUnknown() && f.BestEndEvent != nil && !f.BestEndEvent.IsInferred() {
-			n.Statements = append(n.Statements, &FamilyEndStatement[md.Text]{
+			n.Statements = append(n.Statements, &narrative.FamilyEndStatement[md.Text]{
 				Principal: p,
 				Family:    f,
 			})
@@ -221,7 +222,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 	if len(p.Comments) > 0 {
 		doc.Heading3("Comments", "")
 		for _, t := range p.Comments {
-			RenderText(t, doc)
+			narrative.RenderText(t, doc)
 		}
 	}
 
@@ -269,7 +270,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Page[md.Text], error) {
 	if len(p.ResearchNotes) > 0 {
 		doc.Heading2("Research Notes", "")
 		for _, t := range p.ResearchNotes {
-			RenderText(t, doc)
+			narrative.RenderText(t, doc)
 		}
 	}
 

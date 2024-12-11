@@ -306,6 +306,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 
 	for _, f := range t.Families {
 		t.AddSpouses(f)
+		t.RefineFamilyNames(f)
 		t.InferFamilyStartEndDates(f)
 	}
 
@@ -513,6 +514,24 @@ func (t *Tree) AddSpouses(f *model.Family) error {
 
 	f.Mother.Spouses = append(f.Mother.Spouses, f.Father)
 	f.Father.Spouses = append(f.Father.Spouses, f.Mother)
+	return nil
+}
+
+func (t *Tree) RefineFamilyNames(f *model.Family) error {
+	if f.Mother.IsUnknown() {
+		if f.Father.IsUnknown() {
+			f.PreferredUniqueName = "Unknown parents"
+		} else {
+			f.PreferredUniqueName = f.Father.PreferredUniqueName
+		}
+	} else {
+		if f.Father.IsUnknown() {
+			f.PreferredUniqueName = f.Mother.PreferredUniqueName
+		} else {
+			f.PreferredUniqueName = f.Father.PreferredUniqueName + " and " + f.Mother.PreferredUniqueName
+		}
+	}
+
 	return nil
 }
 
