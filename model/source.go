@@ -46,11 +46,6 @@ type GeneralCitation struct {
 	LastUpdated       *time.Time // time of last update, if known
 }
 
-type CitedMediaObject struct {
-	Object    *MediaObject
-	Highlight *Region
-}
-
 // An ObjectLink is a specification of where to insert a link to an object in some text
 type ObjectLink struct {
 	Object any

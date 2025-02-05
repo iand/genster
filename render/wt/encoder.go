@@ -119,7 +119,7 @@ func (w *Encoder) EncodeLink(text Text, url string) Text {
 
 func (w *Encoder) EncodeModelLink(text Text, m any) Text {
 	buf := new(strings.Builder)
-	w.writeModelLink(buf, text, m)
+	w.writeModelLink(buf, "", text.String(), "", m)
 	return w.EncodeText(buf.String())
 }
 
@@ -129,25 +129,45 @@ func (w *Encoder) EncodeModelLinkDedupe(firstText Text, subsequentText Text, m a
 		w.seenLinks = make(map[any]bool)
 	}
 
-	buf := new(strings.Builder)
+	var name Text
 	if !w.seenLinks[m] {
-		w.writeModelLink(buf, firstText, m)
+		name = firstText
 	} else {
-		w.writeModelLink(buf, subsequentText, m)
+		name = subsequentText
+	}
+
+	buf := new(strings.Builder)
+	w.writeModelLink(buf, "", name.String(), "", m)
+	return w.EncodeText(buf.String())
+}
+
+func (w *Encoder) EncodeModelLinkNamed(m any, nc render.NameChooser, pov *model.POV) Text {
+	// Only encode the first mention of a link
+	if w.seenLinks == nil {
+		w.seenLinks = make(map[any]bool)
+	}
+
+	buf := new(strings.Builder)
+	var prefix, name, suffix string
+	if !w.seenLinks[m] {
+		prefix, name, suffix = nc.FirstUseSplit(m, pov)
+	} else {
+		prefix, name, suffix = nc.SubsequentSplit(m, pov)
 		w.seenLinks[m] = true
 	}
+	w.writeModelLink(buf, prefix, name, suffix, m)
 
 	return w.EncodeText(buf.String())
 }
 
-func (w *Encoder) writeModelLink(buf io.StringWriter, text Text, v any) {
+func (w *Encoder) writeModelLink(buf io.StringWriter, prefix string, text string, suffix string, v any) {
+	buf.WriteString(prefix)
 	if p, ok := v.(*model.Person); ok && p.WikiTreeID != "" {
 		buf.WriteString(fmt.Sprintf("[[%s|%s]]", p.WikiTreeID, text))
-		return
+	} else {
+		buf.WriteString(text)
 	}
-
-	// TODO:review whether to use Render instead
-	buf.WriteString(text.String())
+	buf.WriteString(suffix)
 }
 
 func (w *Encoder) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
@@ -229,4 +249,7 @@ func (w *Encoder) EncodeText(ss ...string) Text {
 		return Text(ss[0])
 	}
 	return Text(strings.Join(ss, ""))
+}
+
+func (w *Encoder) Figure(link string, alt string, caption Text, highlight *model.Region) {
 }

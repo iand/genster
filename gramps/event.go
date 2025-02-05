@@ -57,6 +57,30 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 		}
 	}
 
+	for _, gor := range grev.Objref {
+		if pval(gor.Priv, false) {
+			logger.Debug("skipping citation object marked as private", "handle", gor.Hlink)
+			continue
+		}
+		gob, ok := l.ObjectsByHandle[gor.Hlink]
+		if ok {
+			mo := m.FindMediaObject(gob.File.Src)
+			cmo := &model.CitedMediaObject{
+				Object: mo,
+			}
+			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
+				cmo.Highlight = &model.Region{
+					Left:   *gor.Region.Corner1x,
+					Bottom: 100 - *gor.Region.Corner2y,
+					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
+					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
+				}
+			}
+
+			gev.MediaObjects = append(gev.MediaObjects, cmo)
+		}
+	}
+
 	for _, gnr := range grev.Noteref {
 		gn, ok := l.NotesByHandle[gnr.Hlink]
 		if !ok {

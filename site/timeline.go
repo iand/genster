@@ -124,6 +124,7 @@ type NarrativeTimelineEntryFormatter[T render.EncodedText] struct {
 	enc      render.TextEncoder[T]
 	omitDate bool
 	logger   *logging.Logger
+	nc       narrative.NameChooser
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEvent) string {
@@ -250,7 +251,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
+		title = narrative.WhatWhere(title, pl, t.enc, t.nc)
 	}
 
 	return title
@@ -273,12 +274,8 @@ func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
 		residing := narrative.ChooseFrom(seq, "residing", "", "living")
-		if pl.SameAs(t.pov.Place) {
-			title = text.JoinSentenceParts(title, residing, "here")
-		} else {
-			title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-		}
-
+		title = text.JoinSentenceParts(title, residing)
+		title = narrative.WhatWherePov(title, pl, t.enc, t.nc, t.pov)
 	}
 	return title
 }
@@ -292,11 +289,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) generalEventTitle(seq int, ev model
 	title = text.JoinSentenceParts(title, t.whenWhat(ev))
 
 	pl := ev.GetPlace()
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "here")
-	} else if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-	}
+	title = narrative.WhatWherePov(title, pl, t.enc, t.nc, t.pov)
 	return title
 }
 
@@ -313,23 +306,21 @@ func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(seq int, ev model
 	}
 
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "by the", t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String(), "probate office")
+		title = text.JoinSentenceParts(title, narrative.WhatWhere("by the", pl, t.enc, t.nc), "probate office")
 	}
 	return title
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *model.ResidenceRecordedEvent) string {
-	title := text.JoinSentenceParts(t.observerContext(ev), "recorded")
-
 	pl := ev.GetPlace()
-	residing := narrative.ChooseFrom(seq, "as residing", "as living")
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, residing, "here")
+
+	if pl.IsUnknown() {
+		// TODO: record an anomaly?
+		return ""
 	}
 
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, residing, pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-	}
+	title := text.JoinSentenceParts(t.observerContext(ev), "recorded", narrative.ChooseFrom(seq, "as residing", "as living"))
+	title = narrative.WhatWherePov(title, pl, t.enc, t.nc, t.pov)
 	return title
 }
 
@@ -346,40 +337,37 @@ func (t *NarrativeTimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model
 	title = text.JoinSentenceParts(title, "at muster")
 
 	pl := ev.GetPlace()
-
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "taken here")
-	} else if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "taken", pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
+	if !pl.IsUnknown() {
+		title = narrative.WhatWherePov(title+" taken", pl, t.enc, t.nc, t.pov)
 	}
 	return title
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *model.ArrivalEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "arrived")
+
 	pl := ev.GetPlace()
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "here")
+	if !pl.IsUnknown() {
+		if pl.SameAs(t.pov.Place) {
+			title = text.JoinSentenceParts(title, "here")
+		} else {
+			title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkNamed(pl, t.nc, t.pov).String())
+		}
 	}
-
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "at", t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-	}
-
 	return title
 }
 
 func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(seq int, ev *model.DepartureEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev), "departed")
+
 	pl := ev.GetPlace()
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "from here")
+	if !pl.IsUnknown() {
+		if pl.SameAs(t.pov.Place) {
+			title = text.JoinSentenceParts(title, "from here")
+		} else {
+			title = text.JoinSentenceParts(title, "from", t.enc.EncodeModelLinkNamed(pl, t.nc, t.pov).String())
+		}
 	}
-
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, "from", t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-	}
-
 	return title
 }
 
@@ -389,14 +377,13 @@ func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int,
 		title = text.JoinSentenceParts(t.observerContext(ev), "entered")
 	}
 	pl := ev.GetPlace()
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "here")
+	if !pl.IsUnknown() {
+		if pl.SameAs(t.pov.Place) {
+			title = text.JoinSentenceParts(title, "here")
+		} else {
+			title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkNamed(pl, t.nc, t.pov).String())
+		}
 	}
-
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
-	}
-
 	return title
 }
 
@@ -406,12 +393,12 @@ func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(seq 
 		title = text.JoinSentenceParts(t.observerContext(ev), "left")
 	}
 	pl := ev.GetPlace()
-	if pl.SameAs(t.pov.Place) {
-		title = text.JoinSentenceParts(title, "here")
-	}
-
-	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
+	if !pl.IsUnknown() {
+		if pl.SameAs(t.pov.Place) {
+			title = text.JoinSentenceParts(title, "here")
+		} else {
+			title = text.JoinSentenceParts(title, t.enc.EncodeModelLinkNamed(pl, t.nc, t.pov).String())
+		}
 	}
 
 	return title
@@ -455,7 +442,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 
 	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-		title = text.JoinSentenceParts(title, pl.InAt(), t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(pl.PreferredUniqueName), t.enc.EncodeText(pl.PreferredName), pl).String())
+		title = narrative.WhatWherePov(title, pl, t.enc, t.nc, t.pov)
 	}
 	return title
 }
@@ -470,9 +457,9 @@ func (t *NarrativeTimelineEntryFormatter[T]) observerContext(ev model.TimelineEv
 		}
 		// This is someone else's event
 		if observer.IsUnknown() || tev.GetDate().IsUnknown() {
-			return t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(principal.PreferredFullName), t.enc.EncodeText(principal.PreferredFullName), principal).String()
+			return t.enc.EncodeModelLink(t.enc.EncodeText(principal.PreferredFullName), principal).String()
 		}
-		name := t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(principal.PreferredFamiliarFullName), t.enc.EncodeText(principal.PreferredFamiliarName), principal).String()
+		name := t.enc.EncodeModelLinkNamed(principal, t.nc, t.pov).String()
 		return text.AppendAside(principal.RelationTo(t.pov.Person, tev.GetDate()), name)
 	case model.MultipartyTimelineEvent:
 		if tev.DirectlyInvolves(observer) {
@@ -496,7 +483,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) observerContext(ev model.TimelineEv
 		var ppl []string
 		head := tev.Head()
 		if head != nil {
-			ppl = append(ppl, t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(head.PreferredFullName), t.enc.EncodeText(head.PreferredFullName), head).String())
+			ppl = append(ppl, t.enc.EncodeModelLinkNamed(head, t.nc, t.pov).String())
 		}
 
 		for _, en := range tev.Entries {
@@ -506,7 +493,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) observerContext(ev model.TimelineEv
 			if en.Principal.SameAs(head) {
 				continue
 			}
-			ppl = append(ppl, t.enc.EncodeModelLinkDedupe(t.enc.EncodeText(en.Principal.PreferredFullName), t.enc.EncodeText(en.Principal.PreferredFullName), en.Principal).String())
+			ppl = append(ppl, t.enc.EncodeModelLinkNamed(en.Principal, t.nc, t.pov).String())
 		}
 
 		return text.JoinList(ppl)

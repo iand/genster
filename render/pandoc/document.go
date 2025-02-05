@@ -21,8 +21,8 @@ func (d *Document) WriteTo(w io.Writer) (int64, error) {
 	// 	MarkdownTagSummary: 1,
 	// }
 
+	bb.WriteString("---\n")
 	// if len(d.frontMatter) > 0 {
-	// 	bb.WriteString("---\n")
 
 	// 	keys := make([]string, 0, len(d.frontMatter))
 	// 	for k := range d.frontMatter {
@@ -91,9 +91,13 @@ func (d *Document) WriteTo(w io.Writer) (int64, error) {
 	// 		}
 
 	// 	}
-	// 	bb.WriteString("---\n")
-	// }
-	// bb.WriteString("\n")
+	bb.WriteString("header-includes:\n")
+	bb.WriteString("- |\n")
+	bb.WriteString("    ```{=latex}\n")
+	bb.WriteString("    \\makeindex\n")
+	bb.WriteString("    ```\n")
+	bb.WriteString("---\n")
+	bb.WriteString("\n")
 
 	n, err := bb.WriteTo(w)
 	if err != nil {
@@ -105,6 +109,7 @@ func (d *Document) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, fmt.Errorf("write body: %w", err)
 	}
+	bb.WriteString("\\printindex\n")
 	return n, nil
 }
 

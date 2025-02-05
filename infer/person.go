@@ -406,7 +406,7 @@ func InferPersonGeneralFacts(p *model.Person) error {
 	if p.BestBirthlikeEvent != nil {
 		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
 			pl := p.BestBirthlikeEvent.GetPlace()
-			if reWorkhouse.MatchString(pl.PreferredName) {
+			if reWorkhouse.MatchString(pl.Name) {
 				p.BornInWorkhouse = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,
@@ -421,7 +421,7 @@ func InferPersonGeneralFacts(p *model.Person) error {
 	if p.BestDeathlikeEvent != nil {
 		if !p.BestDeathlikeEvent.GetPlace().IsUnknown() {
 			pl := p.BestDeathlikeEvent.GetPlace()
-			if reWorkhouse.MatchString(pl.PreferredName) {
+			if reWorkhouse.MatchString(pl.Name) {
 				p.DiedInWorkhouse = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,

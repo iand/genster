@@ -227,7 +227,7 @@ func formatEventFull(ev model.TimelineEvent) string {
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		details = text.JoinSentenceParts(details, pl.InAt(), pl.PreferredName)
+		details = text.JoinSentenceParts(details, pl.InAt(), pl.Name)
 	}
 	return details
 }

@@ -16,7 +16,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 
 	doc := s.NewDocument()
 
-	doc.Title(p.PreferredName)
+	doc.Title(p.Name)
 	doc.Layout(PageLayoutPlace.String())
 	doc.Category(PageCategoryPlace)
 	if p.LastUpdated != nil {
@@ -27,10 +27,10 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 	doc.ID(p.ID)
 	doc.AddTags(CleanTags(p.Tags))
 
-	name := p.PreferredName + " is a" + text.MaybeAn(p.PlaceType.String())
+	name := p.Name + " is a" + text.MaybeAn(p.PlaceType.String())
 
 	if !p.Parent.IsUnknown() {
-		name += " in " + doc.EncodeModelLinkDedupe(doc.EncodeText(p.Parent.PreferredUniqueName), doc.EncodeText(p.Parent.PreferredName), p.Parent).String()
+		name += " " + p.Parent.InAt() + " " + doc.EncodeModelLink(doc.EncodeText(p.Parent.FullName), p.Parent).String()
 	}
 
 	doc.Para(doc.EncodeItalic(doc.EncodeText(text.FinishSentence(name))))
@@ -51,6 +51,7 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 			pov:    pov,
 			enc:    doc,
 			logger: logging.Default(),
+			nc:     &narrative.TimelineNameChooser{},
 		}
 
 		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {

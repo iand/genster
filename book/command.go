@@ -2,6 +2,7 @@ package book
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
@@ -15,6 +16,7 @@ var bookopts struct {
 	grampsDatabaseName string
 	treeID             string
 	configDir          string
+	outputDir          string
 	outputFilename     string
 	keyIndividual      string
 	includePrivate     bool
@@ -60,9 +62,14 @@ var Command = &cli.Command{
 			Destination: &bookopts.configDir,
 		},
 		&cli.StringFlag{
-			Name:        "output",
+			Name:        "fname",
 			Usage:       "output document filename",
 			Destination: &bookopts.outputFilename,
+		},
+		&cli.StringFlag{
+			Name:        "output",
+			Usage:       "path to directory for temporary files",
+			Destination: &bookopts.outputDir,
 		},
 		&cli.StringFlag{
 			Name:        "key",
@@ -129,6 +136,7 @@ func bookCmd(cc *cli.Context) error {
 	}
 
 	b := NewBook(t)
+	b.OutputDir = bookopts.outputDir
 	b.IncludePrivate = bookopts.includePrivate
 	b.IncludeDebugInfo = bookopts.debug
 
@@ -158,7 +166,7 @@ func bookCmd(cc *cli.Context) error {
 		return fmt.Errorf("add pages: %w", err)
 	}
 
-	if err := b.WriteDocument(bookopts.outputFilename); err != nil {
+	if err := b.WriteDocument(filepath.Join(bookopts.outputDir, bookopts.outputFilename)); err != nil {
 		return fmt.Errorf("write document: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package narrative
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/iand/genster/model"
@@ -49,4 +50,20 @@ func EncodeText[T render.EncodedText](t model.Text, enc render.TextEncoder[T]) s
 	}
 	formatted += string(text[cursor:])
 	return formatted
+}
+
+func MediaObjectsAsFigures[T render.EncodedText](mos []*model.CitedMediaObject, enc render.ContentBuilder[T], cropMediaHighlights bool) error {
+	for _, mo := range mos {
+		mediaPath := mo.Object.SrcFilePath
+		if cropMediaHighlights {
+			var err error
+			mediaPath, err = cropMedia(mo.Object, mo.Highlight)
+			if err != nil {
+				return fmt.Errorf("crop media: %w", err)
+			}
+		}
+		enc.Figure(mediaPath, mo.Object.Title, enc.EncodeText(mo.Object.Title), mo.Highlight)
+	}
+
+	return nil
 }

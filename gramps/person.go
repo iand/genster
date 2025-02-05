@@ -101,10 +101,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		prefName.given = strings.ReplaceAll(prefName.given, "-?-", model.UnknownNamePlaceholder)
 		prefName.surname = strings.ReplaceAll(prefName.surname, "-?-", model.UnknownNamePlaceholder)
 
-		prefName.call = strings.TrimSpace(prefName.given)
 		prefName.suffix = strings.TrimSpace(pval(name.Suffix, ""))
 		prefName.nick = strings.TrimSpace(pval(name.Nick, ""))
-		prefName.call = strings.TrimSpace(pval(name.Call, ""))
+		prefName.call = strings.TrimSpace(pval(name.Call, prefName.given))
 
 		p.PreferredGivenName = prefName.given
 		p.PreferredFamilyName = prefName.surname
@@ -166,15 +165,27 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				URL:   pgc.Detail,
 			})
 		} else if pgc.Source.Title == "WikiTree" {
-			p.Links = append(p.Links, model.Link{
-				Title: "WikiTree",
-				URL:   pgc.Detail,
-			})
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryCitation,
+				Text:     "Person has 'wikitree' citation",
+				Context:  "Citation",
+			}
+			p.Anomalies = append(p.Anomalies, anom)
+			// p.Links = append(p.Links, model.Link{
+			// 	Title: "WikiTree",
+			// 	URL:   pgc.Detail,
+			// })
 		} else if strings.HasPrefix(pgc.Detail, "https://www.familysearch.org/tree/person/") {
-			p.Links = append(p.Links, model.Link{
-				Title: "FamilySearch",
-				URL:   pgc.Detail,
-			})
+			anom := &model.Anomaly{
+				Category: model.AnomalyCategoryCitation,
+				Text:     "Person has 'familysearch' citation",
+				Context:  "Citation",
+			}
+			p.Anomalies = append(p.Anomalies, anom)
+			// p.Links = append(p.Links, model.Link{
+			// 	Title: "FamilySearch",
+			// 	URL:   pgc.Detail,
+			// })
 		}
 
 	}
@@ -195,16 +206,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Anomalies = append(p.Anomalies, anom)
 
 		case "wikitree id":
-			anom := &model.Anomaly{
-				Category: model.AnomalyCategoryAttribute,
-				Text:     "Person has 'wikitree id' attribute",
-				Context:  "Attribute",
-			}
-			p.Anomalies = append(p.Anomalies, anom)
 			p.WikiTreeID = att.Value
 			p.Links = append(p.Links, model.Link{
 				Title: "WikiTree",
 				URL:   "https://www.wikitree.com/wiki/" + att.Value,
+			})
+		case "familysearch id":
+			p.FamilySearchID = att.Value
+			p.Links = append(p.Links, model.Link{
+				Title: "FamilySearch",
+				URL:   "https://www.familysearch.org/tree/person/details/" + att.Value,
 			})
 		case "wikitree category":
 			p.WikiTreeCategories = append(p.WikiTreeCategories, att.Value)

@@ -198,46 +198,91 @@ func (e *Content) EncodeLink(text Text, url string) Text {
 }
 
 func (e *Content) EncodeModelLink(firstText Text, m any) Text {
-	if e.seenLinks == nil {
-		e.seenLinks = make(map[string]bool)
-	}
-	url := e.LinkBuilder.LinkFor(m)
-	e.seenLinks[url] = true
-
+	decorator := Text("")
 	if p, ok := m.(*model.Person); ok {
 		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
-			firstText += DirectAncestorMarker
+			decorator = Text(DirectAncestorMarker)
 		}
 	}
+	firstText += decorator
 
-	return e.EncodeLink(firstText, url)
+	var link string
+	if e.LinkBuilder != nil {
+		link = e.LinkBuilder.LinkFor(m)
+	}
+
+	buf := new(strings.Builder)
+	e.writeModelLink(buf, link, "", firstText.String(), "")
+	return e.EncodeText(buf.String())
 }
 
 func (e *Content) EncodeModelLinkDedupe(firstText Text, subsequentText Text, m any) Text {
-	suffix := Text("")
+	decorator := Text("")
 	if p, ok := m.(*model.Person); ok {
 		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
-			suffix = Text(DirectAncestorMarker)
+			decorator = Text(DirectAncestorMarker)
+		}
+	}
+	var link string
+	var name Text
+	if e.LinkBuilder == nil {
+		name = firstText
+		name += decorator
+	} else {
+		link = e.LinkBuilder.LinkFor(m)
+		if !e.seenLinks[link] {
+			name = firstText
+			name += decorator
+		} else {
+			name = subsequentText
 		}
 	}
 
-	if e.LinkBuilder == nil {
-		return firstText + suffix
+	buf := new(strings.Builder)
+	e.writeModelLink(buf, link, "", name.String(), "")
+	return e.EncodeText(buf.String())
+}
+
+func (e *Content) EncodeModelLinkNamed(m any, nc render.NameChooser, pov *model.POV) Text {
+	var decorator string
+	if p, ok := m.(*model.Person); ok {
+		if p.RelationToKeyPerson.IsDirectAncestor() && !p.RelationToKeyPerson.IsSelf() {
+			decorator = DirectAncestorMarker
+		}
 	}
 
-	url := e.LinkBuilder.LinkFor(m)
+	var link string
+	var prefix, name, suffix string
+	if e.LinkBuilder == nil {
+		prefix, name, suffix = nc.FirstUseSplit(m, pov)
+		name += decorator
+	} else {
+		link = e.LinkBuilder.LinkFor(m)
+		if !e.seenLinks[link] {
+			prefix, name, suffix = nc.FirstUseSplit(m, pov)
+			name += decorator
+		} else {
+			prefix, name, suffix = nc.SubsequentSplit(m, pov)
+		}
+	}
 
-	// Only encode the first mention of a link
+	buf := new(strings.Builder)
+	e.writeModelLink(buf, link, prefix, name, suffix)
+	return e.EncodeText(buf.String())
+}
+
+func (e *Content) writeModelLink(buf io.StringWriter, link string, prefix string, text string, suffix string) {
 	if e.seenLinks == nil {
 		e.seenLinks = make(map[string]bool)
 	}
-
-	if e.seenLinks[url] {
-		return subsequentText
+	buf.WriteString(prefix)
+	if link == "" {
+		buf.WriteString(text)
+	} else {
+		e.seenLinks[link] = true
+		buf.WriteString(fmt.Sprintf("[%s](%s)", text, link))
 	}
-	e.seenLinks[url] = true
-
-	return e.EncodeLink(firstText+suffix, url)
+	buf.WriteString(suffix)
 }
 
 func (e *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
@@ -371,11 +416,11 @@ func (e *Content) Pre(s string) {
 	e.maintext.WriteString("</pre>\n")
 }
 
-func (e *Content) Image(alt string, link string) {
-	e.writeImage(&e.maintext, alt, link)
+func (e *Content) Image(link string, alt string) {
+	e.writeImage(&e.maintext, link, alt)
 }
 
-func (b *Content) writeImage(buf io.StringWriter, alt string, link string) {
+func (b *Content) writeImage(buf io.StringWriter, link string, alt string) {
 	buf.WriteString(fmt.Sprintf("![%s](%s)\n", alt, link))
 }
 

@@ -19,6 +19,7 @@ type TimelineEvent interface {
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
 	GetParticipants() []*EventParticipant
 	GetParticipantsByRole(EventRole) []*EventParticipant
+	GetMediaObjects() []*CitedMediaObject
 }
 
 // IndividualTimelineEvent is a timeline event involving one individual.
@@ -103,14 +104,15 @@ const (
 )
 
 type GeneralEvent struct {
-	Date       *Date
-	Place      *Place
-	Title      string // used for the return value of "What()"
-	Detail     string
-	Citations  []*GeneralCitation
-	Inferred   bool
-	Narrative  Text // hand written narrative, if any
-	Attributes map[string]string
+	Date         *Date
+	Place        *Place
+	Title        string // used for the return value of "What()"
+	Detail       string
+	Citations    []*GeneralCitation
+	Inferred     bool
+	Narrative    Text // hand written narrative, if any
+	Attributes   map[string]string
+	MediaObjects []*CitedMediaObject
 }
 
 func (e *GeneralEvent) GetDate() *Date {
@@ -144,6 +146,10 @@ func (e *GeneralEvent) GetAttribute(name string) (string, bool) {
 
 func (e *GeneralEvent) GetCitations() []*GeneralCitation {
 	return e.Citations
+}
+
+func (e *GeneralEvent) GetMediaObjects() []*CitedMediaObject {
+	return e.MediaObjects
 }
 
 func (e *GeneralEvent) EventDate() *Date {
@@ -333,6 +339,7 @@ func (e *GeneralMultipartyEvent) GetParticipantsByRole(r EventRole) []*EventPart
 type POV struct {
 	Person *Person // the person observing or experiencing the event
 	Place  *Place  // the place in which the observing is taking place
+	Family *Family // the family observing or experiencing the event
 }
 
 // BirthEvent represents the birth of a person in their timeline

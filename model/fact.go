@@ -48,6 +48,8 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "inflammation of the womb"
 	case "peritonitis":
 		comment = "inflammation of the abdomen"
+	case "myocarditis":
+		comment = "inflammation of the heart"
 	case "dysentery":
 		comment = "inflammation of the intestine"
 	case "colic":
@@ -60,8 +62,10 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "a swelling caused by accumulation of abnormally large amounts of fluid often caused by kidney disease or congestive heart failure"
 	case "lockjaw", "trismus":
 		comment = "tetanus"
-	case "natural decay", "senile decay":
+	case "natural decay":
 		comment = "death through old age"
+	case "senile decay":
+		comment = "death through old age, possibly including dementia"
 	case "morbus cordis":
 		comment = "heart disease"
 	case "albuminuria":
@@ -70,6 +74,24 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "paralysis"
 	case "apoplexy":
 		comment = "incapacity resulting from a stroke"
+	case "erysipelas":
+		comment = "a skin infection, commonly known as St. Anthony's Fire due to the burning sensation experienced"
+	case "tabes dorsalis":
+		comment = "degeneration of nerve cells in the lower back caused by untreated syphilis"
+	case "dyspnoea":
+		comment = "shortness of breath"
+	case "placenta previa":
+		comment = "a problem of pregnancy in which the placenta covers all or part of the cervix"
+	case "scarlatina":
+		comment = "scarlet fever"
+	case "uraemia":
+		comment = "high levels of urea in blood"
+	case "scirrhus of the womb":
+		comment = "a tumour in the womb"
+	case "debility":
+		comment = "weakness or feebleness"
+	case "syncope":
+		comment = "fainting"
 	}
 
 	if comment != "" {

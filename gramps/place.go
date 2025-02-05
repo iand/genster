@@ -22,6 +22,7 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 
 	logger := logging.With("id", pl.ID)
 	logger.Debug("populating from place record", "handle", gp.Handle)
+	pl.Name += "@@" + gp.Type + "@@"
 
 	switch strings.ToLower(gp.Type) {
 	case "country":
@@ -78,12 +79,14 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	}
 
 	if len(gp.Pname) == 0 {
-		pl.Name = "unknown"
-		pl.PreferredName = "unknown"
-		pl.PreferredFullName = "an unknown place"
-		pl.PreferredUniqueName = "an unknown place"
+		pl.Name = model.UnknownPlaceName
+		pl.FullName = model.UnknownPlaceName
+		// pl.PreferredName = "unknown"
+		// pl.PreferredFullName = "an unknown place"
+		// pl.PreferredUniqueName = "an unknown place"
 		pl.PreferredSortName = "unknown place"
-		pl.PreferredLocalityName = "unknown place"
+		// pl.PreferredLocalityName = "unknown place"
+		// pl.PreferredVerboseName = "an unknown place"
 	} else {
 		// TODO: support multiple place names
 		name := strings.TrimSpace(gp.Pname[0].Value)
@@ -101,14 +104,19 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 		}
 
 		pl.Name = name
-		pl.PreferredName = name
-		pl.PreferredFullName = name
-		pl.PreferredUniqueName = name
+		// pl.PreferredName = name
+		// pl.PreferredFullName = name
+		// pl.PreferredUniqueName = name
 		pl.PreferredSortName = name
-		pl.PreferredLocalityName = name
+		// pl.PreferredLocalityName = name
+
+		if strings.Contains(strings.ToLower(pl.Name), "church ") || strings.Contains(strings.ToLower(pl.Name), " church") {
+			pl.BuildingKind = model.BuildingKindChurch
+		}
 
 		if pl.PlaceType == model.PlaceTypeRegistrationDistrict {
-			pl.PreferredName = strings.TrimSuffix(pl.PreferredName, "Registration District")
+			pl.Name = strings.TrimSuffix(pl.Name, " Registration District")
+			// pl.PreferredName = strings.TrimSuffix(pl.PreferredName, " Registration District")
 		}
 
 	}
@@ -173,19 +181,19 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 			// handle buildings or streets
 			if !parent.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding) {
 				// combine into a single place
-				if parent.PreferredName != "" {
-					pl.PreferredName += " " + parent.PreferredName
+				if parent.Name != "" {
+					pl.Name += " " + parent.Name
 				}
-				if parent.PreferredFullName != "" {
-					pl.PreferredFullName += " " + parent.PreferredName
-				}
-				if parent.PreferredUniqueName != "" {
-					if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += " " + parent.PreferredName
-					} else {
-						pl.PreferredUniqueName += " " + parent.PreferredName
-					}
-				}
+				// if parent.PreferredFullName != "" {
+				// 	pl.PreferredFullName += " " + parent.PreferredName
+				// }
+				// if parent.PreferredUniqueName != "" {
+				// 	if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
+				// 		pl.PreferredUniqueName += " " + parent.PreferredName
+				// 	} else {
+				// 		pl.PreferredUniqueName += " " + parent.PreferredName
+				// 	}
+				// }
 				if parent.PreferredSortName != "" {
 					pl.PreferredSortName = parent.PreferredSortName + " " + pl.PreferredSortName
 				}
@@ -199,25 +207,25 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 				}
 
 				pl.Parent = parent
-				if parent.PreferredFullName != "" {
-					pl.PreferredFullName += connector + parent.PreferredFullName
+				if parent.FullName != "" {
+					pl.FullName += connector + parent.FullName
 				}
-				if parent.PreferredUniqueName != "" {
-					if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
-						pl.PreferredUniqueName += connector + parent.PreferredUniqueName
-					} else {
-						pl.PreferredUniqueName += connector + parent.PreferredName
-					}
-				}
+				// if parent.PreferredUniqueName != "" {
+				// 	if parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding {
+				// 		pl.PreferredUniqueName += connector + parent.PreferredUniqueName
+				// 	} else {
+				// 		pl.PreferredUniqueName += connector + parent.PreferredName
+				// 	}
+				// }
 				if parent.PreferredSortName != "" {
 					pl.PreferredSortName = parent.PreferredSortName + ", " + pl.PreferredSortName
 				}
 
-				if pl.PlaceType == model.PlaceTypeStreet || pl.PlaceType == model.PlaceTypeBuilding {
-					pl.PreferredLocalityName = parent.PreferredLocalityName
-				} else {
-					pl.PreferredLocalityName += connector + parent.Name
-				}
+				// if pl.PlaceType == model.PlaceTypeStreet || pl.PlaceType == model.PlaceTypeBuilding {
+				// 	pl.PreferredLocalityName = parent.PreferredLocalityName
+				// } else {
+				// 	pl.PreferredLocalityName += connector + parent.Name
+				// }
 			}
 
 			if pl.GeoLocation == nil && parent.GeoLocation != nil {
@@ -227,6 +235,26 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 			break
 		}
 	}
+
+	// // Build verbose name
+	// // TODO: expand to cover more cases
+	// pl.PreferredVerboseName = pl.Name
+
+	// parent := pl.Parent
+	// for parent != nil {
+	// 	switch parent.PlaceType {
+	// 	case model.PlaceTypeParish:
+	// 		pl.PreferredVerboseName += " in the parish of " + parent.Name
+	// 	case model.PlaceTypeRegistrationDistrict:
+	// 		pl.PreferredVerboseName += " in the registration district of " + parent.Name
+	// 	case model.PlaceTypeCounty:
+	// 		pl.PreferredVerboseName += " in " + parent.Name
+	// 	default:
+	// 		pl.PreferredVerboseName += ", " + parent.Name
+	// 	}
+
+	// 	parent = parent.Parent
+	// }
 
 	// add media objects
 	for _, gor := range gp.Objref {

@@ -500,8 +500,8 @@ var personReplacers = map[string]personAnnotaterFunc{
 
 // all possible place replacers
 var placeReplacers = map[string]placeAnnotaterFunc{
-	"preferredname": func(p *model.Place, v any) error { return setString(&p.PreferredName, v) },
-	"latlong":       func(p *model.Place, v any) error { return setGeoLocation(&p.GeoLocation, v) },
+	"name":    func(p *model.Place, v any) error { return setString(&p.Name, v) },
+	"latlong": func(p *model.Place, v any) error { return setGeoLocation(&p.GeoLocation, v) },
 }
 
 // all possible source replacers

@@ -283,7 +283,7 @@ func (s *Site) WritePlaceListPages(root string) error {
 		items := make([][2]md.Text, 0)
 		b := s.NewMarkdownBuilder()
 		items = append(items, [2]md.Text{
-			b.EncodeModelLink(b.EncodeText(p.PreferredUniqueName), p),
+			b.EncodeModelLink(b.EncodeText(p.NameWithRegion), p),
 		})
 		b.DefinitionList(items)
 		pn.AddEntry(p.PreferredSortName+"~"+p.ID, p.PreferredSortName, b.String())

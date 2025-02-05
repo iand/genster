@@ -31,3 +31,8 @@ type Region struct {
 	Width  int
 	Height int
 }
+
+type CitedMediaObject struct {
+	Object    *MediaObject
+	Highlight *Region
+}

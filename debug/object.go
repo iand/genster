@@ -27,7 +27,7 @@ func ObjectTitle(obj any) string {
 		if tobj == nil {
 			return "<nil>"
 		}
-		return fmt.Sprintf("%s (%s)", tobj.PreferredUniqueName, tobj.ID)
+		return fmt.Sprintf("%s (%s)", tobj.FullName, tobj.ID)
 	case *model.Date:
 		return tobj.String()
 	case gdate.Date:

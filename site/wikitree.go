@@ -51,7 +51,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], err
 
 		pl := p.BestBirthlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			birth = text.JoinSentenceParts(birth, pl.InAt(), pl.PreferredFullName)
+			birth = text.JoinSentenceParts(birth, pl.InAt(), pl.FullName)
 		}
 
 		doc.Para(md.Text(text.UpperFirst(birth)))
@@ -68,7 +68,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], err
 
 		pl := p.BestDeathlikeEvent.GetPlace()
 		if !pl.IsUnknown() {
-			death = text.JoinSentenceParts(death, pl.InAt(), pl.PreferredFullName)
+			death = text.JoinSentenceParts(death, pl.InAt(), pl.FullName)
 		}
 
 		doc.Para(md.Text(text.UpperFirst(death)))
@@ -121,7 +121,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], err
 		if f.BestStartEvent != nil {
 			pl := f.BestStartEvent.GetPlace()
 			if !pl.IsUnknown() {
-				rel = text.JoinSentenceParts(rel, pl.InAt(), pl.PreferredFullName)
+				rel = text.JoinSentenceParts(rel, pl.InAt(), pl.FullName)
 			}
 		}
 
@@ -307,7 +307,7 @@ func WikiTreeCategoryForPlace(pl *model.Place) (string, bool) {
 	p := pl
 	for p != nil {
 		if p.PlaceType == model.PlaceTypeParish && p.Parent != nil && p.Parent.PlaceType == model.PlaceTypeCounty {
-			return p.PreferredName + ", " + p.Parent.PreferredName, true
+			return p.Name + ", " + p.Parent.Name, true
 		}
 		p = p.Parent
 	}

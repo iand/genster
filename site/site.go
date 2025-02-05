@@ -1294,7 +1294,7 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 				}
 				if !ev.GetPlace().IsUnknown() {
 					er.Place = gedcom.PlaceRecord{
-						Name: ev.GetPlace().PreferredFullName,
+						Name: ev.GetPlace().FullName,
 					}
 				}
 				ir.Event = append(ir.Event, er)
@@ -1320,7 +1320,7 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 				}
 				if !ev.GetPlace().IsUnknown() {
 					er.Place = gedcom.PlaceRecord{
-						Name: ev.GetPlace().PreferredFullName,
+						Name: ev.GetPlace().FullName,
 					}
 				}
 				ir.Event = append(ir.Event, er)

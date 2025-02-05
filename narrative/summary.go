@@ -37,6 +37,26 @@ func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.T
 	return title
 }
 
+func WhoWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	var title string
+	switch tev := ev.(type) {
+	case model.IndividualTimelineEvent:
+		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
+	case model.UnionTimelineEvent:
+		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+	case model.MultipartyTimelineEvent:
+		var names []string
+		for _, p := range tev.GetPrincipals() {
+			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
+		}
+		title = text.JoinList(names)
+	}
+
+	title = text.JoinSentenceParts(title, EventWhatWhenWherePov(ev, enc, nc, pov))
+
+	return title
+}
+
 func EventWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
 	return WhatWhenWhere(InferredWhat(ev, ev), ev.GetDate(), ev.GetPlace(), enc, nc)
 }
@@ -47,6 +67,18 @@ func EventWhatWhere[T render.EncodedText](ev model.TimelineEvent, enc render.Tex
 
 func EventWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
 	return WhenWhere(ev.GetDate(), ev.GetPlace(), enc, nc)
+}
+
+func EventWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	return WhatWhenWherePov(InferredWhat(ev, ev), ev.GetDate(), ev.GetPlace(), enc, nc, pov)
+}
+
+func EventWhatWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	return WhatWherePov(InferredWhat(ev, ev), ev.GetPlace(), enc, nc, pov)
+}
+
+func EventWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	return WhenWherePov(ev.GetDate(), ev.GetPlace(), enc, nc, pov)
 }
 
 func InferredWhat(w model.Whater, ev model.TimelineEvent) string {
@@ -70,10 +102,26 @@ func WhatWhenWhere[T render.EncodedText](what string, dt *model.Date, pl *model.
 	return text.JoinSentenceParts(what, WhenWhere(dt, pl, enc, nc))
 }
 
+func WhatWhenWherePov[T render.EncodedText](what string, dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	return text.JoinSentenceParts(what, WhenWherePov(dt, pl, enc, nc, pov))
+}
+
 func WhatWhere[T render.EncodedText](what string, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
 	if !pl.IsUnknown() {
-		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
+		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkNamed(pl, nc, &model.POV{}).String())
 	}
+	return what
+}
+
+func WhatWherePov[T render.EncodedText](what string, pl *model.Place, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	if pl.IsUnknown() {
+		return what
+	} else if pl.SameAs(pov.Place) {
+		what = text.JoinSentenceParts(what, "here")
+	} else {
+		what = text.JoinSentenceParts(what, pl.InAt(), enc.EncodeModelLinkNamed(pl, nc, pov).String())
+	}
+
 	return what
 }
 
@@ -91,8 +139,18 @@ func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render
 	}
 
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkNamed(pl, nc, &model.POV{}).String())
 	}
+	return title
+}
+
+func WhenWherePov[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	title := ""
+	if !dt.IsUnknown() {
+		title = text.JoinSentenceParts(title, dt.When())
+	}
+
+	title = WhatWherePov(title, pl, enc, nc, pov)
 	return title
 }
 
@@ -109,12 +167,30 @@ func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc re
 
 	pl := ev.GetPlace()
 	if !pl.IsUnknown() {
-		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(nc.FirstUse(pl)), enc.EncodeText(nc.Subsequent(pl)), pl).String())
+		title = text.JoinSentenceParts(title, pl.InAt(), enc.EncodeModelLinkNamed(pl, nc, &model.POV{}).String())
 	}
 	return title
 }
 
-func FollowingWhatWhenWhere[T render.EncodedText](what string, dt *model.Date, pl *model.Place, preceding model.TimelineEvent, enc render.TextEncoder[T]) string {
+func AgeWhenWherePov[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	title := ""
+
+	date := ev.GetDate()
+	if !date.IsUnknown() {
+		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok {
+			title = text.JoinSentenceParts(title, AgeQualifier(age))
+		}
+		title = text.JoinSentenceParts(title, date.When())
+	}
+
+	pl := ev.GetPlace()
+	if !pl.IsUnknown() {
+		title = WhatWherePov(title, pl, enc, nc, pov)
+	}
+	return title
+}
+
+func FollowingWhatWhenWhere[T render.EncodedText](what string, dt *model.Date, pl *model.Place, preceding model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
 	detail := what
 
 	if pl.SameAs(preceding.GetPlace()) {
@@ -174,7 +250,7 @@ func FollowingWhatWhenWhere[T render.EncodedText](what string, dt *model.Date, p
 	}
 
 	if !pl.IsUnknown() && !preceding.GetPlace().SameAs(pl) {
-		detail = text.JoinSentenceParts(detail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.PreferredUniqueName), enc.EncodeText(pl.PreferredName), pl).String())
+		detail = text.JoinSentenceParts(detail, pl.InAt(), enc.EncodeModelLinkNamed(pl, nc, &model.POV{}).String())
 	}
 
 	return detail
@@ -197,8 +273,8 @@ func DeathWhat(ev model.IndividualTimelineEvent, mode model.ModeOfDeath) string 
 }
 
 // WhoDoing returns a persons full or familiar name with their occupation as an aside if known.
-func WhoDoing[T render.EncodedText](p *model.Person, dt *model.Date, enc render.TextEncoder[T]) string {
-	detail := enc.EncodeModelLinkDedupe(enc.EncodeText(p.PreferredFamiliarFullName), enc.EncodeText(p.PreferredFamiliarName), p).String()
+func WhoDoing[T render.EncodedText](p *model.Person, dt *model.Date, enc render.TextEncoder[T], nc NameChooser) string {
+	detail := enc.EncodeModelLinkNamed(p, nc, &model.POV{}).String()
 
 	occ := p.OccupationAt(dt)
 	if !occ.IsUnknown() {
@@ -481,7 +557,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 		if birth != nil {
 			if _, ok := bev.(*model.BaptismEvent); ok {
 				if yrs, ok := birth.GetDate().WholeYearsUntil(bev.GetDate()); ok && yrs > 1 {
-					para.Continue("born", birth.GetDate().When(), "and")
+					para.Continue(tense("was born").String(), birth.GetDate().When(), "and")
 				}
 			}
 		}

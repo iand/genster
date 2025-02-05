@@ -52,30 +52,30 @@ func AbbrevWhenWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
 		return AbbrevWhen(ev)
 	}
-	return AbbrevWhen(ev) + ", " + ev.GetPlace().PreferredLocalityName
+	return AbbrevWhen(ev) + ", " + ev.GetPlace().NameWithDistrict
 }
 
 func AbbrevWhatWhenWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
 		return AbbrevWhatWhen(ev)
 	}
-	return AbbrevWhatWhen(ev) + ", " + ev.GetPlace().PreferredLocalityName
+	return AbbrevWhatWhen(ev) + ", " + ev.GetPlace().NameWithDistrict
 }
 
 func AbbrevWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().PreferredLocalityName == "" {
+	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
 		return "unk."
 	}
-	return ev.GetPlace().PreferredLocalityName
+	return ev.GetPlace().NameWithDistrict
 }
 
 type Whater interface {

@@ -16,7 +16,7 @@ type Person struct {
 	ID                        string    // canonical identifier
 	Tags                      []string  // tags to add to the person's page
 	PreferredFullName         string    // full legal name
-	PreferredGivenName        string    // name that can be used in prose, usually he first names without the family name
+	PreferredGivenName        string    // name that can be used in prose, usually the first names without the family name
 	PreferredFamiliarName     string    // name that can be used in prose, usually just the first name or a nickname
 	PreferredFamiliarFullName string    // full name using just the first name or a nickname
 	PreferredFamilyName       string    // family name, or surname
@@ -68,6 +68,7 @@ type Person struct {
 	WikiTreeID         string   // the wikitree id of this person
 	WikiTreeCategories []string // wikitree categories for this person
 	GrampsID           string   // the gramps id of this person
+	FamilySearchID     string   // the familysearch id of this person
 	Slug               string   // a short url-friendly identifier that can be used to refer to this person
 	Links              []Link   // list of links to more information relevant to this person
 
@@ -431,7 +432,7 @@ func RecurseDescendantsAndApply(p *Person, fn PersonActionFunc) error {
 }
 
 // ApplyAndRecurseAncestors applies fn to p and then recurses ancestors until fn returns false or an error, which
-// is returned if encountered
+// is returned if encountered. This is a depth-first traversal, following the paternal line.
 func ApplyAndRecurseAncestors(p *Person, fn PersonActionFunc) error {
 	ok, err := fn(p)
 	if err != nil {

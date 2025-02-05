@@ -42,6 +42,7 @@ type ContentBuilder[T EncodedText] interface {
 	DefinitionList([][2]T)
 	BlockQuote(T)
 	Timeline([]TimelineRow[T])
+	Figure(link string, alt string, caption T, highlight *model.Region)
 }
 
 type TimelineRow[T EncodedText] struct {
@@ -58,4 +59,12 @@ type TextEncoder[T EncodedText] interface {
 	EncodeModelLink(s T, m any) T
 	EncodeWithCitations(s T, citations []*model.GeneralCitation) T
 	EncodeModelLinkDedupe(firstText T, subsequentText T, m any) T
+	EncodeModelLinkNamed(m any, nc NameChooser, pov *model.POV) T
+}
+
+type NameChooser interface {
+	FirstUse(m any) string                                          // prefix, name and suffix to use for first occurrence
+	Subsequent(m any) string                                        // prefix, name and suffix to use for subsequent occurrences
+	FirstUseSplit(m any, pov *model.POV) (string, string, string)   // prefix, name and suffix to use for first occurrence
+	SubsequentSplit(m any, pov *model.POV) (string, string, string) // prefix, name and suffix to use for subsequent occurrences
 }

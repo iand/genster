@@ -16,6 +16,13 @@ import (
 func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error) {
 	pov := &model.POV{Person: p}
 
+	if p.BestBirthlikeEvent != nil {
+		pl := p.BestBirthlikeEvent.GetPlace()
+		if !pl.IsUnknown() {
+			pov.Place = pl.Country
+		}
+	}
+
 	doc := s.NewDocument()
 	doc.Layout(PageLayoutPerson.String())
 	doc.Category(PageCategoryPerson)
@@ -104,7 +111,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 			case model.OccupationGroupClerical:
 				doc.SetFrontMatterField("trade", "clerical")
 			case model.OccupationGroupCommercial:
-				doc.SetFrontMatterField("trade", "commerical")
+				doc.SetFrontMatterField("trade", "commercial")
 			case model.OccupationGroupMilitary:
 				doc.SetFrontMatterField("trade", "military")
 			case model.OccupationGroupService:
@@ -245,6 +252,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 			pov:    pov,
 			enc:    doc,
 			logger: logging.With("id", p.ID),
+			nc:     &narrative.TimelineNameChooser{},
 		}
 
 		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {

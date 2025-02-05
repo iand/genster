@@ -2,7 +2,6 @@ package tree
 
 import (
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -12,9 +11,8 @@ import (
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/place"
+	"github.com/iand/genster/text"
 )
-
-var _ = slog.Debug
 
 type Tree struct {
 	ID           string
@@ -146,17 +144,16 @@ func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Pl
 		cleanName := pn.Name
 
 		p = &model.Place{
-			ID:                  id,
-			OriginalText:        name,
-			Hints:               hints,
-			PreferredName:       cleanName,
-			PreferredUniqueName: cleanName,
-			PreferredFullName:   cleanName,
-			PreferredSortName:   cleanName,
-			PlaceType:           model.PlaceTypeUnknown,
-			Kind:                pn.Kind,
-			CountryName:         place.UnknownPlaceName(),
-			UKNationName:        place.UnknownPlaceName(),
+			ID:                id,
+			OriginalText:      name,
+			Hints:             hints,
+			Name:              cleanName,
+			FullName:          cleanName,
+			PreferredSortName: cleanName,
+			PlaceType:         model.PlaceTypeUnknown,
+			// Kind:                pn.Kind,
+			CountryName:  place.UnknownPlaceName(),
+			UKNationName: place.UnknownPlaceName(),
 		}
 
 		if c, ok := pn.FindContainerKind(place.PlaceKindCountry); ok {
@@ -345,6 +342,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 	}
 
 	for _, p := range t.Places {
+		t.RefinePlaceNames(p)
 		t.TrimPlaceTimeline(p)
 	}
 	for _, s := range t.Sources {
@@ -403,22 +401,27 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 		if iev, ok := ev.(model.IndividualTimelineEvent); ok && p.SameAs(iev.GetPrincipal()) {
 			switch tev := ev.(type) {
 			case *model.BirthEvent:
-				if bev, ok := p.BestBirthlikeEvent.(*model.BirthEvent); ok {
+				if p.BestBirthlikeEvent == nil {
+					p.BestBirthlikeEvent = tev
+				} else if bev, ok := p.BestBirthlikeEvent.(*model.BirthEvent); ok {
 					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
 				} else {
-					// Birth overrides all
-					p.BestBirthlikeEvent = tev
+					if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) {
+						p.BestBirthlikeEvent = tev
+					}
 				}
 
 			case *model.BaptismEvent:
-				if bev, ok := p.BestBirthlikeEvent.(*model.BaptismEvent); ok {
+				if p.BestBirthlikeEvent == nil {
+					// use event if no better event
+					p.BestBirthlikeEvent = tev
+				} else if bev, ok := p.BestBirthlikeEvent.(*model.BaptismEvent); ok {
 					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
-				} else if p.BestBirthlikeEvent == nil {
-					// use event only if no better event
+				} else if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) {
 					p.BestBirthlikeEvent = tev
 				}
 
@@ -521,14 +524,22 @@ func (t *Tree) RefineFamilyNames(f *model.Family) error {
 	if f.Mother.IsUnknown() {
 		if f.Father.IsUnknown() {
 			f.PreferredUniqueName = "Unknown parents"
+			f.PreferredFullName = "Unknown parents"
+			f.PreferredFamiliarName = "Unknown parents"
 		} else {
 			f.PreferredUniqueName = f.Father.PreferredUniqueName
+			f.PreferredFullName = f.Father.PreferredFullName
+			f.PreferredFamiliarName = f.Father.PreferredFamiliarName
 		}
 	} else {
 		if f.Father.IsUnknown() {
 			f.PreferredUniqueName = f.Mother.PreferredUniqueName
+			f.PreferredFullName = f.Mother.PreferredFullName
+			f.PreferredFamiliarName = f.Mother.PreferredFamiliarName
 		} else {
 			f.PreferredUniqueName = f.Father.PreferredUniqueName + " and " + f.Mother.PreferredUniqueName
+			f.PreferredFullName = f.Father.PreferredFullName + " and " + f.Mother.PreferredFullName
+			f.PreferredFamiliarName = f.Father.PreferredFamiliarName + " and " + f.Mother.PreferredFamiliarName
 		}
 	}
 
@@ -616,6 +627,15 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 }
 
 func (t *Tree) RefinePersonNames(p *model.Person) error {
+	p.PreferredFullName = text.RemoveRedundantWhitespace(p.PreferredFullName)
+	p.PreferredGivenName = text.RemoveRedundantWhitespace(p.PreferredGivenName)
+	p.PreferredFamiliarName = text.RemoveRedundantWhitespace(p.PreferredFamiliarName)
+	p.PreferredFamiliarFullName = text.RemoveRedundantWhitespace(p.PreferredFamiliarFullName)
+	p.PreferredFamilyName = text.RemoveRedundantWhitespace(p.PreferredFamilyName)
+	p.PreferredSortName = text.RemoveRedundantWhitespace(p.PreferredSortName)
+	p.PreferredUniqueName = text.RemoveRedundantWhitespace(p.PreferredUniqueName)
+	p.NickName = text.RemoveRedundantWhitespace(p.NickName)
+
 	if p.PreferredFullName == model.UnknownNamePlaceholder+" "+model.UnknownNamePlaceholder {
 		if p.NickName != "" {
 			p.PreferredFullName = p.NickName
@@ -635,12 +655,12 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 			// p.PreferredUniqueName = "an unidentified person"
 		}
 	} else {
-		if p.NickName != "" {
-			p.PreferredFamiliarName = p.NickName
-		} else {
-			givenParts := strings.Split(p.PreferredGivenName, " ")
-			p.PreferredFamiliarName = givenParts[0]
-		}
+		// if p.NickName != "" {
+		// 	p.PreferredFamiliarName = p.NickName
+		// } else {
+		// 	givenParts := strings.Split(p.PreferredGivenName, " ")
+		// 	p.PreferredFamiliarName = givenParts[0]
+		// }
 		p.PreferredFamiliarFullName = p.PreferredFamiliarName + " " + p.PreferredFamilyName
 
 		// Adjust names to include vital years
@@ -975,4 +995,87 @@ func (t *Tree) ListPlacesMatching(m model.PlaceMatcher, limit int) []*model.Plac
 		}
 	}
 	return matches
+}
+
+func (t *Tree) RefinePlaceNames(pl *model.Place) error {
+	if pl.IsUnknown() {
+		return nil
+	}
+	if pl.Name == "" {
+		pl.Name = model.UnknownPlaceName
+	}
+
+	hierarchy := []*model.Place{pl}
+	hierarchyNames := []string{pl.Name}
+	par := pl.Parent
+	for par != nil {
+		hierarchy = append(hierarchy, par)
+		hierarchyNames = append(hierarchyNames, par.Name)
+		par = par.Parent
+	}
+
+	for i := len(hierarchy) - 1; i >= 0; i-- {
+		if hierarchy[i].PlaceType == model.PlaceTypeCountry {
+			pl.Country = hierarchy[i]
+		}
+		if hierarchy[i].PlaceType == model.PlaceTypeCounty ||
+			hierarchy[i].PlaceType == model.PlaceTypeState ||
+			hierarchy[i].PlaceType == model.PlaceTypeArchipelago ||
+			hierarchy[i].PlaceType == model.PlaceTypeNation {
+			pl.Region = hierarchy[i]
+		}
+		if hierarchy[i].PlaceType == model.PlaceTypeParish ||
+			hierarchy[i].PlaceType == model.PlaceTypeRegistrationDistrict ||
+			hierarchy[i].PlaceType == model.PlaceTypeCity ||
+			hierarchy[i].PlaceType == model.PlaceTypeTown ||
+			hierarchy[i].PlaceType == model.PlaceTypeVillage ||
+			hierarchy[i].PlaceType == model.PlaceTypeHamlet {
+			pl.District = hierarchy[i]
+		}
+		if hierarchy[i].PlaceType == model.PlaceTypeUnknown && pl.District == nil {
+			pl.District = hierarchy[i]
+		}
+	}
+
+	pl.FullName = strings.Join(hierarchyNames, ", ")
+	pl.FullContext = strings.Join(hierarchyNames[1:], ", ")
+
+	switch pl.PlaceType {
+	case model.PlaceTypeParish:
+		pl.ProseName = "the parish of " + pl.Name
+	case model.PlaceTypeRegistrationDistrict:
+		pl.ProseName = "the " + pl.Name + " registration district"
+	default:
+		pl.ProseName = pl.Name
+	}
+	for i := 1; i < len(hierarchy); i++ {
+		switch hierarchy[i].PlaceType {
+		case model.PlaceTypeParish:
+			pl.ProseName += " in the parish of " + hierarchy[i].Name
+		case model.PlaceTypeRegistrationDistrict:
+			pl.ProseName += " in the " + hierarchy[i].Name + " registration district"
+		case model.PlaceTypeCity, model.PlaceTypeTown, model.PlaceTypeVillage, model.PlaceTypeHamlet:
+			pl.ProseName += " in " + hierarchy[i].Name
+		default:
+			pl.ProseName += ", " + hierarchy[i].Name
+		}
+	}
+
+	pl.NameWithDistrict = pl.Name
+	if pl.District != nil && !pl.District.SameAs(pl) {
+		pl.NameWithDistrict += ", " + pl.District.Name
+		pl.DistrictContext = pl.District.Name
+	}
+	pl.NameWithRegion = pl.NameWithDistrict
+	if pl.Region != nil && !pl.Region.SameAs(pl) {
+		pl.NameWithRegion += ", " + pl.Region.Name
+		pl.RegionContext = pl.DistrictContext + ", " + pl.Region.Name
+	}
+	pl.NameWithCountry = pl.NameWithRegion
+	if pl.Country != nil && !pl.Country.SameAs(pl) {
+		pl.NameWithCountry += ", " + pl.Country.Name
+		pl.CountryContext = pl.RegionContext + ", " + pl.Country.Name
+	}
+
+	return nil
 }

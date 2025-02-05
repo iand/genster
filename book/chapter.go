@@ -9,7 +9,7 @@ type Chapter struct {
 
 func NewChapter(title string) *Chapter {
 	cs := &pandoc.Content{}
-	cs.Heading1(pandoc.Text(title), "")
+	cs.Heading2(pandoc.Text(title), "")
 
 	return &Chapter{
 		Content: cs,

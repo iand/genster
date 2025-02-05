@@ -143,7 +143,12 @@ func (d *Date) IsMorePreciseThan(o *Date) bool {
 
 	switch d.Date.(type) {
 	case *gdate.Precise:
-		return true
+		switch o.Date.(type) {
+		case *gdate.Precise:
+			return false
+		default:
+			return true
+		}
 	case *gdate.MonthYear:
 		switch o.Date.(type) {
 		case *gdate.Precise:
