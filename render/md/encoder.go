@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -314,7 +315,17 @@ func (e *Content) encodeCitationDetail(c *model.GeneralCitation) string {
 		citationText += " (" + e.EncodeModelLink("more details...", c).String() + ")"
 	} else {
 		if c.URL != nil {
-			citationText = e.EncodeLink(e.EncodeText(citationText), c.URL.URL).String()
+			if c.URL.Title != "" {
+				citationText += " (" + e.EncodeLink(e.EncodeText(c.URL.Title), c.URL.URL).String() + ")"
+			} else {
+				pu, err := url.Parse(c.URL.URL)
+				if err == nil && pu != nil && pu.Host != "" {
+					host := pu.Host
+					citationText += " (" + e.EncodeLink(e.EncodeText(host), c.URL.URL).String() + ")"
+				} else {
+					citationText = e.EncodeLink(e.EncodeText(citationText), c.URL.URL).String()
+				}
+			}
 		}
 	}
 

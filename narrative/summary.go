@@ -585,17 +585,20 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 
 func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool, minimal bool, includeAge bool) T {
 	var empty T
-	var death *model.DeathEvent
+	// var death *model.DeathEvent
 	var bev model.IndividualTimelineEvent
 
 	if p.BestDeathlikeEvent == nil {
 		return empty
 	}
+
+	usingBurial := false
 	switch tev := p.BestDeathlikeEvent.(type) {
 	case *model.DeathEvent:
 		if allowInferred || !tev.IsInferred() {
-			death = tev
+			// death = tev
 			bev = tev
+			usingBurial = false
 		}
 		for _, ev := range p.Timeline {
 			if !ev.DirectlyInvolves(p) {
@@ -604,15 +607,18 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 			if tev, ok := ev.(*model.BurialEvent); ok {
 				if bev == nil || tev.GetDate().SortsBefore(bev.GetDate()) {
 					bev = tev
+					usingBurial = true
 				}
 			} else if tev, ok := ev.(*model.CremationEvent); ok {
 				if bev == nil || tev.GetDate().SortsBefore(bev.GetDate()) {
 					bev = tev
+					usingBurial = true
 				}
 			}
 		}
 	case *model.BurialEvent:
 		bev = tev
+		usingBurial = true
 	}
 
 	if bev == nil {
@@ -628,13 +634,12 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 
 	var para text.Para
 	para.NewSentence(name.String())
-	deathWhat := model.PassiveWhat(bev)
-	if death != nil {
-		deathWhat = DeathWhat(death, p.ModeOfDeath)
-	}
+	// deathWhat := model.PassiveWhat(bev)
+	deathWhat := DeathWhat(bev, p.ModeOfDeath)
+
 	para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(deathWhat, bev.GetDate(), bev.GetPlace(), enc, nc)), bev.GetCitations()).String())
 
-	if includeAge {
+	if includeAge && !usingBurial {
 		if age, ok := p.AgeInYearsAt(bev.GetDate()); ok {
 			if age < 1 {
 				page, ok := p.PreciseAgeAt(bev.GetDate())
