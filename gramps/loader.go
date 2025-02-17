@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -284,4 +285,22 @@ func changeToTime(s string) (time.Time, error) {
 	}
 
 	return time.Unix(int64(sec), 0), nil
+}
+
+func createdTimeFromHandle(h string) (time.Time, error) {
+	if len(h) == 0 {
+		return time.Time{}, errors.New("malformed handle")
+	}
+	if h[0] == '_' {
+		h = h[1:]
+	}
+	if len(h) < 11 {
+		return time.Time{}, errors.New("malformed handle")
+	}
+	n, err := strconv.ParseInt(h[:11], 16, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(n/10000, 0), nil
 }

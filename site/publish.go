@@ -220,20 +220,20 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 	}
 
 	for _, p := range ps.People {
-		if p.LastUpdated != nil && p.LastUpdated.After(ps.LastUpdated) {
-			ps.LastUpdated = *p.LastUpdated
+		if p.UpdateTime != nil && p.UpdateTime.After(ps.LastUpdated) {
+			ps.LastUpdated = *p.UpdateTime
 		}
 	}
 
 	for _, p := range ps.Places {
-		if p.LastUpdated != nil && p.LastUpdated.After(ps.LastUpdated) {
-			ps.LastUpdated = *p.LastUpdated
+		if p.UpdateTime != nil && p.UpdateTime.After(ps.LastUpdated) {
+			ps.LastUpdated = *p.UpdateTime
 		}
 	}
 
 	for _, c := range ps.Citations {
-		if c.LastUpdated != nil && c.LastUpdated.After(ps.LastUpdated) {
-			ps.LastUpdated = *c.LastUpdated
+		if c.UpdateTime != nil && c.UpdateTime.After(ps.LastUpdated) {
+			ps.LastUpdated = *c.UpdateTime
 		}
 	}
 

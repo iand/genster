@@ -19,8 +19,8 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 	doc.Title(p.Name)
 	doc.Layout(PageLayoutPlace.String())
 	doc.Category(PageCategoryPlace)
-	if p.LastUpdated != nil {
-		doc.LastUpdated(*p.LastUpdated)
+	if p.UpdateTime != nil {
+		doc.LastUpdated(*p.UpdateTime)
 	}
 	doc.SetFrontMatterField("placetype", p.PlaceType.String())
 	doc.SetFrontMatterField("buildingkind", p.BuildingKind.String())

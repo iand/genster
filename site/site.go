@@ -37,6 +37,7 @@ const (
 	PageLayoutListPlaces     PageLayout = "listplaces"
 	PageLayoutListSources    PageLayout = "listsources"
 	PageLayoutListSurnames   PageLayout = "listsurnames"
+	PageLayoutListChanges    PageLayout = "listchanges"
 	PageLayoutCalendar       PageLayout = "calendar"
 	PageLayoutTreeOverview   PageLayout = "treeoverview"
 	PageLayoutChartAncestors PageLayout = "chartancestors"
@@ -94,6 +95,7 @@ type Site struct {
 	ListPlacesDir     string
 	ListSourcesDir    string
 	ListSurnamesDir   string
+	ListChangesDir    string
 
 	ChartAncestorsDir string
 	ChartTreesDir     string
@@ -112,6 +114,13 @@ type Site struct {
 
 	// PublishSet is the set of objects that will have pages written
 	PublishSet *PublishSet
+	Changelog  []*Change
+}
+
+type Change struct {
+	Created bool // true if created, false if updated
+	Time    time.Time
+	Object  any
 }
 
 func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
@@ -167,6 +176,7 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		ListPlacesDir:     path.Join(PageSectionList, "places"),
 		ListSourcesDir:    path.Join(PageSectionList, "sources"),
 		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
+		ListChangesDir:    path.Join(PageSectionList, "changes"),
 
 		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
 		ChartTreesDir:     path.Join(PageSectionChart, "trees"),
@@ -554,6 +564,10 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		if err != nil {
 			return fmt.Errorf("render person page: %w", err)
 		}
+		s.AddChangelog(p)
+		for _, ev := range p.Timeline {
+			s.AddChangelog(ev)
+		}
 
 		if err := writePage(d, contentDir, fmt.Sprintf(s.PersonFilePattern, p.ID)); err != nil {
 			return fmt.Errorf("write person page: %w", err)
@@ -579,6 +593,7 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		if err != nil {
 			return fmt.Errorf("render place page: %w", err)
 		}
+		s.AddChangelog(p)
 
 		if err := writePage(d, contentDir, fmt.Sprintf(s.PlaceFilePattern, p.ID)); err != nil {
 			return fmt.Errorf("write place page: %w", err)
@@ -593,6 +608,8 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		if err != nil {
 			return fmt.Errorf("render citation page: %w", err)
 		}
+		s.AddChangelog(c)
+
 		if err := writePage(d, contentDir, fmt.Sprintf(s.CitationFilePattern, c.ID)); err != nil {
 			return fmt.Errorf("write citation page: %w", err)
 		}
@@ -692,7 +709,11 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 	}
 
 	if err := s.WriteGedcom(contentDir); err != nil {
-		return fmt.Errorf("write ancestor chart: %w", err)
+		return fmt.Errorf("write gedcom: %w", err)
+	}
+
+	if err := s.WriteChangelog(contentDir); err != nil {
+		return fmt.Errorf("write change log: %w", err)
 	}
 
 	// if err := s.WriteChartTrees(root); err != nil {
@@ -1429,4 +1450,207 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 		g.Family = append(g.Family, fr)
 	}
 	return g, nil
+}
+
+func (s *Site) AddChangelog(o any) {
+	type createdupdated interface {
+		Created() (time.Time, bool)
+		Updated() (time.Time, bool)
+	}
+
+	switch v := o.(type) {
+	case createdupdated:
+		if created, ok := v.Created(); ok {
+			if updated, ok := v.Updated(); ok {
+				if created.Before(updated) {
+					s.Changelog = append(s.Changelog, &Change{
+						Created: false,
+						Time:    updated,
+						Object:  v,
+					})
+				} else {
+					s.Changelog = append(s.Changelog, &Change{
+						Created: true,
+						Time:    created,
+						Object:  v,
+					})
+				}
+			} else {
+				s.Changelog = append(s.Changelog, &Change{
+					Created: true,
+					Time:    created,
+					Object:  v,
+				})
+			}
+		} else {
+			if updated, ok := v.Updated(); ok {
+				s.Changelog = append(s.Changelog, &Change{
+					Created: false,
+					Time:    updated,
+					Object:  v,
+				})
+			} else {
+				return
+			}
+		}
+	}
+}
+
+func (s *Site) WriteChangelog(root string) error {
+	fname := "index.md"
+	if s.GenerateHugo {
+		fname = "_index.md"
+	}
+
+	sort.Slice(s.Changelog, func(i, j int) bool {
+		return s.Changelog[j].Time.Before(s.Changelog[i].Time)
+	})
+
+	doc := s.NewDocument()
+	doc.Title("Recent updates")
+	doc.Summary("This is a list of recent updates to the tree")
+	doc.Layout(PageLayoutChartAncestors.String())
+
+	count := 0
+	sectiondate := ""
+	changesForObjects := make(map[any][]*Change)
+	for _, c := range s.Changelog {
+		if count > 150 {
+			break
+		}
+		date := c.Time.Format("_2 January 2006")
+		if date != sectiondate {
+			if sectiondate != "" {
+				for obj, chs := range changesForObjects {
+					count++
+
+					uniq := make(map[any]*Change)
+					for _, ch := range chs {
+						uniq[ch.Object] = ch
+					}
+					switch v := obj.(type) {
+					case *model.Person:
+						seen := make(map[string]bool)
+						changes := make([]string, 0, len(chs))
+						for _, ch := range uniq {
+							action := ""
+							text := ""
+							if ch.Created {
+								action = "added"
+							} else {
+								action = "updated"
+							}
+
+							type typer interface {
+								Type() string
+							}
+							switch v := ch.Object.(type) {
+							case typer:
+								text = action + " " + v.Type()
+							}
+
+							if text != "" && !seen[text] {
+								changes = append(changes, text)
+								seen[text] = true
+							}
+						}
+
+						sort.Strings(changes)
+
+						link := doc.EncodeModelLink(doc.EncodeText(v.PreferredUniqueName), v)
+						url := s.LinkFor(v)
+						if url == "" {
+							if v.Father != nil {
+								url = s.LinkFor(v.Father)
+								if url != "" {
+									link = doc.EncodeText(text.AppendAside(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Father.PreferredFullName), v.Father).String())))
+								}
+							}
+							if url == "" && v.Mother != nil {
+								url = s.LinkFor(v.Mother)
+								if url != "" {
+									link = doc.EncodeText(text.AppendAside(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Mother.PreferredFullName), v.Mother).String())))
+								}
+							}
+						}
+						if url != "" {
+							changetext := ""
+							if len(changes) == 0 {
+								// doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Various updates for", link.String()))))
+								continue // Nothing useful to say at the moment
+							} else if len(changes) == 1 {
+								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(changes[0], "for", link.String()))))
+							} else {
+								changetext = " &mdash; " + text.JoinList(changes)
+								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Updates for", link.String(), changetext))))
+							}
+
+						}
+					case *model.Place:
+						if len(chs) > 0 {
+							action := ""
+							if chs[0].Created {
+								action = "Added a new place:"
+							} else {
+								// action = "Various updates to the place"
+								continue // Nothing useful to say at the moment
+							}
+							link := doc.EncodeModelLink(doc.EncodeText(v.NameWithDistrict), v)
+							if !link.IsZero() {
+								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(action, link.String()))))
+							}
+						}
+					case *model.GeneralCitation:
+						if len(chs) > 0 {
+							action := ""
+							if chs[0].Created {
+								action = "Added a new citation:"
+							} else {
+								// action = "Updated citation"
+								continue // Nothing useful to say at the moment
+							}
+							link := doc.EncodeModelLink(doc.EncodeText(v.String()), v)
+							if !link.IsZero() {
+								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(action, link.String()))))
+							}
+						}
+
+					}
+				}
+			}
+			doc.Heading3(doc.EncodeText(date), "")
+			sectiondate = date
+			changesForObjects = make(map[any][]*Change)
+		}
+		switch v := c.Object.(type) {
+		case *model.Person:
+			changesForObjects[c.Object] = append(changesForObjects[c.Object], c)
+		case *model.Place:
+			changesForObjects[c.Object] = append(changesForObjects[c.Object], c)
+		case *model.GeneralCitation:
+			changesForObjects[c.Object] = append(changesForObjects[c.Object], c)
+		case *model.BirthEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.DeathEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.BaptismEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.BurialEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.ProbateEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.OccupationEvent:
+			changesForObjects[v.GetPrincipal()] = append(changesForObjects[v.GetPrincipal()], c)
+		case *model.MarriageEvent:
+			changesForObjects[v.GetHusband()] = append(changesForObjects[v.GetHusband()], c)
+			changesForObjects[v.GetWife()] = append(changesForObjects[v.GetWife()], c)
+		}
+	}
+
+	baseDir := filepath.Join(root, s.ListChangesDir)
+	if err := writePage(doc, baseDir, fname); err != nil {
+		return fmt.Errorf("failed to write change log: %w", err)
+	}
+
+	return nil
 }

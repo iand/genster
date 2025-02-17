@@ -43,7 +43,8 @@ type GeneralCitation struct {
 	EventsCited       []TimelineEvent
 	PeopleCited       []*Person
 	Redacted          bool       // true if the citation's details should be redacted
-	LastUpdated       *time.Time // time of last update, if known
+	UpdateTime        *time.Time // time of last update, if known
+	CreateTime        *time.Time // time of creation
 }
 
 // An ObjectLink is a specification of where to insert a link to an object in some text
@@ -76,6 +77,20 @@ func (c *GeneralCitation) SourceTitle() string {
 		return ""
 	}
 	return c.Source.Title
+}
+
+func (c *GeneralCitation) Created() (time.Time, bool) {
+	if c.CreateTime == nil {
+		return time.Time{}, false
+	}
+	return *c.CreateTime, true
+}
+
+func (c *GeneralCitation) Updated() (time.Time, bool) {
+	if c.UpdateTime == nil {
+		return time.Time{}, false
+	}
+	return *c.UpdateTime, true
 }
 
 type Repository struct {

@@ -68,7 +68,8 @@ type Place struct {
 	Comments      []Text              // comments associated with this place
 	Gallery       []*CitedMediaObject // images and documents associated with the place
 
-	LastUpdated *time.Time // time of last update, if known
+	UpdateTime *time.Time // time of last update, if known
+	CreateTime *time.Time // time of creation
 }
 
 type GeoLocation struct {
@@ -153,6 +154,20 @@ func (p *Place) DescriptivePrefix() string {
 	default:
 		return ""
 	}
+}
+
+func (p *Place) Created() (time.Time, bool) {
+	if p.CreateTime == nil {
+		return time.Time{}, false
+	}
+	return *p.CreateTime, true
+}
+
+func (p *Place) Updated() (time.Time, bool) {
+	if p.UpdateTime == nil {
+		return time.Time{}, false
+	}
+	return *p.UpdateTime, true
 }
 
 func UnknownPlace() *Place {

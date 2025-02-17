@@ -84,8 +84,8 @@ type Person struct {
 	Comments           []Text              // comments associated with this person
 	Gallery            []*CitedMediaObject // images and documents associated with the person
 	Intro              *Text               // introductory note associated with this person
-
-	LastUpdated *time.Time // time of last update
+	UpdateTime         *time.Time          // time of last update
+	CreateTime         *time.Time          // time of creation
 }
 
 func (p *Person) IsUnknown() bool {
@@ -381,6 +381,20 @@ func (p *Person) AllCitations() []*GeneralCitation {
 	}
 
 	return cits
+}
+
+func (p *Person) Created() (time.Time, bool) {
+	if p.CreateTime == nil {
+		return time.Time{}, false
+	}
+	return *p.CreateTime, true
+}
+
+func (p *Person) Updated() (time.Time, bool) {
+	if p.UpdateTime == nil {
+		return time.Time{}, false
+	}
+	return *p.UpdateTime, true
 }
 
 func UnknownPerson() *Person {

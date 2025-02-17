@@ -2,6 +2,7 @@ package model
 
 import (
 	"sort"
+	"time"
 )
 
 type TimelineEvent interface {
@@ -113,6 +114,8 @@ type GeneralEvent struct {
 	Narrative    Text // hand written narrative, if any
 	Attributes   map[string]string
 	MediaObjects []*CitedMediaObject
+	UpdateTime   *time.Time // time of last update, if known
+	CreateTime   *time.Time // time of creation if known
 }
 
 func (e *GeneralEvent) GetDate() *Date {
@@ -180,6 +183,20 @@ func (e *GeneralEvent) What() string {
 		return e.Title
 	}
 	return e.Type()
+}
+
+func (e *GeneralEvent) Created() (time.Time, bool) {
+	if e.CreateTime == nil {
+		return time.Time{}, false
+	}
+	return *e.CreateTime, true
+}
+
+func (e *GeneralEvent) Updated() (time.Time, bool) {
+	if e.UpdateTime == nil {
+		return time.Time{}, false
+	}
+	return *e.UpdateTime, true
 }
 
 // GeneralPartyEvent is a general event involving one individual.

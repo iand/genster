@@ -29,6 +29,16 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 		Attributes: make(map[string]string),
 	}
 
+	changeTime, err := changeToTime(grev.Change)
+	if err == nil {
+		gev.UpdateTime = &changeTime
+	}
+
+	createdTime, err := createdTimeFromHandle(grev.Handle)
+	if err == nil {
+		gev.CreateTime = &createdTime
+	}
+
 	// add shared attributes
 	for _, att := range grev.Attribute {
 		if pval(att.Priv, false) {

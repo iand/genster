@@ -19,7 +19,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 	changeTime, err := changeToTime(gp.Change)
 	if err == nil {
-		p.LastUpdated = &changeTime
+		p.UpdateTime = &changeTime
+	}
+
+	createdTime, err := createdTimeFromHandle(gp.Handle)
+	if err == nil {
+		p.CreateTime = &createdTime
 	}
 
 	if gp.ID != nil {
