@@ -129,6 +129,28 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 			maybeIncludeFamily(f)
 		}
 
+		// Add events concerning children so citations are brought in
+		for _, ch := range p.Children {
+			if ch.Redacted {
+				continue
+			}
+			if ch.BestBirthlikeEvent != nil {
+				ps.Events[ch.BestBirthlikeEvent] = true
+			}
+			if ch.BestDeathlikeEvent != nil {
+				ps.Events[ch.BestDeathlikeEvent] = true
+			}
+			for _, f := range p.Families {
+				if f.BestStartEvent != nil {
+					ps.Events[f.BestStartEvent] = true
+				}
+				if f.BestEndEvent != nil {
+					ps.Events[f.BestEndEvent] = true
+				}
+			}
+
+		}
+
 		includePlacesInTexts(p.ResearchNotes...)
 		includePlacesInTexts(p.Comments...)
 
