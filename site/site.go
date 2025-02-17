@@ -1563,13 +1563,13 @@ func (s *Site) WriteChangelog(root string) error {
 							if v.Father != nil {
 								url = s.LinkFor(v.Father)
 								if url != "" {
-									link = doc.EncodeText(text.AppendAside(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Father.PreferredFullName), v.Father).String())))
+									link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Father.PreferredFullName), v.Father).String())))
 								}
 							}
 							if url == "" && v.Mother != nil {
 								url = s.LinkFor(v.Mother)
 								if url != "" {
-									link = doc.EncodeText(text.AppendAside(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Mother.PreferredFullName), v.Mother).String())))
+									link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Mother.PreferredFullName), v.Mother).String())))
 								}
 							}
 						}
