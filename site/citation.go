@@ -16,6 +16,8 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Document[md.T
 
 	doc.Layout(PageLayoutCitation.String())
 	doc.Category(PageCategoryCitation)
+	doc.SetSitemapDisable()
+
 	if c.UpdateTime != nil {
 		doc.LastUpdated(*c.UpdateTime)
 	}

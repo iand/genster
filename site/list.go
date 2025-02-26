@@ -400,6 +400,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 	doc.Title("Surnames")
 	doc.Summary("This is a full, alphabetical list of the surnames of ancestors in the tree.")
 	doc.Layout(PageLayoutListSurnames.String())
+	doc.SetSitemapDisable()
 
 	alist := make([]md.Text, 0, len(surnames))
 	for _, surname := range surnames {

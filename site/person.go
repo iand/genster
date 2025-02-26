@@ -26,6 +26,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	doc := s.NewDocument()
 	doc.Layout(PageLayoutPerson.String())
 	doc.Category(PageCategoryPerson)
+	doc.SetSitemapDisable()
 	if p.UpdateTime != nil {
 		doc.LastUpdated(*p.UpdateTime)
 	}

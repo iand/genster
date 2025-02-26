@@ -13,6 +13,8 @@ func RenderSourcePage(s *Site, so *model.Source) (render.Document[md.Text], erro
 	// doc.Title(so.Title)
 	doc.Layout(PageLayoutSource.String())
 	doc.Category(PageCategorySource)
+	doc.SetSitemapDisable()
+
 	doc.ID(so.ID)
 
 	doc.Title(so.Title)

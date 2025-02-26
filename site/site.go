@@ -746,6 +746,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Title("Tree Overview")
 	}
 	doc.Layout(PageLayoutTreeOverview.String())
+	doc.SetSitemapDisable()
 
 	fname := "index.md"
 	if s.GenerateHugo {
@@ -981,6 +982,7 @@ func (s *Site) WriteChartAncestors(root string) error {
 	doc.Title("Ancestors of " + s.Tree.KeyPerson.PreferredFamiliarFullName)
 	doc.Summary(text.JoinSentenceParts("This is a full list of ancestors of", doc.EncodeModelLink(doc.EncodeText(s.Tree.KeyPerson.PreferredFamiliarFullName), s.Tree.KeyPerson).String()))
 	doc.Layout(PageLayoutChartAncestors.String())
+	doc.SetSitemapDisable()
 
 	g := 0
 	doc.Heading3("Generation 1", "")
@@ -1082,6 +1084,7 @@ func (s *Site) WriteChartTrees(root string) error {
 	doc.Title("Family Trees")
 	doc.Summary(text.JoinSentenceParts("This is a list of family trees generated for various people"))
 	doc.Layout(PageLayoutChartTrees.String())
+	doc.SetSitemapDisable()
 
 	// index 14-29 are great-great grandparents, only produce chart if they have no known parents
 	for i := 14; i <= 29; i++ {
@@ -1307,6 +1310,8 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 					er.Tag = "BIRT"
 				case *model.BaptismEvent:
 					er.Tag = "BAPM"
+				case *model.NamingEvent:
+					er.Tag = "CHR"
 				default:
 					panic(fmt.Sprintf("unhandled birthlike event type: %T", ev))
 				}
@@ -1510,6 +1515,7 @@ func (s *Site) WriteChangelog(root string) error {
 	doc.Title("Recent updates")
 	doc.Summary("This is a list of recent updates to the tree")
 	doc.Layout(PageLayoutChartAncestors.String())
+	doc.SetSitemapDisable()
 
 	count := 0
 	sectiondate := ""

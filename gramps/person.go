@@ -344,6 +344,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "naming":
+			ev = &model.NamingEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
 		case "death":
 			ev = &model.DeathEvent{
 				GeneralEvent:           gev,

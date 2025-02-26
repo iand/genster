@@ -398,6 +398,29 @@ var (
 	_ IndividualTimelineEvent = (*BaptismEvent)(nil)
 )
 
+// NamingEvent represents the naming of a person in their timeline
+type NamingEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *NamingEvent) Type() string             { return "naming" }
+func (e *NamingEvent) ShortDescription() string { return e.abbrev("name") }
+func (e *NamingEvent) What() string             { return "named" }
+func (e *NamingEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent:
+		return false
+	default:
+		return true
+	}
+}
+
+var (
+	_ TimelineEvent           = (*NamingEvent)(nil)
+	_ IndividualTimelineEvent = (*NamingEvent)(nil)
+)
+
 // DeathEvent represents the death of a person in their timeline
 type DeathEvent struct {
 	GeneralEvent

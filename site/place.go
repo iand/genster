@@ -19,6 +19,8 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 	doc.Title(p.Name)
 	doc.Layout(PageLayoutPlace.String())
 	doc.Category(PageCategoryPlace)
+	doc.SetSitemapDisable()
+
 	if p.UpdateTime != nil {
 		doc.LastUpdated(*p.UpdateTime)
 	}

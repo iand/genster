@@ -42,12 +42,15 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	if s.NameChooser == nil {
 		s.NameChooser = nc
 	}
+
+	birthNarrative := ""
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
 		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
 		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
+
+		birthNarrative = EventNarrativeDetail(s.Principal.BestBirthlikeEvent, enc)
 	}
-	// TODO: position in family
 
 	// Prose parentage
 	parentUnknownDetail := ""
@@ -81,6 +84,11 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	// detail += " "
 	if birth != "" {
 		detail = text.JoinSentenceParts(detail, birth)
+		if birthNarrative != "" {
+			// TODO: this is capitalizing the "was" between the name and the birth
+			// detail = text.JoinSentences(detail, birthNarrative)
+			// detail = text.FinishSentence(detail)
+		}
 		if parentDetail != "" {
 			detail = text.AppendClause(detail, parentDetail)
 		}

@@ -115,6 +115,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 			doc := s.NewDocument()
 			doc.Title(fmt.Sprintf("%s (page %d of %d)", title, idx, len(pages)))
 			doc.Layout(layout.String())
+			doc.SetSitemapDisable()
 
 			if idx > 1 {
 				doc.SetFrontMatterField(md.MarkdownTagFirstPage, fmt.Sprintf("%02d", 1))
@@ -149,6 +150,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 			doc.Summary(summary)
 		}
 		doc.Layout(layout.String())
+		doc.SetSitemapDisable()
 
 		var group string
 		var list []md.Text
@@ -183,6 +185,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 			doc.Summary(summary)
 		}
 		doc.Layout(layout.String())
+		doc.SetSitemapDisable()
 		doc.SetBody(pages[0].Content)
 		if err := writePage(doc, baseDir, indexPage); err != nil {
 			return fmt.Errorf("failed to write paginated index: %w", err)

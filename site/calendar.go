@@ -96,6 +96,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 	doc.Title(fmt.Sprintf("On this day in %s", monthNames[month]))
 	doc.Layout(PageLayoutCalendar.String())
 	doc.SetFrontMatterField("month", monthNames[month])
+	doc.SetSitemapDisable()
 
 	sort.Slice(eventDays, func(i, j int) bool {
 		if eventDays[i].day == eventDays[j].day {

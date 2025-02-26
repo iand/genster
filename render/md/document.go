@@ -34,6 +34,7 @@ const (
 	MarkdownTagLinks       = "links"
 	MarkdownTagDescendants = "descendants"
 	MarkdownTagLastMod     = "lastmod"
+	MarkdownTagSitemap     = "sitemap"
 )
 
 type LinkBuilder interface {
@@ -99,6 +100,25 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 					}
 					bb.WriteString("\n")
 				}
+			case map[string]string:
+				bb.WriteString("\n")
+
+				for subkey, subval := range tv {
+					bb.WriteString("  ")
+
+					if safeString.MatchString(subkey) && !numericString.MatchString(subkey) {
+						bb.WriteString(subkey)
+					} else {
+						bb.WriteString(fmt.Sprintf("%q", subkey))
+					}
+					bb.WriteString(": ")
+					if safeString.MatchString(subval) && !numericString.MatchString(subval) {
+						bb.WriteString(subval)
+					} else {
+						bb.WriteString(fmt.Sprintf("%q", subval))
+					}
+					bb.WriteString("\n")
+				}
 			case []map[string]string:
 				bb.WriteString("\n")
 				for _, v := range tv {
@@ -148,43 +168,83 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 	return n, nil
 }
 
-func (b *Document) SetFrontMatterField(k, v string) {
+// setFrontMatterFieldDict for setting a key on a scalar field
+// for example
+//
+//	field: v
+func (b *Document) SetFrontMatterField(field, v string) {
 	if b.frontMatter == nil {
 		b.frontMatter = make(map[string]any)
 	}
-	b.frontMatter[k] = v
+	b.frontMatter[field] = v
 }
 
-func (b *Document) appendFrontMatterField(k, v string) {
+// setFrontMatterFieldDict for setting a key on a dict field
+// for example
+//
+//	field:
+//	  key1: val1
+//	  key2: val2
+func (b *Document) setFrontMatterFieldDict(field, k, v string) {
 	if b.frontMatter == nil {
 		b.frontMatter = make(map[string]any)
 	}
 
-	val, ok := b.frontMatter[k]
+	val, ok := b.frontMatter[field]
 	if !ok {
-		b.frontMatter[k] = []string{v}
+		b.frontMatter[field] = map[string]string{k: v}
+		return
+	}
+
+	ss := val.(map[string]string)
+	ss[k] = v
+	b.frontMatter[field] = ss
+}
+
+// appendFrontMatterField for setting a key on a list field
+// for example
+//
+//	field:
+//	- val1
+//	- val2
+func (b *Document) appendFrontMatterField(field, v string) {
+	if b.frontMatter == nil {
+		b.frontMatter = make(map[string]any)
+	}
+
+	val, ok := b.frontMatter[field]
+	if !ok {
+		b.frontMatter[field] = []string{v}
 		return
 	}
 
 	ss := val.([]string)
 	ss = append(ss, v)
-	b.frontMatter[k] = ss
+	b.frontMatter[field] = ss
 }
 
-func (b *Document) appendFrontMatterFieldDict(k string, v map[string]string) {
+// appendFrontMatterField for setting a key on a field that is a list of dicts
+// for example
+//
+//	field:
+//	- key1: val1
+//	  key2: val2
+//	- key1: val3
+//	  key2: val4
+func (b *Document) appendFrontMatterFieldDict(field string, m map[string]string) {
 	if b.frontMatter == nil {
 		b.frontMatter = make(map[string]any)
 	}
 
-	val, ok := b.frontMatter[k]
+	val, ok := b.frontMatter[field]
 	if !ok {
-		b.frontMatter[k] = []map[string]string{v}
+		b.frontMatter[field] = []map[string]string{m}
 		return
 	}
 
 	ms := val.([]map[string]string)
-	ms = append(ms, v)
-	b.frontMatter[k] = ms
+	ms = append(ms, m)
+	b.frontMatter[field] = ms
 }
 
 func (b *Document) Title(s string) {
@@ -277,4 +337,8 @@ func (b *Document) Comment(s string) {
 
 func (b *Document) PageBreak() {
 	// NOOP
+}
+
+func (b *Document) SetSitemapDisable() {
+	b.setFrontMatterFieldDict(MarkdownTagSitemap, "disable", "1")
 }
