@@ -117,7 +117,7 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			}
 			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
 
-			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", s.Principal.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations).String())
+			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 			twinClause = true
 			break
 		}

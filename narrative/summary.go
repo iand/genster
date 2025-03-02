@@ -502,7 +502,7 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 				continue
 			}
 			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-			para.NewSentence(p.Gender.SubjectPronoun(), "was the twin to", p.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations).String())
+			para.NewSentence(p.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 		}
 	}
 
@@ -576,7 +576,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 				continue
 			}
 			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-			para.Continue(text.UpperFirst(p.Gender.SubjectPronoun()), "was the twin to", p.Gender.PossessivePronounSingular(), as.Other.Gender.RelationToSiblingNoun(), enc.EncodeWithCitations(twinLink, as.Citations).String())
+			para.Continue(text.UpperFirst(p.Gender.SubjectPronoun()), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 		}
 	}
 
