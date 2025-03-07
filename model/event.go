@@ -590,6 +590,21 @@ var (
 	_ IndividualTimelineEvent = (*ArrivalEvent)(nil)
 )
 
+// ImmigrationEvent represents the immigration of a person to a new country of residence
+type ImmigrationEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *ImmigrationEvent) Type() string             { return "immigration" }
+func (e *ImmigrationEvent) ShortDescription() string { return e.abbrev("imm") }
+func (e *ImmigrationEvent) What() string             { return "immigrated" }
+
+var (
+	_ TimelineEvent           = (*ImmigrationEvent)(nil)
+	_ IndividualTimelineEvent = (*ImmigrationEvent)(nil)
+)
+
 // OccupationEvent represents the the recording of a person's occupation
 type OccupationEvent struct {
 	GeneralEvent

@@ -553,6 +553,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "immigration":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.ImmigrationEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
 		default:
 			// TODO:
 			// Economic Status
@@ -678,6 +686,16 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		case "twin":
 			assoc := model.Association{
 				Kind:  model.AssociationKindTwin,
+				Other: other,
+			}
+			if len(pr.Citationref) > 0 {
+				assoc.Citations, _ = l.parseCitationRecords(m, pr.Citationref, logger)
+			}
+
+			p.Associations = append(p.Associations, assoc)
+		case "dna":
+			assoc := model.Association{
+				Kind:  model.AssociationKindDNA,
 				Other: other,
 			}
 			if len(pr.Citationref) > 0 {

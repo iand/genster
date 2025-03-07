@@ -436,13 +436,33 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 	}
 
+	var immPhrases []string
+
+	for _, ev := range p.Timeline {
+		switch tev := ev.(type) {
+		case *model.ImmigrationEvent:
+			if tev.GetPlace().IsUnknown() {
+				continue
+			}
+
+			when, ok := ev.GetDate().WhenYear()
+			if !ok {
+				continue
+			}
+			immPhrases = append(immPhrases, enc.EncodeWithCitations(enc.EncodeText(fmt.Sprintf("%s %s", tev.GetPlace().Name, when)), tev.GetCitations()).String())
+		}
+	}
+
+	if len(immPhrases) > 0 {
+		para.NewSentence("emigrated to", text.JoinList(immPhrases))
+	}
+
 	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal, includeAgeAtDeathIfKnown)
 	if !death.IsZero() {
 		para.NewSentence(death.String())
 	}
 
 	// TODO: life events
-	// marriages
 	// emigration
 	// imprisonment
 

@@ -24,6 +24,7 @@ type AssociationKind string
 
 const (
 	AssociationKindTwin AssociationKind = "twin"
+	AssociationKindDNA  AssociationKind = "DNA"
 )
 
 type Association struct {
