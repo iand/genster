@@ -392,6 +392,11 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		if p.NickName != "" {
 			name = enc.EncodeText(text.JoinSentenceParts(name.String(), fmt.Sprintf("(known as %s)", p.NickName)))
 		}
+
+	}
+
+	if p.Olb != "" {
+		name = enc.EncodeText(text.AppendAside(name.String(), p.Olb))
 	}
 
 	includeAgeAtDeathIfKnown := true

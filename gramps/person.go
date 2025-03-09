@@ -245,6 +245,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				p.ModeOfDeath = model.ModeOfDeathDrowned
 			case "executed", "execution":
 				p.ModeOfDeath = model.ModeOfDeathExecuted
+			case "childbirth":
+				p.ModeOfDeath = model.ModeOfDeathChildbirth
 			default:
 				logger.Warn("unhandled mode of death attribute", "type", att.Type, "value", att.Value)
 			}
@@ -266,6 +268,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Slug = att.Value
 		case "olb":
 			p.Olb = att.Value
+		case "died in childbirth":
+			p.ModeOfDeath = model.ModeOfDeathChildbirth
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
 		}
