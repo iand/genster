@@ -23,6 +23,7 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 	var identityMapFilename string
 	var gazeteerFilename string
 	var annotationsFilename string
+	var surnamesFilename string
 	if configDir != "" {
 		if err := os.MkdirAll(configDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create config directory: %w", err)
@@ -30,6 +31,7 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 		identityMapFilename = filepath.Join(configDir, "identitymap.json")
 		gazeteerFilename = filepath.Join(configDir, "gazeteer.json")
 		annotationsFilename = filepath.Join(configDir, "annotations.json")
+		surnamesFilename = filepath.Join(configDir, "surnames.json")
 	}
 
 	im, err := LoadIdentityMap(identityMapFilename)
@@ -48,7 +50,13 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load annotations: %w", err)
 	}
 
-	t := NewTree(id, im, g, a)
+	// Surname groupings are only read by genster, never written
+	sg, err := LoadSurnameGroups(surnamesFilename)
+	if err != nil {
+		return nil, fmt.Errorf("load surname groupings: %w", err)
+	}
+
+	t := NewTree(id, im, g, a, sg)
 
 	if err := loader.Load(t); err != nil {
 		return nil, fmt.Errorf("load data: %w", err)

@@ -15,35 +15,37 @@ import (
 )
 
 type Tree struct {
-	ID           string
-	Name         string
-	Description  string
-	IdentityMap  *IdentityMap
-	Gazeteer     *Gazeteer
-	Annotations  *Annotations
-	People       map[string]*model.Person
-	Citations    map[string]*model.GeneralCitation
-	Sources      map[string]*model.Source
-	Repositories map[string]*model.Repository
-	Places       map[string]*model.Place
-	Families     map[string]*model.Family
-	MediaObjects map[string]*model.MediaObject
-	KeyPerson    *model.Person
+	ID            string
+	Name          string
+	Description   string
+	IdentityMap   *IdentityMap
+	Gazeteer      *Gazeteer
+	Annotations   *Annotations
+	SurnameGroups *SurnameGroups
+	People        map[string]*model.Person
+	Citations     map[string]*model.GeneralCitation
+	Sources       map[string]*model.Source
+	Repositories  map[string]*model.Repository
+	Places        map[string]*model.Place
+	Families      map[string]*model.Family
+	MediaObjects  map[string]*model.MediaObject
+	KeyPerson     *model.Person
 }
 
-func NewTree(id string, m *IdentityMap, g *Gazeteer, a *Annotations) *Tree {
+func NewTree(id string, m *IdentityMap, g *Gazeteer, a *Annotations, sg *SurnameGroups) *Tree {
 	return &Tree{
-		ID:           id,
-		IdentityMap:  m,
-		Gazeteer:     g,
-		Annotations:  a,
-		People:       make(map[string]*model.Person),
-		Citations:    make(map[string]*model.GeneralCitation),
-		Sources:      make(map[string]*model.Source),
-		Repositories: make(map[string]*model.Repository),
-		Places:       make(map[string]*model.Place),
-		Families:     make(map[string]*model.Family),
-		MediaObjects: make(map[string]*model.MediaObject),
+		ID:            id,
+		IdentityMap:   m,
+		Gazeteer:      g,
+		Annotations:   a,
+		SurnameGroups: sg,
+		People:        make(map[string]*model.Person),
+		Citations:     make(map[string]*model.GeneralCitation),
+		Sources:       make(map[string]*model.Source),
+		Repositories:  make(map[string]*model.Repository),
+		Places:        make(map[string]*model.Place),
+		Families:      make(map[string]*model.Family),
+		MediaObjects:  make(map[string]*model.MediaObject),
 	}
 }
 
@@ -688,7 +690,9 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 		}
 	}
 
-	if p.FamilyNameGrouping == "" {
+	if g, ok := t.SurnameGroups.surnames[p.PreferredFamilyName]; ok {
+		p.FamilyNameGrouping = g.String()
+	} else {
 		p.FamilyNameGrouping = p.PreferredFamilyName
 	}
 
