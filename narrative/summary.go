@@ -608,6 +608,15 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	return enc.EncodeText(para.Text())
 }
 
+type DeathSummarizer struct {
+	DeathEvent        *model.DeathEvent
+	BurialEvent       *model.BurialEvent
+	CremationEvent    *model.CremationEvent
+	ModeOfDeath       model.ModeOfDeath
+	CauseOfDeath      *model.Fact
+	AgeInYearsAtDeath int
+}
+
 func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, activeTense bool, minimal bool, includeAge bool) T {
 	var empty T
 	// var death *model.DeathEvent
