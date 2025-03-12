@@ -55,7 +55,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	// Prose parentage
 	parentUnknownDetail := ""
 	parentDetail := ""
-	parentageDetailPrefix := "the " + PositionInFamily(s.Principal) + " of "
+	rel := PositionInFamily(s.Principal)
+	if rel == "" {
+		rel = text.LowerFirst(s.Principal.Gender.RelationToParentNoun())
+	}
+
+	parentageDetailPrefix := "the " + rel + " of "
 	if s.Principal.Father.IsUnknown() {
 		if s.Principal.Mother.IsUnknown() {
 			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"

@@ -1,5 +1,10 @@
 package model
 
+import (
+	"strconv"
+	"strings"
+)
+
 const (
 	FamilyBondMarried         = "married"
 	FamilyBondUnmarried       = "unmarried"
@@ -14,8 +19,7 @@ const (
 )
 
 type Family struct {
-	ID string // canonical id
-	// Page                string   // path to page in site
+	ID                    string   // canonical id
 	Tags                  []string // tags to add to the family's page
 	PreferredUniqueName   string   // name used to identify the family
 	PreferredFullName     string   // full name using full legal names of parents in family
@@ -33,6 +37,9 @@ type Family struct {
 	Bond           string  // the kind of bond between the parents in the family
 	EndReason      string  // the reason the family unit ended
 	EndDeathPerson *Person // the person whose death ended the family unit, if any
+
+	NumberOfChildren NumberOfChildren
+	AllChildrenKnown bool // true if the list of children should be considered a complete list
 
 	PublishChildren bool // true if this family's children should always be included in the publish set
 	Unknown         bool
@@ -60,4 +67,52 @@ func (f *Family) IsUnknown() bool {
 		return true
 	}
 	return f.Unknown
+}
+
+type NumberOfChildren string
+
+const NumberOfChildrenUnknown NumberOfChildren = ""
+
+func ParseNumberOfChildren(v string) (NumberOfChildren, error) {
+	if v == "" {
+		return NumberOfChildrenUnknown, nil
+	}
+
+	n := NumberOfChildren(v)
+	if strings.HasSuffix(v, "+") {
+		v = v[:len(v)-1]
+	}
+	if _, err := strconv.Atoi(v); err != nil {
+		return NumberOfChildrenUnknown, err
+	}
+
+	return n, nil
+}
+
+func (n NumberOfChildren) IsUnknown() bool {
+	return n == NumberOfChildrenUnknown
+}
+
+func (n NumberOfChildren) IsZero() bool {
+	return n == "0"
+}
+
+func (n NumberOfChildren) Number() int {
+	if n == NumberOfChildrenUnknown {
+		return 0
+	}
+	if strings.HasSuffix(string(n), "+") {
+		n = n[:len(n)-1]
+	}
+	if v, err := strconv.Atoi(string(n)); err == nil {
+		return v
+	}
+	return 0
+}
+
+func (n NumberOfChildren) IsLowerBound() bool {
+	if n == NumberOfChildrenUnknown {
+		return false
+	}
+	return strings.HasSuffix(string(n), "+")
 }

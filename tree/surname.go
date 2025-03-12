@@ -57,8 +57,6 @@ func (sg *SurnameGroups) UnmarshalJSON(data []byte) error {
 			g.Names = append(g.Names, n)
 		}
 		sg.surnames[canonical] = g
-
-		slog.Warn("name group", "canonical", g.Surname, "names", strings.Join(g.Names, ", "))
 	}
 
 	return nil

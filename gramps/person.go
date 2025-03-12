@@ -31,7 +31,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		p.GrampsID = *gp.ID
 	}
 
-	logger := logging.With("id", p.ID)
+	logger := logging.With("source", "person", "id", p.ID, "native_id", id)
 	logger.Debug("populating from person record", "handle", gp.Handle)
 
 	if len(gp.Name) == 0 {

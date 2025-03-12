@@ -10,11 +10,11 @@ import (
 
 func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error {
 	id := pval(fr.ID, fr.Handle)
+	fam := m.FindFamily(l.ScopeName, id)
 
-	logger := logging.With("source", "family", "id", id)
+	logger := logging.With("source", "family", "id", fam.ID, "native_id", id)
 	logger.Debug("populating from family record")
 
-	fam := m.FindFamily(l.ScopeName, id)
 	if fr.Rel != nil {
 		switch fr.Rel.Type {
 		case "Married":
@@ -219,19 +219,37 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 				pl.Timeline = append(pl.Timeline, ev)
 			}
 		}
+	}
 
-		for _, tref := range fr.Tagref {
-			tag, ok := l.TagsByHandle[tref.Hlink]
-			if !ok {
-				logger.Warn("could not find tag", "hlink", tref.Hlink)
-				continue
-			}
-			switch strings.ToLower(tag.Name) {
-			case "publish":
-				fam.PublishChildren = true
-			}
+	// Add attributes
+	for _, att := range fr.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping attribute marked as private", "type", att.Type)
+			continue
 		}
+		switch strings.ToLower(att.Type) {
+		case "number of children":
+			n, err := model.ParseNumberOfChildren(att.Value)
+			if err != nil {
+				logger.Warn("could not parse number of children", "error", err.Error(), "handle", fr.Handle)
+				break
+			}
+			fam.NumberOfChildren = n
+		case "all children known":
+			fam.AllChildrenKnown = true
+		}
+	}
 
+	for _, tref := range fr.Tagref {
+		tag, ok := l.TagsByHandle[tref.Hlink]
+		if !ok {
+			logger.Warn("could not find tag", "hlink", tref.Hlink)
+			continue
+		}
+		switch strings.ToLower(tag.Name) {
+		case "publish":
+			fam.PublishChildren = true
+		}
 	}
 
 	return nil

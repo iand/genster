@@ -128,70 +128,7 @@ func (l *Loader) indexObjects() error {
 	return nil
 }
 
-// func (l *Loader) readAttrs() error {
-// 	// Look for an ancestry tree identifier
-// 	if l.Gedcom.Header.SourceSystem.BusinessName == "Ancestry.com" {
-// 		for _, hud := range l.Gedcom.Header.SourceSystem.UserDefined {
-// 			if hud.Tag == "_TREE" {
-// 				if hud.Value != "" {
-// 					l.Attrs["ANCESTRY_TREE_NAME"] = hud.Value
-// 				}
-// 				for _, tud := range hud.UserDefined {
-// 					if tud.Value != "" {
-// 						switch tud.Tag {
-// 						case "RIN":
-// 							l.Attrs["ANCESTRY_TREE_ID"] = tud.Value
-// 						case "NOTE":
-// 							l.Attrs["ANCESTRY_TREE_NOTE"] = tud.Value
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-// func (l *Loader) readTags() error {
-// 	// Look for ancestry style tags using _MTTAG
-// 	for _, ud := range l.Gedcom.UserDefined {
-// 		if ud.Tag != "_MTTAG" {
-// 			continue
-// 		}
-// 		for _, uds := range ud.UserDefined {
-// 			if uds.Tag == "NAME" {
-// 				l.Tags[ud.Xref] = uds.Value
-// 				break
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }
-
 func (l *Loader) Load(t *tree.Tree) error {
-	// if name, ok := l.Attrs["ANCESTRY_TREE_NAME"]; ok {
-	// 	t.Name = name
-	// }
-	// if desc, ok := l.Attrs["ANCESTRY_TREE_NOTE"]; ok {
-	// 	t.Description = desc
-	// }
-
-	// for _, mr := range l.Gedcom.Media {
-	// 	if err := l.populateMediaFacts(t, mr); err != nil {
-	// 		return fmt.Errorf("media: %w", err)
-	// 	}
-	// }
-	// logging.Info(fmt.Sprintf("loaded %d media records", len(l.Gedcom.Media)))
-
-	// for _, sr := range l.Gedcom.Source {
-	// 	if err := l.populateSourceFacts(t, sr); err != nil {
-	// 		return fmt.Errorf("source: %w", err)
-	// 	}
-	// }
-	// logging.Info(fmt.Sprintf("loaded %d source records", len(l.Gedcom.Source)))
-
 	for _, o := range l.DB.Objects.Object {
 		if err := l.populateObjectFacts(t, &o); err != nil {
 			return fmt.Errorf("object: %w", err)

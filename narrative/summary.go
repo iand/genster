@@ -305,11 +305,19 @@ func PositionInFamily(p *model.Person) string {
 		children = p.ParentFamily.Children
 	}
 	if len(children) == 0 {
-		return ""
+		return text.LowerFirst(p.Gender.RelationToParentNoun())
 	}
 
 	if len(children) == 1 {
-		return "only " + text.LowerFirst(p.Gender.RelationToParentNoun())
+		if p.ParentFamily.AllChildrenKnown {
+			return "only " + text.LowerFirst(p.Gender.RelationToParentNoun())
+		}
+
+		return "only known " + text.LowerFirst(p.Gender.RelationToParentNoun())
+	}
+
+	if !p.ParentFamily.AllChildrenKnown {
+		return ""
 	}
 
 	if children[0].SameAs(p) {
