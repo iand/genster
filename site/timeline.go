@@ -21,7 +21,7 @@ func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc
 
 	logger := logging.Default()
 	if !pov.Person.IsUnknown() {
-		logger = logger.With("id", pov.Person.ID)
+		logger = logger.With("id", pov.Person.ID, "native_id", pov.Person.NativeID)
 	}
 
 	monthNames := []string{
@@ -59,6 +59,14 @@ func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc
 		if y, m, d, ok := dt.YMD(); ok {
 			sy = strconv.Itoa(y)
 			sd = fmt.Sprintf("%d %s", d, monthNames[m])
+		} else if dt.Span {
+			switch d := dt.Date.(type) {
+			case *gdate.YearRange:
+				sy = d.String()
+				sd = ""
+			default:
+				logger.Warn("timeline: unsupported date span", "type", fmt.Sprintf("%T", d), "value", d.String(), "event", fmt.Sprintf("%T", ev))
+			}
 		} else {
 			switch d := dt.Date.(type) {
 			case *gdate.BeforeYear:

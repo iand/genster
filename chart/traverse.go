@@ -1,6 +1,8 @@
 package chart
 
 import (
+	"strings"
+
 	"github.com/iand/genster/model"
 	"github.com/iand/gtree"
 )
@@ -55,6 +57,53 @@ func ancestors(p *model.Person, seq *sequence, generation int, maxGeneration int
 		}
 		if p.Mother != nil {
 			tp.Mother = ancestors(p.Mother, seq, generation+1, maxGeneration, personDetailFn)
+		}
+	}
+	return tp
+}
+
+func butterflyAncestors(p *model.Person, seq *sequence, generation int, maxGeneration int) *gtree.ButterflyPerson {
+	tp := &gtree.ButterflyPerson{
+		ID:        seq.next(),
+		Forenames: p.PreferredGivenName,
+		Surname:   strings.ToUpper(p.PreferredFamilyName),
+	}
+	if len(tp.Forenames) > 13 {
+		tp.Forenames = p.PreferredFamiliarName
+	}
+
+	appendPlace := func(name string, ev model.TimelineEvent) string {
+		if !ev.GetPlace().IsUnknown() && !ev.GetPlace().Country.IsUnknown() {
+			if !ev.GetPlace().Region.IsUnknown() && ev.GetPlace().Country.Name == "England" {
+				return name + ", " + ev.GetPlace().Region.Name
+			} else {
+				return name + ", " + ev.GetPlace().Country.Name
+			}
+		}
+		return name
+	}
+
+	if generation < 7 {
+		if p.BestBirthlikeEvent != nil {
+			tp.DetailLine1 = appendPlace(model.AbbrevWhatWhen(p.BestBirthlikeEvent), p.BestBirthlikeEvent)
+			if p.BestDeathlikeEvent != nil {
+				tp.DetailLine2 = appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent)
+			}
+		} else {
+			if p.BestDeathlikeEvent != nil {
+				tp.DetailLine1 = appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent)
+			}
+		}
+	} else {
+		tp.DetailLine1 = p.VitalYears
+	}
+
+	if generation < maxGeneration {
+		if p.Father != nil {
+			tp.Father = butterflyAncestors(p.Father, seq, generation+1, maxGeneration)
+		}
+		if p.Mother != nil {
+			tp.Mother = butterflyAncestors(p.Mother, seq, generation+1, maxGeneration)
 		}
 	}
 	return tp

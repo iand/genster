@@ -244,3 +244,9 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 	ch.Root = ancestors(startPerson, new(sequence), 1, depth+1, personDetailFn)
 	return ch, nil
 }
+
+func BuildButterflyChart(t *tree.Tree, startPerson *model.Person) (*gtree.ButterflyChart, error) {
+	ch := new(gtree.ButterflyChart)
+	ch.Root = butterflyAncestors(startPerson, new(sequence), 1, 7)
+	return ch, nil
+}

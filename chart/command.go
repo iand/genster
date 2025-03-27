@@ -23,6 +23,7 @@ func checkFlags(cc *cli.Context) error {
 	switch chartopts.chartType {
 	case "descendant":
 	case "ancestor":
+	case "butterfly":
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 	}
@@ -196,6 +197,7 @@ func chartCmd(cc *cli.Context) error {
 		return fmt.Errorf("person with id %s not found", chartopts.startPersonID)
 	}
 
+	var output string
 	var lay gtree.Layout
 	switch chartopts.chartType {
 	case "descendant":
@@ -220,6 +222,11 @@ func chartCmd(cc *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
+		output, err = gtree.SVG(lay)
+		if err != nil {
+			return fmt.Errorf("render SVG: %w", err)
+		}
+
 	case "ancestor":
 		ch, err := BuildAncestorChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.compact)
 		if err != nil {
@@ -250,24 +257,49 @@ func chartCmd(cc *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
+		output, err = gtree.SVG(lay)
+		if err != nil {
+			return fmt.Errorf("render SVG: %w", err)
+		}
+
+	case "butterfly":
+		ch, err := BuildButterflyChart(t, startPerson)
+		if err != nil {
+			return fmt.Errorf("build ancestor chart: %w", err)
+		}
+
+		ch.TitleLine1 = "Ancestors of "
+
+		if startPerson.Father != nil {
+			ch.TitleLine2 = startPerson.Father.PreferredFamiliarFullName
+			if startPerson.Mother != nil {
+				ch.TitleLine2 += " and " + startPerson.Mother.PreferredFamiliarFullName
+			}
+		} else if startPerson.Mother != nil {
+			ch.TitleLine2 = startPerson.Mother.PreferredFamiliarFullName
+		}
+
+		ch.Note = time.Now().Format("Created by Ian Davis on _2 January 2006")
+
+		opts := gtree.DefaultButterflyLayoutOptions()
+
+		output, err = ch.RenderSVG(opts)
+		if err != nil {
+			return fmt.Errorf("render SVG: %w", err)
+		}
 
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 
 	}
 
-	s, err := gtree.SVG(lay)
-	if err != nil {
-		return fmt.Errorf("render SVG: %w", err)
-	}
-
 	if chartopts.outputFilename != "" {
-		err = os.WriteFile(chartopts.outputFilename, []byte(s), 0o666)
+		err = os.WriteFile(chartopts.outputFilename, []byte(output), 0o666)
 		if err != nil {
 			return fmt.Errorf("failed writing output file: %w", err)
 		}
 	} else {
-		fmt.Println(s)
+		fmt.Println(output)
 	}
 
 	return nil

@@ -14,10 +14,11 @@ const (
 
 type Person struct {
 	ID                        string    // canonical identifier
+	NativeID                  string    // identifier in database this person was found in
 	Tags                      []string  // tags to add to the person's page
 	PreferredFullName         string    // full legal name
 	PreferredGivenName        string    // name that can be used in prose, usually the first names without the family name
-	PreferredFamiliarName     string    // name that can be used in prose, usually just the first name or a nickname
+	PreferredFamiliarName     string    // name that can be used in prose, usually just the first name or a nickname plus family name
 	PreferredFamiliarFullName string    // full name using just the first name or a nickname
 	PreferredFamilyName       string    // family name, or surname
 	PreferredSortName         string    // name organised for sorting, generally as surname, forenames

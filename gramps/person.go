@@ -16,6 +16,7 @@ var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
 func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error {
 	id := pval(gp.ID, gp.Handle)
 	p := m.FindPerson(l.ScopeName, id)
+	p.NativeID = id
 
 	changeTime, err := changeToTime(gp.Change)
 	if err == nil {

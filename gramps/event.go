@@ -528,13 +528,13 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 
 func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 	if dr.Cformat != nil {
-		return nil, fmt.Errorf("date Cformat not supported")
+		return nil, fmt.Errorf("date range Cformat not supported")
 	}
 	if dr.Dualdated != nil {
-		return nil, fmt.Errorf("date Dualdated not supported")
+		return nil, fmt.Errorf("date range Dualdated not supported")
 	}
 	if dr.Newyear != nil {
-		return nil, fmt.Errorf("date Newyear not supported")
+		return nil, fmt.Errorf("date range Newyear not supported")
 	}
 
 	// Quality:
@@ -677,7 +677,76 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 }
 
 func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
-	return nil, fmt.Errorf("unsupported span: %s to %s", ds.Start, ds.Stop)
+	if ds.Cformat != nil {
+		return nil, fmt.Errorf("date span Cformat not supported")
+	}
+	if ds.Dualdated != nil {
+		return nil, fmt.Errorf("date span Dualdated not supported")
+	}
+	if ds.Newyear != nil {
+		return nil, fmt.Errorf("date span Newyear not supported")
+	}
+
+	// Quality:
+	// - Regular
+	// - Estimated
+	// - Calculated
+	var deriv model.DateDerivation
+	if ds.Quality != nil {
+		switch strings.ToLower(*ds.Quality) {
+		case "regular":
+			deriv = model.DateDerivationStandard
+		case "estimated":
+			deriv = model.DateDerivationEstimated
+		case "calculated":
+			deriv = model.DateDerivationCalculated
+		default:
+			return nil, fmt.Errorf("quality value %q not supported", *ds.Quality)
+
+		}
+	}
+
+	// Currently only support year spans
+	dp := &gdate.Parser{}
+
+	dstart, err := dp.Parse(ds.Start)
+	if err != nil {
+		return nil, fmt.Errorf("parse start value %q: %w", ds.Start, err)
+	}
+
+	var mystart *gdate.Year
+	switch tstart := dstart.(type) {
+	case *gdate.Year:
+		mystart = tstart
+	}
+
+	if mystart == nil {
+		return nil, fmt.Errorf("parse start value %q: unsupported start date type", ds.Start)
+	}
+
+	dstop, err := dp.Parse(ds.Stop)
+	if err != nil {
+		return nil, fmt.Errorf("parse stop value %q: %w", ds.Stop, err)
+	}
+	var mystop *gdate.Year
+	switch tstop := dstop.(type) {
+	case *gdate.Year:
+		mystop = tstop
+	}
+
+	if mystop == nil {
+		return nil, fmt.Errorf("parse stop value %q: unsupported stop date type", ds.Stop)
+	}
+
+	return &model.Date{
+		Date: &gdate.YearRange{
+			C:     mystart.C,
+			Lower: mystart.Y,
+			Upper: mystop.Y,
+		},
+		Derivation: deriv,
+		Span:       true,
+	}, nil
 }
 
 func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.ResidenceRecordedEvent {

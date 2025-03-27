@@ -1338,6 +1338,8 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 					er.Tag = "BURI"
 				case *model.CremationEvent:
 					er.Tag = "CREM"
+				case *model.ProbateEvent:
+					er.Tag = "PROB"
 				default:
 					panic(fmt.Sprintf("unhandled deathlike event type: %T", ev))
 				}

@@ -12,6 +12,11 @@ import (
 type Date struct {
 	Date       gdate.Date
 	Derivation DateDerivation
+
+	// Span indicates whethe this date is a span of time
+	// when true the date represents a span of time during which something continuously occurred (such as a residing at an address)
+	// when false it represents a range of time during which a discrete event occurred
+	Span bool
 }
 
 type DateDerivation int
@@ -83,9 +88,18 @@ func AfterYear(y int) *Date {
 	}
 }
 
+// YearRange returns a date that represents a range of time between two years, including the upper and lower year.
 func YearRange(l, u int) *Date {
 	return &Date{
 		Date: &gdate.YearRange{Lower: l, Upper: u},
+	}
+}
+
+// YearSpan returns a date that represents a span of time between two years, including the upper and lower year.
+func YearSpan(l, u int) *Date {
+	return &Date{
+		Date: &gdate.YearRange{Lower: l, Upper: u},
+		Span: true,
 	}
 }
 
@@ -382,6 +396,10 @@ func (d *Date) Gedcom() string {
 		prefix = "EST "
 	case DateDerivationCalculated:
 		prefix = "CAL "
+	}
+
+	if d.Span {
+		panic("unsupported span date type in Gedcom conversion")
 	}
 
 	switch dt := d.Date.(type) {

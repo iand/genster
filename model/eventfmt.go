@@ -40,10 +40,14 @@ func AbbrevWhen(ev TimelineEvent) string {
 		return "unk."
 	}
 
-	qual := dt.Derivation.Abbrev()
-	if qual != "" {
-		qual += " "
+	var qual string
+	if dt.Derivation != DateDerivationStandard {
+		qual = "abt. "
 	}
+	// qual := dt.Derivation.Abbrev()
+	// if qual != "" {
+	// 	qual += " "
+	// }
 
 	return qual + dt.Date.String()
 }
