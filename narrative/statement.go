@@ -219,17 +219,13 @@ func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 	other := s.Family.OtherParent(s.Principal)
-
-	// Special cases for single parents
-	if s.Family.Bond == model.FamilyBondUnmarried || s.Family.Bond == model.FamilyBondLikelyUnmarried {
-		if other.IsUnknown() {
-			s.renderIllegitimate(seq, intro, enc, nc)
-			return
-		}
-		s.renderUnmarried(seq, intro, enc, nc)
-		return
-	} else if other.IsUnknown() {
+	if other.IsUnknown() {
 		s.renderUnknownPartner(seq, intro, enc, nc)
+		return
+	}
+
+	if s.Family.Bond == model.FamilyBondUnmarried || s.Family.Bond == model.FamilyBondLikelyUnmarried {
+		s.renderUnmarried(seq, intro, enc, nc)
 		return
 	}
 
@@ -424,7 +420,7 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 	return childList
 }
 
-func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
+func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
 	// unmarried and the other parent is not known
 	if len(s.Family.Children) == 0 {
 		// no children so nothing to say
@@ -442,6 +438,7 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 	oneChild := len(s.Family.Children) == 1
 	isMother := s.Principal.Gender == model.GenderFemale
 	childFirmBirthdate := isFirmBirthdate(s.Family.Children[0].BestBirthlikeEvent)
+	useBirthDateInIntro := childFirmBirthdate
 
 	var detail text.Para
 
@@ -449,16 +446,20 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 		c := s.Family.Children[0]
 		if childFirmBirthdate {
 			// this form: "At the age of thirty-four, Annie gave birth to a"
-			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
-			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			if c.BestBirthlikeEvent != nil {
+				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
+				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			}
 			detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
 			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
 			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
 
 		} else {
 			// this form: "At the age of thirty-four, Annie had a"
-			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
-			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			if c.BestBirthlikeEvent != nil {
+				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
+				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			}
 			detail.Continue("had a", c.Gender.RelationToParentNoun())
 			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
 			detail.Continue("who")
@@ -482,7 +483,50 @@ func (s *FamilyStatement[T]) renderIllegitimate(seq int, intro *IntroGenerator[T
 			enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
 		}
 	} else {
-		panic(fmt.Sprintf("Not implemented: renderIllegitimate where person has more than one child or is the father (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
+		if oneChild {
+			c := s.Family.Children[0]
+			// this form: "At the age of thirty-four, Gerald had a"
+			if c.BestBirthlikeEvent != nil {
+				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), useBirthDateInIntro))
+				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			}
+			detail.Continue(ChooseFrom(seq,
+				"had a child",
+				"had a "+c.Gender.RelationToParentNoun(),
+			))
+			if !c.Redacted {
+				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
+			}
+			detail.FinishSentence()
+
+			if c.Redacted {
+				enc.Para(enc.EncodeText(detail.Text()))
+			} else {
+				detail.FinishSentenceWithTerminator(":–")
+				enc.Para(enc.EncodeText(detail.Text()))
+				enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
+			}
+
+		} else {
+			c := s.Family.Children[0]
+			if c.BestBirthlikeEvent != nil {
+				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+			}
+
+			childCardinal := ChildCardinal(s.Family.Children)
+			detail.Continue("had", childCardinal)
+
+			childList := ChildList(s.Family.Children, enc, nc)
+			if len(childList) == 0 {
+				enc.Para(enc.EncodeText(detail.Text()))
+				return
+			}
+
+			detail.FinishSentenceWithTerminator(":–")
+			enc.Para(enc.EncodeText(detail.Text()))
+			enc.UnorderedList(childList)
+
+		}
 	}
 }
 
@@ -563,11 +607,6 @@ func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], 
 		enc.UnorderedList(childList)
 
 	}
-}
-
-func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	// married or unknown relationship but the other parent is unknown
-	// panic(fmt.Sprintf("Not implemented: renderUnknownPartner (id=%s, name=%s)", s.Principal.ID, s.Principal.PreferredUniqueName))
 }
 
 type FamilyEndStatement[T render.EncodedText] struct {
@@ -695,7 +734,6 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	if !bev.GetPlace().IsUnknown() {
 		pl := bev.GetPlace()
 		evDetail = WhatWherePov(evDetail, pl, enc, nc, intro.POV)
-		// evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.ProseName), enc.EncodeText(pl.NameWithDistrict), pl).String())
 	}
 
 	burialRunOnSentence := true

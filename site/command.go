@@ -116,6 +116,12 @@ var Command = &cli.Command{
 			Value:       "any",
 			Destination: &genopts.relation,
 		},
+		&cli.BoolFlag{
+			Name:        "experiment-families",
+			Usage:       "Enable experimental family pages.",
+			Value:       true,
+			Destination: &genopts.experimentFamilies,
+		},
 	}, logging.Flags...),
 }
 
@@ -138,6 +144,7 @@ var genopts struct {
 	veryverbose        bool
 	relation           string
 	debug              bool
+	experimentFamilies bool
 }
 
 func gen(cc *cli.Context) error {
@@ -193,6 +200,7 @@ func gen(cc *cli.Context) error {
 	s := NewSite(genopts.basePath, genopts.generateHugo, t)
 	s.IncludePrivate = genopts.includePrivate
 	s.IncludeDebugInfo = genopts.debug
+	s.ExperimentFamilies = genopts.experimentFamilies
 	s.GenerateWikiTree = genopts.generateWikiTree
 
 	// Look for key individual, assume id is a genster id first

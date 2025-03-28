@@ -27,12 +27,10 @@ func sortStatements[T render.EncodedText](ss []Statement[T]) {
 	})
 }
 
-func (n *FamilyNarrative[T]) Render(b render.ContentBuilder[T]) {
+func (n *FamilyNarrative[T]) Render(b render.ContentBuilder[T], nc NameChooser) {
 	sortStatements(n.FatherStatements)
 	sortStatements(n.MotherStatements)
 	sortStatements(n.FamilyStatements)
-
-	nc := &DefaultNameChooser{}
 
 	father := n.Family.Father
 	mother := n.Family.Mother

@@ -29,6 +29,7 @@ const (
 	PageLayoutPerson         PageLayout = "person"
 	PageLayoutPlace          PageLayout = "place"
 	PageLayoutSource         PageLayout = "source"
+	PageLayoutFamily         PageLayout = "family"
 	PageLayoutCitation       PageLayout = "citation"
 	PageLayoutListInferences PageLayout = "listinferences"
 	PageLayoutListAnomalies  PageLayout = "listanomalies"
@@ -38,6 +39,7 @@ const (
 	PageLayoutListSources    PageLayout = "listsources"
 	PageLayoutListSurnames   PageLayout = "listsurnames"
 	PageLayoutListChanges    PageLayout = "listchanges"
+	PageLayoutListFamilies   PageLayout = "listfamilies"
 	PageLayoutCalendar       PageLayout = "calendar"
 	PageLayoutTreeOverview   PageLayout = "treeoverview"
 	PageLayoutChartAncestors PageLayout = "chartancestors"
@@ -54,6 +56,7 @@ const (
 	PageSectionList     = "list"
 	PageSectionChart    = "chart"
 	PageSectionMedia    = "media"
+	PageSectionFamily   = "family"
 )
 
 const (
@@ -61,6 +64,7 @@ const (
 	PageCategoryCitation = "citation"
 	PageCategorySource   = "source"
 	PageCategoryPlace    = "place"
+	PageCategoryFamily   = "family"
 )
 
 type Site struct {
@@ -77,8 +81,9 @@ type Site struct {
 	CitationDir         string
 	CitationLinkPattern string
 	CitationFilePattern string
-	FamilyLinkPattern   string
 	CalendarLinkPattern string
+	FamilyDir           string
+	FamilyLinkPattern   string
 	FamilyFilePattern   string
 	PlaceDir            string
 	PlaceLinkPattern    string
@@ -96,6 +101,7 @@ type Site struct {
 	ListSourcesDir    string
 	ListSurnamesDir   string
 	ListChangesDir    string
+	ListFamiliesDir   string
 
 	ChartAncestorsDir string
 	ChartTreesDir     string
@@ -103,7 +109,7 @@ type Site struct {
 
 	IncludePrivate     bool
 	IncludeDebugInfo   bool
-	TimelineExperiment bool
+	ExperimentFamilies bool
 
 	GenerateHugo bool
 
@@ -147,6 +153,7 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		CitationLinkPattern: path.Join(baseURL, PageSectionCitation, "/%s/"),
 		CitationFilePattern: path.Join(PageSectionCitation, "/%s/", indexPage),
 
+		FamilyDir:         PageSectionFamily,
 		FamilyLinkPattern: path.Join(baseURL, "family/%s/"),
 		FamilyFilePattern: path.Join("/family/%s/", indexPage),
 
@@ -177,6 +184,7 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		ListSourcesDir:    path.Join(PageSectionList, "sources"),
 		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
 		ListChangesDir:    path.Join(PageSectionList, "changes"),
+		ListFamiliesDir:   path.Join(PageSectionList, "families"),
 
 		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
 		ChartTreesDir:     path.Join(PageSectionChart, "trees"),
@@ -615,6 +623,22 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		}
 	}
 
+	if s.ExperimentFamilies {
+		for _, f := range s.PublishSet.Families {
+			if s.LinkFor(f) == "" {
+				continue
+			}
+			d, err := RenderFamilyPage(s, f)
+			if err != nil {
+				return fmt.Errorf("render family page: %w", err)
+			}
+
+			if err := writePage(d, contentDir, fmt.Sprintf(s.FamilyFilePattern, f.ID)); err != nil {
+				return fmt.Errorf("write citation page: %w", err)
+			}
+		}
+	}
+
 	// Not publishing sources at this time
 	// for _, so := range s.PublishSet.Sources {
 	// 	if s.LinkFor(so) == "" {
@@ -677,6 +701,12 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 
 	if err := s.WritePlaceListPages(contentDir); err != nil {
 		return fmt.Errorf("write place list pages: %w", err)
+	}
+
+	if s.ExperimentFamilies {
+		if err := s.WriteFamilyListPages(contentDir); err != nil {
+			return fmt.Errorf("write family list pages: %w", err)
+		}
 	}
 
 	// Not publishing sources at this time

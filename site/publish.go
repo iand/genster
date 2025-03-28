@@ -125,9 +125,9 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		}
 
 		maybeIncludeFamily(p.ParentFamily)
-		for _, f := range p.Families {
-			maybeIncludeFamily(f)
-		}
+		// for _, f := range p.Families {
+		// 	maybeIncludeFamily(f)
+		// }
 
 		// Add events concerning children so citations are brought in
 		for _, ch := range p.Children {

@@ -415,3 +415,30 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	return nil
 }
+
+func (s *Site) WriteFamilyListPages(root string) error {
+	baseDir := filepath.Join(root, s.ListFamiliesDir)
+	pn := NewPaginator()
+	pn.HugoStyle = s.GenerateHugo
+	for _, f := range s.PublishSet.Families {
+		if s.LinkFor(f) == "" {
+			continue
+		}
+		// if f.Redacted {
+		// 	logging.Debug("not writing redacted family to anomalies index", "id", p.ID)
+		// 	continue
+		// }
+		items := make([][2]md.Text, 0)
+		b := s.NewMarkdownBuilder()
+		items = append(items, [2]md.Text{
+			b.EncodeModelLink(b.EncodeText(f.PreferredUniqueName), f),
+		})
+		b.DefinitionList(items)
+		pn.AddEntry(f.PreferredUniqueName+"~"+f.ID, f.PreferredUniqueName, b.String())
+
+	}
+	if err := pn.WritePages(s, baseDir, PageLayoutListFamilies, "Families", "This is a full, alphabetical list of families in the tree."); err != nil {
+		return err
+	}
+	return nil
+}

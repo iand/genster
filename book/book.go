@@ -389,7 +389,7 @@ func (b *Book) AddFamilyChapter(f *model.Family) error {
 	// Later relationships of mother
 
 	n := b.BuildFamilyNarrative(f)
-	n.Render(enc)
+	n.Render(enc, nc)
 	// enc.Image("/home/iand/Documents/genealogy/images/people/chambers-family/James Hall (1917), No 2.jpg", "James Hall (1917)")
 	// enc.Figure("/home/iand/Documents/genealogy/images/people/chambers-family/James Hall (1917), No 2.jpg", "James Hall (1917)", "James Hall (1917)", nil)
 
