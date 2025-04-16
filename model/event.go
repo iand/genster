@@ -1043,6 +1043,38 @@ func (e *AnnulmentEvent) SortsBefore(other TimelineEvent) bool {
 	}
 }
 
+// PossibleBirthEvent represents an indirect and unproven record of the birth of a person in their timeline
+type PossibleBirthEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *PossibleBirthEvent) Type() string                         { return "possible birth" }
+func (e *PossibleBirthEvent) ShortDescription() string             { return e.abbrev("poss. b") }
+func (e *PossibleBirthEvent) What() string                         { return "possibly born" }
+func (e *PossibleBirthEvent) SortsBefore(other TimelineEvent) bool { return true }
+
+var (
+	_ TimelineEvent           = (*PossibleBirthEvent)(nil)
+	_ IndividualTimelineEvent = (*PossibleBirthEvent)(nil)
+)
+
+// PossibleDeathEvent represents an indirect and unproven record of the death of a person in their timeline
+type PossibleDeathEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *PossibleDeathEvent) Type() string                         { return "possible death" }
+func (e *PossibleDeathEvent) ShortDescription() string             { return e.abbrev("poss. d") }
+func (e *PossibleDeathEvent) What() string                         { return "possibly died" }
+func (e *PossibleDeathEvent) SortsBefore(other TimelineEvent) bool { return true }
+
+var (
+	_ TimelineEvent           = (*PossibleDeathEvent)(nil)
+	_ IndividualTimelineEvent = (*PossibleDeathEvent)(nil)
+)
+
 type EventMatcher func(TimelineEvent) bool
 
 // FilterEventList returns a new slice that includes only the events that match the

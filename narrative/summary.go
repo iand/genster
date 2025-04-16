@@ -412,9 +412,9 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	if age, ok := p.AgeInYearsAtDeath(); ok && age < 14 {
 		if !name.IsZero() {
 			if age < 1 {
-				para.NewSentence(name.String(), " died in infancy")
+				para.StartSentence(name.String(), " died in infancy")
 			} else {
-				para.NewSentence(name.String(), fmt.Sprintf(" died age %s, ", text.CardinalNoun(age)))
+				para.StartSentence(name.String(), fmt.Sprintf(" died age %s, ", text.CardinalNoun(age)))
 			}
 			includeAgeAtDeathIfKnown = false
 			name = empty
@@ -422,7 +422,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		}
 
 		if p.BestBirthlikeEvent != nil && p.BestDeathlikeEvent != nil && p.BestBirthlikeEvent.GetPlace().SameAs(p.BestDeathlikeEvent.GetPlace()) {
-			para.NewSentence(YoungPersonOnePlaceSummary(p, enc, nc, name, includeBirth, includeParentage, activeTense, linkname, minimal).String())
+			para.StartSentence(YoungPersonOnePlaceSummary(p, enc, nc, name, includeBirth, includeParentage, activeTense, linkname, minimal).String())
 			return enc.EncodeText(para.Text())
 		}
 	}
@@ -430,7 +430,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	if includeBirth {
 		birth := PersonBirthSummary(p, enc, nc, name, true, true, includeParentage, activeTense)
 		if !birth.IsZero() {
-			para.NewSentence(birth.String())
+			para.StartSentence(birth.String())
 			if activeTense {
 				name = empty
 			} else {
@@ -441,7 +441,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 
 	marrs := PersonMarriageSummary(p, enc, nc, name, false, activeTense)
 	if !marrs.IsZero() {
-		para.NewSentence(marrs.String())
+		para.StartSentence(marrs.String())
 		if activeTense {
 			name = empty
 		} else {
@@ -467,12 +467,12 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	}
 
 	if len(immPhrases) > 0 {
-		para.NewSentence("emigrated to", text.JoinList(immPhrases))
+		para.StartSentence("emigrated to", text.JoinList(immPhrases))
 	}
 
 	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal, includeAgeAtDeathIfKnown)
 	if !death.IsZero() {
-		para.NewSentence(death.String())
+		para.StartSentence(death.String())
 	}
 
 	// TODO: life events
@@ -492,7 +492,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	}
 
 	if finalDetail != "" {
-		para.NewSentence(p.Gender.SubjectPronoun(), finalDetail)
+		para.StartSentence(p.Gender.SubjectPronoun(), finalDetail)
 	}
 
 	return enc.EncodeText(para.Text())
@@ -500,7 +500,7 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 
 func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
 	var para text.Para
-	para.NewSentence(name.String())
+	para.StartSentence(name.String())
 
 	var death *model.DeathEvent
 
@@ -535,7 +535,7 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 				continue
 			}
 			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-			para.NewSentence(p.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
+			para.StartSentence(p.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 		}
 	}
 
@@ -584,7 +584,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	}
 
 	var para text.Para
-	para.NewSentence(name.String())
+	para.StartSentence(name.String())
 
 	if includeBirthDate {
 		if birth != nil {
@@ -675,7 +675,7 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	}
 
 	var para text.Para
-	para.NewSentence(name.String())
+	para.StartSentence(name.String())
 	// deathWhat := model.PassiveWhat(bev)
 	deathWhat := DeathWhat(bev, p.ModeOfDeath)
 
@@ -697,7 +697,7 @@ func PersonDeathSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	}
 
 	if p.CauseOfDeath != nil && !minimal {
-		para.NewSentence(p.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(p.CauseOfDeath.Detail), p.CauseOfDeath.Citations).String())
+		para.StartSentence(p.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(p.CauseOfDeath.Detail), p.CauseOfDeath.Citations).String())
 	}
 
 	return enc.EncodeText(para.Text())
@@ -753,7 +753,7 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 	}
 
 	var para text.Para
-	para.NewSentence(name.String())
+	para.StartSentence(name.String())
 	para.Continue(text.JoinList(marrs))
 	return enc.EncodeText(para.Text())
 }

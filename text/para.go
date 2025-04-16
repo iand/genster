@@ -55,10 +55,10 @@ func (p *Para) join(ss ...string) string {
 	return str
 }
 
-// NewSentence begins a new sentence by finishing any existing sentence and combining
+// StartSentence begins a new sentence by finishing any existing sentence and combining
 // the strings into text which becomes the current sentence. No punctuation or
 // formatting is performed on the new sentence.
-func (p *Para) NewSentence(ss ...string) {
+func (p *Para) StartSentence(ss ...string) {
 	p.FinishSentence()
 	p.Continue(ss...)
 }
@@ -68,7 +68,7 @@ func (p *Para) NewSentence(ss ...string) {
 // of a new sentence.
 func (p *Para) AddCompleteSentence(ss ...string) {
 	p.FinishSentence()
-	p.NewSentence(ss...)
+	p.StartSentence(ss...)
 	p.FinishSentence()
 }
 
@@ -83,12 +83,14 @@ func (p *Para) DropSentence() {
 // ReplaceSentence replaces the current sentence with s
 func (p *Para) ReplaceSentence(s string) {
 	p.DropSentence()
-	p.NewSentence(s)
+	p.StartSentence(s)
 }
 
-// FinishSentence completes the current sentence, terminating it with a full stop
-// and leaves the paragraph ready for the next one.
-func (p *Para) FinishSentence() {
+// FinishSentence completes the current sentence, It combines the supplied strings into
+// text which are added the current sentence and it then terminates the sentence with a
+// full stop and leaves the paragraph ready for the next one.
+func (p *Para) FinishSentence(ss ...string) {
+	p.Continue(ss...)
 	p.FinishSentenceWithTerminator(".")
 }
 

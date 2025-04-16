@@ -196,6 +196,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 	}
 
+	var literacyFact *model.Fact
+
 	// Add attributes
 	for _, att := range gp.Attribute {
 		if pval(att.Priv, false) {
@@ -271,9 +273,49 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Olb = att.Value
 		case "died in childbirth":
 			p.ModeOfDeath = model.ModeOfDeathChildbirth
+		case "could sign name":
+			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			const detailCouldSign = "could sign their name"
+			const detailCouldNotSign = "could not sign their name"
+			const detailBoth = "could sign their name at times"
+			switch strings.ToLower(att.Value) {
+			case "yes":
+				if literacyFact == nil {
+					literacyFact = &model.Fact{
+						Category:  model.FactCategoryLiteracy,
+						Detail:    detailCouldSign,
+						Citations: cits,
+					}
+				} else {
+					literacyFact.Citations = append(literacyFact.Citations, cits...)
+					if literacyFact.Detail == detailCouldNotSign {
+						literacyFact.Detail = detailBoth
+					}
+				}
+			case "no":
+				if literacyFact == nil {
+					literacyFact = &model.Fact{
+						Category:  model.FactCategoryLiteracy,
+						Detail:    detailCouldNotSign,
+						Citations: cits,
+					}
+				} else {
+					literacyFact.Citations = append(literacyFact.Citations, cits...)
+					if literacyFact.Detail == detailCouldSign {
+						literacyFact.Detail = detailBoth
+					}
+				}
+			default:
+				logger.Error("unsupported value for attribute", "type", att.Type, "value", att.Value)
+			}
+
 		default:
 			logger.Warn("unhandled person attribute", "type", att.Type, "value", att.Value)
 		}
+	}
+
+	if literacyFact != nil {
+		p.MiscFacts = append(p.MiscFacts, *literacyFact)
 	}
 
 	// Add tags
@@ -563,6 +605,22 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				gev.Title = desc
 			}
 			ev = &model.ImmigrationEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "possible birth":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.PossibleBirthEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "possible death":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.PossibleDeathEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}

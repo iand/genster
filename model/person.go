@@ -1,6 +1,7 @@
 package model
 
 import (
+	"log/slog"
 	"sort"
 	"time"
 
@@ -396,6 +397,13 @@ func (p *Person) Updated() (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return *p.UpdateTime, true
+}
+
+func (p *Person) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("id", p.ID),
+		slog.String("name", p.PreferredUniqueName))
+	// return slog.StringValue(p.ID)
 }
 
 func UnknownPerson() *Person {

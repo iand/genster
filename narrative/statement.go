@@ -29,6 +29,7 @@ type Statement[T render.EncodedText] interface {
 type IntroStatement[T render.EncodedText] struct {
 	Principal           *model.Person
 	Baptisms            []*model.BaptismEvent
+	PossibleBirths      []*model.PossibleBirthEvent
 	SuppressRelation    bool
 	NameChooser         NameChooser
 	IncludeMedia        bool
@@ -41,6 +42,11 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	var birth string
 	if s.NameChooser == nil {
 		s.NameChooser = nc
+	}
+
+	if s.Principal.BestBirthlikeEvent == nil {
+		_ = s.RenderDetailUnknown(seq, intro, enc, nc)
+		return
 	}
 
 	birthNarrative := ""
@@ -86,7 +92,6 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		detail = text.JoinSentenceParts(detail, "(known as "+s.Principal.NickName+")")
 	}
 
-	// detail += " "
 	if birth != "" {
 		detail = text.JoinSentenceParts(detail, birth)
 		if birthNarrative != "" {
@@ -145,13 +150,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	}
 
-	// ---------------------------------------
-	// Prose relation to key person
-	// ---------------------------------------
-	if !s.SuppressRelation {
-		if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
-			detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronoun()) + " is " + enc.EncodeModelLink(enc.EncodeText(text.MaybePossessiveSuffix(s.Principal.RelationToKeyPerson.From.PreferredFamiliarName)), s.Principal.RelationToKeyPerson.From).String() + " " + s.Principal.RelationToKeyPerson.Name()
-		}
+	// TODO: clean up this hack by using Para throughout
+	var para text.Para
+	s.AddRelationToKeyPerson(&para, enc)
+	reltext := para.Text()
+	if reltext != "" {
+		detail += " " + reltext
 	}
 
 	detail = text.FinishSentence(detail)
@@ -189,6 +193,48 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		}
 		bapDetail = text.FinishSentence(text.JoinSentenceParts(intro.Pronoun(seq, s.Start(), s.Principal), bapDetail))
 		enc.Para(enc.EncodeText(bapDetail))
+	}
+}
+
+func (s *IntroStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) error {
+	var para text.Para
+	para.AddCompleteSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
+	if len(s.PossibleBirths) > 0 {
+		list := []string{}
+		hasCitation := false
+		for _, ev := range s.PossibleBirths {
+			list = append(list, enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(ev, enc, nc, intro.POV)), ev.GetCitations()).String())
+			if len(ev.GetCitations()) > 0 {
+				hasCitation = true
+			}
+		}
+		if hasCitation {
+			para.StartSentence("however, there is some evidence that")
+		} else {
+			para.StartSentence("it's possible that")
+		}
+		para.Continue(s.Principal.Gender.SubjectPronounWithLink(), "born")
+		para.FinishSentence(text.JoinListOr(list))
+
+	}
+	s.AddRelationToKeyPerson(&para, enc)
+	enc.Para(enc.EncodeText(para.Text()))
+	return nil
+}
+
+func (s *IntroStatement[T]) AddRelationToKeyPerson(para *text.Para, enc render.ContentBuilder[T]) {
+	// ---------------------------------------
+	// Prose relation to key person
+	// ---------------------------------------
+	if !s.SuppressRelation {
+		if s.Principal.RelationToKeyPerson != nil && !s.Principal.RelationToKeyPerson.IsSelf() {
+			para.AddCompleteSentence(
+				s.Principal.Gender.SubjectPronoun(),
+				"is",
+				enc.EncodeModelLink(enc.EncodeText(text.MaybePossessiveSuffix(s.Principal.RelationToKeyPerson.From.PreferredFamiliarName)), s.Principal.RelationToKeyPerson.From).String(),
+				s.Principal.RelationToKeyPerson.Name(),
+			)
+		}
 	}
 }
 
@@ -232,7 +278,7 @@ func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 	// from here, both partners are known
 
 	var detail text.Para
-	detail.NewSentence(text.UpperFirst(intro.Default(seq, s.Start())))
+	detail.StartSentence(text.UpperFirst(intro.Default(seq, s.Start())))
 
 	action := ""
 	switch s.Family.Bond {
@@ -634,15 +680,15 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 	end := ""
 	switch s.Family.EndReason {
 	case model.FamilyEndReasonDivorce:
-		detail.NewSentence(s.Principal.PreferredFamiliarName, "and", other.PreferredFamiliarName, "divorced", endDate.When())
+		detail.StartSentence(s.Principal.PreferredFamiliarName, "and", other.PreferredFamiliarName, "divorced", endDate.When())
 	case model.FamilyEndReasonDeath:
 		name := s.Principal.Gender.PossessivePronounSingular() + " " + other.Gender.RelationToSpouseNoun()
 		if !other.IsUnknown() {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
-		detail.NewSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(name), true, false, true, true).String())
+		detail.StartSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(name), true, false, true, true).String())
 		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
-			detail.NewSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
+			detail.StartSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		}
 	case model.FamilyEndReasonUnknown:
 		// TODO: format FamilyEndReasonUnknown
@@ -678,6 +724,7 @@ func (s *FamilyEndStatement[T]) Priority() int {
 
 type DeathStatement[T render.EncodedText] struct {
 	Principal               *model.Person
+	PossibleDeaths          []*model.PossibleDeathEvent
 	ExcludeSurvivingPartner bool
 	IncludeMedia            bool
 	CropMediaHighlights     bool
@@ -687,6 +734,10 @@ var _ Statement[md.Text] = (*DeathStatement[md.Text])(nil)
 
 func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
 	var detail string
+	if s.Principal.BestDeathlikeEvent == nil {
+		_ = s.RenderDetailUnknown(seq, intro, enc, nc)
+		return
+	}
 
 	bev := s.Principal.BestDeathlikeEvent
 
@@ -858,8 +909,33 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	if s.IncludeMedia && bev != nil {
 		// TODO: handle error
-		MediaObjectsAsFigures(bev.GetMediaObjects(), enc, s.CropMediaHighlights)
+		_ = MediaObjectsAsFigures(bev.GetMediaObjects(), enc, s.CropMediaHighlights)
 	}
+}
+
+func (s *DeathStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) error {
+	var para text.Para
+	para.StartSentence("the time and place of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death is not known")
+	if len(s.PossibleDeaths) > 0 {
+		list := []string{}
+		hasCitation := false
+		for _, ev := range s.PossibleDeaths {
+			list = append(list, enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(ev, enc, nc, intro.POV)), ev.GetCitations()).String())
+			if len(ev.GetCitations()) > 0 {
+				hasCitation = true
+			}
+		}
+		if hasCitation {
+			para.StartSentence("however, there is some evidence that")
+		} else {
+			para.StartSentence("it's possible that")
+		}
+		para.Continue(s.Principal.Gender.SubjectPronoun(), "died")
+		para.FinishSentence(text.JoinListOr(list))
+
+	}
+	enc.Para(enc.EncodeText(para.Text()))
+	return nil
 }
 
 func (s *DeathStatement[T]) Start() *model.Date {
@@ -902,9 +978,9 @@ func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 
 	if narrative != "" {
 		var detail text.Para
-		detail.NewSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+		detail.StartSentence(intro.Pronoun(seq, s.Start(), s.Principal))
 		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWherePov(fmt.Sprintf("%s recorded in the %d census", intro.WasWere(s.Principal), year), s.Event.GetPlace(), enc, nc, intro.POV)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
-		detail.NewSentence(narrative)
+		detail.StartSentence(narrative)
 		detail.FinishSentence()
 		enc.Para(enc.EncodeText(detail.Text()))
 		return
@@ -924,7 +1000,7 @@ func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 		fmt.Sprintf("in the %d census %s %s living", year, intro.Pronoun(seq, s.Start(), s.Principal), intro.WasWere(s.Principal)),
 	)
 
-	detail.NewSentence(enc.EncodeWithCitations(enc.EncodeText(WhatWherePov(what, s.Event.GetPlace(), enc, nc, intro.POV)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
+	detail.StartSentence(enc.EncodeWithCitations(enc.EncodeText(WhatWherePov(what, s.Event.GetPlace(), enc, nc, intro.POV)), s.Event.GetCitations()).String()) // fmt.Sprintf("in the %d census", year)
 
 	var spouse *model.CensusEntry
 	var father *model.CensusEntry
@@ -1066,11 +1142,11 @@ func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 	case *model.IndividualNarrativeEvent:
 	default:
 		// prepend an intro
-		detail.NewSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+		detail.StartSentence(intro.Pronoun(seq, s.Start(), s.Principal))
 		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(s.Event, enc, nc, intro.POV)), s.Event.GetCitations()).String())
 	}
 
-	detail.NewSentence(narrative)
+	detail.StartSentence(narrative)
 	detail.FinishSentence()
 
 	// enc.ParaWithFigure(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations()), "/trees/cg/media/6V7KWAJR2LCVK.png", "alt text", "this is a caption")
@@ -1113,15 +1189,15 @@ func (s *ChildrenStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], e
 
 	if s.Family.Father.IsUnknown() {
 		if s.Family.Mother.IsUnknown() {
-			detail.NewSentence("They")
+			detail.StartSentence("They")
 		} else {
-			detail.NewSentence(s.Family.Mother.PreferredGivenName)
+			detail.StartSentence(s.Family.Mother.PreferredGivenName)
 		}
 	} else {
 		if s.Family.Mother.IsUnknown() {
-			detail.NewSentence(s.Family.Father.PreferredGivenName)
+			detail.StartSentence(s.Family.Father.PreferredGivenName)
 		} else {
-			detail.NewSentence("They")
+			detail.StartSentence("They")
 		}
 	}
 

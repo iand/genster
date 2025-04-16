@@ -337,11 +337,11 @@ func (b *Book) AddFamilyChapter(f *model.Family) error {
 	default:
 	}
 	if f.Father.IsUnknown() {
-		para.NewSentence(enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
+		para.StartSentence(enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
 	} else if f.Father.IsUnknown() {
-		para.NewSentence(enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
+		para.StartSentence(enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
 	} else {
-		para.NewSentence(enc.EncodeModelLink(enc.EncodeText(f.Father.PreferredFullName), f.Father).String(), "and", enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
+		para.StartSentence(enc.EncodeModelLink(enc.EncodeText(f.Father.PreferredFullName), f.Father).String(), "and", enc.EncodeModelLink(enc.EncodeText(f.Mother.PreferredFullName), f.Mother).String(), what)
 	}
 
 	enc.Para(enc.EncodeText(para.Text()))
@@ -352,15 +352,15 @@ func (b *Book) AddFamilyChapter(f *model.Family) error {
 
 		if f.Father.IsUnknown() {
 			if f.Mother.IsUnknown() {
-				detail.NewSentence("They")
+				detail.StartSentence("They")
 			} else {
-				detail.NewSentence(f.Mother.PreferredGivenName)
+				detail.StartSentence(f.Mother.PreferredGivenName)
 			}
 		} else {
 			if f.Mother.IsUnknown() {
-				detail.NewSentence(f.Father.PreferredGivenName)
+				detail.StartSentence(f.Father.PreferredGivenName)
 			} else {
-				detail.NewSentence("They")
+				detail.StartSentence("They")
 			}
 		}
 
@@ -576,7 +576,7 @@ func PersonIntro[T render.EncodedText](p *model.Person, enc render.TextEncoder[T
 	var para text.Para
 	birth := narrative.PersonBirthSummary(p, enc, nc, name, true, true, true, false)
 	if !birth.IsZero() {
-		para.NewSentence(birth.String())
+		para.StartSentence(birth.String())
 		name = enc.EncodeText(p.Gender.SubjectPronoun())
 	}
 	return enc.EncodeText(para.Text())

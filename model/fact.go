@@ -11,12 +11,13 @@ const (
 	FactCategoryMilitaryServiceNumber = "Military service number"
 	FactCategorySeamansTicket         = "Seaman's ticket"
 	FactCategoryCauseOfDeath          = "Cause of death"
+	FactCategoryLiteracy              = "Literacy"
 )
 
 type Fact struct {
 	Category  string
 	Detail    string
-	Comment   string // an explanatatory comment to be used alongside or as a footnote to the title
+	Comment   string // an explanatatory comment to be used alongside or as a footnote to the detail
 	Citations []*GeneralCitation
 }
 

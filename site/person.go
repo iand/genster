@@ -154,6 +154,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	intro := &narrative.IntroStatement[md.Text]{
 		Principal: p,
 	}
+	death := &narrative.DeathStatement[md.Text]{
+		Principal: p,
+	}
 	for _, ev := range p.Timeline {
 		switch tev := ev.(type) {
 		case *model.BaptismEvent:
@@ -176,6 +179,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		case *model.DeathEvent:
 		case *model.BurialEvent:
 		case *model.CremationEvent:
+		case *model.PossibleBirthEvent:
+			intro.PossibleBirths = append(intro.PossibleBirths, tev)
+		case *model.PossibleDeathEvent:
+			death.PossibleDeaths = append(death.PossibleDeaths, tev)
 		default:
 			if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
 				n.Statements = append(n.Statements, &narrative.NarrativeStatement[md.Text]{
@@ -191,13 +198,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		})
 	}
 	n.Statements = append(n.Statements, intro)
-
-	// If death is known, add it
-	if p.BestDeathlikeEvent != nil {
-		n.Statements = append(n.Statements, &narrative.DeathStatement[md.Text]{
-			Principal: p,
-		})
-	}
+	n.Statements = append(n.Statements, death)
 
 	for _, f := range p.Families {
 		n.Statements = append(n.Statements, &narrative.FamilyStatement[md.Text]{
