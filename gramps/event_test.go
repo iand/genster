@@ -177,7 +177,10 @@ func TestEventDate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
-			got, err := EventDate(tc.ev)
+			dp := gdate.Parser{
+				AssumeGROQuarter: false,
+			}
+			got, err := EventDate(tc.ev, dp)
 			if tc.wantErr {
 				if err != nil {
 					return

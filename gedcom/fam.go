@@ -77,12 +77,12 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *gedcom.FamilyRecord) err
 	}
 
 	events := append([]*gedcom.EventRecord{}, fr.Event...)
-	dp := &gdate.Parser{
-		AssumeGROQuarter: true,
-	}
 
 	for _, er := range events {
 		pl, _ := l.findPlaceForEvent(m, er)
+		dp := &gdate.Parser{
+			AssumeGROQuarter: true,
+		}
 
 		dt, err := dp.Parse(er.Date)
 		if err != nil {

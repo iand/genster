@@ -93,7 +93,7 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 	cit.Detail = pval(gc.Page, "")
 	cit.GrampsID = pval(gc.ID, "")
 
-	dt, err := CitationDate(gc)
+	dt, err := CitationDate(gc, gdate.Parser{})
 	if err != nil {
 		return nil, fmt.Errorf("citation date: %w", err)
 	}
@@ -168,25 +168,21 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 	return cit, nil
 }
 
-func CitationDate(gc *grampsxml.Citation) (*model.Date, error) {
-	dp := &gdate.Parser{
-		AssumeGROQuarter: false,
-	}
-
+func CitationDate(gc *grampsxml.Citation, dp gdate.Parser) (*model.Date, error) {
 	if gc.Dateval != nil {
-		dt, err := ParseDateval(*gc.Dateval)
+		dt, err := ParseDateval(*gc.Dateval, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date value: %w", err)
 		}
 		return dt, nil
 	} else if gc.Daterange != nil {
-		dt, err := ParseDaterange(*gc.Daterange)
+		dt, err := ParseDaterange(*gc.Daterange, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date range: %w", err)
 		}
 		return dt, nil
 	} else if gc.Datespan != nil {
-		dt, err := ParseDatespan(*gc.Datespan)
+		dt, err := ParseDatespan(*gc.Datespan, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date span: %w", err)
 		}

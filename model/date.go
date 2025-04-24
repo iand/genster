@@ -13,7 +13,7 @@ type Date struct {
 	Date       gdate.Date
 	Derivation DateDerivation
 
-	// Span indicates whethe this date is a span of time
+	// Span indicates whether this date is a span of time
 	// when true the date represents a span of time during which something continuously occurred (such as a residing at an address)
 	// when false it represents a range of time during which a discrete event occurred
 	Span bool

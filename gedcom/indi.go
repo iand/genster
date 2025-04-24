@@ -147,13 +147,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 	// collect occupation events and attempt to consolidate them later
 	occupationEvents := make([]model.GeneralEvent, 0)
 
-	dp := &gdate.Parser{
-		ReckoningLocation: gdate.EnglandAndWales,
-		AssumeGROQuarter:  true,
-	}
-
 	for _, er := range events {
 		pl, planoms := l.findPlaceForEvent(m, er)
+		dp := &gdate.Parser{
+			ReckoningLocation: reckoningForPlace(pl),
+			AssumeGROQuarter:  true,
+		}
 
 		logger.Debug("found gedcom event", "date", er.Date)
 

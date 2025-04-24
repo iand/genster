@@ -21,7 +21,6 @@ type Loader interface {
 
 func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 	var identityMapFilename string
-	var gazeteerFilename string
 	var annotationsFilename string
 	var surnamesFilename string
 	if configDir != "" {
@@ -29,7 +28,6 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 			return nil, fmt.Errorf("failed to create config directory: %w", err)
 		}
 		identityMapFilename = filepath.Join(configDir, "identitymap.json")
-		gazeteerFilename = filepath.Join(configDir, "gazeteer.json")
 		annotationsFilename = filepath.Join(configDir, "annotations.json")
 		surnamesFilename = filepath.Join(configDir, "surnames.json")
 	}
@@ -37,11 +35,6 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 	im, err := LoadIdentityMap(identityMapFilename)
 	if err != nil {
 		return nil, fmt.Errorf("load identity map: %w", err)
-	}
-
-	g, err := LoadGazeteer(gazeteerFilename)
-	if err != nil {
-		return nil, fmt.Errorf("load gazeteer: %w", err)
 	}
 
 	// Annotations are only read by genster, never written
@@ -56,7 +49,7 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 		return nil, fmt.Errorf("load surname groupings: %w", err)
 	}
 
-	t := NewTree(id, im, g, a, sg)
+	t := NewTree(id, im, a, sg)
 
 	if err := loader.Load(t); err != nil {
 		return nil, fmt.Errorf("load data: %w", err)
@@ -64,10 +57,6 @@ func LoadTree(id string, configDir string, loader Loader) (*Tree, error) {
 
 	if err := SaveIdentityMap(identityMapFilename, im); err != nil {
 		return nil, fmt.Errorf("save identity map: %w", err)
-	}
-
-	if err := SaveGazeteer(gazeteerFilename, g); err != nil {
-		return nil, fmt.Errorf("save gazeteer: %w", err)
 	}
 
 	return t, nil

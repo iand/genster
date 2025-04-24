@@ -40,13 +40,8 @@ type Place struct {
 	RegionContext   string // an edited hierarchy of places this place belongs to up to the region, comma separated, no leading comma
 	CountryContext  string // an edited hierarchy of places this place belongs to up to the country, comma separated, no leading comma
 
-	// Deprecated: PreferredName
-	// PreferredName string // the minimum amount of context, such as "street, locality" or "locality, region"
-	// PreferredUniqueName string // fully parsed name but with just enough extra context to make it unique
-	// PreferredFullName string // the fully parsed name
 	PreferredSortName string // name organised for sorting, generally as a reverse hierarchy of country, region, locality
-	// PreferredLocalityName string       // name excluding specific building or street, instead starting with locality, i.e. "locality, region"
-	// PreferredVerboseName string       // name including connectors such as "in the parish of"
+
 	Parent       *Place       // the parent of this place in the administrative hierarchy
 	PlaceType    PlaceType    // the type of place, such as "village", "town", "parish"
 	Numbered     bool         // whether the place is a numbered building
@@ -168,6 +163,21 @@ func (p *Place) Updated() (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return *p.UpdateTime, true
+}
+
+// Hierarchy returns the list of places that form the full
+// hierachy for this place. The first entry is p, the next
+// entry is p's parent, the next entry is p's grandparent
+// and so on. The list walways contains at least one element,
+// which will be op itself.
+func (p *Place) Hierarchy() []*Place {
+	hierarchy := []*Place{p}
+	par := p.Parent
+	for par != nil {
+		hierarchy = append(hierarchy, par)
+		par = par.Parent
+	}
+	return hierarchy
 }
 
 func UnknownPlace() *Place {

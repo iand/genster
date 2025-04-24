@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/iand/gdate"
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/model"
 )
@@ -68,4 +69,21 @@ func stringOneOf(s string, alts ...string) bool {
 
 func stripXref(s string) string {
 	return strings.Trim(s, "@")
+}
+
+// reckoningForPlace attempts to find a ReckoningLocation based on the place
+func reckoningForPlace(pl *model.Place) gdate.ReckoningLocation {
+	if pl.IsUnknown() || pl.Country.IsUnknown() {
+		return gdate.ReckoningLocationNone
+	}
+	switch strings.ToLower(pl.Country.Name) {
+	case "england", "wales":
+		return gdate.ReckoningLocationEnglandAndWales
+	case "scotland":
+		return gdate.ReckoningLocationScotland
+	case "ireland":
+		return gdate.ReckoningLocationIreland
+	default:
+		return gdate.ReckoningLocationNone
+	}
 }

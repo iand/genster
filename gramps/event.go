@@ -15,8 +15,12 @@ import (
 
 func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
 	pl := l.findPlaceForEvent(m, grev)
+	dp := gdate.Parser{
+		ReckoningLocation: reckoningForPlace(pl),
+		AssumeGROQuarter:  false,
+	}
 
-	dt, err := EventDate(grev)
+	dt, err := EventDate(grev, dp)
 	if err != nil {
 		return model.GeneralEvent{}, nil, err
 	}
@@ -403,25 +407,21 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 	ce.Detail = v
 }
 
-func EventDate(grev *grampsxml.Event) (*model.Date, error) {
-	dp := &gdate.Parser{
-		AssumeGROQuarter: false,
-	}
-
+func EventDate(grev *grampsxml.Event, dp gdate.Parser) (*model.Date, error) {
 	if grev.Dateval != nil {
-		dt, err := ParseDateval(*grev.Dateval)
+		dt, err := ParseDateval(*grev.Dateval, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date value: %w", err)
 		}
 		return dt, nil
 	} else if grev.Daterange != nil {
-		dt, err := ParseDaterange(*grev.Daterange)
+		dt, err := ParseDaterange(*grev.Daterange, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date range: %w", err)
 		}
 		return dt, nil
 	} else if grev.Datespan != nil {
-		dt, err := ParseDatespan(*grev.Datespan)
+		dt, err := ParseDatespan(*grev.Datespan, dp)
 		if err != nil {
 			return nil, fmt.Errorf("parse date span: %w", err)
 		}
@@ -436,11 +436,7 @@ func EventDate(grev *grampsxml.Event) (*model.Date, error) {
 	return model.UnknownDate(), nil
 }
 
-func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
-	dp := &gdate.Parser{
-		ReckoningLocation: gdate.EnglandAndWales,
-	}
-
+func ParseDateval(dv grampsxml.Dateval, dp gdate.Parser) (*model.Date, error) {
 	if dv.Cformat != nil {
 		switch strings.ToLower(*dv.Cformat) {
 		case "gregorian":
@@ -452,9 +448,6 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 		default:
 			return nil, fmt.Errorf("date Cformat not supported")
 		}
-	}
-	if dv.Dualdated != nil {
-		return nil, fmt.Errorf("date Dualdated not supported")
 	}
 	if dv.Newyear != nil {
 		return nil, fmt.Errorf("date Newyear not supported")
@@ -483,6 +476,15 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 	dt, err := dp.Parse(dv.Val)
 	if err != nil {
 		return nil, fmt.Errorf("parse date value: %w", err)
+	}
+	if dv.Dualdated != nil && *dv.Dualdated && dp.Calendar == gdate.Julian25Mar {
+		// Need to subtract a year if before 25 March
+		switch tdt := dt.(type) {
+		case *gdate.Precise:
+			if tdt.M == 1 || tdt.M == 2 || (tdt.M == 3 && tdt.D < 25) {
+				tdt.Y--
+			}
+		}
 	}
 
 	dateType := pval(dv.Type, "Regular")
@@ -526,7 +528,8 @@ func ParseDateval(dv grampsxml.Dateval) (*model.Date, error) {
 	}, nil
 }
 
-func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
+func ParseDaterange(dr grampsxml.Daterange, dp gdate.Parser) (*model.Date, error) {
+	// copy the parser so we functions can override if need be
 	if dr.Cformat != nil {
 		return nil, fmt.Errorf("date range Cformat not supported")
 	}
@@ -555,9 +558,6 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 
 		}
 	}
-
-	// Currently only support quarter ranges
-	dp := &gdate.Parser{}
 
 	dstart, err := dp.Parse(dr.Start)
 	if err != nil {
@@ -676,7 +676,7 @@ func ParseDaterange(dr grampsxml.Daterange) (*model.Date, error) {
 	return nil, fmt.Errorf("unsupported range")
 }
 
-func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
+func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) {
 	if ds.Cformat != nil {
 		return nil, fmt.Errorf("date span Cformat not supported")
 	}
@@ -705,9 +705,6 @@ func ParseDatespan(ds grampsxml.Datespan) (*model.Date, error) {
 
 		}
 	}
-
-	// Currently only support year spans
-	dp := &gdate.Parser{}
 
 	dstart, err := dp.Parse(ds.Start)
 	if err != nil {

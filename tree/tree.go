@@ -19,7 +19,6 @@ type Tree struct {
 	Name          string
 	Description   string
 	IdentityMap   *IdentityMap
-	Gazeteer      *Gazeteer
 	Annotations   *Annotations
 	SurnameGroups *SurnameGroups
 	People        map[string]*model.Person
@@ -32,11 +31,10 @@ type Tree struct {
 	KeyPerson     *model.Person
 }
 
-func NewTree(id string, m *IdentityMap, g *Gazeteer, a *Annotations, sg *SurnameGroups) *Tree {
+func NewTree(id string, m *IdentityMap, a *Annotations, sg *SurnameGroups) *Tree {
 	return &Tree{
 		ID:            id,
 		IdentityMap:   m,
-		Gazeteer:      g,
 		Annotations:   a,
 		SurnameGroups: sg,
 		People:        make(map[string]*model.Person),
@@ -138,7 +136,7 @@ func (t *Tree) FindPlace(scope string, sid string) *model.Place {
 }
 
 func (t *Tree) FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place {
-	id := t.Gazeteer.ID(name, hints...)
+	id := t.CanonicalID("unstructured", name)
 	p, ok := t.Places[id]
 	if !ok {
 
