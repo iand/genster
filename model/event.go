@@ -96,12 +96,13 @@ func SortTimelineEvents(evs []TimelineEvent) {
 }
 
 const (
-	EventAttributeEmployer  = "employer"
-	EventAttributeService   = "service" // military service: merchant navy, army, royal artillery etc.
-	EventAttributeRegiment  = "regiment"
-	EventAttributeBattalion = "battalion"
-	EventAttributeCompany   = "company"
-	EventAttributeRank      = "rank"
+	EventAttributeEmployer       = "employer"
+	EventAttributeService        = "service" // military service: merchant navy, army, royal artillery etc.
+	EventAttributeRegiment       = "regiment"
+	EventAttributeBattalion      = "battalion"
+	EventAttributeCompany        = "company"
+	EventAttributeRank           = "rank"
+	EventAttributePrivateBaptism = "private baptism"
 )
 
 type GeneralEvent struct {
@@ -379,11 +380,18 @@ var (
 type BaptismEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent
+	Private bool // true if the baptism was performed privately
 }
 
 func (e *BaptismEvent) Type() string             { return "baptism" }
 func (e *BaptismEvent) ShortDescription() string { return e.abbrev("bap") }
-func (e *BaptismEvent) What() string             { return "baptised" }
+func (e *BaptismEvent) What() string {
+	if e.Private {
+		return "baptised privately"
+	}
+	return "baptised"
+}
+
 func (e *BaptismEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *BirthEvent:
@@ -609,15 +617,43 @@ var (
 type OccupationEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent
+	Occupation string
 }
 
 func (e *OccupationEvent) Type() string             { return "occupation" }
 func (e *OccupationEvent) ShortDescription() string { return e.abbrev("occ") }
+func (e *OccupationEvent) What() string             { return "occupation recorded as " + e.Occupation }
 
 var (
 	_ TimelineEvent           = (*OccupationEvent)(nil)
 	_ IndividualTimelineEvent = (*OccupationEvent)(nil)
+	_ IrregularWhater         = (*OccupationEvent)(nil)
 )
+
+// text description of what happened, a passive verb in the past tense, such as "was married", "was born", "died"
+func (e *OccupationEvent) PassiveWhat() string {
+	return "had occupation recorded as " + e.Occupation
+}
+
+// text description of what happened, an active verb in the past tense with a conditonal, such as "probably married", "probate probably granted"
+func (e *OccupationEvent) ConditionalWhat(adverb string) string {
+	return "probably had occupation recorded as " + e.Occupation
+}
+
+// text description of what happened, a passive verb in the past tense with a conditonal, such as was "was probably married", "probate was probably granted"
+func (e *OccupationEvent) PassiveConditionalWhat(adverb string) string {
+	return "probably had occupation recorded as " + e.Occupation
+}
+
+// text description of what happened, a passive verb in the present perfect tense, usually prefixed by "inferred to ", such as "[inferred to ]have been married", "[inferred to ]have died"
+func (e *OccupationEvent) PresentPerfectWhat() string {
+	return "have had occupation recorded as " + e.Occupation
+}
+
+// text description of what happened, a passive verb in the past perfect tense, such as "had been married", "had died"
+func (e *OccupationEvent) PastPerfectWhat() string {
+	return "had occupation recorded as " + e.Occupation
+}
 
 // ApprenticeEvent represents the commencement of an apprenticeship of a person
 type ApprenticeEvent struct {
@@ -878,6 +914,7 @@ func (e *InstitutionDepartureEvent) What() string             { return "left" }
 type EconomicStatusEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent
+	Status string
 }
 
 var (
@@ -887,6 +924,75 @@ var (
 
 func (e *EconomicStatusEvent) Type() string             { return "economic status" }
 func (e *EconomicStatusEvent) ShortDescription() string { return e.abbrev("anul") }
+
+// text description of what happened, a passive verb in the past tense, such as "was married", "was born", "died"
+func (e *EconomicStatusEvent) PassiveWhat() string {
+	return "had economic status " + e.Status
+}
+
+// text description of what happened, an active verb in the past tense with a conditonal, such as "probably married", "probate probably granted"
+func (e *EconomicStatusEvent) ConditionalWhat(adverb string) string {
+	return "probably had economic status " + e.Status
+}
+
+// text description of what happened, a passive verb in the past tense with a conditonal, such as was "was probably married", "probate was probably granted"
+func (e *EconomicStatusEvent) PassiveConditionalWhat(adverb string) string {
+	return "probably had economic status " + e.Status
+}
+
+// text description of what happened, a passive verb in the present perfect tense, usually prefixed by "inferred to ", such as "[inferred to ]have been married", "[inferred to ]have died"
+func (e *EconomicStatusEvent) PresentPerfectWhat() string {
+	return "have had economic status " + e.Status
+}
+
+// text description of what happened, a passive verb in the past perfect tense, such as "had been married", "had died"
+func (e *EconomicStatusEvent) PastPerfectWhat() string {
+	return "had economic status " + e.Status
+}
+
+// PhysicalDescriptionEvent represents the economic status of a person
+type PhysicalDescriptionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+	Description string
+}
+
+var (
+	_ TimelineEvent           = (*PhysicalDescriptionEvent)(nil)
+	_ IndividualTimelineEvent = (*PhysicalDescriptionEvent)(nil)
+)
+
+func (e *PhysicalDescriptionEvent) Type() string             { return "physical description" }
+func (e *PhysicalDescriptionEvent) ShortDescription() string { return e.abbrev("desc.") }
+
+func (e *PhysicalDescriptionEvent) What() string {
+	return "described as " + e.Description
+}
+
+// text description of what happened, a passive verb in the past tense, such as "was married", "was born", "died"
+func (e *PhysicalDescriptionEvent) PassiveWhat() string {
+	return "was described as " + e.Description
+}
+
+// text description of what happened, an active verb in the past tense with a conditonal, such as "probably married", "probate probably granted"
+func (e *PhysicalDescriptionEvent) ConditionalWhat(adverb string) string {
+	return "probably described as " + e.Description
+}
+
+// text description of what happened, a passive verb in the past tense with a conditonal, such as was "was probably married", "probate was probably granted"
+func (e *PhysicalDescriptionEvent) PassiveConditionalWhat(adverb string) string {
+	return "probably was described as " + e.Description
+}
+
+// text description of what happened, a passive verb in the present perfect tense, usually prefixed by "inferred to ", such as "[inferred to ]have been married", "[inferred to ]have died"
+func (e *PhysicalDescriptionEvent) PresentPerfectWhat() string {
+	return "have been described as " + e.Description
+}
+
+// text description of what happened, a passive verb in the past perfect tense, such as "had been married", "had died"
+func (e *PhysicalDescriptionEvent) PastPerfectWhat() string {
+	return "had been described as " + e.Description
+}
 
 // CourtEvent represents the appearance of a person in a court or a court hearing they are involved in
 type CourtEvent struct {
@@ -901,6 +1007,25 @@ var (
 
 func (e *CourtEvent) Type() string             { return "court" }
 func (e *CourtEvent) ShortDescription() string { return e.abbrev("crt") }
+
+// ConvictionEvent represents the conviction of a person for a crime
+type ConvictionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+	Crime string
+}
+
+var (
+	_ TimelineEvent           = (*ConvictionEvent)(nil)
+	_ IndividualTimelineEvent = (*ConvictionEvent)(nil)
+)
+
+func (e *ConvictionEvent) Type() string             { return "conviction" }
+func (e *ConvictionEvent) ShortDescription() string { return e.abbrev("con") }
+
+func (e *ConvictionEvent) What() string {
+	return "convicted of " + e.Crime
+}
 
 // MarriageEvent represents the joining of two people in marriage in a timeline
 type MarriageEvent struct {

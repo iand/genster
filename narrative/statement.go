@@ -1121,22 +1121,20 @@ func (s *CensusStatement[T]) Priority() int {
 	return 4
 }
 
-// A NarrativeStatement is used for any general event that includes a narrative.
+// -------------------------------------------------------------------------------------
+
+// A GeneralEventStatement is used for any general event that may include a narrative.
 // If the Event is an IndividualNarrativeEvent then the narrative field is used in
-// place of any generated text. Otherwise an introductory sentence is prepended.
-type NarrativeStatement[T render.EncodedText] struct {
+// place of any generated text. Otherwise an introductory sentence is prepended followed
+// by the event detail. Any additional narrative text is appended as a new sentence.
+type GeneralEventStatement[T render.EncodedText] struct {
 	Principal *model.Person
 	Event     model.TimelineEvent
 }
 
-var _ Statement[md.Text] = (*NarrativeStatement[md.Text])(nil)
+var _ Statement[md.Text] = (*GeneralEventStatement[md.Text])(nil)
 
-func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	narrative := EventNarrativeDetail(s.Event, enc)
-	if narrative == "" {
-		return
-	}
-
+func (s *GeneralEventStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
 	var detail text.Para
 	switch s.Event.(type) {
 	case *model.IndividualNarrativeEvent:
@@ -1146,29 +1144,32 @@ func (s *NarrativeStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(s.Event, enc, nc, intro.POV)), s.Event.GetCitations()).String())
 	}
 
-	detail.StartSentence(narrative)
+	narrative := EventNarrativeDetail(s.Event, enc)
+	if narrative != "" {
+		detail.StartSentence(narrative)
+	}
 	detail.FinishSentence()
 
 	// enc.ParaWithFigure(enc.EncodeWithCitations(detail.Text(), s.Event.GetCitations()), "/trees/cg/media/6V7KWAJR2LCVK.png", "alt text", "this is a caption")
 	enc.Para(enc.EncodeWithCitations(enc.EncodeText(detail.Text()), s.Event.GetCitations()))
 }
 
-func (s *NarrativeStatement[T]) Start() *model.Date {
+func (s *GeneralEventStatement[T]) Start() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *NarrativeStatement[T]) End() *model.Date {
+func (s *GeneralEventStatement[T]) End() *model.Date {
 	return s.Event.GetDate()
 }
 
-func (s *NarrativeStatement[T]) NarrativeSequence() int {
+func (s *GeneralEventStatement[T]) NarrativeSequence() int {
 	if !s.Event.GetDate().SortsBefore(s.Principal.BestDeathDate()) {
 		return NarrativeSequenceDeath
 	}
 	return NarrativeSequenceLifeStory
 }
 
-func (s *NarrativeStatement[T]) Priority() int {
+func (s *GeneralEventStatement[T]) Priority() int {
 	return 0
 }
 

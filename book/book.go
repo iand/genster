@@ -522,7 +522,7 @@ func (b *Book) BuildFamilyNarrative(f *model.Family) *narrative.FamilyNarrative[
 				n.MotherStatements = append(n.MotherStatements, s)
 			}
 		case *model.IndividualNarrativeEvent:
-			s := &narrative.NarrativeStatement[pandoc.Text]{
+			s := &narrative.GeneralEventStatement[pandoc.Text]{
 				Principal: f.Father, // TODO: change
 				Event:     tev,
 			}
@@ -540,9 +540,24 @@ func (b *Book) BuildFamilyNarrative(f *model.Family) *narrative.FamilyNarrative[
 		case *model.DeathEvent:
 		case *model.BurialEvent:
 		case *model.CremationEvent:
+		case *model.PhysicalDescriptionEvent:
+			s := &narrative.GeneralEventStatement[pandoc.Text]{
+				Principal: f.Father, // TODO: change
+				Event:     tev,
+			}
+			if isFamilyEvent(ev) {
+				if !seenSharedEvents[ev] {
+					n.FamilyStatements = append(n.FamilyStatements, s)
+					seenSharedEvents[ev] = true
+				}
+			} else if tev.DirectlyInvolves(f.Father) {
+				n.FatherStatements = append(n.FatherStatements, s)
+			} else if tev.DirectlyInvolves(f.Mother) {
+				n.MotherStatements = append(n.MotherStatements, s)
+			}
 		default:
 			if tev.GetNarrative().Text != "" {
-				s := &narrative.NarrativeStatement[pandoc.Text]{
+				s := &narrative.GeneralEventStatement[pandoc.Text]{
 					Principal: f.Father, // TODO: change
 					Event:     tev,
 				}

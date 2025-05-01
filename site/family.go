@@ -171,7 +171,7 @@ func BuildFamilyNarrative(f *model.Family, inlineMedia bool) *narrative.FamilyNa
 				n.MotherStatements = append(n.MotherStatements, s)
 			}
 		case *model.IndividualNarrativeEvent:
-			s := &narrative.NarrativeStatement[md.Text]{
+			s := &narrative.GeneralEventStatement[md.Text]{
 				Principal: f.Father, // TODO: change
 				Event:     tev,
 			}
@@ -191,7 +191,7 @@ func BuildFamilyNarrative(f *model.Family, inlineMedia bool) *narrative.FamilyNa
 		case *model.CremationEvent:
 		default:
 			if tev.GetNarrative().Text != "" {
-				s := &narrative.NarrativeStatement[md.Text]{
+				s := &narrative.GeneralEventStatement[md.Text]{
 					Principal: f.Father, // TODO: change
 					Event:     tev,
 				}

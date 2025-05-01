@@ -387,10 +387,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralIndividualEvent: giv,
 			}
 		case "baptism":
-			ev = &model.BaptismEvent{
+			bev := &model.BaptismEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+			if _, ok := gev.Attributes[model.EventAttributePrivateBaptism]; ok {
+				bev.Private = true
+			}
+			ev = bev
 		case "naming":
 			ev = &model.NamingEvent{
 				GeneralEvent:           gev,
@@ -455,6 +459,15 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				ev = &model.EconomicStatusEvent{
 					GeneralEvent:           gev,
 					GeneralIndividualEvent: giv,
+					Status:                 desc,
+				}
+			}
+		case "physical description":
+			if desc := pval(grev.Description, ""); desc != "" {
+				ev = &model.PhysicalDescriptionEvent{
+					GeneralEvent:           gev,
+					GeneralIndividualEvent: giv,
+					Description:            desc,
 				}
 			}
 
@@ -492,16 +505,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 					ev = &model.OccupationEvent{
 						GeneralEvent:           gev,
 						GeneralIndividualEvent: giv,
+						Occupation:             str,
 					}
 				}
 			}
 
-			// logger.Debug("found occupation", "what", gev.Detail, "when", gev.When(), "where", gev.Where())
-			// occupationEvents = append(occupationEvents, gev)
-			// ev = &model.OccupationEvent{
-			// 	GeneralEvent:           gev,
-			// 	GeneralIndividualEvent: giv,
-			// }
 		case "narrative":
 			ev = &model.IndividualNarrativeEvent{
 				GeneralEvent:           gev,
@@ -600,11 +608,36 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
+		case "conviction":
+			if desc := pval(grev.Description, ""); desc != "" {
+				ev = &model.ConvictionEvent{
+					GeneralEvent:           gev,
+					GeneralIndividualEvent: giv,
+					Crime:                  desc,
+				}
+			}
+
 		case "immigration":
 			if desc := pval(grev.Description, ""); desc != "" {
 				gev.Title = desc
 			}
 			ev = &model.ImmigrationEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "departure":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.DepartureEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+			}
+		case "arrival":
+			if desc := pval(grev.Description, ""); desc != "" {
+				gev.Title = desc
+			}
+			ev = &model.ArrivalEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
 			}
@@ -631,8 +664,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			// Inquest
 			// Medical Information
 			// Property
-			// Arrival
-			// Departure
 			// Adopted
 
 			logger.Warn("unhandled person event type", "hlink", grer.Hlink, "type", pval(grev.Type, "unknown"))

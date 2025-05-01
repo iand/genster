@@ -136,7 +136,6 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Document[md.T
 				evidenceClause = "in this evidence"
 			}
 
-			// peopleIntro = text.JoinSentenceParts("no", otherClause, "people are mentioned", evidenceClause)
 			if len(people) == 1 {
 				peopleIntro = text.JoinSentenceParts("one", otherClause, "person is mentioned", evidenceClause)
 			} else {
