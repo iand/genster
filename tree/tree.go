@@ -595,50 +595,53 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 		}
 	}
 
-	inferFromPersonBirth := func(f *model.Family, p *model.Person) {
+	inferFromPersonBirth := func(p *model.Person, bestStartDateSoFar *model.Date) *model.Date {
 		if p == nil {
-			return
+			return bestStartDateSoFar
 		}
 
 		// Set family start date to the be about person's birth if it is better than the current start date
 		if p.BestBirthlikeEvent != nil {
-			if f.BestStartDate == nil || ((f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) && p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate)) {
+			if bestStartDateSoFar == nil || p.BestBirthlikeEvent.GetDate().SortsBefore(bestStartDateSoFar) {
+				// if f.BestStartDate == nil || ((f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) && p.BestBirthlikeEvent.GetDate().SortsBefore(f.BestStartDate)) {
 				_, isBirth := p.BestBirthlikeEvent.(*model.BirthEvent)
 
 				if isBirth && (f.Bond == model.FamilyBondUnmarried || f.Bond == model.FamilyBondLikelyUnmarried) {
-					f.BestStartDate = p.BestBirthlikeEvent.GetDate()
-					return
+					return p.BestBirthlikeEvent.GetDate()
 				}
 
 				if yr, ok := p.BestBirthlikeEvent.GetDate().Year(); ok {
-					f.BestStartDate = model.BeforeYear(yr)
+					return model.BeforeYear(yr)
 				}
 			}
 		}
+		return bestStartDateSoFar
 	}
 
-	inferFromPersonDeath := func(f *model.Family, p *model.Person) {
+	inferFromPersonDeath := func(p *model.Person, bestStartDateSoFar *model.Date) *model.Date {
 		if p == nil {
-			return
+			return bestStartDateSoFar
 		}
 
 		// Set family start date to the be before person's death if it is better than the current start date
 		if p.BestDeathlikeEvent != nil {
-			if f.BestStartDate == nil || p.BestDeathlikeEvent.GetDate().SortsBefore(f.BestStartDate) {
+			if bestStartDateSoFar == nil || p.BestDeathlikeEvent.GetDate().SortsBefore(bestStartDateSoFar) {
 				if yr, ok := p.BestDeathlikeEvent.GetDate().Year(); ok {
-					f.BestStartDate = model.BeforeYear(yr)
+					return model.BeforeYear(yr)
 				}
 			}
 		}
+		return bestStartDateSoFar
 	}
 
-	inferFromPersonDeath(f, f.Father)
-	inferFromPersonDeath(f, f.Mother)
+	bestStartDateSoFar := inferFromPersonDeath(f.Father, nil)
+	bestStartDateSoFar = inferFromPersonDeath(f.Mother, bestStartDateSoFar)
 	for _, c := range f.Children {
-		inferFromPersonBirth(f, c)
-		inferFromPersonDeath(f, c)
+		bestStartDateSoFar = inferFromPersonBirth(c, bestStartDateSoFar)
+		bestStartDateSoFar = inferFromPersonDeath(c, bestStartDateSoFar)
 	}
 
+	f.BestStartDate = bestStartDateSoFar
 	return nil
 }
 
