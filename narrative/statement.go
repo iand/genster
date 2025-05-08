@@ -454,7 +454,10 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 			redactedCount++
 			continue
 		}
-		childList = append(childList, PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true))
+		childSummary := PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true)
+		if !childSummary.IsZero() {
+			childList = append(childList, childSummary)
+		}
 	}
 	if len(childList) == 0 {
 		return childList

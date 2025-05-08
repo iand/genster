@@ -495,6 +495,11 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		para.StartSentence(p.Gender.SubjectPronoun(), finalDetail)
 	}
 
+	if para.IsEmpty() {
+		para.StartSentence(name.String())
+		para.StartSentence("nothing else is known about", p.Gender.PossessivePronounSingular(), "life")
+	}
+
 	return enc.EncodeText(para.Text())
 }
 

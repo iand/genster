@@ -184,3 +184,7 @@ func (p *Para) Length() int {
 	}
 	return l
 }
+
+func (p *Para) IsEmpty() bool {
+	return len(p.sentences) == 0
+}
