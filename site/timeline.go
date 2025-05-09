@@ -163,6 +163,8 @@ func (t *NarrativeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEve
 		title = t.marriageEventTitle(seq, tev)
 	case *model.MarriageBannsEvent:
 		title = t.marriageEventTitle(seq, tev)
+	case *model.WitnessToMarriageEvent:
+		title = t.witnessToMarriageEventTitle(seq, tev)
 	case *model.ArrivalEvent:
 		title = t.arrivalEventTitle(seq, tev)
 	case *model.DepartureEvent:
@@ -447,6 +449,27 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 		}
 
 	}
+
+	pl := ev.GetPlace()
+	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+		title = narrative.WhatWherePov(title, pl, t.enc, t.nc, t.pov)
+	}
+	return title
+}
+
+func (t *NarrativeTimelineEntryFormatter[T]) witnessToMarriageEventTitle(seq int, ev *model.WitnessToMarriageEvent) string {
+	if ev.MarriageEvent == nil {
+		return ""
+	}
+
+	title := ""
+	party1 := ev.MarriageEvent.GetHusband()
+	party2 := ev.MarriageEvent.GetWife()
+
+	party1Link := t.enc.EncodeModelLink(t.enc.EncodeText(party1.PreferredFullName), party1).String()
+	party2Link := t.enc.EncodeModelLink(t.enc.EncodeText(party2.PreferredFullName), party2).String()
+
+	title = text.JoinSentenceParts("witnessed the marriage of", party1Link, "and", party2Link)
 
 	pl := ev.GetPlace()
 	if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {

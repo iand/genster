@@ -47,6 +47,7 @@ type Loader struct {
 	populatedPlaces      map[string]bool // which place handles have been populated to save repeated work when traversing the hierarchy
 	censusEvents         map[string]*model.CensusEvent
 	multipartyEvents     map[string]model.MultipartyTimelineEvent
+	unionEvents          map[string]model.UnionTimelineEvent
 	familyNameGroups     map[string]string
 }
 
@@ -77,6 +78,7 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		populatedPlaces:      make(map[string]bool),
 		censusEvents:         make(map[string]*model.CensusEvent),
 		multipartyEvents:     make(map[string]model.MultipartyTimelineEvent),
+		unionEvents:          make(map[string]model.UnionTimelineEvent),
 		familyNameGroups:     make(map[string]string),
 	}
 

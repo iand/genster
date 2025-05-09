@@ -890,3 +890,20 @@ func (l *Loader) getBattleEvent(grev *grampsxml.Event, er *grampsxml.Eventref, g
 
 	return ev
 }
+
+func (l *Loader) getMarriageEvent(grev *grampsxml.Event) *model.MarriageEvent {
+	var ev *model.MarriageEvent
+
+	id := pval(grev.ID, grev.Handle)
+	uev, ok := l.unionEvents[id]
+	if ok {
+		ev, ok = uev.(*model.MarriageEvent)
+		if !ok {
+			panic(fmt.Sprintf("expected union event with id %q to be a MarriageEvent but it was a %T", id, uev))
+		}
+	} else {
+		ev = &model.MarriageEvent{}
+		l.unionEvents[id] = ev
+	}
+	return ev
+}

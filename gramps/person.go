@@ -355,6 +355,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 					Context:  "Role",
 				}
 				p.Anomalies = append(p.Anomalies, anom)
+			} else if evtype == "marriage" && role == "witness" {
+				// allow this
 			} else {
 				// ignore event for this person
 				// TODO: support more roles
@@ -656,6 +658,13 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			ev = &model.PossibleDeathEvent{
 				GeneralEvent:           gev,
 				GeneralIndividualEvent: giv,
+			}
+		case "marriage":
+			mev := l.getMarriageEvent(grev)
+			ev = &model.WitnessToMarriageEvent{
+				GeneralEvent:           gev,
+				GeneralIndividualEvent: giv,
+				MarriageEvent:          mev,
 			}
 		default:
 			// TODO:

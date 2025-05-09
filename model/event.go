@@ -253,14 +253,6 @@ func (e *GeneralUnionEvent) GetWife() *Person {
 	return e.Wife
 }
 
-func (e *GeneralUnionEvent) GetHusband1() *Person {
-	return e.Husband
-}
-
-func (e *GeneralUnionEvent) GetWife1() *Person {
-	return e.Wife
-}
-
 func (e *GeneralUnionEvent) DirectlyInvolves(p *Person) bool {
 	return e.Husband.SameAs(p) || e.Wife.SameAs(p)
 }
@@ -1198,6 +1190,23 @@ func (e *PossibleDeathEvent) SortsBefore(other TimelineEvent) bool { return true
 var (
 	_ TimelineEvent           = (*PossibleDeathEvent)(nil)
 	_ IndividualTimelineEvent = (*PossibleDeathEvent)(nil)
+)
+
+// WitnessToMarriageEvent represents the event of a person acting as a witness to a marriage ceremony
+type WitnessToMarriageEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+	MarriageEvent *MarriageEvent
+}
+
+func (e *WitnessToMarriageEvent) Type() string                         { return "witness to marrriage" }
+func (e *WitnessToMarriageEvent) ShortDescription() string             { return e.abbrev("wit") }
+func (e *WitnessToMarriageEvent) What() string                         { return "witnessed a marriage" }
+func (e *WitnessToMarriageEvent) SortsBefore(other TimelineEvent) bool { return true }
+
+var (
+	_ TimelineEvent           = (*WitnessToMarriageEvent)(nil)
+	_ IndividualTimelineEvent = (*WitnessToMarriageEvent)(nil)
 )
 
 type EventMatcher func(TimelineEvent) bool

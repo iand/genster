@@ -156,7 +156,6 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 				mother.Anomalies = append(mother.Anomalies, anom)
 			}
 		}
-
 		gpe := model.GeneralUnionEvent{
 			Husband: father,
 			Wife:    mother,
@@ -166,10 +165,14 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 
 		switch pval(grev.Type, "unknown") {
 		case "Marriage":
-			ev = &model.MarriageEvent{
-				GeneralEvent:      gev,
-				GeneralUnionEvent: gpe,
-			}
+			mev := l.getMarriageEvent(grev)
+			mev.GeneralEvent = gev
+			mev.GeneralUnionEvent = gpe
+			ev = mev
+			// ev = &model.MarriageEvent{
+			// 	GeneralEvent:      gev,
+			// 	GeneralUnionEvent: gpe,
+			// }
 			fam.Bond = model.FamilyBondMarried
 			fam.Timeline = append(fam.Timeline, ev)
 			fam.BestStartEvent = ev
