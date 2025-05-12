@@ -634,14 +634,16 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 		return bestStartDateSoFar
 	}
 
-	bestStartDateSoFar := inferFromPersonDeath(f.Father, nil)
-	bestStartDateSoFar = inferFromPersonDeath(f.Mother, bestStartDateSoFar)
-	for _, c := range f.Children {
-		bestStartDateSoFar = inferFromPersonBirth(c, bestStartDateSoFar)
-		bestStartDateSoFar = inferFromPersonDeath(c, bestStartDateSoFar)
-	}
+	if f.BestStartDate == nil {
+		bestStartDateSoFar := inferFromPersonDeath(f.Father, nil)
+		bestStartDateSoFar = inferFromPersonDeath(f.Mother, bestStartDateSoFar)
+		for _, c := range f.Children {
+			bestStartDateSoFar = inferFromPersonBirth(c, bestStartDateSoFar)
+			bestStartDateSoFar = inferFromPersonDeath(c, bestStartDateSoFar)
+		}
 
-	f.BestStartDate = bestStartDateSoFar
+		f.BestStartDate = bestStartDateSoFar
+	}
 	return nil
 }
 
