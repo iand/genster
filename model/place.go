@@ -128,6 +128,8 @@ func (p *Place) InAt() string {
 		return "at"
 	case PlaceTypeShip:
 		return "aboard the"
+	case PlaceTypeProbateOffice:
+		return "at the"
 	// case PlaceTypeParish:
 	// 	return "in the parish of"
 	// case PlaceTypeRegistrationDistrict:
@@ -146,6 +148,8 @@ func (p *Place) DescriptivePrefix() string {
 		return "the parish of"
 	case PlaceTypeRegistrationDistrict:
 		return "the registration district of"
+	case PlaceTypeProbateOffice:
+		return "the probate office of"
 	default:
 		return ""
 	}
@@ -213,6 +217,7 @@ const (
 	PlaceTypeCounty               = "county"
 	PlaceTypeState                = "county"
 	PlaceTypeRegistrationDistrict = "registration district"
+	PlaceTypeProbateOffice        = "probate office"
 )
 
 func (p PlaceType) String() string {

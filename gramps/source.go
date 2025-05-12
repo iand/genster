@@ -53,9 +53,8 @@ func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error 
 	return nil
 }
 
-func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationref, logger *slog.Logger) ([]*model.GeneralCitation, []*model.Anomaly) {
+func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationref, logger *slog.Logger) []*model.GeneralCitation {
 	cits := make([]*model.GeneralCitation, 0)
-	anomalies := make([]*model.Anomaly, 0)
 	for _, gcr := range gcrs {
 		gc, ok := l.CitationsByHandle[gcr.Hlink]
 		if !ok {
@@ -63,11 +62,7 @@ func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationre
 		}
 		pc, err := l.parseCitation(m, gc, logger)
 		if err != nil {
-			anomalies = append(anomalies, &model.Anomaly{
-				Category: "Gramps",
-				Text:     err.Error(),
-				Context:  "Citation",
-			})
+			logger.Error("dropping citation due to parse error", "error", err, "citation_handle", gcr.Hlink)
 			continue
 		}
 		changeTime, err := changeToTime(gc.Change)
@@ -81,7 +76,7 @@ func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationre
 
 		cits = append(cits, pc)
 	}
-	return cits, anomalies
+	return cits
 }
 
 func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *slog.Logger) (*model.GeneralCitation, error) {

@@ -160,11 +160,11 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	for _, ev := range p.Timeline {
 		switch tev := ev.(type) {
 		case *model.BaptismEvent:
-			if tev.DirectlyInvolves(p) {
+			if tev.IsParticipant(p) {
 				intro.Baptisms = append(intro.Baptisms, tev)
 			}
 		case *model.CensusEvent:
-			if tev.DirectlyInvolves(p) {
+			if tev.IsParticipant(p) {
 				n.Statements = append(n.Statements, &narrative.CensusStatement[md.Text]{
 					Principal: p,
 					Event:     tev,

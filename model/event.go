@@ -18,7 +18,10 @@ type TimelineEvent interface {
 	Where() string                   // text description of place
 	IsInferred() bool                // whether or not the event was inferred to exist, i.e. has no supporting evidence
 	DirectlyInvolves(p *Person) bool // whether or not the event directly involves a person as a principal or party
+	IsParticipant(p *Person) bool    // whether or not person has a role in the event
+	GetParticipant(*Person) []*EventParticipant
 	GetParticipants() []*EventParticipant
+	AddParticipant(*EventParticipant)
 	GetParticipantsByRole(EventRole) []*EventParticipant
 	GetMediaObjects() []*CitedMediaObject
 }
@@ -70,19 +73,22 @@ func EventSortsBefore(ev, other TimelineEvent) bool {
 type EventRole string
 
 const (
-	EventRoleUnknown     EventRole = "unknown"
-	EventRolePrincipal   EventRole = "principal"
-	EventRoleHusband     EventRole = "husband"
-	EventRoleWife        EventRole = "wife"
-	EventRoleWitness     EventRole = "witness" // witness to a marriage, will or other legal document
-	EventRoleGodparent   EventRole = "godparent"
-	EventRoleBeneficiary EventRole = "beneficiary" // beneficiary of a will
-	EventRoleExecutor    EventRole = "executor"    // executor of a will
+	EventRoleUnknown       EventRole = "unknown"
+	EventRolePrincipal     EventRole = "principal"
+	EventRoleHusband       EventRole = "husband"
+	EventRoleWife          EventRole = "wife"
+	EventRoleWitness       EventRole = "witness" // witness to a marriage, will or other legal document
+	EventRoleGodparent     EventRole = "godparent"
+	EventRoleBeneficiary   EventRole = "beneficiary"   // beneficiary of a will
+	EventRoleExecutor      EventRole = "executor"      // executor of a will
+	EventRoleAdministrator EventRole = "administrator" // adminstrator of a probate
+	EventRoleInformant     EventRole = "informant"
 )
 
 type EventParticipant struct {
-	Person *Person
-	Role   EventRole
+	Person     *Person
+	Role       EventRole
+	Attributes map[string]string
 }
 
 func (e *EventParticipant) IsUnknown() bool {
@@ -202,8 +208,8 @@ func (e *GeneralEvent) Updated() (time.Time, bool) {
 
 // GeneralPartyEvent is a general event involving one individual.
 type GeneralIndividualEvent struct {
-	Principal         *Person
-	OtherParticipants []*EventParticipant
+	Principal    *Person
+	Participants []*EventParticipant
 }
 
 func (e *GeneralIndividualEvent) GetPrincipal() *Person {
@@ -214,11 +220,30 @@ func (e *GeneralIndividualEvent) DirectlyInvolves(p *Person) bool {
 	return e.Principal.SameAs(p)
 }
 
+func (e *GeneralIndividualEvent) IsParticipant(p *Person) bool {
+	if p.IsUnknown() {
+		return false
+	}
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *GeneralIndividualEvent) GetParticipants() []*EventParticipant {
-	return []*EventParticipant{{
-		Person: e.Principal,
-		Role:   EventRolePrincipal,
-	}}
+	return e.Participants
+}
+
+func (e *GeneralIndividualEvent) GetParticipant(p *Person) []*EventParticipant {
+	var eps []*EventParticipant
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
 }
 
 func (e *GeneralIndividualEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
@@ -230,7 +255,7 @@ func (e *GeneralIndividualEvent) GetParticipantsByRole(r EventRole) []*EventPart
 	}
 
 	var eps []*EventParticipant
-	for _, ep := range e.OtherParticipants {
+	for _, ep := range e.Participants {
 		if ep.Role == r {
 			eps = append(eps, ep)
 		}
@@ -238,11 +263,18 @@ func (e *GeneralIndividualEvent) GetParticipantsByRole(r EventRole) []*EventPart
 	return eps
 }
 
+func (e *GeneralIndividualEvent) AddParticipant(ep *EventParticipant) {
+	if ep.Role == EventRolePrincipal {
+		e.Principal = ep.Person
+	}
+	e.Participants = append(e.Participants, ep)
+}
+
 // GeneralUnionEvent is a general event involving the union of two parties.
 type GeneralUnionEvent struct {
-	Husband           *Person
-	Wife              *Person
-	OtherParticipants []*EventParticipant
+	Husband      *Person
+	Wife         *Person
+	Participants []*EventParticipant
 }
 
 func (e *GeneralUnionEvent) GetHusband() *Person {
@@ -257,6 +289,18 @@ func (e *GeneralUnionEvent) DirectlyInvolves(p *Person) bool {
 	return e.Husband.SameAs(p) || e.Wife.SameAs(p)
 }
 
+func (e *GeneralUnionEvent) IsParticipant(p *Person) bool {
+	if p.IsUnknown() {
+		return false
+	}
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *GeneralUnionEvent) GetOther(p *Person) *Person {
 	if !e.Husband.SameAs(p) {
 		return e.Husband
@@ -268,16 +312,27 @@ func (e *GeneralUnionEvent) GetOther(p *Person) *Person {
 }
 
 func (e *GeneralUnionEvent) GetParticipants() []*EventParticipant {
-	return []*EventParticipant{
-		{
-			Person: e.Husband,
-			Role:   EventRoleHusband,
-		},
-		{
-			Person: e.Wife,
-			Role:   EventRoleWife,
-		},
+	return e.Participants
+	// return []*EventParticipant{
+	// 	{
+	// 		Person: e.Husband,
+	// 		Role:   EventRoleHusband,
+	// 	},
+	// 	{
+	// 		Person: e.Wife,
+	// 		Role:   EventRoleWife,
+	// 	},
+	// }
+}
+
+func (e *GeneralUnionEvent) GetParticipant(p *Person) []*EventParticipant {
+	var eps []*EventParticipant
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
+			eps = append(eps, ep)
+		}
 	}
+	return eps
 }
 
 func (e *GeneralUnionEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
@@ -298,13 +353,22 @@ func (e *GeneralUnionEvent) GetParticipantsByRole(r EventRole) []*EventParticipa
 		}
 	default:
 		var eps []*EventParticipant
-		for _, ep := range e.OtherParticipants {
+		for _, ep := range e.Participants {
 			if ep.Role == r {
 				eps = append(eps, ep)
 			}
 		}
 		return eps
 	}
+}
+
+func (e *GeneralUnionEvent) AddParticipant(ep *EventParticipant) {
+	if ep.Role == EventRoleHusband {
+		e.Husband = ep.Person
+	} else if ep.Role == EventRoleWife {
+		e.Wife = ep.Person
+	}
+	e.Participants = append(e.Participants, ep)
 }
 
 // GeneralMultipartyEvent is a general event involving multiple parties.
@@ -315,6 +379,18 @@ type GeneralMultipartyEvent struct {
 func (e *GeneralMultipartyEvent) DirectlyInvolves(p *Person) bool {
 	for _, ep := range e.Participants {
 		if ep.Person.SameAs(p) && ep.Role == EventRolePrincipal {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *GeneralMultipartyEvent) IsParticipant(p *Person) bool {
+	if p.IsUnknown() {
+		return false
+	}
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
 			return true
 		}
 	}
@@ -335,6 +411,16 @@ func (e *GeneralMultipartyEvent) GetParticipants() []*EventParticipant {
 	return e.Participants
 }
 
+func (e *GeneralMultipartyEvent) GetParticipant(p *Person) []*EventParticipant {
+	var eps []*EventParticipant
+	for _, ep := range e.Participants {
+		if ep.Person.SameAs(p) {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
 func (e *GeneralMultipartyEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
 	var eps []*EventParticipant
 	for _, ep := range e.Participants {
@@ -343,6 +429,10 @@ func (e *GeneralMultipartyEvent) GetParticipantsByRole(r EventRole) []*EventPart
 		}
 	}
 	return eps
+}
+
+func (e *GeneralMultipartyEvent) AddParticipant(ep *EventParticipant) {
+	e.Participants = append(e.Participants, ep)
 }
 
 // POV represents a point of view. It is used to provide contect when constructing a description of an event.
@@ -609,12 +699,12 @@ var (
 type OccupationEvent struct {
 	GeneralEvent
 	GeneralIndividualEvent
-	Occupation string
+	Occupation Occupation
 }
 
 func (e *OccupationEvent) Type() string             { return "occupation" }
 func (e *OccupationEvent) ShortDescription() string { return e.abbrev("occ") }
-func (e *OccupationEvent) What() string             { return "occupation recorded as " + e.Occupation }
+func (e *OccupationEvent) What() string             { return "occupation recorded as " + e.Occupation.Name }
 
 var (
 	_ TimelineEvent           = (*OccupationEvent)(nil)
@@ -624,27 +714,27 @@ var (
 
 // text description of what happened, a passive verb in the past tense, such as "was married", "was born", "died"
 func (e *OccupationEvent) PassiveWhat() string {
-	return "had occupation recorded as " + e.Occupation
+	return "had occupation recorded as " + e.Occupation.Name
 }
 
 // text description of what happened, an active verb in the past tense with a conditonal, such as "probably married", "probate probably granted"
 func (e *OccupationEvent) ConditionalWhat(adverb string) string {
-	return "probably had occupation recorded as " + e.Occupation
+	return "probably had occupation recorded as " + e.Occupation.Name
 }
 
 // text description of what happened, a passive verb in the past tense with a conditonal, such as was "was probably married", "probate was probably granted"
 func (e *OccupationEvent) PassiveConditionalWhat(adverb string) string {
-	return "probably had occupation recorded as " + e.Occupation
+	return "probably had occupation recorded as " + e.Occupation.Name
 }
 
 // text description of what happened, a passive verb in the present perfect tense, usually prefixed by "inferred to ", such as "[inferred to ]have been married", "[inferred to ]have died"
 func (e *OccupationEvent) PresentPerfectWhat() string {
-	return "have had occupation recorded as " + e.Occupation
+	return "have had occupation recorded as " + e.Occupation.Name
 }
 
 // text description of what happened, a passive verb in the past perfect tense, such as "had been married", "had died"
 func (e *OccupationEvent) PastPerfectWhat() string {
-	return "had occupation recorded as " + e.Occupation
+	return "had occupation recorded as " + e.Occupation.Name
 }
 
 // ApprenticeEvent represents the commencement of an apprenticeship of a person
@@ -729,6 +819,10 @@ func (e *CensusEvent) ShortDescription() string { return e.abbrev("cens") }
 func (e *CensusEvent) What() string             { return "recorded in the census" }
 
 func (e *CensusEvent) DirectlyInvolves(p *Person) bool {
+	return e.IsParticipant(p)
+}
+
+func (e *CensusEvent) IsParticipant(p *Person) bool {
 	if p.IsUnknown() {
 		return false
 	}
@@ -770,8 +864,22 @@ func (e *CensusEvent) GetParticipants() []*EventParticipant {
 	return ps
 }
 
+func (e *CensusEvent) GetParticipant(p *Person) []*EventParticipant {
+	var eps []*EventParticipant
+	for _, ce := range e.Entries {
+		if ce.Principal.SameAs(p) {
+			eps = append(eps, &EventParticipant{Person: ce.Principal})
+		}
+	}
+	return eps
+}
+
 func (e *CensusEvent) GetParticipantsByRole(r EventRole) []*EventParticipant {
-	panic("GeneralPartyEvent.GetParticipantsByRole not implemented")
+	panic("CensusEvent.GetParticipantsByRole not implemented")
+}
+
+func (e *CensusEvent) AddParticipant(ep *EventParticipant) {
+	panic("CensusEvent.AddParticipant not implemented")
 }
 
 func (e *CensusEvent) SortsBefore(other TimelineEvent) bool {
@@ -1137,6 +1245,29 @@ func (e *DivorceEvent) SortsBefore(other TimelineEvent) bool {
 	}
 }
 
+// SeparationEvent represents the formal separation of a couple, often a precursor to divorce
+type SeparationEvent struct {
+	GeneralEvent
+	GeneralUnionEvent
+}
+
+var (
+	_ TimelineEvent      = (*SeparationEvent)(nil)
+	_ UnionTimelineEvent = (*SeparationEvent)(nil)
+)
+
+func (e *SeparationEvent) Type() string             { return "separation" }
+func (e *SeparationEvent) ShortDescription() string { return e.abbrev("sep") }
+func (e *SeparationEvent) What() string             { return "separated" }
+func (e *SeparationEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *OccupationEvent, *ResidenceRecordedEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 // AnnulmentEvent represents the ending of a marriage by anulment in a timeline
 type AnnulmentEvent struct {
 	GeneralEvent
@@ -1190,23 +1321,6 @@ func (e *PossibleDeathEvent) SortsBefore(other TimelineEvent) bool { return true
 var (
 	_ TimelineEvent           = (*PossibleDeathEvent)(nil)
 	_ IndividualTimelineEvent = (*PossibleDeathEvent)(nil)
-)
-
-// WitnessToMarriageEvent represents the event of a person acting as a witness to a marriage ceremony
-type WitnessToMarriageEvent struct {
-	GeneralEvent
-	GeneralIndividualEvent
-	MarriageEvent *MarriageEvent
-}
-
-func (e *WitnessToMarriageEvent) Type() string                         { return "witness to marrriage" }
-func (e *WitnessToMarriageEvent) ShortDescription() string             { return e.abbrev("wit") }
-func (e *WitnessToMarriageEvent) What() string                         { return "witnessed a marriage" }
-func (e *WitnessToMarriageEvent) SortsBefore(other TimelineEvent) bool { return true }
-
-var (
-	_ TimelineEvent           = (*WitnessToMarriageEvent)(nil)
-	_ IndividualTimelineEvent = (*WitnessToMarriageEvent)(nil)
 )
 
 type EventMatcher func(TimelineEvent) bool

@@ -53,7 +53,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Name: formatName(n),
 			}
 			if len(n.Citationref) > 0 {
-				oname.Citations, _ = l.parseCitationRecords(m, n.Citationref, logger)
+				oname.Citations = l.parseCitationRecords(m, n.Citationref, logger)
 			}
 
 			p.KnownNames = append(p.KnownNames, oname)
@@ -159,7 +159,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		p.Gender = model.GenderUnknown
 	}
 
-	pgcs, _ := l.parseCitationRecords(m, gp.Citationref, logger)
+	pgcs := l.parseCitationRecords(m, gp.Citationref, logger)
 
 	for _, pgc := range pgcs {
 		if pgc.Source == nil {
@@ -234,7 +234,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		case "childless", "died without issue":
 			p.Childless = true
 		case "cause of death":
-			codcits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			codcits := l.parseCitationRecords(m, att.Citationref, logger)
 			p.CauseOfDeath = model.ParseCauseOfDeathFact(att.Value, codcits)
 		case "mode of death":
 			switch strings.ToLower(att.Value) {
@@ -254,14 +254,14 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				logger.Warn("unhandled mode of death attribute", "type", att.Type, "value", att.Value)
 			}
 		case "military number":
-			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			cits := l.parseCitationRecords(m, att.Citationref, logger)
 			p.MiscFacts = append(p.MiscFacts, model.Fact{
 				Category:  model.FactCategoryMilitaryServiceNumber,
 				Detail:    att.Value,
 				Citations: cits,
 			})
 		case "seamans ticket":
-			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			cits := l.parseCitationRecords(m, att.Citationref, logger)
 			p.MiscFacts = append(p.MiscFacts, model.Fact{
 				Category:  model.FactCategorySeamansTicket,
 				Detail:    att.Value,
@@ -271,10 +271,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Slug = att.Value
 		case "olb":
 			p.Olb = att.Value
+		case "merged gramps id":
+			// ignore
 		case "died in childbirth":
 			p.ModeOfDeath = model.ModeOfDeathChildbirth
 		case "could sign name":
-			cits, _ := l.parseCitationRecords(m, att.Citationref, logger)
+			cits := l.parseCitationRecords(m, att.Citationref, logger)
 			const detailCouldSign = "could sign their name"
 			const detailCouldNotSign = "could not sign their name"
 			const detailBoth = "could sign their name at times"
@@ -336,347 +338,159 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	}
 
 	for _, grer := range gp.Eventref {
-		grev, ok := l.EventsByHandle[grer.Hlink]
-		if !ok {
-			logger.Warn("could not find event", "hlink", grer.Hlink)
-			continue
+		logger := logger.With("event_handle", grer.Hlink)
+
+		grampsRole := strings.ToLower(pval(grer.Role, "unknown"))
+		if grampsRole == "unknown" {
+			logger.Warn("anomaly: event has unknown role")
 		}
 
-		role := strings.ToLower(pval(grer.Role, "unknown"))
-		evtype := strings.ToLower(pval(grev.Type, "unknown"))
-
-		if role != "primary" {
-			if evtype == "census" && role == "unknown" {
-				// allow this but flag as an anomaly
-				logger.Warn("census event has an unknown role, should be primary", "hlink", grer.Hlink)
-				anom := &model.Anomaly{
-					Category: model.AnomalyCategoryEvent,
-					Text:     "Census event has an unknown role, should be primary",
-					Context:  "Role",
+		var roleAttrs map[string]string
+		if len(grer.Attribute) > 0 {
+			roleAttrs = make(map[string]string, len(grer.Attribute))
+			for _, att := range grer.Attribute {
+				if pval(att.Priv, false) {
+					logger.Debug("skipping event reference attribute marked as private", "type", att.Type)
+					continue
 				}
-				p.Anomalies = append(p.Anomalies, anom)
-			} else if evtype == "marriage" && role == "witness" {
-				// allow this
-			} else {
-				// ignore event for this person
-				// TODO: support more roles
-				continue
+				roleAttrs[strings.ToLower(att.Type)] = att.Value
 			}
-		}
-
-		gev, eventAnomalies, err := l.parseGeneralEvent(m, grev, &grer, logger)
-		if err != nil {
-			logger.Warn("could not parse event", "error", err.Error(), "hlink", grer.Hlink)
-			anom := &model.Anomaly{
-				Category: model.AnomalyCategoryEvent,
-				Text:     err.Error(),
-				Context:  "Parsing event data",
-			}
-			p.Anomalies = append(p.Anomalies, anom)
-			continue
-		}
-
-		giv := model.GeneralIndividualEvent{
-			Principal: p,
 		}
 
 		var ev model.TimelineEvent
+		var ok bool
+		ev, ok = l.lookupEvent(&grer)
 
-		switch strings.ToLower(pval(grev.Type, "unknown")) {
-		case "birth":
-			ev = &model.BirthEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "baptism":
-			bev := &model.BaptismEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-			if _, ok := gev.Attributes[model.EventAttributePrivateBaptism]; ok {
-				bev.Private = true
-			}
-			ev = bev
-		case "naming":
-			ev = &model.NamingEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "death":
-			ev = &model.DeathEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "burial":
-			ev = &model.BurialEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "cremation":
-			ev = &model.CremationEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "memorial":
-			ev = &model.MemorialEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "census":
-			censusDate, fixed := maybeFixCensusDate(grev)
-			if fixed {
-				gev.Date = censusDate
-			}
-			ev = l.populateCensusRecord(grev, &grer, gev, p, m)
-		case "residence":
-			ev = l.getResidenceEvent(grev, &grer, gev, p, m)
-		case "probate":
-			ev = &model.ProbateEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "will":
-			ev = &model.WillEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "apprentice":
-			ev = &model.ApprenticeEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		// case "Property":
-		// 	ev = &model.PropertyEvent{
-		// 		GeneralEvent:           gev,
-		// 		GeneralIndividualEvent: giv,
-		// 	}
-		case "sale of property":
-			ev = &model.SaleOfPropertyEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "economic status":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = "Economic status recorded as " + desc
-				ev = &model.EconomicStatusEvent{
-					GeneralEvent:           gev,
-					GeneralIndividualEvent: giv,
-					Status:                 desc,
-				}
-			}
-		case "physical description":
-			if desc := pval(grev.Description, ""); desc != "" {
-				ev = &model.PhysicalDescriptionEvent{
-					GeneralEvent:           gev,
-					GeneralIndividualEvent: giv,
-					Description:            desc,
-				}
+		if ok {
+			role := model.EventRoleUnknown
+			if grampsRole == "primary" {
+				role = model.EventRolePrincipal
 			}
 
-		case "occupation":
-			if desc := pval(grev.Description, ""); desc != "" {
-				name, status, group := parseOccupation(desc)
-				if strings.ToLower(name) == "pauper" {
-					p.Anomalies = append(p.Anomalies, &model.Anomaly{
-						Category: model.AnomalyCategoryEvent,
-						Text:     "Occupation event looks like an economic status: " + name,
-						Context:  "Detail",
-					})
+			switch tev := ev.(type) {
+			case *model.BirthEvent:
+				switch grampsRole {
+				case "informant":
+					role = model.EventRoleInformant
 				}
-				oc := &model.Occupation{
-					Date:        gev.GetDate(),
-					StartDate:   gev.GetDate(),
-					EndDate:     gev.GetDate(),
-					Place:       gev.Place,
-					Name:        name,
-					Status:      status,
-					Group:       group,
-					Detail:      desc,
-					Citations:   gev.Citations,
-					Occurrences: 1,
+			case *model.BaptismEvent:
+				switch grampsRole {
+				case "godparent":
+					role = model.EventRoleGodparent
 				}
-				p.Occupations = append(p.Occupations, oc)
-				if oc.Name != "" {
-					str := ""
-					if oc.Status != model.OccupationStatusUnknown {
-						str = oc.Status.String() + " "
+			case *model.MarriageEvent:
+				switch grampsRole {
+				case "witness":
+					role = model.EventRoleWitness
+				}
+			case *model.DeathEvent:
+				switch grampsRole {
+				case "informant":
+					role = model.EventRoleInformant
+				}
+
+			case *model.OccupationEvent:
+				switch grampsRole {
+				case "primary":
+					p.Occupations = append(p.Occupations, &tev.Occupation)
+				}
+
+			case *model.WillEvent:
+				switch grampsRole {
+				case "witness":
+					role = model.EventRoleWitness
+				case "beneficiary":
+					role = model.EventRoleBeneficiary
+				case "executor":
+					role = model.EventRoleExecutor
+				}
+			case *model.ProbateEvent:
+				switch grampsRole {
+				case "witness":
+					role = model.EventRoleWitness
+				case "beneficiary":
+					role = model.EventRoleBeneficiary
+				case "executor":
+					role = model.EventRoleExecutor
+				}
+
+			case *model.CensusEvent:
+				// prevent event participant being added
+				role = model.EventRoleUnknown
+
+				if grampsRole != "primary" {
+					logger.Warn("anomaly: census event has an unexpected role, should be primary", "role", grampsRole)
+				}
+				ce := &model.CensusEntry{
+					Principal: p,
+				}
+
+				var transcript string
+				for _, gnr := range grer.Noteref {
+					gn, ok := l.NotesByHandle[gnr.Hlink]
+					if !ok {
+						continue
 					}
-					str += oc.Name
-
-					gev.Title = "Occupation recorded as " + str
-					ev = &model.OccupationEvent{
-						GeneralEvent:           gev,
-						GeneralIndividualEvent: giv,
-						Occupation:             str,
+					if pval(gn.Priv, false) {
+						logging.Debug("skipping census entry note marked as private", "id", p.ID, "handle", gn.Handle)
+						continue
+					}
+					if gn.Type == "Transcript" {
+						transcript = gn.Text
+					} else if gn.Type == "Narrative" {
+						ce.Narrative = gn.Text
 					}
 				}
-			}
 
-		case "narrative":
-			ev = &model.IndividualNarrativeEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-
-		case "enlistment":
-			if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
-				if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
-					p.Anomalies = append(p.Anomalies, &model.Anomaly{
-						Category: model.AnomalyCategoryEvent,
-						Text:     "Enlistment event is missing either a regiment or service attribute",
-						Context:  "Attributes",
-					})
+				fillCensusEntry(transcript, ce)
+				if ce.RelationToHead != "" {
+					logging.Debug("noting relation to head as "+ce.RelationToHead.String()+" from information on census", "id", p.ID)
 				}
-			}
-
-			if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
-				gev.Title = "enlisted in the " + reg
-			} else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
-				gev.Title = "enlisted in the " + svc
-			} else {
-				gev.Title = "enlisted"
-			}
-			ev = &model.EnlistmentEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "promotion":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = "promoted to " + desc
-			} else {
-				gev.Title = "promoted"
-			}
-			ev = &model.PromotionEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "demotion":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = "demoted to " + desc
-			} else {
-				gev.Title = "demoted"
-			}
-			ev = &model.DemotionEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "muster":
-			ev = l.getMusterEvent(grev, &grer, gev, p, m)
-			if gev.Title == "" {
-				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
-					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
-						p.Anomalies = append(p.Anomalies, &model.Anomaly{
-							Category: model.AnomalyCategoryEvent,
-							Text:     "Muster event is missing either a regiment or service attribute",
-							Context:  "Attributes",
-						})
-					}
+				if ce.MaritalStatus != "" {
+					logging.Debug("noting marital status as "+ce.MaritalStatus.String()+" from information on census", "id", p.ID)
 				}
-			}
-		case "battle":
-			ev = l.getBattleEvent(grev, &grer, gev, p, m)
-			if gev.Title == "" {
-				if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
-					if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
-						p.Anomalies = append(p.Anomalies, &model.Anomaly{
-							Category: model.AnomalyCategoryEvent,
-							Text:     "Battle event is missing either a regiment or service attribute",
-							Context:  "Attributes",
-						})
-					}
+				if ce.Occupation != "" {
+					logging.Debug("noting occupation as "+ce.Occupation+" from information on census", "id", p.ID)
 				}
-			}
-		case "institution entry":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.InstitutionEntryEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "institution departure":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.InstitutionDepartureEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "court":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.CourtEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "conviction":
-			if desc := pval(grev.Description, ""); desc != "" {
-				ev = &model.ConvictionEvent{
-					GeneralEvent:           gev,
-					GeneralIndividualEvent: giv,
-					Crime:                  desc,
+
+				if reDetectMentalImpairment.MatchString(ce.Detail) {
+					p.MentalImpairment = true
+					logging.Debug("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
 				}
+
+				if reDetectPhysicalImpairment.MatchString(ce.Detail) {
+					p.PhysicalImpairment = true
+					logging.Debug("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
+				}
+
+				if reDetectPauper.MatchString(ce.Detail) {
+					p.Pauper = true
+					logging.Debug("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
+				}
+
+				tev.Entries = append(tev.Entries, ce)
+
 			}
 
-		case "immigration":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
+			if role != model.EventRoleUnknown {
+				ev.AddParticipant(&model.EventParticipant{
+					Person:     p,
+					Role:       role,
+					Attributes: roleAttrs,
+				})
+			} else if grampsRole != "primary" {
+				logger.Warn("unhandled person event role", "role", grampsRole, "type", ev.Type())
+				// ignore the event
+				ev = nil
 			}
-			ev = &model.ImmigrationEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "departure":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.DepartureEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "arrival":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.ArrivalEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "possible birth":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.PossibleBirthEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "possible death":
-			if desc := pval(grev.Description, ""); desc != "" {
-				gev.Title = desc
-			}
-			ev = &model.PossibleDeathEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-			}
-		case "marriage":
-			mev := l.getMarriageEvent(grev)
-			ev = &model.WitnessToMarriageEvent{
-				GeneralEvent:           gev,
-				GeneralIndividualEvent: giv,
-				MarriageEvent:          mev,
-			}
-		default:
-			// TODO:
-			// Economic Status
-			// Settlement Examination
-			// Inquest
-			// Medical Information
-			// Property
-			// Adopted
 
-			logger.Warn("unhandled person event type", "hlink", grer.Hlink, "type", pval(grev.Type, "unknown"))
-
+		} else {
+			grev, ok := l.EventsByHandle[grer.Hlink]
+			if !ok {
+				panic("could not find event with hlink " + grer.Hlink)
+			}
+			logger.Debug("missing person event", "type", pval(grev.Type, "unknown"))
+			continue
 		}
 
 		if ev != nil {
@@ -695,7 +509,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 					seenSource[c.Source] = true
 				}
 			}
-			p.Anomalies = append(p.Anomalies, eventAnomalies...)
 		}
 
 	}
@@ -792,7 +605,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Other: other,
 			}
 			if len(pr.Citationref) > 0 {
-				assoc.Citations, _ = l.parseCitationRecords(m, pr.Citationref, logger)
+				assoc.Citations = l.parseCitationRecords(m, pr.Citationref, logger)
 			}
 
 			p.Associations = append(p.Associations, assoc)
@@ -802,7 +615,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Other: other,
 			}
 			if len(pr.Citationref) > 0 {
-				assoc.Citations, _ = l.parseCitationRecords(m, pr.Citationref, logger)
+				assoc.Citations = l.parseCitationRecords(m, pr.Citationref, logger)
 			}
 
 			p.Associations = append(p.Associations, assoc)

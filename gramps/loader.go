@@ -48,6 +48,7 @@ type Loader struct {
 	censusEvents         map[string]*model.CensusEvent
 	multipartyEvents     map[string]model.MultipartyTimelineEvent
 	unionEvents          map[string]model.UnionTimelineEvent
+	timelineEvents       map[string]model.TimelineEvent
 	familyNameGroups     map[string]string
 }
 
@@ -79,7 +80,9 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		censusEvents:         make(map[string]*model.CensusEvent),
 		multipartyEvents:     make(map[string]model.MultipartyTimelineEvent),
 		unionEvents:          make(map[string]model.UnionTimelineEvent),
-		familyNameGroups:     make(map[string]string),
+		timelineEvents:       make(map[string]model.TimelineEvent),
+
+		familyNameGroups: make(map[string]string),
 	}
 
 	l.indexObjects()
@@ -158,6 +161,17 @@ func (l *Loader) Load(t *tree.Tree) error {
 		}
 	}
 	logging.Info(fmt.Sprintf("loaded %d place records", len(l.DB.Places.Place)))
+
+	for _, e := range l.DB.Events.Event {
+		if pval(e.Priv, false) {
+			logging.Debug("skipping event marked as private", "handle", e.Handle)
+			continue
+		}
+		if err := l.populateEventFacts(t, &e); err != nil {
+			logging.Error("failed to populate event facts", "error", err)
+		}
+	}
+	logging.Info(fmt.Sprintf("loaded %d event records", len(l.DB.Events.Event)))
 
 	for _, p := range l.DB.People.Person {
 		if err := l.populatePersonFacts(t, &p); err != nil {

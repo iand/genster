@@ -13,7 +13,11 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, []*model.Anomaly, error) {
+func (l *Loader) populateEventFacts(m ModelFinder, grev *grampsxml.Event) error {
+	id := pval(grev.ID, grev.Handle)
+	logger := logging.With("id", id)
+	logger.Debug("populating from event record", "handle", grev.Handle)
+
 	pl := l.findPlaceForEvent(m, grev)
 	dp := gdate.Parser{
 		ReckoningLocation: reckoningForPlace(pl),
@@ -22,7 +26,8 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 
 	dt, err := EventDate(grev, dp)
 	if err != nil {
-		return model.GeneralEvent{}, nil, err
+		logger.Warn("unable to parse event date", "handle", grev.Handle, "error", err)
+		dt = model.UnknownDate()
 	}
 
 	gev := model.GeneralEvent{
@@ -52,23 +57,8 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 		gev.Attributes[strings.ToLower(att.Type)] = att.Value
 	}
 
-	// add attributes for this reference
-	for _, att := range grer.Attribute {
-		if pval(att.Priv, false) {
-			logger.Debug("skipping event reference attribute marked as private", "type", att.Type)
-			continue
-		}
-		gev.Attributes[strings.ToLower(att.Type)] = att.Value
-	}
-
-	var anomalies []*model.Anomaly
 	if len(grev.Citationref) > 0 {
-		var citanoms []*model.Anomaly
-		gev.Citations, citanoms = l.parseCitationRecords(m, grev.Citationref, logger)
-		for _, anom := range citanoms {
-			anom.Context = "Citation for " + pval(grev.Type, "unknown") + " event"
-			anomalies = append(anomalies, anom)
-		}
+		gev.Citations = l.parseCitationRecords(m, grev.Citationref, logger)
 	}
 
 	for _, gor := range grev.Objref {
@@ -118,7 +108,394 @@ func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *g
 			gev.Citations = append(gev.Citations, cit)
 		}
 	}
-	return gev, anomalies, nil
+
+	var ev model.TimelineEvent
+	evtype := strings.ToLower(pval(grev.Type, "unknown"))
+	switch evtype {
+	case "birth":
+		ev = &model.BirthEvent{
+			GeneralEvent: gev,
+		}
+	case "baptism":
+		bev := &model.BaptismEvent{
+			GeneralEvent: gev,
+		}
+		if _, ok := gev.Attributes[model.EventAttributePrivateBaptism]; ok {
+			bev.Private = true
+		}
+		ev = bev
+	case "naming":
+		ev = &model.NamingEvent{
+			GeneralEvent: gev,
+		}
+	case "death":
+		ev = &model.DeathEvent{
+			GeneralEvent: gev,
+		}
+	case "burial":
+		ev = &model.BurialEvent{
+			GeneralEvent: gev,
+		}
+	case "cremation":
+		ev = &model.CremationEvent{
+			GeneralEvent: gev,
+		}
+	case "memorial":
+		ev = &model.MemorialEvent{
+			GeneralEvent: gev,
+		}
+	case "will":
+		ev = &model.WillEvent{
+			GeneralEvent: gev,
+		}
+	case "probate":
+		ev = &model.ProbateEvent{
+			GeneralEvent: gev,
+		}
+	case "apprentice":
+		ev = &model.ApprenticeEvent{
+			GeneralEvent: gev,
+		}
+	case "physical description":
+		if desc := pval(grev.Description, ""); desc != "" {
+			ev = &model.PhysicalDescriptionEvent{
+				GeneralEvent: gev,
+				Description:  desc,
+			}
+		}
+	case "sale of property":
+		ev = &model.SaleOfPropertyEvent{
+			GeneralEvent: gev,
+		}
+	case "economic status":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = "Economic status recorded as " + desc
+			ev = &model.EconomicStatusEvent{
+				GeneralEvent: gev,
+				Status:       desc,
+			}
+		}
+	case "narrative":
+		ev = &model.IndividualNarrativeEvent{
+			GeneralEvent: gev,
+		}
+	case "institution entry":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.InstitutionEntryEvent{
+			GeneralEvent: gev,
+		}
+	case "institution departure":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.InstitutionDepartureEvent{
+			GeneralEvent: gev,
+		}
+	case "court":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.CourtEvent{
+			GeneralEvent: gev,
+		}
+	case "conviction":
+		if desc := pval(grev.Description, ""); desc != "" {
+			ev = &model.ConvictionEvent{
+				GeneralEvent: gev,
+				Crime:        desc,
+			}
+		}
+
+	case "immigration":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.ImmigrationEvent{
+			GeneralEvent: gev,
+		}
+	case "departure":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.DepartureEvent{
+			GeneralEvent: gev,
+		}
+	case "arrival":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.ArrivalEvent{
+			GeneralEvent: gev,
+		}
+	case "possible birth":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.PossibleBirthEvent{
+			GeneralEvent: gev,
+		}
+	case "possible death":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.PossibleDeathEvent{
+			GeneralEvent: gev,
+		}
+
+	case "enlistment":
+		if _, ok := gev.Attributes[model.EventAttributeRegiment]; !ok {
+			if _, ok := gev.Attributes[model.EventAttributeService]; !ok {
+				logger.Warn("anomaly: enlistment event is missing either a regiment or service attribute")
+			}
+		}
+
+		if reg, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
+			gev.Title = "enlisted in the " + reg
+		} else if svc, ok := gev.Attributes[model.EventAttributeService]; ok {
+			gev.Title = "enlisted in the " + svc
+		} else {
+			gev.Title = "enlisted"
+		}
+		ev = &model.EnlistmentEvent{
+			GeneralEvent: gev,
+		}
+	case "promotion":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = "promoted to " + desc
+		} else {
+			gev.Title = "promoted"
+		}
+		ev = &model.PromotionEvent{
+			GeneralEvent: gev,
+		}
+	case "demotion":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = "demoted to " + desc
+		} else {
+			gev.Title = "demoted"
+		}
+		ev = &model.DemotionEvent{
+			GeneralEvent: gev,
+		}
+	case "marriage":
+		ev = &model.MarriageEvent{
+			GeneralEvent: gev,
+		}
+	case "marriage license":
+		ev = &model.MarriageLicenseEvent{
+			GeneralEvent: gev,
+		}
+	case "marriage banns":
+		ev = &model.MarriageBannsEvent{
+			GeneralEvent: gev,
+		}
+	case "divorce":
+		ev = &model.DivorceEvent{
+			GeneralEvent: gev,
+		}
+	case "separation":
+		ev = &model.SeparationEvent{
+			GeneralEvent: gev,
+		}
+	case "residence":
+		ev = &model.ResidenceRecordedEvent{
+			GeneralEvent: gev,
+		}
+	case "census":
+		censusDate, fixed := maybeFixCensusDate(grev)
+		if fixed {
+			gev.Date = censusDate
+		}
+		ev = &model.CensusEvent{
+			GeneralEvent: gev,
+		}
+
+	case "occupation":
+
+		if desc := pval(grev.Description, ""); desc != "" {
+			name, status, group := parseOccupation(desc)
+			if strings.ToLower(name) == "pauper" {
+				logger.Warn("anomaly: occupation event looks like an economic status: " + name)
+			}
+			oc := model.Occupation{
+				Date:        gev.GetDate(),
+				StartDate:   gev.GetDate(),
+				EndDate:     gev.GetDate(),
+				Place:       gev.Place,
+				Name:        name,
+				Status:      status,
+				Group:       group,
+				Detail:      desc,
+				Citations:   gev.Citations,
+				Occurrences: 1,
+			}
+			if oc.Name != "" {
+				str := ""
+				if oc.Status != model.OccupationStatusUnknown {
+					str = oc.Status.String() + " "
+				}
+				str += oc.Name
+
+				gev.Title = "Occupation recorded as " + str
+				ev = &model.OccupationEvent{
+					GeneralEvent: gev,
+					Occupation:   oc,
+				}
+			}
+		}
+
+	case "muster":
+		title := text.JoinSentenceParts("recorded at muster")
+		if regiment, ok := gev.Attributes[model.EventAttributeRegiment]; ok {
+			if battalion, ok := gev.Attributes[model.EventAttributeBattalion]; ok {
+				title = text.JoinSentenceParts(title, "for the", battalion, "battalion,", regiment)
+			} else {
+				logger.Warn("anomaly: muster missing battalion attribute")
+				title = text.JoinSentenceParts(title, "for the", regiment, "regiment")
+			}
+		} else {
+			logger.Warn("anomaly: muster missing regiment attribute")
+		}
+		gev.Title = title
+		ev = &model.MusterEvent{
+			GeneralEvent: gev,
+		}
+
+	case "battle":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = "participated in the " + desc
+		} else {
+			gev.Title = "participated in battle"
+		}
+		ev = &model.BattleEvent{
+			GeneralEvent: gev,
+		}
+
+	default:
+		logger.Warn("unhandled general event type", "type", pval(grev.Type, "unknown"))
+	}
+
+	if ev != nil {
+		l.timelineEvents[id] = ev
+	}
+
+	return nil
+}
+
+func (l *Loader) lookupEvent(grer *grampsxml.Eventref) (model.TimelineEvent, bool) {
+	// TODO: consider priv attribute, maybe don't return private references
+	grev, ok := l.EventsByHandle[grer.Hlink]
+	if !ok {
+		return nil, false
+	}
+	id := pval(grev.ID, grev.Handle)
+	ev, ok := l.timelineEvents[id]
+
+	return ev, ok
+}
+
+func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, error) {
+	pl := l.findPlaceForEvent(m, grev)
+	dp := gdate.Parser{
+		ReckoningLocation: reckoningForPlace(pl),
+		AssumeGROQuarter:  false,
+	}
+
+	dt, err := EventDate(grev, dp)
+	if err != nil {
+		return model.GeneralEvent{}, err
+	}
+
+	gev := model.GeneralEvent{
+		Date:       dt,
+		Place:      pl,
+		Detail:     pval(grev.Description, ""),
+		Title:      pval(grev.Type, ""),
+		Attributes: make(map[string]string),
+	}
+
+	changeTime, err := changeToTime(grev.Change)
+	if err == nil {
+		gev.UpdateTime = &changeTime
+	}
+
+	createdTime, err := createdTimeFromHandle(grev.Handle)
+	if err == nil {
+		gev.CreateTime = &createdTime
+	}
+
+	// add shared attributes
+	for _, att := range grev.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping event attribute marked as private", "type", att.Type)
+			continue
+		}
+		gev.Attributes[strings.ToLower(att.Type)] = att.Value
+	}
+
+	// add attributes for this reference
+	for _, att := range grer.Attribute {
+		if pval(att.Priv, false) {
+			logger.Debug("skipping event reference attribute marked as private", "type", att.Type)
+			continue
+		}
+		gev.Attributes[strings.ToLower(att.Type)] = att.Value
+	}
+
+	if len(grev.Citationref) > 0 {
+		gev.Citations = l.parseCitationRecords(m, grev.Citationref, logger)
+	}
+
+	for _, gor := range grev.Objref {
+		if pval(gor.Priv, false) {
+			logger.Debug("skipping citation object marked as private", "handle", gor.Hlink)
+			continue
+		}
+		gob, ok := l.ObjectsByHandle[gor.Hlink]
+		if ok {
+			mo := m.FindMediaObject(gob.File.Src)
+			cmo := &model.CitedMediaObject{
+				Object: mo,
+			}
+			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
+				cmo.Highlight = &model.Region{
+					Left:   *gor.Region.Corner1x,
+					Bottom: 100 - *gor.Region.Corner2y,
+					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
+					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
+				}
+			}
+
+			gev.MediaObjects = append(gev.MediaObjects, cmo)
+		}
+	}
+
+	for _, gnr := range grev.Noteref {
+		gn, ok := l.NotesByHandle[gnr.Hlink]
+		if !ok {
+			continue
+		}
+		if pval(gn.Priv, false) {
+			logger.Debug("skipping event note marked as private", "handle", gn.Handle)
+			continue
+		}
+		switch strings.ToLower(gn.Type) {
+		case "narrative":
+			if gev.Narrative.Text != "" {
+				logger.Warn("overwriting narrative with Narrative note", "hlink", gnr.Hlink)
+			}
+			gev.Narrative = l.parseNote(gn, m)
+		case "event note":
+			cit := &model.GeneralCitation{
+				ID:     gnr.Hlink,
+				Detail: gn.Text,
+			}
+			gev.Citations = append(gev.Citations, cit)
+		}
+	}
+	return gev, nil
 }
 
 func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.Place {
@@ -782,128 +1159,5 @@ func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref
 		Role:   model.EventRolePrincipal,
 	})
 
-	return ev
-}
-
-func (l *Loader) getMusterEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.MusterEvent {
-	id := pval(grev.ID, grev.Handle)
-
-	var ev *model.MusterEvent
-
-	mev, ok := l.multipartyEvents[id]
-	if ok {
-		ev, ok = mev.(*model.MusterEvent)
-		if !ok {
-			panic(fmt.Sprintf("expected multiparty event with id %q to be a MusterEvent but it was a %T", id, mev))
-		}
-	} else {
-		ev = &model.MusterEvent{GeneralEvent: gev}
-		l.multipartyEvents[id] = ev
-
-		for _, gnr := range grev.Noteref {
-			gn, ok := l.NotesByHandle[gnr.Hlink]
-			if !ok {
-				continue
-			}
-			if pval(gn.Priv, false) {
-				logging.Debug("skipping muster note marked as private", "id", p.ID, "handle", gn.Handle)
-				continue
-			}
-			if gn.Type == "Narrative" {
-				ev.Narrative = l.parseNote(gn, m)
-			}
-		}
-
-		title := text.JoinSentenceParts("recorded at muster")
-		if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
-			if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
-				title = text.JoinSentenceParts(title, "for the", battalion, "battalion,", regiment)
-			} else {
-				title = text.JoinSentenceParts(title, "for the", regiment, "regiment")
-			}
-		}
-
-		ev.Title = title
-
-	}
-
-	ev.Participants = append(ev.Participants, &model.EventParticipant{
-		Person: p,
-		Role:   model.EventRolePrincipal,
-	})
-
-	return ev
-}
-
-func (l *Loader) getBattleEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.BattleEvent {
-	id := pval(grev.ID, grev.Handle)
-
-	var ev *model.BattleEvent
-
-	mev, ok := l.multipartyEvents[id]
-	if ok {
-		ev, ok = mev.(*model.BattleEvent)
-		if !ok {
-			panic(fmt.Sprintf("expected multiparty event with id %q to be a BattleEvent but it was a %T", id, mev))
-		}
-	} else {
-		ev = &model.BattleEvent{GeneralEvent: gev}
-		l.multipartyEvents[id] = ev
-
-		if desc := pval(grev.Description, ""); desc != "" {
-			ev.Title = "participated in the " + desc
-		} else {
-			ev.Title = "participated in battle"
-		}
-
-		for _, gnr := range grev.Noteref {
-			gn, ok := l.NotesByHandle[gnr.Hlink]
-			if !ok {
-				continue
-			}
-			if pval(gn.Priv, false) {
-				logging.Debug("skipping battle note marked as private", "id", p.ID, "handle", gn.Handle)
-				continue
-			}
-			if gn.Type == "Narrative" {
-				ev.Narrative = l.parseNote(gn, m)
-			}
-		}
-
-		// title := text.JoinSentenceParts("participated in battle")
-		// if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
-		// 	if battalion, ok := ev.GetAttribute(model.EventAttributeBattalion); ok {
-		// 		title = text.JoinSentenceParts(title, "in the", battalion, "battalion,", regiment)
-		// 	} else {
-		// 		title = text.JoinSentenceParts(title, "in the", regiment, "regiment")
-		// 	}
-		// }
-
-		// ev.Title = title
-
-	}
-
-	ev.Participants = append(ev.Participants, &model.EventParticipant{
-		Person: p,
-		Role:   model.EventRolePrincipal,
-	})
-
-	return ev
-}
-
-func (l *Loader) getMarriageEvent(grev *grampsxml.Event) *model.MarriageEvent {
-	var ev *model.MarriageEvent
-
-	id := pval(grev.ID, grev.Handle)
-	uev, ok := l.unionEvents[id]
-	if ok {
-		ev, ok = uev.(*model.MarriageEvent)
-		if !ok {
-			panic(fmt.Sprintf("expected union event with id %q to be a MarriageEvent but it was a %T", id, uev))
-		}
-	} else {
-		ev = &model.MarriageEvent{}
-		l.unionEvents[id] = ev
-	}
 	return ev
 }

@@ -79,6 +79,8 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	case "kirkesokn":
 		// Norwegian sub-parish
 		pl.PlaceType = model.PlaceTypeParish
+	case "probate registry":
+		pl.PlaceType = model.PlaceTypeProbateOffice
 	default:
 		pl.PlaceType = model.PlaceTypeUnknown
 	}
