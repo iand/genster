@@ -196,7 +196,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 	}
 
-	var literacyFact *model.Fact
+	var literacySignedCitations []*model.GeneralCitation
+	var literacyDidNotSignCitations []*model.GeneralCitation
 
 	// Add attributes
 	for _, att := range gp.Attribute {
@@ -277,36 +278,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.ModeOfDeath = model.ModeOfDeathChildbirth
 		case "could sign name":
 			cits := l.parseCitationRecords(m, att.Citationref, logger)
-			const detailCouldSign = "could sign their name"
-			const detailCouldNotSign = "could not sign their name"
-			const detailBoth = "could sign their name at times"
 			switch strings.ToLower(att.Value) {
 			case "yes":
-				if literacyFact == nil {
-					literacyFact = &model.Fact{
-						Category:  model.FactCategoryLiteracy,
-						Detail:    detailCouldSign,
-						Citations: cits,
-					}
-				} else {
-					literacyFact.Citations = append(literacyFact.Citations, cits...)
-					if literacyFact.Detail == detailCouldNotSign {
-						literacyFact.Detail = detailBoth
-					}
-				}
+				literacySignedCitations = append(literacySignedCitations, cits...)
 			case "no":
-				if literacyFact == nil {
-					literacyFact = &model.Fact{
-						Category:  model.FactCategoryLiteracy,
-						Detail:    detailCouldNotSign,
-						Citations: cits,
-					}
-				} else {
-					literacyFact.Citations = append(literacyFact.Citations, cits...)
-					if literacyFact.Detail == detailCouldSign {
-						literacyFact.Detail = detailBoth
-					}
-				}
+				literacyDidNotSignCitations = append(literacySignedCitations, cits...)
 			default:
 				logger.Error("unsupported value for attribute", "type", att.Type, "value", att.Value)
 			}
@@ -316,10 +292,21 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		}
 	}
 
-	if literacyFact != nil {
-		p.MiscFacts = append(p.MiscFacts, *literacyFact)
+	if len(literacySignedCitations) > 0 {
+		p.MiscFacts = append(p.MiscFacts, model.Fact{
+			Category:  model.FactCategoryLiteracy,
+			Detail:    fmt.Sprintf("signed name on %s", text.CardinalWithUnit(len(literacySignedCitations), "occasion", "occasions")),
+			Citations: literacySignedCitations,
+		})
 	}
 
+	if len(literacyDidNotSignCitations) > 0 {
+		p.MiscFacts = append(p.MiscFacts, model.Fact{
+			Category:  model.FactCategoryLiteracy,
+			Detail:    fmt.Sprintf("unable to sign name on %s", text.CardinalWithUnit(len(literacyDidNotSignCitations), "occasion", "occasions")),
+			Citations: literacyDidNotSignCitations,
+		})
+	}
 	// Add tags
 	for _, tref := range gp.Tagref {
 		tag, ok := l.TagsByHandle[tref.Hlink]

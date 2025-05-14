@@ -43,12 +43,18 @@ type ContentBuilder[T EncodedText] interface {
 	BlockQuote(T)
 	Timeline([]TimelineRow[T])
 	Figure(link string, alt string, caption T, highlight *model.Region)
+	FactList([]FactEntry[T])
 }
 
 type TimelineRow[T EncodedText] struct {
 	Year    string
 	Date    string
 	Details []T
+}
+
+type FactEntry[T EncodedText] struct {
+	Category string
+	Details  []T
 }
 
 type TextEncoder[T EncodedText] interface {

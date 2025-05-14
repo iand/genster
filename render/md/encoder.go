@@ -499,6 +499,25 @@ func (e *Content) Timeline(rows []render.TimelineRow[Text]) {
 	e.maintext.WriteString("</dl>\n")
 }
 
+func (e *Content) FactList(items []render.FactEntry[Text]) {
+	e.maintext.WriteString(`<div class="facts-grid">` + "\n")
+	for _, item := range items {
+		e.maintext.WriteString("<div>")
+		e.maintext.WriteString("<strong>")
+		e.maintext.WriteString(item.Category)
+		e.maintext.WriteString("</strong>")
+		e.maintext.WriteString("<br>\n")
+		for i, det := range item.Details {
+			if i > 0 {
+				e.maintext.WriteString("<br>\n")
+			}
+			det.ToHTML(&e.maintext)
+		}
+		e.maintext.WriteString("</div>")
+	}
+	e.maintext.WriteString("</div>")
+}
+
 func (e *Content) ConvertMarkdown(text string, w io.Writer) error {
 	if err := goldmark.Convert([]byte(text), w); err != nil {
 		return fmt.Errorf("goldmark: %v", err)

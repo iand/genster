@@ -229,6 +229,13 @@ func (w *Encoder) Timeline(rows []render.TimelineRow[Text]) {
 	}
 }
 
+func (w *Encoder) FactList(items []render.FactEntry[Text]) {
+	for _, item := range items {
+		w.main.WriteString(fmt.Sprintf("%s\n", string(item.Category)))
+		w.main.WriteString("\n")
+	}
+}
+
 func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
 	// avoid text that might have problematic copyright
 	if c.Source == nil || c.Source.RepositoryName == "" {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/text"
@@ -228,10 +229,15 @@ func (w *Content) encodeCitationDetail(c *model.GeneralCitation) Text {
 }
 
 func (w *Content) Timeline([]render.TimelineRow[Text]) {
+	logging.Error("pandoc.Timeline called but it is not implemented")
 }
 
 func (w *Content) Image(link string, alt string) {
 	w.main.WriteString("![" + alt + "](" + link + ")")
+}
+
+func (w *Content) FactList([]render.FactEntry[Text]) {
+	logging.Error("pandoc.Content called but it is not implemented")
 }
 
 // Requires implicit_figures extension

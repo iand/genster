@@ -17,7 +17,8 @@ const (
 type Fact struct {
 	Category  string
 	Detail    string
-	Comment   string // an explanatatory comment to be used alongside or as a footnote to the detail
+	Comment   string // an explanatory comment to be used alongside or as a footnote to the detail
+	Text      Text
 	Citations []*GeneralCitation
 }
 
