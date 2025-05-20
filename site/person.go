@@ -206,6 +206,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	n.Statements = append(n.Statements, death)
 
 	for _, f := range p.Families {
+		if s.IncludeDebugInfo {
+			doc.Para(doc.EncodeModelLink("family", f))
+		}
 		n.Statements = append(n.Statements, &narrative.FamilyStatement[md.Text]{
 			Principal: p,
 			Family:    f,

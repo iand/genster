@@ -108,3 +108,55 @@ func butterflyAncestors(p *model.Person, seq *sequence, generation int, maxGener
 	}
 	return tp
 }
+
+func fanAncestors(p *model.Person, seq *sequence, generation int, maxGeneration int) *gtree.FanPerson {
+	tp := &gtree.FanPerson{
+		ID: seq.next(),
+		Headings: []string{
+			p.PreferredGivenName,
+			strings.ToUpper(p.PreferredFamilyName),
+		},
+	}
+	if len(tp.Headings[0]) > 13 {
+		tp.Headings[0] = p.PreferredFamiliarName
+	}
+
+	appendPlace := func(name string, ev model.TimelineEvent) string {
+		if !ev.GetPlace().IsUnknown() && !ev.GetPlace().Country.IsUnknown() {
+			if !ev.GetPlace().Region.IsUnknown() && ev.GetPlace().Country.Name == "England" {
+				return name + ", " + ev.GetPlace().Region.Name
+			} else {
+				return name + ", " + ev.GetPlace().Country.Name
+			}
+		}
+		return name
+	}
+
+	if p.Olb != "" {
+		tp.Details = append(tp.Details, p.Olb)
+	}
+	if generation < 7 {
+		if p.BestBirthlikeEvent != nil {
+			tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestBirthlikeEvent), p.BestBirthlikeEvent))
+			if p.BestDeathlikeEvent != nil {
+				tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent))
+			}
+		} else {
+			if p.BestDeathlikeEvent != nil {
+				tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent))
+			}
+		}
+	} else {
+		tp.Details = append(tp.Details, p.VitalYears)
+	}
+
+	if generation < maxGeneration {
+		if !p.Father.IsUnknown() {
+			tp.Father = fanAncestors(p.Father, seq, generation+1, maxGeneration)
+		}
+		if !p.Mother.IsUnknown() {
+			tp.Mother = fanAncestors(p.Mother, seq, generation+1, maxGeneration)
+		}
+	}
+	return tp
+}

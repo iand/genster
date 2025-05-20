@@ -24,6 +24,7 @@ func checkFlags(cc *cli.Context) error {
 	case "descendant":
 	case "ancestor":
 	case "butterfly":
+	case "fan":
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 	}
@@ -49,6 +50,7 @@ var chartopts struct {
 	detail         int
 	directOnly     bool
 	compact        bool
+	debug          bool
 }
 
 var Command = &cli.Command{
@@ -127,6 +129,12 @@ var Command = &cli.Command{
 			Usage:       "attempt to compact displayed information (for descendant charts)",
 			Value:       false,
 			Destination: &chartopts.compact,
+		},
+		&cli.BoolFlag{
+			Name:        "debug",
+			Usage:       "draw debug information",
+			Value:       false,
+			Destination: &chartopts.debug,
 		},
 		&cli.Float64Flag{
 			Name:        "font-scale",
@@ -218,11 +226,12 @@ func chartCmd(cc *cli.Context) error {
 		}
 
 		opts := gtree.DefaultLayoutOptions()
+		opts.Debug = chartopts.debug
 		lay, err = ch.Layout(opts)
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay)
+		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -242,6 +251,7 @@ func chartCmd(cc *cli.Context) error {
 		ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
 
 		opts := gtree.DefaultAncestorLayoutOptions()
+		opts.Debug = chartopts.debug
 
 		opts.TitleStyle.FontSize = scaleFont(opts.TitleStyle.FontSize, chartopts.fontScale)
 		opts.TitleStyle.LineHeight = scaleFont(opts.TitleStyle.LineHeight, chartopts.fontScale)
@@ -257,7 +267,7 @@ func chartCmd(cc *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay)
+		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -265,7 +275,7 @@ func chartCmd(cc *cli.Context) error {
 	case "butterfly":
 		ch, err := BuildButterflyChart(t, startPerson)
 		if err != nil {
-			return fmt.Errorf("build ancestor chart: %w", err)
+			return fmt.Errorf("build butterfly chart: %w", err)
 		}
 
 		ch.TitleLine1 = "Ancestors of "
@@ -282,8 +292,31 @@ func chartCmd(cc *cli.Context) error {
 		ch.Note = time.Now().Format("Created by Ian Davis on _2 January 2006")
 
 		opts := gtree.DefaultButterflyLayoutOptions()
+		opts.Debug = chartopts.debug
 
 		output, err = ch.RenderSVG(opts)
+		if err != nil {
+			return fmt.Errorf("render SVG: %w", err)
+		}
+
+	case "fan":
+		ch, err := BuildFanChart(t, startPerson, chartopts.generations+1)
+		if err != nil {
+			return fmt.Errorf("build fan chart: %w", err)
+		}
+
+		ch.Title = "Family tree of " + startPerson.PreferredFullName
+		ch.Notes = append(ch.Notes, time.Now().Format("Created on _2 January 2006"))
+
+		opts := gtree.DefaultFanLayoutOptions()
+		opts.Debug = chartopts.debug
+		opts.MaxGenerations = chartopts.generations + 1
+		lay, err := gtree.GenerateFanLayout(ch, opts)
+		if err != nil {
+			return fmt.Errorf("generate fan layout: %w", err)
+		}
+
+		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}

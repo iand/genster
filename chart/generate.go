@@ -250,3 +250,9 @@ func BuildButterflyChart(t *tree.Tree, startPerson *model.Person) (*gtree.Butter
 	ch.Root = butterflyAncestors(startPerson, new(sequence), 1, 7)
 	return ch, nil
 }
+
+func BuildFanChart(t *tree.Tree, startPerson *model.Person, maxGeneration int) (*gtree.FanChart, error) {
+	ch := new(gtree.FanChart)
+	ch.Root = fanAncestors(startPerson, new(sequence), 1, maxGeneration)
+	return ch, nil
+}

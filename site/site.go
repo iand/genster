@@ -1189,7 +1189,7 @@ func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) err
 		return fmt.Errorf("layout chart: %w", err)
 	}
 
-	svg, err := gtree.SVG(lay)
+	svg, err := gtree.SVG(lay, gtree.PaperSizeA4Portrait)
 	if err != nil {
 		return fmt.Errorf("render SVG: %w", err)
 	}
