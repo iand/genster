@@ -92,7 +92,7 @@ const (
 	ModeOfDeathKilledInAction ModeOfDeath = "killed in action"
 	ModeOfDeathDrowned        ModeOfDeath = "drowned"
 	ModeOfDeathExecuted       ModeOfDeath = "executed"
-	ModeOfDeathChildbirth     ModeOfDeath = "childbirth	"
+	ModeOfDeathChildbirth     ModeOfDeath = "childbirth"
 )
 
 func (m ModeOfDeath) What() string {

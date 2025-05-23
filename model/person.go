@@ -27,7 +27,9 @@ type Person struct {
 	NickName                  string    // a name other than their given name that the are known by
 	KnownNames                []*Name   // list of all known names
 	FamilyNameGrouping        string    // the group of surnames this person's name is part of (e.g. Clarke/Clark), by default is the PreferredFamilyName
-	Olb                       string    // One line bio
+	Epithet                   string    // Short epithet or descriptor phrase
+	Olb                       string    // One line bio, longer than the epithet
+	Notable                   string    // A notable fact about the person
 	Gender                    Gender    // male, female or unknown
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
 	Father                    *Person
@@ -47,6 +49,7 @@ type Person struct {
 	DiedYoung     bool // true if this person died before adulthood
 
 	Unknown            bool          // true if this person is known to have existed but no other information is known
+	Unidentified       bool          // true if no name is known for this person
 	Unmarried          bool          // true if it is known that the person did not marry
 	Childless          bool          // true if it is known that the person did not have any children
 	Illegitimate       bool          // true if it is known that the person was born illegitimately
@@ -65,7 +68,6 @@ type Person struct {
 	Featured           bool          // true if this person is to be highlighted as a featured person on the tree overview
 	Puzzle             bool          // true if this person is the centre of a significant puzzle
 	Occupations        []*Occupation // list of occupations
-	PrimaryOccupation  string        // simple description of main occupation
 	OccupationGroup    OccupationGroup
 	WikiTreeID         string   // the wikitree id of this person
 	WikiTreeCategories []string // wikitree categories for this person

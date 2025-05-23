@@ -480,6 +480,7 @@ type (
 var personReplacers = map[string]personAnnotaterFunc{
 	"nickname":                  func(p *model.Person, v any) error { return setString(&p.NickName, v) },
 	"olb":                       func(p *model.Person, v any) error { return setString(&p.Olb, v) },
+	"epithet":                   func(p *model.Person, v any) error { return setString(&p.Epithet, v) },
 	"preferredfullname":         func(p *model.Person, v any) error { return setString(&p.PreferredFullName, v) },
 	"preferredgivenname":        func(p *model.Person, v any) error { return setString(&p.PreferredGivenName, v) },
 	"preferredfamiliarname":     func(p *model.Person, v any) error { return setString(&p.PreferredFamiliarName, v) },

@@ -1043,8 +1043,8 @@ func (s *Site) WriteChartAncestors(root string) error {
 			detail := text.JoinSentenceParts(fmt.Sprintf("%d.", i+2), doc.EncodeBold(doc.EncodeLink(doc.EncodeText(ancestors[i].PreferredFullName), doc.LinkBuilder.LinkFor(ancestors[i]))).String())
 
 			var adds []string
-			if ancestors[i].PrimaryOccupation != "" {
-				adds = append(adds, ancestors[i].PrimaryOccupation)
+			if ancestors[i].Epithet != "" {
+				adds = append(adds, ancestors[i].Epithet)
 			}
 			if ancestors[i].BestBirthlikeEvent != nil && !ancestors[i].BestBirthlikeEvent.GetDate().IsUnknown() {
 				adds = append(adds, narrative.EventWhatWhenWhere(ancestors[i].BestBirthlikeEvent, doc, narrative.DefaultNameChooser{}))

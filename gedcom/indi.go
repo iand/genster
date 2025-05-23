@@ -256,6 +256,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			case "OLB":
 				logger.Debug("setting OLB from fact", "olb", gev.Detail)
 				p.Olb = gev.Detail
+			case "EPITHET":
+				logger.Debug("setting Epithet from fact", "epithet", gev.Detail)
+				p.Epithet = gev.Detail
 			default:
 				category, ok := factCategoryForType(er.Type)
 				if ok {
@@ -285,9 +288,12 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 			case "OLB":
 				logger.Debug("setting olb from event", "olb", gev.Detail)
 				p.Olb = gev.Detail
+			case "EPITHET":
+				logger.Debug("setting epithet from event", "epithet", gev.Detail)
+				p.Epithet = gev.Detail
 			case "PRIMARY OCCUPATION":
-				logger.Debug("setting primary occupation from fact", "occupation", gev.Detail)
-				p.PrimaryOccupation = gev.Detail
+				logger.Debug("setting epithet from fact", "occupation", gev.Detail)
+				p.Epithet = gev.Detail
 			default:
 				gev.Title = er.Type
 				switch ty {

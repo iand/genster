@@ -41,6 +41,7 @@ type Place struct {
 	CountryContext  string // an edited hierarchy of places this place belongs to up to the country, comma separated, no leading comma
 
 	PreferredSortName string // name organised for sorting, generally as a reverse hierarchy of country, region, locality
+	Adjective         string // the adjective used to describe things of this place, e.g. "Norwegian" or "Irish"
 
 	Parent       *Place       // the parent of this place in the administrative hierarchy
 	PlaceType    PlaceType    // the type of place, such as "village", "town", "parish"

@@ -114,10 +114,8 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 			if p.NickName != "" {
 				details = append(details, "Known as \""+p.NickName+"\"")
 			}
-			if p.Olb != "" {
-				details = append(details, p.Olb)
-			} else if p.PrimaryOccupation != "" {
-				details = append(details, p.PrimaryOccupation)
+			if p.Epithet != "" {
+				details = append(details, p.Epithet)
 			}
 			if p.BestBirthlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhenWhere(p.BestBirthlikeEvent))
@@ -177,10 +175,8 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 	case 2:
 		personDetailFn = func(p *model.Person, generation int) []string {
 			var details []string
-			if p.Olb != "" {
-				details = append(details, p.Olb)
-			} else if p.PrimaryOccupation != "" {
-				details = append(details, p.PrimaryOccupation)
+			if p.Epithet != "" {
+				details = append(details, p.Epithet)
 			}
 			if p.BestBirthlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhen(p.BestBirthlikeEvent))
@@ -197,10 +193,8 @@ func BuildAncestorChart(t *tree.Tree, startPerson *model.Person, detail int, dep
 			if p.NickName != "" {
 				details = append(details, "Known as \""+p.NickName+"\"")
 			}
-			if p.Olb != "" {
-				details = append(details, p.Olb)
-			} else if p.PrimaryOccupation != "" {
-				details = append(details, p.PrimaryOccupation)
+			if p.Epithet != "" {
+				details = append(details, p.Epithet)
 			}
 			if generation <= depth {
 				if p.BestBirthlikeEvent != nil {

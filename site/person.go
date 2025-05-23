@@ -11,6 +11,7 @@ import (
 	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
 	"github.com/iand/genster/render/md"
+	"github.com/iand/genster/text"
 )
 
 func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error) {
@@ -126,13 +127,17 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		}
 	}
 
-	// if p.Olb != "" {
-	// 	doc.Para(doc.EncodeBold(doc.EncodeItalic(text.FormatSentence(p.Olb))))
-	// }
+	olb := p.Olb
+	if olb == "" && s.IncludeDebugInfo {
+		olb = narrative.GenerateOlb(p)
+	}
+	if olb != "" {
+		doc.Para(doc.EncodeBold(doc.EncodeItalic(doc.EncodeText(text.FormatSentence(olb)))))
+	}
 
 	ap := p.RelationToKeyPerson.Path()
 	if len(ap) > 2 {
-		doc.AddDescendant(ap[len(ap)-1].PreferredUniqueName, "", p.Olb)
+		doc.AddDescendant(ap[len(ap)-1].PreferredUniqueName, "", p.Epithet)
 		for i := len(ap) - 2; i >= 0; i-- {
 			if ap[i].Redacted {
 				break

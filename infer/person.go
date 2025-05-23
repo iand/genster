@@ -17,7 +17,8 @@ func RedactPersonalDetails(p *model.Person) (bool, error) {
 	logging.Debug("redacting person", "id", p.ID, "name", p.PreferredFullName)
 	p.Redacted = true
 	p.RedactNames("(living or recently deceased person)")
-	p.Olb = "information withheld to preserve privacy"
+	p.Epithet = ""
+	p.Olb = ""
 
 	// redact all citations that might mention the person
 	cits := p.AllCitations()
@@ -406,7 +407,7 @@ func InferPersonGeneralFacts(p *model.Person) error {
 	if p.BestBirthlikeEvent != nil {
 		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
 			pl := p.BestBirthlikeEvent.GetPlace()
-			if reWorkhouse.MatchString(pl.Name) {
+			if pl.PlaceType == model.PlaceTypeBuilding && pl.BuildingKind == model.BuildingKindWorkhouse {
 				p.BornInWorkhouse = true
 				inf := model.Inference{
 					Type:   model.InferenceTypeGeneralFact,

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/text"
 	"github.com/iand/gtree"
 )
 
@@ -121,29 +122,66 @@ func fanAncestors(p *model.Person, seq *sequence, generation int, maxGeneration 
 		tp.Headings[0] = p.PreferredFamiliarName
 	}
 
-	appendPlace := func(name string, ev model.TimelineEvent) string {
-		if !ev.GetPlace().IsUnknown() && !ev.GetPlace().Country.IsUnknown() {
-			if !ev.GetPlace().Region.IsUnknown() && ev.GetPlace().Country.Name == "England" {
-				return name + ", " + ev.GetPlace().Region.Name
-			} else {
-				return name + ", " + ev.GetPlace().Country.Name
+	appendPlace := func(name string, includeDistrict bool, ev model.TimelineEvent) string {
+		if !ev.GetPlace().IsUnknown() {
+			if !ev.GetPlace().Country.IsUnknown() {
+				if !ev.GetPlace().Region.IsUnknown() && ev.GetPlace().Country.Name == "England" {
+					if includeDistrict && !ev.GetPlace().District.IsUnknown() {
+						return name + ", " + ev.GetPlace().District.Name + ", " + ev.GetPlace().Region.Name
+					}
+					return name + ", " + ev.GetPlace().Region.Name
+				} else {
+					return name + ", " + ev.GetPlace().Country.Name
+				}
 			}
 		}
 		return name
 	}
 
-	if p.Olb != "" {
-		tp.Details = append(tp.Details, p.Olb)
+	wrapText := func(s string) []string {
+		const limit = 30
+		var lines []string
+
+		for len(s) > 0 {
+			if len(s) <= limit {
+				lines = append(lines, s)
+				break
+			}
+
+			// Look for the last space within the limit
+			end := limit
+			for end > 0 && s[end] != ' ' {
+				end--
+			}
+
+			// If no space found, force break at limit
+			if end == 0 {
+				end = limit
+			}
+
+			lines = append(lines, strings.TrimSpace(s[:end]))
+			s = strings.TrimLeft(s[end:], " ")
+		}
+
+		return lines
+	}
+
+	if p.Epithet != "" {
+		tp.Details = append(tp.Details, text.UpperFirst(p.Epithet))
+	}
+	if p.Notable != "" {
+		tp.Details = append(tp.Details, wrapText(text.UpperFirst(p.Notable))...)
 	}
 	if generation < 7 {
+		includeDistrict := generation < 5
 		if p.BestBirthlikeEvent != nil {
-			tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestBirthlikeEvent), p.BestBirthlikeEvent))
+			tp.Details = append(tp.Details, wrapText(appendPlace(model.AbbrevWhatWhen(p.BestBirthlikeEvent), includeDistrict, p.BestBirthlikeEvent))...)
 			if p.BestDeathlikeEvent != nil {
-				tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent))
+				tp.Details = append(tp.Details, wrapText(appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), includeDistrict, p.BestDeathlikeEvent))...)
 			}
 		} else {
 			if p.BestDeathlikeEvent != nil {
-				tp.Details = append(tp.Details, appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), p.BestDeathlikeEvent))
+				tp.Details = append(tp.Details, wrapText(appendPlace(model.AbbrevWhatWhen(p.BestDeathlikeEvent), includeDistrict, p.BestDeathlikeEvent))...)
 			}
 		}
 	} else {
@@ -151,10 +189,10 @@ func fanAncestors(p *model.Person, seq *sequence, generation int, maxGeneration 
 	}
 
 	if generation < maxGeneration {
-		if !p.Father.IsUnknown() {
+		if !p.Father.IsUnknown() && !p.Father.Unidentified {
 			tp.Father = fanAncestors(p.Father, seq, generation+1, maxGeneration)
 		}
-		if !p.Mother.IsUnknown() {
+		if !p.Mother.IsUnknown() && !p.Mother.Unidentified {
 			tp.Mother = fanAncestors(p.Mother, seq, generation+1, maxGeneration)
 		}
 	}

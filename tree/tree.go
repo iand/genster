@@ -343,6 +343,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 
 	for _, p := range t.Places {
 		t.RefinePlaceNames(p)
+		t.AddPlaceAdjectives(p)
 		t.TrimPlaceTimeline(p)
 	}
 	for _, s := range t.Sources {
@@ -667,10 +668,11 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 			p.PreferredSortName = p.NickName
 			p.PreferredUniqueName = p.NickName
 		} else {
+			p.Unidentified = true
 			p.PreferredFullName = "an unidentified person"
 			p.PreferredGivenName = "unidentified"
 			p.PreferredFamiliarName = "unidentified"
-			p.PreferredFamiliarFullName = "unidentified"
+			p.PreferredFamiliarFullName = "an unidentified person"
 			// p.PreferredFamilyName = "unidentified"
 			// p.PreferredSortName = "unidentified person"
 			// p.PreferredUniqueName = "an unidentified person"
@@ -1100,5 +1102,59 @@ func (t *Tree) RefinePlaceNames(pl *model.Place) error {
 		pl.CountryContext = pl.RegionContext + ", " + pl.Country.Name
 	}
 
+	return nil
+}
+
+func (t *Tree) AddPlaceAdjectives(pl *model.Place) error {
+	if pl.PlaceType != model.PlaceTypeCountry {
+		return nil
+	}
+
+	switch pl.Name {
+	case "England":
+		pl.Adjective = "English"
+	case "Scotland":
+		pl.Adjective = "Scottish"
+	case "Wales":
+		pl.Adjective = "Welsh"
+	case "Ireland":
+		pl.Adjective = "Irish"
+	case "France":
+		pl.Adjective = "French"
+	case "Germany":
+		pl.Adjective = "German"
+	case "Italy":
+		pl.Adjective = "Italian"
+	case "Spain":
+		pl.Adjective = "Spanish"
+	case "Portugal":
+		pl.Adjective = "Portuguese"
+	case "Netherlands":
+		pl.Adjective = "Dutch"
+	case "Belgium":
+		pl.Adjective = "Belgian"
+	case "Switzerland":
+		pl.Adjective = "Swiss"
+	case "Austria":
+		pl.Adjective = "Austrian"
+	case "Sweden":
+		pl.Adjective = "Swedish"
+	case "Norway":
+		pl.Adjective = "Norwegian"
+	case "Denmark":
+		pl.Adjective = "Danish"
+	case "Finland":
+		pl.Adjective = "Finnish"
+	case "Poland":
+		pl.Adjective = "Polish"
+	case "Russia":
+		pl.Adjective = "Russian"
+	case "Czech Republic", "Czechia":
+		pl.Adjective = "Czech"
+	case "Hungary":
+		pl.Adjective = "Hungarian"
+	case "USA", "United States", "United States of America":
+		pl.Adjective = "American"
+	}
 	return nil
 }

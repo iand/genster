@@ -272,6 +272,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Slug = att.Value
 		case "olb":
 			p.Olb = att.Value
+		case "epithet":
+			p.Epithet = parseQuotedString(att.Value)
+		case "notable":
+			p.Notable = parseQuotedString(att.Value)
 		case "merged gramps id":
 			// ignore
 		case "died in childbirth":
@@ -699,17 +703,20 @@ var (
 	reGroupService    = regexp.MustCompile(`(?i)\b(nurse|servant|valet|housekeeper|charwoman|washerwoman|washer woman|cook|housemaid|maid|milkmaid)\b`)
 )
 
+// parseQuotedString parses a string and lowercases it unless it is encloded by quotes
+func parseQuotedString(s string) string {
+	s = strings.TrimSpace(s)
+	// values enclosed by quotes preserve their case
+	if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
+		return strings.Trim(s, `"`)
+	}
+	return strings.ToLower(s)
+}
+
 func parseOccupation(s string) (string, model.OccupationStatus, model.OccupationGroup) {
 	status := model.OccupationStatusUnknown
 	group := model.OccupationGroupUnknown
-	s = strings.TrimSpace(s)
-
-	// values enclosed by quotes preserve their case
-	if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
-		s = strings.Trim(s, `"`)
-	} else {
-		s = strings.ToLower(s)
-	}
+	s = parseQuotedString(s)
 
 	tokenStatuses := []struct {
 		re     *regexp.Regexp
