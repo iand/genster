@@ -61,7 +61,6 @@ type Person struct {
 	Deaf               bool          // true if it is known that the person was deaf for the majority of their life
 	PhysicalImpairment bool          // true if it is known that the person was physically impaired for the majority of their life
 	MentalImpairment   bool          // true if it is known that the person was mentally impaired for the majority of their life
-	DiedInChildbirth   bool          // true if it is known that the person died in childbirth
 	ModeOfDeath        ModeOfDeath   // mode of death, if known
 	CauseOfDeath       *Fact         // cause of death, if known
 	Publish            bool          // true if this person should always be included in the publish set
@@ -74,6 +73,7 @@ type Person struct {
 	GrampsID           string   // the gramps id of this person
 	FamilySearchID     string   // the familysearch id of this person
 	Slug               string   // a short url-friendly identifier that can be used to refer to this person
+	DiaryLinks         []Link   // list of links to diary entries about this person
 	Links              []Link   // list of links to more information relevant to this person
 
 	Redacted           bool                // true if the person's details should be redacted

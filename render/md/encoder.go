@@ -311,7 +311,7 @@ func (e *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation
 func (e *Content) encodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
-	if c.ID != "" && e.LinkBuilder.LinkFor(c) != "" && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
+	if c.ID != "" && (e.LinkBuilder != nil && e.LinkBuilder.LinkFor(c) != "") && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
 		citationText += " (" + e.EncodeModelLink("more details...", c).String() + ")"
 	} else {
 		if c.URL != nil {

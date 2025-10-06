@@ -231,10 +231,6 @@ func (s *Site) AssignTags(p *model.Person) error {
 		p.Tags = append(p.Tags, "Died in workhouse")
 	}
 
-	if p.DiedInChildbirth {
-		p.Tags = append(p.Tags, "Died in childbirth")
-	}
-
 	if p.Twin {
 		p.Tags = append(p.Tags, "Twin")
 	}
@@ -262,6 +258,8 @@ func (s *Site) AssignTags(p *model.Person) error {
 		p.Tags = append(p.Tags, "Drowned")
 	case model.ModeOfDeathExecuted:
 		p.Tags = append(p.Tags, "Executed")
+	case model.ModeOfDeathChildbirth:
+		p.Tags = append(p.Tags, "Died in childbirth")
 	}
 	// if y, ok := gdate.AsYear(ev.Date); ok {
 	// 	decade := (y.Year() / 10) * 10

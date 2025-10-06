@@ -2,7 +2,10 @@ package site
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/iand/genster/debug"
@@ -106,11 +109,6 @@ var Command = &cli.Command{
 			Destination: &genopts.generateHugo,
 		},
 		&cli.StringFlag{
-			Name:        "notes",
-			Usage:       "Path to the folder where research notes are stored (in markdown format).",
-			Destination: &genopts.notesDir,
-		},
-		&cli.StringFlag{
 			Name:        "relation",
 			Usage:       "Only generate pages for people who are related to the key person. One of 'direct' (must be a direct ancestor), 'common' (must have a common ancestor) or 'any' (any relation). Ignored if no key person is specified.",
 			Value:       "any",
@@ -135,7 +133,6 @@ var genopts struct {
 	keyIndividual      string
 	includePrivate     bool
 	configDir          string
-	notesDir           string
 	basePath           string
 	inspect            string
 	generateWikiTree   bool
@@ -172,30 +169,27 @@ func gen(cc *cli.Context) error {
 		return fmt.Errorf("load tree: %w", err)
 	}
 
-	if genopts.notesDir != "" {
-		nds, err := LoadNotes(genopts.notesDir)
-		if err != nil {
-			return fmt.Errorf("load notes: %w", err)
-		}
+	pageMap, err := walkDiaryPages("/home/iand/web/cozy.ac/history/content/diary", "/diary/")
+	if err != nil {
+		return fmt.Errorf("walk diary pages: %w", err)
+	}
 
-		for _, nd := range nds {
-			logging.Debug("found note", "filename", nd.Filename, "type", nd.Type)
-			if nd.Type == "note" && nd.Person != "" {
-				p, ok := t.GetPerson(nd.Person)
-				if !ok {
-					// logging.Warn("found research note for unknown person", "filename", nd.Filename, "person", nd.Person)
-					continue
-				}
-				logging.Debug("found research note for person", "filename", nd.Filename, "id", nd.Person)
-				p.ResearchNotes = append(p.ResearchNotes, model.Text{
-					Text:     nd.Markdown,
-					Markdown: true,
-				})
-
+	for _, p := range t.People {
+		if pages, ok := pageMap[p.GrampsID]; ok {
+			for _, link := range pages {
+				p.DiaryLinks = append(p.DiaryLinks, link)
 			}
 		}
-
+		if pages, ok := pageMap[p.Slug]; ok {
+			for _, link := range pages {
+				p.DiaryLinks = append(p.DiaryLinks, link)
+			}
+		}
 	}
+
+	// for id, pages := range pageMap {
+	// 	fmt.Printf("%s -->%q\n", id, pages)
+	// }
 
 	s := NewSite(genopts.basePath, genopts.generateHugo, t)
 	s.IncludePrivate = genopts.includePrivate
@@ -284,4 +278,101 @@ func gen(cc *cli.Context) error {
 	}
 
 	return nil
+}
+
+var (
+	reAliasLink = regexp.MustCompile(`\(/r/(.+?)\)`)
+	reAliasTag  = regexp.MustCompile(` - /r/(.+?)\n`)
+	reISODate   = regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)$`)
+)
+
+// walkDiaryPages walks the directory tree for the research diary looking for
+// links to person pages. It returns a map of person IDs to a slice of relative
+// diary URLs
+func walkDiaryPages(dir string, urlPrefix string) (map[string][]model.Link, error) {
+	result := make(map[string][]model.Link)
+	months := map[string]string{
+		"01": "Jan",
+		"02": "Feb",
+		"03": "Mar",
+		"04": "Apr",
+		"05": "May",
+		"06": "Jun",
+		"07": "Jul",
+		"08": "Aug",
+		"09": "Sep",
+		"10": "Oct",
+		"11": "Nov",
+		"12": "Dec",
+	}
+
+	isoToHuman := func(s string) (string, bool) {
+		m := reISODate.FindStringSubmatch(s)
+		if m == nil || len(m) != 4 {
+			return "", false
+		}
+
+		return m[3] + " " + months[m[2]] + " " + m[1], true
+	}
+
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
+			return nil
+		}
+
+		// Determine relative URL
+		relPath, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+
+		parts := strings.Split(relPath, string(filepath.Separator))
+		if len(parts) < 2 {
+			return nil // unexpected structure
+		}
+
+		var link model.Link
+		if d.Name() == "index.md" {
+			var ok bool
+			link.Title, ok = isoToHuman(parts[1])
+			if !ok {
+				return nil
+			}
+			link.URL = urlPrefix + filepath.ToSlash(filepath.Join(parts[0], parts[1])+"/")
+		} else if d.Name() == "_index.md" {
+			return nil
+		} else {
+			var ok bool
+			link.Title, ok = isoToHuman(strings.TrimSuffix(parts[1], ".md"))
+			if !ok {
+				return nil
+			}
+			link.URL = urlPrefix + filepath.ToSlash(strings.TrimSuffix(relPath, ".md")+"/")
+		}
+
+		// Read and process file
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		// Find links like ./r/I0554 or /r/william-hinksman
+		matches := reAliasLink.FindAllSubmatch(content, -1)
+		for _, match := range matches {
+			id := string(match[1])
+			result[id] = append(result[id], link)
+		}
+
+		matches = reAliasTag.FindAllSubmatch(content, -1)
+		for _, match := range matches {
+			id := string(match[1])
+			result[id] = append(result[id], link)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

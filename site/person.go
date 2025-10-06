@@ -228,6 +228,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 
 	n.Render(pov, doc)
 
+	for _, l := range p.DiaryLinks {
+		doc.AddDiaryLink(l.Title, l.URL)
+	}
+
 	for _, l := range p.Links {
 		doc.AddLink(l.Title, l.URL)
 	}
@@ -238,6 +242,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	}
 
 	if p.Slug != "" {
+		doc.SetFrontMatterField("slug", p.Slug)
 		doc.AddAlias(s.RedirectPath(p.Slug))
 	}
 

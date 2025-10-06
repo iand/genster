@@ -135,6 +135,16 @@ type NarrativeTimelineEntryFormatter[T render.EncodedText] struct {
 	nc       narrative.NameChooser
 }
 
+func NewNarrativeTimelineEntryFormatter[T render.EncodedText](pov *model.POV, enc render.TextEncoder[T], logger *logging.Logger, nc narrative.NameChooser, omitDate bool) *NarrativeTimelineEntryFormatter[T] {
+	return &NarrativeTimelineEntryFormatter[T]{
+		pov:      pov,
+		enc:      enc,
+		omitDate: omitDate,
+		logger:   logger,
+		nc:       nc,
+	}
+}
+
 func (t *NarrativeTimelineEntryFormatter[T]) Title(seq int, ev model.TimelineEvent) string {
 	title := ""
 	switch tev := ev.(type) {

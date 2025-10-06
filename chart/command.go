@@ -305,7 +305,8 @@ func chartCmd(cc *cli.Context) error {
 			return fmt.Errorf("build fan chart: %w", err)
 		}
 
-		ch.Title = "Family tree of " + startPerson.PreferredFullName
+		ch.PreTitle = "Family tree of"
+		ch.Title = startPerson.PreferredFullName
 		ch.Notes = append(ch.Notes, time.Now().Format("Created on _2 January 2006"))
 
 		opts := gtree.DefaultFanLayoutOptions()

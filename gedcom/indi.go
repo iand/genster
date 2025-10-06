@@ -537,7 +537,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 					p.MentalImpairment = true
 					logger.Debug("found mentally impaired tag, marking as mentally impaired")
 				case "died in childbirth":
-					p.DiedInChildbirth = true
+					p.ModeOfDeath = model.ModeOfDeathChildbirth
 					logger.Debug("found died in childbirth impaired tag, marking as died in childbirth")
 				case "transcribe death cert":
 					// p.ToDos = append(p.ToDos, &model.ToDo{
