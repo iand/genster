@@ -116,3 +116,11 @@ func (n NumberOfChildren) IsLowerBound() bool {
 	}
 	return strings.HasSuffix(string(n), "+")
 }
+
+// A FamilyLine is a line of descent down to the last male of the line
+type FamilyLine struct {
+	ID   string // TODO
+	Name string
+
+	Families []*Family
+}

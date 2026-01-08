@@ -26,37 +26,39 @@ import (
 type PageLayout string
 
 const (
-	PageLayoutPerson         PageLayout = "person"
-	PageLayoutPlace          PageLayout = "place"
-	PageLayoutSource         PageLayout = "source"
-	PageLayoutFamily         PageLayout = "family"
-	PageLayoutCitation       PageLayout = "citation"
-	PageLayoutListInferences PageLayout = "listinferences"
-	PageLayoutListAnomalies  PageLayout = "listanomalies"
-	PageLayoutListTodo       PageLayout = "listtodo"
-	PageLayoutListPeople     PageLayout = "listpeople"
-	PageLayoutListPlaces     PageLayout = "listplaces"
-	PageLayoutListSources    PageLayout = "listsources"
-	PageLayoutListSurnames   PageLayout = "listsurnames"
-	PageLayoutListChanges    PageLayout = "listchanges"
-	PageLayoutListFamilies   PageLayout = "listfamilies"
-	PageLayoutCalendar       PageLayout = "calendar"
-	PageLayoutTreeOverview   PageLayout = "treeoverview"
-	PageLayoutChartAncestors PageLayout = "chartancestors"
-	PageLayoutChartTrees     PageLayout = "charttrees"
+	PageLayoutPerson          PageLayout = "person"
+	PageLayoutPlace           PageLayout = "place"
+	PageLayoutSource          PageLayout = "source"
+	PageLayoutFamily          PageLayout = "family"
+	PageLayoutCitation        PageLayout = "citation"
+	PageLayoutListInferences  PageLayout = "listinferences"
+	PageLayoutListAnomalies   PageLayout = "listanomalies"
+	PageLayoutListTodo        PageLayout = "listtodo"
+	PageLayoutListPeople      PageLayout = "listpeople"
+	PageLayoutListPlaces      PageLayout = "listplaces"
+	PageLayoutListSources     PageLayout = "listsources"
+	PageLayoutListSurnames    PageLayout = "listsurnames"
+	PageLayoutListChanges     PageLayout = "listchanges"
+	PageLayoutListFamilies    PageLayout = "listfamilies"
+	PageLayoutListFamilyLines PageLayout = "listfamilylines"
+	PageLayoutCalendar        PageLayout = "calendar"
+	PageLayoutTreeOverview    PageLayout = "treeoverview"
+	PageLayoutChartAncestors  PageLayout = "chartancestors"
+	PageLayoutChartTrees      PageLayout = "charttrees"
 )
 
 func (p PageLayout) String() string { return string(p) }
 
 const (
-	PageSectionPerson   = "person"
-	PageSectionPlace    = "place"
-	PageSectionCitation = "citation"
-	PageSectionSource   = "source"
-	PageSectionList     = "list"
-	PageSectionChart    = "chart"
-	PageSectionMedia    = "media"
-	PageSectionFamily   = "family"
+	PageSectionPerson     = "person"
+	PageSectionPlace      = "place"
+	PageSectionCitation   = "citation"
+	PageSectionSource     = "source"
+	PageSectionList       = "list"
+	PageSectionChart      = "chart"
+	PageSectionMedia      = "media"
+	PageSectionFamily     = "family"
+	PageSectionFamilyLine = "familyline"
 )
 
 const (
@@ -72,36 +74,40 @@ type Site struct {
 	Tree      *tree.Tree
 	Calendars map[int]*Calendar
 
-	PersonDir           string
-	PersonLinkPattern   string
-	PersonFilePattern   string
-	SourceDir           string
-	SourceLinkPattern   string
-	SourceFilePattern   string
-	CitationDir         string
-	CitationLinkPattern string
-	CitationFilePattern string
-	CalendarLinkPattern string
-	FamilyDir           string
-	FamilyLinkPattern   string
-	FamilyFilePattern   string
-	PlaceDir            string
-	PlaceLinkPattern    string
-	PlaceFilePattern    string
-	CalendarFilePattern string
-	MediaDir            string
-	MediaLinkPattern    string
-	MediaFilePattern    string
+	PersonDir             string
+	PersonLinkPattern     string
+	PersonFilePattern     string
+	SourceDir             string
+	SourceLinkPattern     string
+	SourceFilePattern     string
+	CitationDir           string
+	CitationLinkPattern   string
+	CitationFilePattern   string
+	CalendarLinkPattern   string
+	FamilyDir             string
+	FamilyLinkPattern     string
+	FamilyFilePattern     string
+	FamilyLineDir         string
+	FamilyLineLinkPattern string
+	FamilyLineFilePattern string
+	PlaceDir              string
+	PlaceLinkPattern      string
+	PlaceFilePattern      string
+	CalendarFilePattern   string
+	MediaDir              string
+	MediaLinkPattern      string
+	MediaFilePattern      string
 
-	ListInferencesDir string
-	ListAnomaliesDir  string
-	ListTodoDir       string
-	ListPeopleDir     string
-	ListPlacesDir     string
-	ListSourcesDir    string
-	ListSurnamesDir   string
-	ListChangesDir    string
-	ListFamiliesDir   string
+	ListInferencesDir  string
+	ListAnomaliesDir   string
+	ListTodoDir        string
+	ListPeopleDir      string
+	ListPlacesDir      string
+	ListSourcesDir     string
+	ListSurnamesDir    string
+	ListChangesDir     string
+	ListFamiliesDir    string
+	ListFamilyLinesDir string
 
 	ChartAncestorsDir string
 	ChartTreesDir     string
@@ -157,6 +163,10 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		FamilyLinkPattern: path.Join(baseURL, "family/%s/"),
 		FamilyFilePattern: path.Join("/family/%s/", indexPage),
 
+		FamilyLineDir:         PageSectionFamilyLine,
+		FamilyLineLinkPattern: path.Join(baseURL, "familyline/%s/"),
+		FamilyLineFilePattern: path.Join("/familyline/%s/", indexPage),
+
 		PlaceDir:         PageSectionPlace,
 		PlaceLinkPattern: path.Join(baseURL, PageSectionPlace, "/%s/"),
 		PlaceFilePattern: path.Join(PageSectionPlace, "/%s/", indexPage),
@@ -176,15 +186,16 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		MediaLinkPattern: path.Join(baseURL, PageSectionMedia, "/%s"),
 		MediaFilePattern: path.Join(PageSectionMedia, "/%s"),
 
-		ListInferencesDir: path.Join(PageSectionList, "inferences"),
-		ListAnomaliesDir:  path.Join(PageSectionList, "anomalies"),
-		ListTodoDir:       path.Join(PageSectionList, "todo"),
-		ListPeopleDir:     path.Join(PageSectionList, "people"),
-		ListPlacesDir:     path.Join(PageSectionList, "places"),
-		ListSourcesDir:    path.Join(PageSectionList, "sources"),
-		ListSurnamesDir:   path.Join(PageSectionList, "surnames"),
-		ListChangesDir:    path.Join(PageSectionList, "changes"),
-		ListFamiliesDir:   path.Join(PageSectionList, "families"),
+		ListInferencesDir:  path.Join(PageSectionList, "inferences"),
+		ListAnomaliesDir:   path.Join(PageSectionList, "anomalies"),
+		ListTodoDir:        path.Join(PageSectionList, "todo"),
+		ListPeopleDir:      path.Join(PageSectionList, "people"),
+		ListPlacesDir:      path.Join(PageSectionList, "places"),
+		ListSourcesDir:     path.Join(PageSectionList, "sources"),
+		ListSurnamesDir:    path.Join(PageSectionList, "surnames"),
+		ListChangesDir:     path.Join(PageSectionList, "changes"),
+		ListFamiliesDir:    path.Join(PageSectionList, "families"),
+		ListFamilyLinesDir: path.Join(PageSectionList, "familylines"),
 
 		ChartAncestorsDir: path.Join(PageSectionChart, "ancestors"),
 		ChartTreesDir:     path.Join(PageSectionChart, "trees"),
@@ -392,6 +403,11 @@ func (s *Site) LinkFor(v any) string {
 			return ""
 		}
 		return fmt.Sprintf(s.FamilyLinkPattern, vt.ID)
+	case *model.FamilyLine:
+		if _, ok := s.PublishSet.FamilyLines[vt.ID]; !ok {
+			return ""
+		}
+		return fmt.Sprintf(s.FamilyLineLinkPattern, vt.ID)
 	case *model.Place:
 		if vt.PlaceType == model.PlaceTypeCategory {
 			return ""
@@ -632,7 +648,20 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 			}
 
 			if err := writePage(d, contentDir, fmt.Sprintf(s.FamilyFilePattern, f.ID)); err != nil {
-				return fmt.Errorf("write citation page: %w", err)
+				return fmt.Errorf("write family page: %w", err)
+			}
+		}
+		for _, fl := range s.PublishSet.FamilyLines {
+			if s.LinkFor(fl) == "" {
+				continue
+			}
+			d, err := RenderFamilyLinePage(s, fl)
+			if err != nil {
+				return fmt.Errorf("render family line page: %w", err)
+			}
+
+			if err := writePage(d, contentDir, fmt.Sprintf(s.FamilyLineFilePattern, fl.ID)); err != nil {
+				return fmt.Errorf("write family line page: %w", err)
 			}
 		}
 	}
@@ -704,6 +733,9 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 	if s.ExperimentFamilies {
 		if err := s.WriteFamilyListPages(contentDir); err != nil {
 			return fmt.Errorf("write family list pages: %w", err)
+		}
+		if err := s.WriteFamilyLinesListPages(contentDir); err != nil {
+			return fmt.Errorf("write family line list pages: %w", err)
 		}
 	}
 

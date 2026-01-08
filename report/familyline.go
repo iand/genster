@@ -2,17 +2,11 @@ package report
 
 import (
 	"fmt"
-	"os"
-	"slices"
-	"sort"
-	"strings"
 
 	gegedcom "github.com/iand/genster/gedcom"
 	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
-	"github.com/iand/genster/model"
-	"github.com/iand/genster/narrative"
-	"github.com/iand/genster/render/md"
+	"github.com/iand/genster/site"
 	"github.com/iand/genster/tree"
 	"github.com/urfave/cli/v2"
 )
@@ -148,91 +142,13 @@ func familyline(cc *cli.Context) error {
 		return fmt.Errorf("generate tree facts: %w", err)
 	}
 
-	// Find the root of the tree, i.e. the earliest ancester we want to show on the tree
-	// assume id is a genster id first
-	startPerson, ok := t.GetPerson(familylineOpts.startPersonID)
-	if !ok {
-		// not a genster id, so look for a native id
-		startPerson = t.FindPerson(l.Scope(), familylineOpts.startPersonID)
-	}
-	if startPerson.IsUnknown() {
-		return fmt.Errorf("person with id %s not found", familylineOpts.startPersonID)
-	}
+	familyLines := site.WalkFamilyLines(keyPerson)
 
-	surnames := strings.Split(familylineOpts.surnames, ",")
-	for i := range surnames {
-		surnames[i] = strings.ToLower(strings.TrimSpace(surnames[i]))
-	}
-
-	outfile := os.Stdout
-	if familylineOpts.outputFile != "-" {
-		outfile, err = os.Create(familylineOpts.outputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
+	for _, fl := range familyLines {
+		fmt.Printf("=== Family Line ===\n")
+		for _, f := range fl.Families {
+			fmt.Printf("* %s\n", f.PreferredFullName)
 		}
-		defer outfile.Close()
-	}
-
-	doc := &md.Document{}
-	nc := &narrative.TimelineNameChooser{}
-
-	type POVEvent struct {
-		POV   *model.POV
-		Event model.TimelineEvent
-	}
-
-	var timeline []*POVEvent
-
-	fmt.Fprintf(outfile, "Surnames: %s\n\n", strings.Join(surnames, " "))
-
-	fmt.Fprintf(outfile, "Lineage of Direct Ancestors: \n")
-	people := startPerson.RelationToKeyPerson.Path()
-	for i, p := range slices.Backward(people) {
-		if slices.Index(surnames, strings.ToLower(p.PreferredFamilyName)) == -1 {
-			break
-		}
-		if i < len(people)-1 {
-			fmt.Fprintf(outfile, " -> ")
-		}
-		fmt.Fprintf(outfile, "%s", p.PreferredUniqueName)
-		pov := &model.POV{Person: p}
-		for _, ev := range p.Timeline {
-			timeline = append(timeline, &POVEvent{POV: pov, Event: ev})
-		}
-	}
-	fmt.Fprintf(outfile, "\n\n")
-
-	sort.Slice(timeline, func(i, j int) bool {
-		return model.EventSortsBefore(timeline[i].Event, timeline[j].Event)
-	})
-
-	fmt.Fprintf(outfile, "Timeline of Events\n")
-
-	for i, pe := range timeline {
-		dateText := ""
-		dt := pe.Event.GetDate()
-		if dt.IsUnknown() {
-			dateText = "(unknown date)"
-		} else {
-			dateText = dt.When()
-		}
-
-		whoText := narrative.WhoPov(pe.Event, doc, nc, pe.POV)
-
-		whatText := ""
-		if dt.Derivation != model.DateDerivationStandard {
-			whatText = model.ConditionalWhat(pe.Event, "probably")
-		} else {
-			whatText = model.What(pe.Event)
-		}
-
-		placeText := ""
-		pl := pe.Event.GetPlace()
-		if !pl.IsUnknown() {
-			placeText = pl.Where()
-		}
-
-		fmt.Fprintf(outfile, "%d. %s - %s %s %s\n", i+1, dateText, whoText, whatText, placeText)
 	}
 
 	return nil

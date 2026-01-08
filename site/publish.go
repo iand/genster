@@ -3,6 +3,7 @@ package site
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/iand/genster/model"
@@ -17,6 +18,7 @@ type PublishSet struct {
 	Repositories map[string]*model.Repository
 	Places       map[string]*model.Place
 	Families     map[string]*model.Family
+	FamilyLines  map[string]*model.FamilyLine
 	MediaObjects map[string]*model.MediaObject
 	Events       map[model.TimelineEvent]bool
 	LastUpdated  time.Time
@@ -35,6 +37,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		Repositories: make(map[string]*model.Repository),
 		Places:       make(map[string]*model.Place),
 		Families:     make(map[string]*model.Family),
+		FamilyLines:  make(map[string]*model.FamilyLine),
 		MediaObjects: make(map[string]*model.MediaObject),
 		Events:       make(map[model.TimelineEvent]bool),
 	}
@@ -239,6 +242,11 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 
 	if ps.LastUpdated.IsZero() {
 		ps.LastUpdated = time.Now()
+	}
+
+	fls := WalkFamilyLines(t.KeyPerson)
+	for _, fl := range fls {
+		ps.FamilyLines[fl.ID] = fl
 	}
 
 	return ps, nil
@@ -538,4 +546,57 @@ func (h *PersonWithLeastNumberHeap) Pop() interface{} {
 	x := old[n-1]
 	*h = old[0 : n-1]
 	return x
+}
+
+func WalkFamilyLines(keyPerson *model.Person) []*model.FamilyLine {
+	stack := make([]*model.Person, 0, 20)
+
+	var familyLines []*model.FamilyLine
+	familyLine := make([]*model.Family, 0, 20)
+
+	p := keyPerson
+	for !p.IsUnknown() {
+		if !p.ParentFamily.IsUnknown() {
+			if !p.Father.IsUnknown() {
+				if !p.Redacted {
+					familyLine = append(familyLine, p.ParentFamily)
+				}
+				if !p.Mother.IsUnknown() {
+					stack = append(stack, p.Mother)
+				}
+				p = p.Father
+				continue
+			}
+
+			if !p.Mother.IsUnknown() {
+				if !p.Redacted {
+					familyLine = append(familyLine, p.ParentFamily)
+				}
+				p = p.Mother
+				continue
+			}
+		}
+
+		if len(familyLine) > 0 {
+			fl := &model.FamilyLine{
+				ID:       familyLine[len(familyLine)-1].ID,
+				Name:     familyLine[len(familyLine)-1].PreferredUniqueName,
+				Families: make([]*model.Family, 0, len(familyLine)),
+			}
+			for _, f := range slices.Backward(familyLine) {
+				fl.Families = append(fl.Families, f)
+			}
+			familyLines = append(familyLines, fl)
+			familyLine = make([]*model.Family, 0, 20)
+		}
+		if len(stack) > 0 {
+			p = stack[0]
+			stack = stack[1:]
+			continue
+		}
+
+		break
+	}
+
+	return familyLines
 }

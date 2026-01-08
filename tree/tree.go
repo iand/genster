@@ -225,8 +225,7 @@ func (t *Tree) FindFamilyOneParent(parent *model.Person, child *model.Person) *m
 
 func (s *Tree) newFamily(id string) *model.Family {
 	f := &model.Family{
-		ID: id,
-		// Page:      fmt.Sprintf(s.FamilyPagePattern, id),
+		ID:        id,
 		Bond:      model.FamilyBondUnknown,
 		EndReason: model.FamilyEndReasonUnknown,
 	}

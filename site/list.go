@@ -442,3 +442,30 @@ func (s *Site) WriteFamilyListPages(root string) error {
 	}
 	return nil
 }
+
+func (s *Site) WriteFamilyLinesListPages(root string) error {
+	baseDir := filepath.Join(root, s.ListFamilyLinesDir)
+	pn := NewPaginator()
+	pn.HugoStyle = s.GenerateHugo
+	for _, fl := range s.PublishSet.FamilyLines {
+		if s.LinkFor(fl) == "" {
+			continue
+		}
+		// if f.Redacted {
+		// 	logging.Debug("not writing redacted family to anomalies index", "id", p.ID)
+		// 	continue
+		// }
+		items := make([][2]md.Text, 0)
+		b := s.NewMarkdownBuilder()
+		items = append(items, [2]md.Text{
+			b.EncodeModelLink(b.EncodeText(fl.Name), fl),
+		})
+		b.DefinitionList(items)
+		pn.AddEntry(fl.Name+"~"+fl.ID, fl.Name, b.String())
+
+	}
+	if err := pn.WritePages(s, baseDir, PageLayoutListFamilyLines, "Family Lines", "This is a full, alphabetical list of family lines in the tree."); err != nil {
+		return err
+	}
+	return nil
+}
