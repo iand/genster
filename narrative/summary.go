@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iand/gdate"
+	"github.com/iand/genster/fact"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
@@ -187,7 +189,7 @@ func WhatWherePov[T render.EncodedText](what string, pl *model.Place, enc render
 
 func WhatWhen[T render.EncodedText](what string, dt *model.Date, enc render.TextEncoder[T]) string {
 	if !dt.IsUnknown() {
-		return text.JoinSentenceParts(what, dt.When())
+		return text.JoinSentenceParts(what, NamedWhen(dt))
 	}
 	return what
 }
@@ -195,7 +197,7 @@ func WhatWhen[T render.EncodedText](what string, dt *model.Date, enc render.Text
 func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser) string {
 	title := ""
 	if !dt.IsUnknown() {
-		title = text.JoinSentenceParts(title, dt.When())
+		title = text.JoinSentenceParts(title, NamedWhen(dt))
 	}
 
 	if !pl.IsUnknown() {
@@ -207,7 +209,7 @@ func WhenWhere[T render.EncodedText](dt *model.Date, pl *model.Place, enc render
 func WhenWherePov[T render.EncodedText](dt *model.Date, pl *model.Place, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
 	title := ""
 	if !dt.IsUnknown() {
-		title = text.JoinSentenceParts(title, dt.When())
+		title = text.JoinSentenceParts(title, NamedWhen(dt))
 	}
 
 	title = WhatWherePov(title, pl, enc, nc, pov)
@@ -1511,4 +1513,15 @@ func GenerateOlb(p *model.Person) string {
 		logger.Debug("generated olb: " + olb)
 	}
 	return olb
+}
+
+func NamedWhen(dt *model.Date) string {
+	if p, ok := dt.Date.(*gdate.Precise); ok {
+		name := fact.LookupNamedDay(dt)
+		if name != fact.NamedDayNone {
+			return fmt.Sprintf("on %s, %s", name.String(), p.String())
+		}
+	}
+
+	return dt.When()
 }

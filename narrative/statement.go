@@ -314,7 +314,7 @@ func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 			detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
 			event += " " + action
 			event += " " + otherName
-			event += " " + startDate.When()
+			event += " " + NamedWhen(startDate)
 			if age, ok := s.Principal.AgeInYearsAt(startDate); ok && age < 18 || age > 45 {
 				event += " " + AgeQualifier(age)
 			}
@@ -690,12 +690,12 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
 		detail.StartSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(name), true, false, true, true).String())
-		if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
-			detail.StartSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
-		}
+		// if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
+		// 	detail.StartSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
+		// }
 	case model.FamilyEndReasonUnknown:
 		// TODO: format FamilyEndReasonUnknown
-		end += "the marriage ended in " + endDate.When()
+		end += "the marriage ended " + endDate.When()
 	}
 
 	if end != "" {

@@ -571,23 +571,27 @@ func (t *Tree) InferFamilyStartEndDates(f *model.Family) error {
 		if f.Mother == nil || f.Mother.BestDeathlikeEvent == nil {
 			if f.Father != nil && f.Father.BestDeathlikeEvent != nil {
 				f.BestEndDate = f.Father.BestDeathlikeEvent.GetDate()
+				f.BestEndEvent = f.Father.BestDeathlikeEvent
 				f.EndDeathPerson = f.Father
 				f.EndReason = model.FamilyEndReasonDeath
 			}
 		} else if f.Father == nil || f.Father.BestDeathlikeEvent == nil {
 			if f.Mother != nil && f.Mother.BestDeathlikeEvent != nil {
 				f.BestEndDate = f.Mother.BestDeathlikeEvent.GetDate()
+				f.BestEndEvent = f.Mother.BestDeathlikeEvent
 				f.EndDeathPerson = f.Mother
 				f.EndReason = model.FamilyEndReasonDeath
 			}
 		} else {
 			if f.Mother.BestDeathlikeEvent.GetDate().SortsBefore(f.Father.BestDeathlikeEvent.GetDate()) {
 				f.BestEndDate = f.Mother.BestDeathlikeEvent.GetDate()
+				f.BestEndEvent = f.Mother.BestDeathlikeEvent
 				f.EndDeathPerson = f.Mother
 				f.EndReason = model.FamilyEndReasonDeath
 				f.Father.Timeline = append(f.Father.Timeline, f.Mother.BestDeathlikeEvent)
 			} else {
 				f.BestEndDate = f.Father.BestDeathlikeEvent.GetDate()
+				f.BestEndEvent = f.Father.BestDeathlikeEvent
 				f.EndDeathPerson = f.Father
 				f.EndReason = model.FamilyEndReasonDeath
 				f.Mother.Timeline = append(f.Mother.Timeline, f.Father.BestDeathlikeEvent)
