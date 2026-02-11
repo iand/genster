@@ -23,6 +23,9 @@ func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error 
 	id := pval(gs.ID, gs.Handle)
 	s := m.FindSource(l.ScopeName, id)
 
+	logger := logging.With("source", "source", "id", s.ID, "native_id", id)
+	logger.Debug("populating from source record", "handle", gs.Handle)
+
 	s.Title = pval(gs.Stitle, "unknown")
 	s.Author = pval(gs.Sauthor, "")
 
@@ -48,6 +51,25 @@ func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error 
 			s.RepositoryRefs = append(s.RepositoryRefs, rr)
 		}
 
+	}
+
+	// Process tags
+	for _, tref := range gs.Tagref {
+		tag, ok := l.TagsByHandle[tref.Hlink]
+		if !ok {
+			logger.Warn("could not find tag", "hlink", tref.Hlink)
+			continue
+		}
+		switch strings.ToLower(tag.Name) {
+		case "primary source":
+			s.Quality = model.SourceQualityPrimary
+		case "secondary source":
+			s.Quality = model.SourceQualitySecondary
+		case "tertiary source":
+			s.Quality = model.SourceQualityTertiary
+		case "low quality source":
+			s.IsUnreliable = true
+		}
 	}
 
 	return nil

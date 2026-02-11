@@ -1,8 +1,18 @@
 package model
 
 import (
+	"sort"
 	"strings"
 	"time"
+)
+
+type SourceQuality string
+
+const (
+	SourceQualityUnknown   SourceQuality = ""
+	SourceQualityPrimary   SourceQuality = "primary"
+	SourceQualitySecondary SourceQuality = "secondary"
+	SourceQualityTertiary  SourceQuality = "tertiary"
 )
 
 type Source struct {
@@ -16,6 +26,7 @@ type Source struct {
 	RepositoryRefs      []RepositoryRef
 	EventsCiting        []TimelineEvent
 	Tags                []string
+	Quality             SourceQuality
 	IsCivilRegistration bool // indicates whether this source holds civil registration records such as births marriages and deaths
 	IsCensus            bool // indicates whether this source holds census records
 	IsUnreliable        bool // indicates whether this source is of dubious reliability
@@ -102,6 +113,40 @@ type Repository struct {
 type RepositoryRef struct {
 	Repository *Repository
 	CallNo     string
+}
+
+// sourceQualityOrder maps source quality to a sort rank, lower is better.
+var sourceQualityOrder = map[SourceQuality]int{
+	SourceQualityPrimary:   0,
+	SourceQualitySecondary: 1,
+	SourceQualityTertiary:  2,
+	SourceQualityUnknown:   3,
+}
+
+// SortCitationsBySourceQuality sorts citations in place by the quality of their
+// source in order: primary, secondary, tertiary, unknown. Sources marked as
+// unreliable are sorted last.
+func SortCitationsBySourceQuality(cits []*GeneralCitation) {
+	sort.SliceStable(cits, func(i, j int) bool {
+		si := cits[i].Source
+		sj := cits[j].Source
+
+		ui := si != nil && si.IsUnreliable
+		uj := sj != nil && sj.IsUnreliable
+		if ui != uj {
+			return uj
+		}
+
+		qi := SourceQualityUnknown
+		if si != nil {
+			qi = si.Quality
+		}
+		qj := SourceQualityUnknown
+		if sj != nil {
+			qj = sj.Quality
+		}
+		return sourceQualityOrder[qi] < sourceQualityOrder[qj]
+	})
 }
 
 type CitationMatcher func(*GeneralCitation) bool

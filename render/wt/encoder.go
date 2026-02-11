@@ -171,6 +171,7 @@ func (w *Encoder) writeModelLink(buf io.StringWriter, prefix string, text string
 }
 
 func (w *Encoder) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
+	model.SortCitationsBySourceQuality(citations)
 	sups := Text("")
 	for i, cit := range citations {
 		if i > 0 && sups != "" {

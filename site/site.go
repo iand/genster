@@ -88,8 +88,10 @@ type Site struct {
 	FamilyLinkPattern     string
 	FamilyFilePattern     string
 	FamilyLineDir         string
-	FamilyLineLinkPattern string
-	FamilyLineFilePattern string
+	FamilyLineLinkPattern       string
+	FamilyLineFilePattern       string
+	FamilyLineEventsLinkPattern string
+	FamilyLineEventsFilePattern string
 	PlaceDir              string
 	PlaceLinkPattern      string
 	PlaceFilePattern      string
@@ -163,9 +165,11 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		FamilyLinkPattern: path.Join(baseURL, "family/%s/"),
 		FamilyFilePattern: path.Join("/family/%s/", indexPage),
 
-		FamilyLineDir:         PageSectionFamilyLine,
-		FamilyLineLinkPattern: path.Join(baseURL, "familyline/%s/"),
-		FamilyLineFilePattern: path.Join("/familyline/%s/", indexPage),
+		FamilyLineDir:              PageSectionFamilyLine,
+		FamilyLineLinkPattern:      path.Join(baseURL, "familyline/%s/"),
+		FamilyLineFilePattern:      path.Join("/familyline/%s/", indexPage),
+		FamilyLineEventsLinkPattern: path.Join(baseURL, "familyline/%s/events/"),
+		FamilyLineEventsFilePattern: path.Join("/familyline/%s/events/", indexPage),
 
 		PlaceDir:         PageSectionPlace,
 		PlaceLinkPattern: path.Join(baseURL, PageSectionPlace, "/%s/"),
@@ -662,6 +666,15 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 
 			if err := writePage(d, contentDir, fmt.Sprintf(s.FamilyLineFilePattern, fl.ID)); err != nil {
 				return fmt.Errorf("write family line page: %w", err)
+			}
+
+			d2, err := RenderFamilyLineEventsPage(s, fl)
+			if err != nil {
+				return fmt.Errorf("render family line events page: %w", err)
+			}
+
+			if err := writePage(d2, contentDir, fmt.Sprintf(s.FamilyLineEventsFilePattern, fl.ID)); err != nil {
+				return fmt.Errorf("write family line events page: %w", err)
 			}
 		}
 	}

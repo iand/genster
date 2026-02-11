@@ -247,7 +247,7 @@ func (s *Site) WritePersonListPages(root string) error {
 			continue
 		}
 		items := make([][2]md.Text, 0)
-		b := &narrative.CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
+		b := &narrative.CitationSkippingEncoder[md.Text]{ContentBuilder: s.NewMarkdownBuilder()}
 
 		summary := narrative.PersonSummary(p, b, narrative.DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
 

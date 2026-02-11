@@ -269,6 +269,7 @@ func (e *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation
 	if len(citations) == 0 {
 		return s
 	}
+	model.SortCitationsBySourceQuality(citations)
 	sups := ""
 	for i, cit := range citations {
 		if cit.Redacted {

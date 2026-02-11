@@ -193,6 +193,7 @@ func (w *Content) writeModelLink(buf io.StringWriter, pageref string, prefix str
 }
 
 func (w *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation) Text {
+	model.SortCitationsBySourceQuality(citations)
 	sups := Text("")
 	for i, cit := range citations {
 		if i > 0 && sups != "" {
