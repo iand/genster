@@ -12,7 +12,7 @@ import (
 
 func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Document[md.Text], error) {
 	doc := s.NewDocument()
-	doc.SuppressCitations = true
+	doc.Citations.Suppress = true
 
 	doc.Layout(PageLayoutCitation.String())
 	doc.Category(PageCategoryCitation)

@@ -8,7 +8,7 @@ import (
 
 func RenderSourcePage(s *Site, so *model.Source) (render.Document[md.Text], error) {
 	doc := s.NewDocument()
-	doc.SuppressCitations = true
+	doc.Citations.Suppress = true
 
 	// doc.Title(so.Title)
 	doc.Layout(PageLayoutSource.String())
