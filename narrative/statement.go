@@ -1266,7 +1266,7 @@ var _ Statement[md.Text] = (*MediaStatement[md.Text])(nil)
 
 func (s *MediaStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
 	for _, mo := range s.MediaObjects {
-		enc.Figure(mo.Object.SrcFilePath, mo.Object.Title, enc.EncodeText(mo.Object.Title), mo.Highlight)
+		enc.Figure(mo.Object.SrcFilePath, mo.Object.Title, enc.EncodeText(mo.Object.Title), mo.Highlight, "")
 	}
 }
 

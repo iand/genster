@@ -1,6 +1,7 @@
 package site
 
 import (
+	"path/filepath"
 	"slices"
 
 	"github.com/iand/genster/model"
@@ -52,7 +53,7 @@ func RenderCitationPage(s *Site, c *model.GeneralCitation) (render.Document[md.T
 		link := s.LinkFor(cmo.Object)
 		if link != "" {
 			doc.EmptyPara()
-			doc.Figure(link, cmo.Object.ID, doc.EncodeText(cmo.Object.Title), cmo.Highlight)
+			doc.Figure(link, cmo.Object.ID, doc.EncodeText(cmo.Object.Title), cmo.Highlight, filepath.Base(cmo.Object.SrcFilePath))
 		}
 	}
 

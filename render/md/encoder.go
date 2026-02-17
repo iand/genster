@@ -292,16 +292,16 @@ func (e *Content) encodeCitationDetail(c *model.GeneralCitation) string {
 	citationText := c.Detail
 
 	if c.ID != "" && (e.LinkBuilder != nil && e.LinkBuilder.LinkFor(c) != "") && (len(c.TranscriptionText) > 0 || len(c.MediaObjects) > 0) {
-		citationText += " (" + e.EncodeModelLink("more details...", c).String() + ")"
+		citationText += " <span class=\"citmore\">(" + e.EncodeModelLink("more details...", c).String() + ")</span>"
 	} else {
 		if c.URL != nil {
 			if c.URL.Title != "" {
-				citationText += " (" + e.EncodeLink(e.EncodeText(c.URL.Title), c.URL.URL).String() + ")"
+				citationText += " <span class=\"citurl\">(" + e.EncodeLink(e.EncodeText(c.URL.Title), c.URL.URL).String() + ")</span>"
 			} else {
 				pu, err := url.Parse(c.URL.URL)
 				if err == nil && pu != nil && pu.Host != "" {
 					host := pu.Host
-					citationText += " (" + e.EncodeLink(e.EncodeText(host), c.URL.URL).String() + ")"
+					citationText += " <span class=\"citurl\">(" + e.EncodeLink(e.EncodeText(host), c.URL.URL).String() + ")</span>"
 				} else {
 					citationText = e.EncodeLink(e.EncodeText(citationText), c.URL.URL).String()
 				}
@@ -353,7 +353,7 @@ func (e *Content) ParaWithFigure(text Text, link string, alt string, caption Tex
 	e.maintext.WriteString("</p>\n")
 }
 
-func (e *Content) Figure(link string, alt string, caption Text, highlight *model.Region) {
+func (e *Content) Figure(link string, alt string, caption Text, highlight *model.Region, downloadName string) {
 	e.maintext.WriteString("<figure>")
 	if highlight == nil {
 		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
@@ -368,6 +368,9 @@ func (e *Content) Figure(link string, alt string, caption Text, highlight *model
 	e.maintext.WriteString("<figcaption>")
 	e.maintext.WriteString("<p>")
 	caption.ToHTML(&e.maintext)
+	if downloadName != "" {
+		e.maintext.WriteString(fmt.Sprintf(" (<a href=\"%s\" download=\"%s\">Download this image</a>)", html.EscapeString(link), html.EscapeString(downloadName)))
+	}
 	e.maintext.WriteString("</p>")
 	e.maintext.WriteString("</figcaption>")
 	e.maintext.WriteString("</figure>\n")

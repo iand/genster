@@ -62,7 +62,7 @@ func MediaObjectsAsFigures[T render.EncodedText](mos []*model.CitedMediaObject, 
 				return fmt.Errorf("crop media: %w", err)
 			}
 		}
-		enc.Figure(mediaPath, mo.Object.Title, enc.EncodeText(mo.Object.Title), mo.Highlight)
+		enc.Figure(mediaPath, mo.Object.Title, enc.EncodeText(mo.Object.Title), mo.Highlight, "")
 	}
 
 	return nil

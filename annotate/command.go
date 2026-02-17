@@ -3,6 +3,7 @@ package annotate
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -67,6 +68,13 @@ var Command = &cli.Command{
 			Usage:       "Restore original footnote references, removing generated citations",
 			Destination: &opts.undo,
 		},
+		&cli.StringFlag{
+			Name:        "basepath",
+			Aliases:     []string{"b"},
+			Usage:       "Base URL path for the tree site, used to generate citation links",
+			Value:       "/",
+			Destination: &opts.basePath,
+		},
 	}, logging.Flags...),
 }
 
@@ -77,6 +85,7 @@ var opts struct {
 	treeID             string
 	configDir          string
 	markdownDir        string
+	basePath           string
 	dryRun             bool
 	undo               bool
 }
@@ -137,6 +146,10 @@ func annotate(cc *cli.Context) error {
 		}
 	}
 
+	lb := &citationLinkBuilder{
+		citationLinkPattern: path.Join(opts.basePath, "trees", opts.treeID, "citation/%s/"),
+	}
+
 	// Find all markdown files in the directory tree.
 	filesProcessed := 0
 	err = filepath.WalkDir(opts.markdownDir, func(fpath string, d os.DirEntry, err error) error {
@@ -150,7 +163,7 @@ func annotate(cc *cli.Context) error {
 			return nil
 		}
 
-		changed, err := processFile(fpath, grampsIDToCitation, opts.dryRun)
+		changed, err := processFile(fpath, grampsIDToCitation, lb, opts.dryRun)
 		if err != nil {
 			return fmt.Errorf("process %s: %w", fpath, err)
 		}
@@ -255,7 +268,7 @@ func undoFile(fpath string, dryRun bool) (bool, error) {
 	return true, nil
 }
 
-func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitation, dryRun bool) (bool, error) {
+func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitation, lb md.LinkBuilder, dryRun bool) (bool, error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
 		return false, fmt.Errorf("read file: %w", err)
@@ -300,6 +313,7 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 	fmt.Println(fpath)
 
 	var enc md.Content
+	enc.SetLinkBuilder(lb)
 
 	// Process replacements from end to start so indices remain valid.
 	result := cleaned
@@ -373,4 +387,21 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 	}
 
 	return true, nil
+}
+
+// citationLinkBuilder generates links for citations in the tree site.
+type citationLinkBuilder struct {
+	citationLinkPattern string
+}
+
+func (b *citationLinkBuilder) LinkFor(v any) string {
+	switch vt := v.(type) {
+	case *model.GeneralCitation:
+		if vt.ID == "" {
+			return ""
+		}
+		return fmt.Sprintf(b.citationLinkPattern, vt.ID)
+	default:
+		return ""
+	}
 }

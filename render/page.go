@@ -42,7 +42,7 @@ type ContentBuilder[T EncodedText] interface {
 	DefinitionList([][2]T)
 	BlockQuote(T)
 	Timeline([]TimelineRow[T])
-	Figure(link string, alt string, caption T, highlight *model.Region)
+	Figure(link string, alt string, caption T, highlight *model.Region, downloadName string)
 	FactList([]FactEntry[T])
 }
 

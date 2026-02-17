@@ -259,5 +259,5 @@ func (w *Encoder) EncodeText(ss ...string) Text {
 	return Text(strings.Join(ss, ""))
 }
 
-func (w *Encoder) Figure(link string, alt string, caption Text, highlight *model.Region) {
+func (w *Encoder) Figure(link string, alt string, caption Text, highlight *model.Region, downloadName string) {
 }
