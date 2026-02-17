@@ -128,9 +128,9 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	}
 
 	olb := p.Olb
-	if olb == "" && s.IncludeDebugInfo {
-		olb = narrative.GenerateOlb(p)
-	}
+	// if olb == "" && s.IncludeDebugInfo {
+	// 	olb = narrative.GenerateOlb(p)
+	// }
 	if olb != "" {
 		doc.Para(doc.EncodeBold(doc.EncodeItalic(doc.EncodeText(text.FormatSentence(olb)))))
 	}

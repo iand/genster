@@ -245,6 +245,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				p.ModeOfDeath = model.ModeOfDeathLostAtSea
 			case "killed in action":
 				p.ModeOfDeath = model.ModeOfDeathKilledInAction
+			case "killed in battle":
+				p.ModeOfDeath = model.ModeOfDeathKilledInAction
+				logger.Warn("mode of death should be changed to 'killed in action'", "type", att.Type, "value", att.Value)
 			case "drowned", "drowning":
 				p.ModeOfDeath = model.ModeOfDeathDrowned
 			case "executed", "execution":
