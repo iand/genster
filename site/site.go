@@ -74,31 +74,31 @@ type Site struct {
 	Tree      *tree.Tree
 	Calendars map[int]*Calendar
 
-	PersonDir             string
-	PersonLinkPattern     string
-	PersonFilePattern     string
-	SourceDir             string
-	SourceLinkPattern     string
-	SourceFilePattern     string
-	CitationDir           string
-	CitationLinkPattern   string
-	CitationFilePattern   string
-	CalendarLinkPattern   string
-	FamilyDir             string
-	FamilyLinkPattern     string
-	FamilyFilePattern     string
-	FamilyLineDir         string
+	PersonDir                   string
+	PersonLinkPattern           string
+	PersonFilePattern           string
+	SourceDir                   string
+	SourceLinkPattern           string
+	SourceFilePattern           string
+	CitationDir                 string
+	CitationLinkPattern         string
+	CitationFilePattern         string
+	CalendarLinkPattern         string
+	FamilyDir                   string
+	FamilyLinkPattern           string
+	FamilyFilePattern           string
+	FamilyLineDir               string
 	FamilyLineLinkPattern       string
 	FamilyLineFilePattern       string
 	FamilyLineEventsLinkPattern string
 	FamilyLineEventsFilePattern string
-	PlaceDir              string
-	PlaceLinkPattern      string
-	PlaceFilePattern      string
-	CalendarFilePattern   string
-	MediaDir              string
-	MediaLinkPattern      string
-	MediaFilePattern      string
+	PlaceDir                    string
+	PlaceLinkPattern            string
+	PlaceFilePattern            string
+	CalendarFilePattern         string
+	MediaDir                    string
+	MediaLinkPattern            string
+	MediaFilePattern            string
 
 	ListInferencesDir  string
 	ListAnomaliesDir   string
@@ -165,9 +165,9 @@ func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
 		FamilyLinkPattern: path.Join(baseURL, "family/%s/"),
 		FamilyFilePattern: path.Join("/family/%s/", indexPage),
 
-		FamilyLineDir:              PageSectionFamilyLine,
-		FamilyLineLinkPattern:      path.Join(baseURL, "familyline/%s/"),
-		FamilyLineFilePattern:      path.Join("/familyline/%s/", indexPage),
+		FamilyLineDir:               PageSectionFamilyLine,
+		FamilyLineLinkPattern:       path.Join(baseURL, "familyline/%s/"),
+		FamilyLineFilePattern:       path.Join("/familyline/%s/", indexPage),
 		FamilyLineEventsLinkPattern: path.Join(baseURL, "familyline/%s/events/"),
 		FamilyLineEventsFilePattern: path.Join("/familyline/%s/events/", indexPage),
 
@@ -1214,7 +1214,7 @@ func (s *Site) WriteChartTrees(root string) error {
 }
 
 func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) error {
-	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true, true)
+	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true, true, true, true, true)
 	if err != nil {
 		return fmt.Errorf("build lineage: %w", err)
 	}
@@ -1232,7 +1232,7 @@ func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) err
 		return fmt.Errorf("layout chart: %w", err)
 	}
 
-	svg, err := gtree.SVG(lay, gtree.PaperSizeA4Portrait)
+	svg, err := gtree.SVG(lay, nil)
 	if err != nil {
 		return fmt.Errorf("render SVG: %w", err)
 	}

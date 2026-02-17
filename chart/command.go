@@ -28,6 +28,14 @@ func checkFlags(cc *cli.Context) error {
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 	}
+
+	switch chartopts.pageSize {
+	case "none":
+	case "A3Landscape":
+	default:
+		return fmt.Errorf("unsupported page size: %s", chartopts.pageSize)
+	}
+
 	return nil
 }
 
@@ -42,15 +50,19 @@ var chartopts struct {
 	startPersonID      string
 	title              string
 	fontScale          float64
+	pageSize           string
 
-	outputFilename string
-	outputFormat   string
-	descendantId   string
-	generations    int
-	detail         int
-	directOnly     bool
-	compact        bool
-	debug          bool
+	outputFilename  string
+	outputFormat    string
+	descendantId    string
+	generations     int
+	detail          int
+	directOnly      bool
+	parents         bool
+	compact         bool
+	minimalSurnames bool
+	nodecoration    bool
+	debug           bool
 }
 
 var Command = &cli.Command{
@@ -125,11 +137,32 @@ var Command = &cli.Command{
 			Destination: &chartopts.directOnly,
 		},
 		&cli.BoolFlag{
+			Name:        "parents",
+			Usage:       "include parents of person",
+			Value:       false,
+			Destination: &chartopts.parents,
+		},
+		&cli.BoolFlag{
+			Name:        "minimalsurnames",
+			Usage:       "only show surnames that are different to father's",
+			Value:       false,
+			Destination: &chartopts.minimalSurnames,
+		},
+
+		&cli.BoolFlag{
 			Name:        "compact",
 			Usage:       "attempt to compact displayed information (for descendant charts)",
 			Value:       false,
 			Destination: &chartopts.compact,
 		},
+
+		&cli.BoolFlag{
+			Name:        "nodecoration",
+			Usage:       "don't include title or legend",
+			Value:       false,
+			Destination: &chartopts.nodecoration,
+		},
+
 		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "draw debug information",
@@ -141,6 +174,12 @@ var Command = &cli.Command{
 			Usage:       "scale all fonts by this factor",
 			Value:       1.0,
 			Destination: &chartopts.fontScale,
+		},
+		&cli.StringFlag{
+			Name:        "pagesize",
+			Usage:       "size of page: 'A3Landscape' or 'none' (default: 'A3Landscape')",
+			Value:       "A3Landscape",
+			Destination: &chartopts.pageSize,
 		},
 		&cli.StringFlag{
 			Name:        "config",
@@ -205,33 +244,45 @@ func chartCmd(cc *cli.Context) error {
 		return fmt.Errorf("person with id %s not found", chartopts.startPersonID)
 	}
 
+	pageSize := func(ps string) *gtree.PaperSize {
+		switch ps {
+		case "A3Landscape":
+			return &gtree.PaperSizeA3Landscape
+		}
+
+		return nil
+	}
+
 	var output string
 	var lay gtree.Layout
 	switch chartopts.chartType {
 	case "descendant":
-		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.directOnly, chartopts.compact)
+		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.compact, chartopts.directOnly, chartopts.parents, chartopts.minimalSurnames, !chartopts.nodecoration)
 		if err != nil {
 			return fmt.Errorf("build descendant chart: %w", err)
 		}
 
-		ch.Title = chartopts.title
-		if ch.Title == "" {
-			ch.Title = "Descendants of " + startPerson.PreferredUniqueName
-		}
-		ch.Notes = []string{}
+		if !chartopts.nodecoration {
+			ch.Title = chartopts.title
+			if ch.Title == "" {
+				ch.Title = "Descendants of " + startPerson.PreferredUniqueName
+			}
+			ch.Notes = []string{}
 
-		ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
-		if !startPerson.RelationToKeyPerson.IsUnknown() {
-			ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+keyPerson.PreferredFamiliarFullName+")")
+			ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+			if !startPerson.RelationToKeyPerson.IsUnknown() {
+				ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+keyPerson.PreferredFamiliarFullName+")")
+			}
 		}
 
 		opts := gtree.DefaultLayoutOptions()
 		opts.Debug = chartopts.debug
+		opts.BackgroundColor = ""
 		lay, err = ch.Layout(opts)
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
+		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -267,7 +318,7 @@ func chartCmd(cc *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
+		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -317,7 +368,7 @@ func chartCmd(cc *cli.Context) error {
 			return fmt.Errorf("generate fan layout: %w", err)
 		}
 
-		output, err = gtree.SVG(lay, gtree.PaperSizeA3Landscape)
+		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}

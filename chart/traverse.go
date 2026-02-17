@@ -8,8 +8,8 @@ import (
 	"github.com/iand/gtree"
 )
 
-func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, compact bool, personDetailFn func(*model.Person) ([]string, []string), familyDetailFn func(*model.Family) []string) *gtree.DescendantPerson {
-	headings, details := personDetailFn(p)
+func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, compact bool, personDetailFn func(p *model.Person, firstUseOfSurname bool) ([]string, []string), familyDetailFn func(*model.Family) []string) *gtree.DescendantPerson {
+	headings, details := personDetailFn(p, seq.n == 0)
 
 	tp := &gtree.DescendantPerson{ID: seq.next(), Headings: headings, Details: details}
 	if !directOnly || p.IsDirectAncestor() {
@@ -18,11 +18,11 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 				tf := new(gtree.DescendantFamily)
 				tp.Families = append(tp.Families, tf)
 				// Show spouses separately unless compact has been requested
-				if !compact {
+				if !compact || p.IsDirectAncestor() {
 					tf.Details = familyDetailFn(f)
 					o := f.OtherParent(p)
 					if o != nil {
-						oh, od := personDetailFn(o)
+						oh, od := personDetailFn(o, true)
 						tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
 					}
 				}
@@ -39,7 +39,7 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 					tf := new(gtree.DescendantFamily)
 					tf.Details = familyDetailFn(f)
 					tp.Families = append(tp.Families, tf)
-					oh, od := personDetailFn(f.OtherParent(p))
+					oh, od := personDetailFn(f.OtherParent(p), true)
 					tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
 					break
 				}
