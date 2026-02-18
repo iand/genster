@@ -87,6 +87,18 @@ func RenderTimeline[T render.EncodedText](t *model.Timeline, pov *model.POV, enc
 			case *gdate.MonthYear:
 				sy = strconv.Itoa(d.Year())
 				sd = monthNames[d.M]
+			case *gdate.BeforePrecise:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.AfterPrecise:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.BetweenPrecise:
+				sy = d.Occurrence()
+				sd = ""
+			case *gdate.YearRange:
+				sy = d.String()
+				sd = ""
 			default:
 				logger.Warn("timeline: unsupported date type", "type", fmt.Sprintf("%T", d), "value", d.String(), "event", fmt.Sprintf("%T", ev))
 			}
