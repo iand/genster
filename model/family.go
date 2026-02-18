@@ -79,9 +79,7 @@ func ParseNumberOfChildren(v string) (NumberOfChildren, error) {
 	}
 
 	n := NumberOfChildren(v)
-	if strings.HasSuffix(v, "+") {
-		v = v[:len(v)-1]
-	}
+	v = strings.TrimSuffix(v, "+")
 	if _, err := strconv.Atoi(v); err != nil {
 		return NumberOfChildrenUnknown, err
 	}

@@ -183,9 +183,7 @@ func (w *Encoder) EncodeWithCitations(s Text, citations []*model.GeneralCitation
 }
 
 func (w *Encoder) encodeCitationDetail(c *model.GeneralCitation) Text {
-	var detail string
-
-	detail = text.FinishSentence(c.String())
+	detail := text.FinishSentence(c.String())
 
 	if w.citationMap == nil {
 		w.citationMap = make(map[string]int)
@@ -237,18 +235,6 @@ func (w *Encoder) FactList(items []render.FactEntry[Text]) {
 	}
 }
 
-func hasExcludedTranscriptionSource(c *model.GeneralCitation) bool {
-	// avoid text that might have problematic copyright
-	if c.Source == nil || c.Source.RepositoryName == "" {
-		return false
-	}
-
-	if c.Source.RepositoryName == "The British Newspaper Archive" {
-		return true
-	}
-
-	return false
-}
 
 func (w *Encoder) EncodeText(ss ...string) Text {
 	if len(ss) == 0 {

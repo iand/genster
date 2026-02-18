@@ -176,14 +176,10 @@ func gen(cc *cli.Context) error {
 
 	for _, p := range t.People {
 		if pages, ok := pageMap[p.GrampsID]; ok {
-			for _, link := range pages {
-				p.DiaryLinks = append(p.DiaryLinks, link)
-			}
+			p.DiaryLinks = append(p.DiaryLinks, pages...)
 		}
 		if pages, ok := pageMap[p.Slug]; ok {
-			for _, link := range pages {
-				p.DiaryLinks = append(p.DiaryLinks, link)
-			}
+			p.DiaryLinks = append(p.DiaryLinks, pages...)
 		}
 	}
 

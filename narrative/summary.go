@@ -826,13 +826,6 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 }
 
 func GenerateOlb(p *model.Person) string {
-	const (
-		Mundane     = 1
-		Interesting = 2
-		Unusual     = 3
-		Unique      = 4
-	)
-
 	log := false
 	logger := logging.With("id", p.ID, "name", p.PreferredFullName)
 

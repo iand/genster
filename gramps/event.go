@@ -2,7 +2,6 @@ package gramps
 
 import (
 	"fmt"
-	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -408,107 +407,6 @@ func (l *Loader) lookupEvent(grer *grampsxml.Eventref) (model.TimelineEvent, boo
 	return ev, ok
 }
 
-func (l *Loader) parseGeneralEvent(m ModelFinder, grev *grampsxml.Event, grer *grampsxml.Eventref, logger *slog.Logger) (model.GeneralEvent, error) {
-	pl := l.findPlaceForEvent(m, grev)
-	dp := gdate.Parser{
-		ReckoningLocation: reckoningForPlace(pl),
-		AssumeGROQuarter:  false,
-	}
-
-	dt, err := EventDate(grev, dp)
-	if err != nil {
-		return model.GeneralEvent{}, err
-	}
-
-	gev := model.GeneralEvent{
-		Date:       dt,
-		Place:      pl,
-		Detail:     pval(grev.Description, ""),
-		Title:      pval(grev.Type, ""),
-		Attributes: make(map[string]string),
-	}
-
-	changeTime, err := changeToTime(grev.Change)
-	if err == nil {
-		gev.UpdateTime = &changeTime
-	}
-
-	createdTime, err := createdTimeFromHandle(grev.Handle)
-	if err == nil {
-		gev.CreateTime = &createdTime
-	}
-
-	// add shared attributes
-	for _, att := range grev.Attribute {
-		if pval(att.Priv, false) {
-			logger.Debug("skipping event attribute marked as private", "type", att.Type)
-			continue
-		}
-		gev.Attributes[strings.ToLower(att.Type)] = att.Value
-	}
-
-	// add attributes for this reference
-	for _, att := range grer.Attribute {
-		if pval(att.Priv, false) {
-			logger.Debug("skipping event reference attribute marked as private", "type", att.Type)
-			continue
-		}
-		gev.Attributes[strings.ToLower(att.Type)] = att.Value
-	}
-
-	if len(grev.Citationref) > 0 {
-		gev.Citations = l.parseCitationRecords(m, grev.Citationref, logger)
-	}
-
-	for _, gor := range grev.Objref {
-		if pval(gor.Priv, false) {
-			logger.Debug("skipping citation object marked as private", "handle", gor.Hlink)
-			continue
-		}
-		gob, ok := l.ObjectsByHandle[gor.Hlink]
-		if ok {
-			mo := m.FindMediaObject(gob.File.Src)
-			cmo := &model.CitedMediaObject{
-				Object: mo,
-			}
-			if gor.Region != nil && gor.Region.Corner1x != nil && gor.Region.Corner1y != nil && gor.Region.Corner2x != nil && gor.Region.Corner2y != nil {
-				cmo.Highlight = &model.Region{
-					Left:   *gor.Region.Corner1x,
-					Bottom: 100 - *gor.Region.Corner2y,
-					Width:  *gor.Region.Corner2x - *gor.Region.Corner1x,
-					Height: *gor.Region.Corner2y - *gor.Region.Corner1y,
-				}
-			}
-
-			gev.MediaObjects = append(gev.MediaObjects, cmo)
-		}
-	}
-
-	for _, gnr := range grev.Noteref {
-		gn, ok := l.NotesByHandle[gnr.Hlink]
-		if !ok {
-			continue
-		}
-		if pval(gn.Priv, false) {
-			logger.Debug("skipping event note marked as private", "handle", gn.Handle)
-			continue
-		}
-		switch strings.ToLower(gn.Type) {
-		case "narrative":
-			if gev.Narrative.Text != "" {
-				logger.Warn("overwriting narrative with Narrative note", "hlink", gnr.Hlink)
-			}
-			gev.Narrative = l.parseNote(gn, m)
-		case "event note":
-			cit := &model.GeneralCitation{
-				ID:     gnr.Hlink,
-				Detail: gn.Text,
-			}
-			gev.Citations = append(gev.Citations, cit)
-		}
-	}
-	return gev, nil
-}
 
 func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.Place {
 	if grev.Place == nil {
@@ -529,83 +427,6 @@ func maybeFixCensusDate(grev *grampsxml.Event) (*model.Date, bool) {
 	return nil, false
 }
 
-func (l *Loader) populateCensusRecord(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.CensusEvent {
-	id := pval(grev.ID, grev.Handle)
-
-	ev, ok := l.censusEvents[id]
-	if !ok {
-		ev = &model.CensusEvent{GeneralEvent: gev}
-		l.censusEvents[id] = ev
-
-		for _, gnr := range grev.Noteref {
-			gn, ok := l.NotesByHandle[gnr.Hlink]
-			if !ok {
-				continue
-			}
-			if pval(gn.Priv, false) {
-				logging.Debug("skipping census note marked as private", "id", p.ID, "handle", gn.Handle)
-				continue
-			}
-			if gn.Type == "Narrative" {
-				ev.Narrative = l.parseNote(gn, m)
-			}
-		}
-
-	}
-
-	// CensusEntryRelation
-
-	ce := &model.CensusEntry{
-		Principal: p,
-	}
-
-	var transcript string
-	for _, gnr := range er.Noteref {
-		gn, ok := l.NotesByHandle[gnr.Hlink]
-		if !ok {
-			continue
-		}
-		if pval(gn.Priv, false) {
-			logging.Debug("skipping census entry note marked as private", "id", p.ID, "handle", gn.Handle)
-			continue
-		}
-		if gn.Type == "Transcript" {
-			transcript = gn.Text
-		} else if gn.Type == "Narrative" {
-			ce.Narrative = gn.Text
-		}
-	}
-
-	fillCensusEntry(transcript, ce)
-	if ce.RelationToHead != "" {
-		logging.Debug("noting relation to head as "+ce.RelationToHead.String()+" from information on census", "id", p.ID)
-	}
-	if ce.MaritalStatus != "" {
-		logging.Debug("noting marital status as "+ce.MaritalStatus.String()+" from information on census", "id", p.ID)
-	}
-	if ce.Occupation != "" {
-		logging.Debug("noting occupation as "+ce.Occupation+" from information on census", "id", p.ID)
-	}
-
-	if reDetectMentalImpairment.MatchString(ce.Detail) {
-		p.MentalImpairment = true
-		logging.Debug("marking as mentally impaired from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	if reDetectPhysicalImpairment.MatchString(ce.Detail) {
-		p.PhysicalImpairment = true
-		logging.Debug("marking as physically impaired from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	if reDetectPauper.MatchString(ce.Detail) {
-		p.Pauper = true
-		logging.Debug("marking as pauper from information on census", "id", p.ID, "detail", ce.Detail)
-	}
-
-	ev.Entries = append(ev.Entries, ce)
-	// ev.GeneralEvent.Detail = ce.Detail // TODO: change when census events are shared
-	return ev
-}
 
 var censusEntryRelationLookup = map[string]model.CensusEntryRelation{
 	"head":            model.CensusEntryRelationHead,
@@ -1154,41 +975,3 @@ func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) 
 	}, nil
 }
 
-func (l *Loader) getResidenceEvent(grev *grampsxml.Event, er *grampsxml.Eventref, gev model.GeneralEvent, p *model.Person, m ModelFinder) *model.ResidenceRecordedEvent {
-	id := pval(grev.ID, grev.Handle)
-
-	var ev *model.ResidenceRecordedEvent
-
-	mev, ok := l.multipartyEvents[id]
-	if ok {
-		ev, ok = mev.(*model.ResidenceRecordedEvent)
-		if !ok {
-			panic(fmt.Sprintf("expected multiparty event with id %q to be a ResidenceRecordedEvent but it was a %T", id, mev))
-		}
-	} else {
-		ev = &model.ResidenceRecordedEvent{GeneralEvent: gev}
-		l.multipartyEvents[id] = ev
-
-		for _, gnr := range grev.Noteref {
-			gn, ok := l.NotesByHandle[gnr.Hlink]
-			if !ok {
-				continue
-			}
-			if pval(gn.Priv, false) {
-				logging.Debug("skipping residence note marked as private", "id", p.ID, "handle", gn.Handle)
-				continue
-			}
-			if gn.Type == "Narrative" {
-				ev.Narrative = l.parseNote(gn, m)
-			}
-		}
-
-	}
-
-	ev.Participants = append(ev.Participants, &model.EventParticipant{
-		Person: p,
-		Role:   model.EventRolePrincipal,
-	})
-
-	return ev
-}

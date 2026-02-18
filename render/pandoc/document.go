@@ -9,7 +9,6 @@ import (
 
 type Document struct {
 	Content
-	frontMatter map[string]any
 }
 
 func (d *Document) WriteTo(w io.Writer) (int64, error) {

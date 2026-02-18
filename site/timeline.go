@@ -242,61 +242,57 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 		// Does not participate so this is someone else's event
 		obsContext := t.observerContext(ev, false)
 		title = text.JoinSentenceParts(title, obsContext, what)
-	} else {
-		for _, ep := range eps {
-			switch ep.Role {
-			case model.EventRolePrincipal:
-				// This is the POV person's vital event
-				title = text.JoinSentenceParts(title, what)
+	} else if len(eps) > 0 {
+		ep := eps[0]
+		switch ep.Role {
+		case model.EventRolePrincipal:
+			// This is the POV person's vital event
+			title = text.JoinSentenceParts(title, what)
 
-				date := ev.GetDate()
+			date := ev.GetDate()
 
-				includeAge := true
-				if t.omitDate || date.IsUnknown() {
-					includeAge = false
-				}
-				switch ev.(type) {
-				case *model.BirthEvent:
-					includeAge = false
-				case *model.BurialEvent:
-					includeAge = false
-				case *model.CremationEvent:
-					includeAge = false
-				}
-
-				// add their age, if its not their earliest event
-				if includeAge {
-					if ev != t.pov.Person.BestBirthlikeEvent {
-						if age, ok := t.pov.Person.AgeInYearsAt(date); ok {
-							title = text.JoinSentenceParts(title, narrative.AgeQualifier(age))
-						}
-					}
-				}
-				switch ev.(type) {
-				case *model.BirthEvent, *model.DeathEvent:
-					infs := ev.GetParticipantsByRole(model.EventRoleInformant)
-					if len(infs) == 1 {
-						name := t.enc.EncodeModelLinkNamed(infs[0].Person, t.nc, t.pov).String()
-						rel := infs[0].Person.RelationTo(t.pov.Person, ev.GetDate())
-						if rel != "" {
-							rel = t.pov.Person.Gender.PossessivePronounSingular() + " " + rel
-						}
-						trailer = text.JoinSentenceParts("the informant was", rel, name)
-					}
-				}
-
-			case model.EventRoleInformant:
-				obsContext := t.observerContext(ev, true)
-				title = text.JoinSentenceParts(title, obsContext, what)
-				trailer = text.JoinSentenceParts(t.pov.Person.Gender.SubjectPronounWithLink(), "the informant")
-			default:
-				t.logger.Warn("unsupported vital event role", "role", ep.Role)
-				obsContext := t.observerContext(ev, true)
-				title = text.JoinSentenceParts(title, obsContext, what)
+			includeAge := true
+			if t.omitDate || date.IsUnknown() {
+				includeAge = false
+			}
+			switch ev.(type) {
+			case *model.BirthEvent:
+				includeAge = false
+			case *model.BurialEvent:
+				includeAge = false
+			case *model.CremationEvent:
+				includeAge = false
 			}
 
-			// TODO: support multiple roles in an event
-			break
+			// add their age, if its not their earliest event
+			if includeAge {
+				if ev != t.pov.Person.BestBirthlikeEvent {
+					if age, ok := t.pov.Person.AgeInYearsAt(date); ok {
+						title = text.JoinSentenceParts(title, narrative.AgeQualifier(age))
+					}
+				}
+			}
+			switch ev.(type) {
+			case *model.BirthEvent, *model.DeathEvent:
+				infs := ev.GetParticipantsByRole(model.EventRoleInformant)
+				if len(infs) == 1 {
+					name := t.enc.EncodeModelLinkNamed(infs[0].Person, t.nc, t.pov).String()
+					rel := infs[0].Person.RelationTo(t.pov.Person, ev.GetDate())
+					if rel != "" {
+						rel = t.pov.Person.Gender.PossessivePronounSingular() + " " + rel
+					}
+					trailer = text.JoinSentenceParts("the informant was", rel, name)
+				}
+			}
+
+		case model.EventRoleInformant:
+			obsContext := t.observerContext(ev, true)
+			title = text.JoinSentenceParts(title, obsContext, what)
+			trailer = text.JoinSentenceParts(t.pov.Person.Gender.SubjectPronounWithLink(), "the informant")
+		default:
+			t.logger.Warn("unsupported vital event role", "role", ep.Role)
+			obsContext := t.observerContext(ev, true)
+			title = text.JoinSentenceParts(title, obsContext, what)
 		}
 	}
 
@@ -373,30 +369,26 @@ func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(seq int, ev model
 		if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 			title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc), "probate office")
 		}
-	} else {
-		for _, ep := range eps {
-			switch ep.Role {
-			case model.EventRolePrincipal:
-				title = what
-				if pl.SameAs(t.pov.Place) {
-					title = text.JoinSentenceParts(title, "here")
-				}
-				if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-					title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc), "probate office")
-				}
-			case model.EventRoleBeneficiary:
-				// James John Simpson
-				title = text.JoinSentenceParts("Beneficiary of the probate of", t.observerContext(ev, true))
-			case model.EventRoleExecutor:
-				title = text.JoinSentenceParts("Executor of the probate of", t.observerContext(ev, true))
-			case model.EventRoleAdministrator:
-				title = text.JoinSentenceParts("Administrator of the probate of", t.observerContext(ev, true))
-			default:
-				t.logger.Warn("unsupported role in probate event", "role", ep.Role)
+	} else if len(eps) > 0 {
+		ep := eps[0]
+		switch ep.Role {
+		case model.EventRolePrincipal:
+			title = what
+			if pl.SameAs(t.pov.Place) {
+				title = text.JoinSentenceParts(title, "here")
 			}
-
-			// TODO: support multiple event roles
-			break
+			if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+				title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc), "probate office")
+			}
+		case model.EventRoleBeneficiary:
+			// James John Simpson
+			title = text.JoinSentenceParts("Beneficiary of the probate of", t.observerContext(ev, true))
+		case model.EventRoleExecutor:
+			title = text.JoinSentenceParts("Executor of the probate of", t.observerContext(ev, true))
+		case model.EventRoleAdministrator:
+			title = text.JoinSentenceParts("Administrator of the probate of", t.observerContext(ev, true))
+		default:
+			t.logger.Warn("unsupported role in probate event", "role", ep.Role)
 		}
 	}
 
@@ -424,29 +416,25 @@ func (t *NarrativeTimelineEntryFormatter[T]) willEventTitle(seq int, ev model.Ti
 		if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
 			title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc))
 		}
-	} else {
-		for _, ep := range eps {
-			switch ep.Role {
-			case model.EventRolePrincipal:
-				title = what
-				if pl.SameAs(t.pov.Place) {
-					title = text.JoinSentenceParts(title, "here")
-				}
-				if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
-					title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc), "probate office")
-				}
-			case model.EventRoleBeneficiary:
-				title = text.JoinSentenceParts("Named as beneficiary in the will of", t.observerContext(ev, true))
-			case model.EventRoleExecutor:
-				title = text.JoinSentenceParts("Named as executor in the will of", t.observerContext(ev, true))
-			case model.EventRoleWitness:
-				title = text.JoinSentenceParts("Witnessed the will of", t.observerContext(ev, true))
-			default:
-				t.logger.Warn("unsupported role in will event", "role", ep.Role)
+	} else if len(eps) > 0 {
+		ep := eps[0]
+		switch ep.Role {
+		case model.EventRolePrincipal:
+			title = what
+			if pl.SameAs(t.pov.Place) {
+				title = text.JoinSentenceParts(title, "here")
 			}
-
-			// TODO: support multiple event roles
-			break
+			if placeIsKnownAndIsNotSameAsPointOfView(pl, t.pov) {
+				title = text.JoinSentenceParts(title, narrative.WhatWhere("", pl, t.enc, t.nc), "probate office")
+			}
+		case model.EventRoleBeneficiary:
+			title = text.JoinSentenceParts("Named as beneficiary in the will of", t.observerContext(ev, true))
+		case model.EventRoleExecutor:
+			title = text.JoinSentenceParts("Named as executor in the will of", t.observerContext(ev, true))
+		case model.EventRoleWitness:
+			title = text.JoinSentenceParts("Witnessed the will of", t.observerContext(ev, true))
+		default:
+			t.logger.Warn("unsupported role in will event", "role", ep.Role)
 		}
 	}
 
@@ -572,32 +560,28 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 			panic(fmt.Sprintf("person missing from event participants (person.ID=%s, native_id=%s, event type=%T)", t.pov.Person.ID, t.pov.Person.NativeID, ev))
 		}
 
-		for _, ep := range eps {
-			switch ep.Role {
-			case model.EventRoleHusband, model.EventRoleWife:
-				spouse := ev.GetOther(t.pov.Person)
-				spouseLink := t.enc.EncodeModelLink(t.enc.EncodeText(spouse.PreferredFullName), spouse).String()
-				switch ev.(type) {
-				case *model.MarriageEvent:
-					title = text.JoinSentenceParts("married", spouseLink)
-				case *model.MarriageLicenseEvent:
-					title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
-				case *model.MarriageBannsEvent:
-					title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
-				default:
-					panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
-				}
-			case model.EventRoleWitness:
-				party1 := ev.GetHusband()
-				party2 := ev.GetWife()
-
-				party1Link := t.enc.EncodeModelLink(t.enc.EncodeText(party1.PreferredFullName), party1).String()
-				party2Link := t.enc.EncodeModelLink(t.enc.EncodeText(party2.PreferredFullName), party2).String()
-				title = text.JoinSentenceParts("witness to the marriage of", party1Link, "and", party2Link)
+		ep := eps[0]
+		switch ep.Role {
+		case model.EventRoleHusband, model.EventRoleWife:
+			spouse := ev.GetOther(t.pov.Person)
+			spouseLink := t.enc.EncodeModelLink(t.enc.EncodeText(spouse.PreferredFullName), spouse).String()
+			switch ev.(type) {
+			case *model.MarriageEvent:
+				title = text.JoinSentenceParts("married", spouseLink)
+			case *model.MarriageLicenseEvent:
+				title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
+			case *model.MarriageBannsEvent:
+				title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
+			default:
+				panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 			}
+		case model.EventRoleWitness:
+			party1 := ev.GetHusband()
+			party2 := ev.GetWife()
 
-			// TODO: support multiple roles
-			break
+			party1Link := t.enc.EncodeModelLink(t.enc.EncodeText(party1.PreferredFullName), party1).String()
+			party2Link := t.enc.EncodeModelLink(t.enc.EncodeText(party2.PreferredFullName), party2).String()
+			title = text.JoinSentenceParts("witness to the marriage of", party1Link, "and", party2Link)
 		}
 	}
 
