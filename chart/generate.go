@@ -9,86 +9,92 @@ import (
 	"github.com/iand/gtree"
 )
 
-func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, depth int, compact bool, directOnly bool, parents bool, minimalSurnames bool, showStars bool) (*gtree.DescendantChart, error) {
-	var personDetailFn func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string)
-	var familyDetailFn func(*model.Family) []string
-
-	includeSurname := func(p *model.Person) bool {
-		if !minimalSurnames || p.IsUnknown() {
+// includeSurname reports whether the surname of p should be shown when
+// minimalSurnames is active.
+func includeSurname(p *model.Person, minimalSurnames bool) bool {
+	if !minimalSurnames || p.IsUnknown() {
+		return true
+	}
+	if p.Father.IsUnknown() {
+		if p.Mother.IsUnknown() {
 			return true
 		}
-
-		if p.Father.IsUnknown() {
-			if p.Mother.IsUnknown() {
-				return true
-			} else {
-				return p.PreferredFamilyName != p.Mother.PreferredFamilyName
-			}
-		} else {
-			return p.PreferredFamilyName != p.Father.PreferredFamilyName
-		}
+		return p.PreferredFamilyName != p.Mother.PreferredFamilyName
 	}
+	return p.PreferredFamilyName != p.Father.PreferredFamilyName
+}
 
-	formatName := func(p *model.Person, firstUseOfSurname bool) []string {
-		if p.IsUnknown() {
-			return []string{"Not Known"}
+// formatPersonName formats a person's name as chart headings.
+func formatPersonName(p *model.Person, firstUseOfSurname bool, compact bool, minimalSurnames bool, showStars bool) []string {
+	if p.IsUnknown() {
+		return []string{"Not Known"}
+	}
+	if compact {
+		var names []string
+		names = append(names, p.PreferredGivenName)
+		if firstUseOfSurname || includeSurname(p, minimalSurnames) {
+			names = append(names, p.PreferredFamilyName)
 		}
-		if compact {
-			// Stack name components
-			var names []string
-			names = append(names, p.PreferredGivenName)
-			if firstUseOfSurname || includeSurname(p) {
-				names = append(names, p.PreferredFamilyName)
-			}
-			if showStars && p.IsDirectAncestor() {
-				names[len(names)-1] += "★"
-			}
-			return names
-		}
-
-		var name string
-		if firstUseOfSurname || includeSurname(p) {
-			name = p.PreferredFullName
-		} else {
-			name = p.PreferredGivenName
-		}
-
 		if showStars && p.IsDirectAncestor() {
-			name += "★"
+			names[len(names)-1] += "★"
 		}
-
-		return []string{name}
+		return names
 	}
+	var name string
+	if firstUseOfSurname || includeSurname(p, minimalSurnames) {
+		name = p.PreferredFullName
+	} else {
+		name = p.PreferredGivenName
+	}
+	if showStars && p.IsDirectAncestor() {
+		name += "★"
+	}
+	return []string{name}
+}
+
+// familyWhenDetails returns family event details using abbreviated when format.
+func familyWhenDetails(f *model.Family) []string {
+	var details []string
+	if f.BestStartEvent != nil {
+		details = append(details, model.AbbrevWhatWhen(f.BestStartEvent))
+	}
+	if f.BestEndEvent != nil {
+		details = append(details, model.AbbrevWhatWhen(f.BestEndEvent))
+	}
+	return details
+}
+
+// familyWhereDetails returns family event details using abbreviated when+where format.
+func familyWhereDetails(f *model.Family) []string {
+	var details []string
+	if f.BestStartEvent != nil {
+		details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
+	}
+	if f.BestEndEvent != nil {
+		details = append(details, model.AbbrevWhatWhenWhere(f.BestEndEvent))
+	}
+	return details
+}
+
+func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, depth int, compact bool, directOnly bool, parents bool, minimalSurnames bool, showStars bool) (*gtree.DescendantChart, error) {
+	var personDetailFn personDetailFunc
+	var familyDetailFn familyDetailFunc
 
 	switch detail {
 	case 0:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
-			return formatName(p, firstUseOfSurname), []string{}
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), []string{}
 		}
-		familyDetailFn = func(p *model.Family) []string {
+		familyDetailFn = func(f *model.Family) []string {
 			return []string{}
 		}
 	case 1:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
-			var details []string
-			details = append(details, p.VitalYears)
+			details := []string{p.VitalYears}
 			if compact {
-				var marriages []*model.Family
-				for _, f := range p.Families {
-					if f.Bond == model.FamilyBondMarried {
-						marriages = append(marriages, f)
-					}
-				}
-				for i, f := range marriages {
-					if len(marriages) > 1 {
-						details = append(details, fmt.Sprintf("+ (%d) %s", i+1, f.OtherParent(p).PreferredFamiliarFullName))
-					} else {
-						details = append(details, fmt.Sprintf("+ %s", f.OtherParent(p).PreferredFamiliarFullName))
-					}
-				}
+				details = appendDescendantPersonSpouses(details, p, nil, false)
 			}
-
-			return formatName(p, firstUseOfSurname), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
 		familyDetailFn = func(f *model.Family) []string {
 			var details []string
@@ -101,7 +107,6 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 	case 2:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
 			var details []string
-
 			if p.IsDirectAncestor() {
 				details = append(details, "("+text.UpperFirst(p.RelationToKeyPerson.Name())+")")
 			}
@@ -111,7 +116,6 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 			if p.BestDeathlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 			}
-
 			if compact {
 				var marriages []*model.Family
 				for _, f := range p.Families {
@@ -128,19 +132,9 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 					details = append(details, model.AbbrevWhatWhen(f.BestStartEvent))
 				}
 			}
-
-			return formatName(p, firstUseOfSurname), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				details = append(details, model.AbbrevWhatWhen(f.BestStartEvent))
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, model.AbbrevWhatWhen(f.BestEndEvent))
-			}
-			return details
-		}
+		familyDetailFn = familyWhenDetails
 	case 3:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
 			var details []string
@@ -159,39 +153,14 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 			if p.BestDeathlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
 			}
-
 			if compact {
-				var marriages []*model.Family
-				for _, f := range p.Families {
-					if f.Bond == model.FamilyBondMarried {
-						marriages = append(marriages, f)
-					}
-				}
-				for i, f := range marriages {
-					if len(marriages) > 1 {
-						details = append(details, fmt.Sprintf("+ (%d) %s", i+1, f.OtherParent(p).PreferredFamiliarFullName))
-					} else {
-						details = append(details, fmt.Sprintf("+ %s", f.OtherParent(p).PreferredFamiliarFullName))
-					}
-					details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
-				}
+				details = appendDescendantPersonSpouses(details, p, nil, true)
 			}
-
-			return formatName(p, firstUseOfSurname), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, model.AbbrevWhatWhenWhere(f.BestEndEvent))
-			}
-			return details
-		}
+		familyDetailFn = familyWhereDetails
 	default:
 		return nil, fmt.Errorf("unsupported detail level: %d", detail)
-
 	}
 
 	seq := new(sequence)
@@ -219,7 +188,6 @@ func BuildDescendantChart(t *tree.Tree, startPerson *model.Person, detail int, d
 
 		child := descendants(startPerson, seq, depth, directOnly, compact, personDetailFn, familyDetailFn)
 		tf.Children = []*gtree.DescendantPerson{child}
-
 	} else {
 		ch.Root = descendants(startPerson, seq, depth, directOnly, compact, personDetailFn, familyDetailFn)
 	}
@@ -322,73 +290,24 @@ func BuildFanChart(t *tree.Tree, startPerson *model.Person, maxGeneration int) (
 }
 
 func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minimalSurnames bool, showStars bool) (*gtree.DescendantChart, error) {
-	var personDetailFn func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string)
-	var familyDetailFn func(*model.Family) []string
-
-	includeSurname := func(p *model.Person) bool {
-		if !minimalSurnames || p.IsUnknown() {
-			return true
-		}
-
-		if p.Father.IsUnknown() {
-			if p.Mother.IsUnknown() {
-				return true
-			} else {
-				return p.PreferredFamilyName != p.Mother.PreferredFamilyName
-			}
-		} else {
-			return p.PreferredFamilyName != p.Father.PreferredFamilyName
-		}
-	}
-
-	formatName := func(p *model.Person, firstUseOfSurname bool, compact bool) []string {
-		if p.IsUnknown() {
-			return []string{"Not Known"}
-		}
-		if compact {
-			// Stack name components
-			var names []string
-			names = append(names, p.PreferredGivenName)
-			if firstUseOfSurname || includeSurname(p) {
-				names = append(names, p.PreferredFamilyName)
-			}
-			if showStars && p.IsDirectAncestor() {
-				names[len(names)-1] += "★"
-			}
-			return names
-		}
-
-		var name string
-		if firstUseOfSurname || includeSurname(p) {
-			name = p.PreferredFullName
-		} else {
-			name = p.PreferredGivenName
-		}
-
-		if showStars && p.IsDirectAncestor() {
-			name += "★"
-		}
-
-		return []string{name}
-	}
+	var personDetailFn personDetailFunc
+	var familyDetailFn familyDetailFunc
 
 	switch detail {
 	case 0:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
-			return formatName(p, firstUseOfSurname, compact), []string{}
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), []string{}
 		}
-		familyDetailFn = func(p *model.Family) []string {
+		familyDetailFn = func(f *model.Family) []string {
 			return []string{}
 		}
 	case 1:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
-			var details []string
-			details = append(details, p.VitalYears)
+			details := []string{p.VitalYears}
 			if compact {
 				details = appendDescendantPersonSpouses(details, p, nil, false)
 			}
-
-			return formatName(p, firstUseOfSurname, compact), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
 		familyDetailFn = func(f *model.Family) []string {
 			var details []string
@@ -401,7 +320,6 @@ func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minima
 	case 2:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
 			var details []string
-
 			if p.IsDirectAncestor() {
 				details = append(details, "("+text.UpperFirst(p.RelationToKeyPerson.Name())+")")
 			}
@@ -411,23 +329,12 @@ func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minima
 			if p.BestDeathlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhen(p.BestDeathlikeEvent))
 			}
-
 			if compact {
 				details = appendDescendantPersonSpouses(details, p, nil, true)
 			}
-
-			return formatName(p, firstUseOfSurname, compact), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				details = append(details, model.AbbrevWhatWhen(f.BestStartEvent))
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, model.AbbrevWhatWhen(f.BestEndEvent))
-			}
-			return details
-		}
+		familyDetailFn = familyWhenDetails
 	case 3:
 		personDetailFn = func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string) {
 			var details []string
@@ -446,26 +353,14 @@ func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minima
 			if p.BestDeathlikeEvent != nil {
 				details = append(details, model.AbbrevWhatWhenWhere(p.BestDeathlikeEvent))
 			}
-
 			if compact {
 				details = appendDescendantPersonSpouses(details, p, nil, true)
 			}
-
-			return formatName(p, firstUseOfSurname, compact), details
+			return formatPersonName(p, firstUseOfSurname, compact, minimalSurnames, showStars), details
 		}
-		familyDetailFn = func(f *model.Family) []string {
-			var details []string
-			if f.BestStartEvent != nil {
-				details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
-			}
-			if f.BestEndEvent != nil {
-				details = append(details, model.AbbrevWhatWhenWhere(f.BestEndEvent))
-			}
-			return details
-		}
+		familyDetailFn = familyWhereDetails
 	default:
 		return nil, fmt.Errorf("unsupported detail level: %d", detail)
-
 	}
 
 	seq := new(sequence)
