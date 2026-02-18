@@ -25,15 +25,16 @@ func checkFlags(cc *cli.Context) error {
 	case "ancestor":
 	case "butterfly":
 	case "fan":
+	case "focus":
 	default:
 		return fmt.Errorf("unsupported chart type: %s", chartopts.chartType)
 	}
 
-	switch chartopts.pageSize {
-	case "none":
+	switch chartopts.target {
+	case "web":
 	case "A3Landscape":
 	default:
-		return fmt.Errorf("unsupported page size: %s", chartopts.pageSize)
+		return fmt.Errorf("unsupported page size: %s", chartopts.target)
 	}
 
 	return nil
@@ -50,7 +51,7 @@ var chartopts struct {
 	startPersonID      string
 	title              string
 	fontScale          float64
-	pageSize           string
+	target             string
 
 	outputFilename  string
 	outputFormat    string
@@ -89,7 +90,7 @@ var Command = &cli.Command{
 		&cli.StringFlag{
 			Name:        "type",
 			Aliases:     []string{"t"},
-			Usage:       "Type of chart to produce, descendant or ancestor",
+			Usage:       "Type of chart to produce: descendant, ancestor, fan or focus",
 			Destination: &chartopts.chartType,
 		},
 		&cli.StringFlag{
@@ -176,10 +177,10 @@ var Command = &cli.Command{
 			Destination: &chartopts.fontScale,
 		},
 		&cli.StringFlag{
-			Name:        "pagesize",
-			Usage:       "size of page: 'A3Landscape' or 'none' (default: 'A3Landscape')",
+			Name:        "target",
+			Usage:       "target of output, either a paper size ('A3Landscape') or 'web' which sizes to fit and makes background transparent",
 			Value:       "A3Landscape",
-			Destination: &chartopts.pageSize,
+			Destination: &chartopts.target,
 		},
 		&cli.StringFlag{
 			Name:        "config",
@@ -246,6 +247,8 @@ func chartCmd(cc *cli.Context) error {
 
 	pageSize := func(ps string) *gtree.PaperSize {
 		switch ps {
+		case "web":
+			return nil
 		case "A3Landscape":
 			return &gtree.PaperSizeA3Landscape
 		}
@@ -277,12 +280,14 @@ func chartCmd(cc *cli.Context) error {
 
 		opts := gtree.DefaultLayoutOptions()
 		opts.Debug = chartopts.debug
-		opts.BackgroundColor = ""
+		if chartopts.target == "web" {
+			opts.BackgroundColor = ""
+		}
 		lay, err = ch.Layout(opts)
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
+		output, err = gtree.SVG(lay, pageSize(chartopts.target))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -318,7 +323,7 @@ func chartCmd(cc *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)
 		}
-		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
+		output, err = gtree.SVG(lay, pageSize(chartopts.target))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}
@@ -368,7 +373,41 @@ func chartCmd(cc *cli.Context) error {
 			return fmt.Errorf("generate fan layout: %w", err)
 		}
 
-		output, err = gtree.SVG(lay, pageSize(chartopts.pageSize))
+		output, err = gtree.SVG(lay, pageSize(chartopts.target))
+		if err != nil {
+			return fmt.Errorf("render SVG: %w", err)
+		}
+
+	case "focus":
+		// A focus chart includes the start person and their immediate family: parents, siblings, spouses and children
+		ch, err := BuildFocusChart(t, startPerson, chartopts.detail, chartopts.minimalSurnames, !chartopts.nodecoration)
+		if err != nil {
+			return fmt.Errorf("build focus chart: %w", err)
+		}
+
+		if !chartopts.nodecoration {
+			ch.Title = chartopts.title
+			if ch.Title == "" {
+				ch.Title = startPerson.PreferredUniqueName
+			}
+			ch.Notes = []string{}
+
+			ch.Notes = append(ch.Notes, time.Now().Format("Generated _2 January 2006"))
+			if !startPerson.RelationToKeyPerson.IsUnknown() {
+				ch.Notes = append(ch.Notes, "(★ denotes a direct ancestor of "+keyPerson.PreferredFamiliarFullName+")")
+			}
+		}
+
+		opts := gtree.DefaultLayoutOptions()
+		opts.Debug = chartopts.debug
+		if chartopts.target == "web" {
+			opts.BackgroundColor = ""
+		}
+		lay, err = ch.Layout(opts)
+		if err != nil {
+			return fmt.Errorf("layout chart: %w", err)
+		}
+		output, err = gtree.SVG(lay, pageSize(chartopts.target))
 		if err != nil {
 			return fmt.Errorf("render SVG: %w", err)
 		}

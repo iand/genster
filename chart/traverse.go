@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/iand/genster/model"
@@ -8,10 +9,44 @@ import (
 	"github.com/iand/gtree"
 )
 
-func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, compact bool, personDetailFn func(p *model.Person, firstUseOfSurname bool) ([]string, []string), familyDetailFn func(*model.Family) []string) *gtree.DescendantPerson {
-	headings, details := personDetailFn(p, seq.n == 0)
+type (
+	personDetailFunc func(p *model.Person, firstUseOfSurname bool, compact bool) ([]string, []string)
+	familyDetailFunc func(*model.Family) []string
+)
 
-	tp := &gtree.DescendantPerson{ID: seq.next(), Headings: headings, Details: details}
+func newDescendantPerson(p *model.Person, seq *sequence, personDetailFn personDetailFunc, firstUseOfSurname bool, compact bool) *gtree.DescendantPerson {
+	headings, details := personDetailFn(p, firstUseOfSurname, compact)
+
+	return &gtree.DescendantPerson{ID: seq.next(), Headings: headings, Details: details}
+}
+
+func appendDescendantPersonSpouses(details []string, p *model.Person, exclude *model.Person, inclAbbrevDetails bool) []string {
+	var marriages []*model.Family
+	for _, f := range p.Families {
+		if f.Bond == model.FamilyBondMarried {
+			marriages = append(marriages, f)
+		}
+	}
+	for i, f := range marriages {
+		if f.OtherParent(p).SameAs(exclude) {
+			continue
+		}
+		if len(marriages) > 1 {
+			details = append(details, fmt.Sprintf("+ (%d) %s", i+1, f.OtherParent(p).PreferredFamiliarFullName))
+		} else {
+			details = append(details, fmt.Sprintf("+ %s", f.OtherParent(p).PreferredFamiliarFullName))
+		}
+		if inclAbbrevDetails {
+			details = append(details, model.AbbrevWhatWhenWhere(f.BestStartEvent))
+		}
+	}
+
+	return details
+}
+
+func descendants(p *model.Person, seq *sequence, generations int, directOnly bool, compact bool, personDetailFn personDetailFunc, familyDetailFn familyDetailFunc) *gtree.DescendantPerson {
+	tp := newDescendantPerson(p, seq, personDetailFn, seq.n == 0, compact)
+
 	if !directOnly || p.IsDirectAncestor() {
 		if generations > 0 {
 			for _, f := range p.Families {
@@ -22,7 +57,7 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 					tf.Details = familyDetailFn(f)
 					o := f.OtherParent(p)
 					if o != nil {
-						oh, od := personDetailFn(o, true)
+						oh, od := personDetailFn(o, true, compact)
 						tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
 					}
 				}
@@ -39,7 +74,7 @@ func descendants(p *model.Person, seq *sequence, generations int, directOnly boo
 					tf := new(gtree.DescendantFamily)
 					tf.Details = familyDetailFn(f)
 					tp.Families = append(tp.Families, tf)
-					oh, od := personDetailFn(f.OtherParent(p), true)
+					oh, od := personDetailFn(f.OtherParent(p), true, compact)
 					tf.Other = &gtree.DescendantPerson{ID: seq.next(), Headings: oh, Details: od}
 					break
 				}
