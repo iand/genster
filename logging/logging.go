@@ -48,6 +48,7 @@ func Setup() {
 	}
 
 	h := new(hlog.Handler)
+	h = h.WithSource()
 	h = h.WithLevel(logLevel.Level())
 	logIDs := Opts.LogIDs.Value()
 	if len(logIDs) > 0 {

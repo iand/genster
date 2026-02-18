@@ -11,7 +11,7 @@ require (
 	github.com/iand/gedcom v0.2.17
 	github.com/iand/grampsxml v0.0.3
 	github.com/iand/gtree v0.0.4
-	github.com/iand/pontium v0.3.16
+	github.com/iand/pontium v0.3.17
 	github.com/kortschak/utter v1.7.0
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/yuin/goldmark v1.7.16
