@@ -94,6 +94,7 @@ const (
 	ModeOfDeathExecuted       ModeOfDeath = "executed"
 	ModeOfDeathChildbirth     ModeOfDeath = "childbirth"
 	ModeOfDeathAccidental     ModeOfDeath = "accidental"
+	ModeOfDeathAtSea          ModeOfDeath = "at sea"
 )
 
 func (m ModeOfDeath) What() string {
@@ -115,6 +116,8 @@ func (m ModeOfDeath) What() string {
 		return "died in childbirth"
 	case ModeOfDeathAccidental:
 		return "died accidentally"
+	case ModeOfDeathAtSea:
+		return "died at sea"
 
 	default:
 		return string(m)
@@ -133,6 +136,8 @@ func (m ModeOfDeath) PassiveWhat() string {
 		return "died in childbirth"
 	case ModeOfDeathAccidental:
 		return "died accidentally"
+	case ModeOfDeathAtSea:
+		return "died at sea"
 	default:
 		return "was " + m.What()
 	}
@@ -158,6 +163,8 @@ func (m ModeOfDeath) PassiveConditionalWhat(adverb string) string {
 		return adverb + " died in childbirth"
 	case ModeOfDeathAccidental:
 		return adverb + " died accidentally"
+	case ModeOfDeathAtSea:
+		return adverb + " died at sea"
 	default:
 		return "was " + adverb + " " + m.What()
 	}
@@ -176,6 +183,8 @@ func (m ModeOfDeath) PresentPerfectWhat() string {
 		return "have died in childbirth"
 	case ModeOfDeathAccidental:
 		return "have died accidentally"
+	case ModeOfDeathAtSea:
+		return "have died at sea"
 	default:
 		return "have been " + m.What()
 	}
@@ -192,6 +201,10 @@ func (m ModeOfDeath) PastPerfectWhat() string {
 		return "had drowned"
 	case ModeOfDeathChildbirth:
 		return "had died in childbirth"
+	case ModeOfDeathAccidental:
+		return "had died accidentally"
+	case ModeOfDeathAtSea:
+		return "had died at sea"
 	default:
 		return "had been " + m.What()
 	}

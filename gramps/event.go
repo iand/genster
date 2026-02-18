@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/iand/gdate"
 	"github.com/iand/genster/logging"
@@ -124,6 +125,10 @@ func (l *Loader) populateEventFacts(m ModelFinder, grev *grampsxml.Event) error 
 			bev.Private = true
 		}
 		ev = bev
+	case "received":
+		ev = &model.ReceivedIntoCommunionEvent{
+			GeneralEvent: gev,
+		}
 	case "naming":
 		ev = &model.NamingEvent{
 			GeneralEvent: gev,
@@ -142,6 +147,13 @@ func (l *Loader) populateEventFacts(m ModelFinder, grev *grampsxml.Event) error 
 		}
 	case "memorial":
 		ev = &model.MemorialEvent{
+			GeneralEvent: gev,
+		}
+	case "inquest":
+		if desc := pval(grev.Description, ""); desc != "" {
+			gev.Title = desc
+		}
+		ev = &model.InquestEvent{
 			GeneralEvent: gev,
 		}
 	case "will":
@@ -784,6 +796,30 @@ func fillCensusEntry(v string, ce *model.CensusEntry) {
 	ce.Detail = v
 }
 
+// isLastDayOfMonth reports whether d is the last day of month m in year y.
+func isLastDayOfMonth(y, m, d int) bool {
+	// First day of the next month minus one day gives the last day of this month.
+	t := time.Date(y, time.Month(m)+1, 0, 0, 0, 0, 0, time.UTC)
+	return d == t.Day()
+}
+
+// asPrecise converts a gdate.Date to a *gdate.Precise. If start is true, a
+// MonthYear is promoted to the first of the month; otherwise to the last day.
+func asPrecise(d gdate.Date, start bool) *gdate.Precise {
+	switch dt := d.(type) {
+	case *gdate.Precise:
+		return dt
+	case *gdate.MonthYear:
+		day := 1
+		if !start {
+			t := time.Date(dt.Y, time.Month(dt.M)+1, 0, 0, 0, 0, 0, time.UTC)
+			day = t.Day()
+		}
+		return &gdate.Precise{C: dt.C, Y: dt.Y, M: dt.M, D: day}
+	}
+	return nil
+}
+
 func EventDate(grev *grampsxml.Event, dp gdate.Parser) (*model.Date, error) {
 	if grev.Dateval != nil {
 		dt, err := ParseDateval(*grev.Dateval, dp)
@@ -867,22 +903,26 @@ func ParseDateval(dv grampsxml.Dateval, dp gdate.Parser) (*model.Date, error) {
 	dateType := pval(dv.Type, "Regular")
 	switch strings.ToLower(dateType) {
 	case "before":
-		dyear, ok := dt.(*gdate.Year)
-		if !ok {
-			return nil, fmt.Errorf("'before' type not supported for dates other than years")
-		}
-		dt = &gdate.BeforeYear{
-			C: dyear.C,
-			Y: dyear.Y,
+		switch d := dt.(type) {
+		case *gdate.Year:
+			dt = &gdate.BeforeYear{C: d.C, Y: d.Y}
+		case *gdate.Precise:
+			dt = &gdate.BeforePrecise{C: d.C, Y: d.Y, M: d.M, D: d.D}
+		case *gdate.MonthYear:
+			dt = &gdate.BeforePrecise{C: d.C, Y: d.Y, M: d.M, D: 1}
+		default:
+			return nil, fmt.Errorf("'before' type not supported for date %T", dt)
 		}
 	case "after":
-		dyear, ok := dt.(*gdate.Year)
-		if !ok {
-			return nil, fmt.Errorf("'after' type not supported for dates other than years")
-		}
-		dt = &gdate.AfterYear{
-			C: dyear.C,
-			Y: dyear.Y,
+		switch d := dt.(type) {
+		case *gdate.Year:
+			dt = &gdate.AfterYear{C: d.C, Y: d.Y}
+		case *gdate.Precise:
+			dt = &gdate.AfterPrecise{C: d.C, Y: d.Y, M: d.M, D: d.D}
+		case *gdate.MonthYear:
+			dt = &gdate.AfterPrecise{C: d.C, Y: d.Y, M: d.M, D: 1}
+		default:
+			return nil, fmt.Errorf("'after' type not supported for date %T", dt)
 		}
 	case "about":
 		dyear, ok := dt.(*gdate.Year)
@@ -941,116 +981,79 @@ func ParseDaterange(dr grampsxml.Daterange, dp gdate.Parser) (*model.Date, error
 		return nil, fmt.Errorf("parse start value %q: %w", dr.Start, err)
 	}
 
+	dstop, err := dp.Parse(dr.Stop)
+	if err != nil {
+		return nil, fmt.Errorf("parse stop value %q: %w", dr.Stop, err)
+	}
+
+	// Between two bare years → YearRange.
+	if startY, ok := dstart.(*gdate.Year); ok {
+		if stopY, ok := dstop.(*gdate.Year); ok {
+			return &model.Date{
+				Date:       &gdate.YearRange{C: startY.C, Lower: startY.Y, Upper: stopY.Y},
+				Derivation: deriv,
+			}, nil
+		}
+	}
+
+	// Extract MonthYear for both endpoints (for quarter detection).
+	// A Precise date with D==1 maps cleanly to its MonthYear for the start;
+	// a Precise date on the last day of the month maps cleanly for the stop.
 	var mystart *gdate.MonthYear
 	switch tstart := dstart.(type) {
 	case *gdate.MonthYear:
 		mystart = tstart
 	case *gdate.Precise:
 		if tstart.D == 1 {
-			mystart = &gdate.MonthYear{
-				C: tstart.C,
-				M: tstart.M,
-				Y: tstart.Y,
-			}
+			mystart = &gdate.MonthYear{C: tstart.C, M: tstart.M, Y: tstart.Y}
 		}
 	}
 
-	if mystart == nil {
-		return nil, fmt.Errorf("parse start value %q: unsupported start date type", dr.Start)
-	}
-
-	dstop, err := dp.Parse(dr.Stop)
-	if err != nil {
-		return nil, fmt.Errorf("parse stop value %q: %w", dr.Stop, err)
-	}
 	var mystop *gdate.MonthYear
 	switch tstop := dstop.(type) {
 	case *gdate.MonthYear:
 		mystop = tstop
 	case *gdate.Precise:
-		switch tstop.M {
-		case 1, 3, 5, 7, 8, 10, 12:
-			if tstop.D == 31 {
-				mystop = &gdate.MonthYear{
-					C: tstop.C,
-					M: tstop.M,
-					Y: tstop.Y,
-				}
-			}
-		case 4, 6, 9, 11:
-			if tstop.D == 30 {
-				mystop = &gdate.MonthYear{
-					C: tstop.C,
-					M: tstop.M,
-					Y: tstop.Y,
-				}
-			}
-		case 2:
-			if tstop.Y%4 == 0 && (tstop.Y%100 != 0 || tstop.Y%400 == 0) {
-				if tstop.D == 29 {
-					mystop = &gdate.MonthYear{
-						C: tstop.C,
-						M: tstop.M,
-						Y: tstop.Y,
-					}
-				}
-			} else {
-				if tstop.D == 28 {
-					mystop = &gdate.MonthYear{
-						C: tstop.C,
-						M: tstop.M,
-						Y: tstop.Y,
-					}
-				}
-			}
+		if isLastDayOfMonth(tstop.Y, tstop.M, tstop.D) {
+			mystop = &gdate.MonthYear{C: tstop.C, M: tstop.M, Y: tstop.Y}
 		}
 	}
 
-	if mystop == nil {
-		return nil, fmt.Errorf("parse stop value %q: unsupported stop date type", dr.Stop)
-	}
-
-	if mystart.Y == mystop.Y {
-		if mystart.M == 1 && mystop.M == 3 {
-			return &model.Date{
-				Date: &gdate.YearQuarter{
-					C: mystart.C,
-					Y: mystart.Y,
-					Q: 1,
-				},
-				Derivation: deriv,
-			}, nil
-		} else if mystart.M == 4 && mystop.M == 6 {
-			return &model.Date{
-				Date: &gdate.YearQuarter{
-					C: mystart.C,
-					Y: mystart.Y,
-					Q: 2,
-				},
-				Derivation: deriv,
-			}, nil
-		} else if mystart.M == 7 && mystop.M == 9 {
-			return &model.Date{
-				Date: &gdate.YearQuarter{
-					C: mystart.C,
-					Y: mystart.Y,
-					Q: 3,
-				},
-				Derivation: deriv,
-			}, nil
-		} else if mystart.M == 10 && mystop.M == 12 {
-			return &model.Date{
-				Date: &gdate.YearQuarter{
-					C: mystart.C,
-					Y: mystart.Y,
-					Q: 4,
-				},
-				Derivation: deriv,
-			}, nil
+	// Try to collapse to a GRO quarter.
+	if mystart != nil && mystop != nil && mystart.Y == mystop.Y {
+		switch {
+		case mystart.M == 1 && mystop.M == 3:
+			return &model.Date{Date: &gdate.YearQuarter{C: mystart.C, Y: mystart.Y, Q: 1}, Derivation: deriv}, nil
+		case mystart.M == 4 && mystop.M == 6:
+			return &model.Date{Date: &gdate.YearQuarter{C: mystart.C, Y: mystart.Y, Q: 2}, Derivation: deriv}, nil
+		case mystart.M == 7 && mystop.M == 9:
+			return &model.Date{Date: &gdate.YearQuarter{C: mystart.C, Y: mystart.Y, Q: 3}, Derivation: deriv}, nil
+		case mystart.M == 10 && mystop.M == 12:
+			return &model.Date{Date: &gdate.YearQuarter{C: mystart.C, Y: mystart.Y, Q: 4}, Derivation: deriv}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("unsupported range")
+	// Fall back to a BetweenPrecise using the actual dates, promoting MonthYear
+	// endpoints to first/last day of month as needed.
+	startP, stopP := asPrecise(dstart, true), asPrecise(dstop, false)
+	if startP == nil {
+		return nil, fmt.Errorf("parse start value %q: unsupported date type for range", dr.Start)
+	}
+	if stopP == nil {
+		return nil, fmt.Errorf("parse stop value %q: unsupported date type for range", dr.Stop)
+	}
+	return &model.Date{
+		Date: &gdate.BetweenPrecise{
+			C:          startP.C,
+			StartYear:  startP.Y,
+			StartMonth: startP.M,
+			StartDay:   startP.D,
+			EndYear:    stopP.Y,
+			EndMonth:   stopP.M,
+			EndDay:     stopP.D,
+		},
+		Derivation: deriv,
+	}, nil
 }
 
 func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) {
@@ -1088,13 +1091,16 @@ func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) 
 		return nil, fmt.Errorf("parse start value %q: %w", ds.Start, err)
 	}
 
-	var mystart *gdate.Year
+	var mystartY *gdate.Year
+	var mystartMY *gdate.MonthYear
 	switch tstart := dstart.(type) {
 	case *gdate.Year:
-		mystart = tstart
+		mystartY = tstart
+	case *gdate.MonthYear:
+		mystartMY = tstart
 	}
 
-	if mystart == nil {
+	if mystartY == nil && mystartMY == nil {
 		return nil, fmt.Errorf("parse start value %q: unsupported start date type", ds.Start)
 	}
 
@@ -1102,21 +1108,46 @@ func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) 
 	if err != nil {
 		return nil, fmt.Errorf("parse stop value %q: %w", ds.Stop, err)
 	}
-	var mystop *gdate.Year
+	var mystopY *gdate.Year
+	var mystopMY *gdate.MonthYear
 	switch tstop := dstop.(type) {
 	case *gdate.Year:
-		mystop = tstop
+		mystopY = tstop
+	case *gdate.MonthYear:
+		mystopMY = tstop
 	}
 
-	if mystop == nil {
+	if mystopY == nil && mystopMY == nil {
 		return nil, fmt.Errorf("parse stop value %q: unsupported stop date type", ds.Stop)
+	}
+
+	// If either endpoint has month precision, use a MonthYearRange, promoting
+	// bare years to Jan (start) or Dec (stop) as appropriate.
+	if mystartMY != nil || mystopMY != nil {
+		if mystartMY == nil {
+			mystartMY = &gdate.MonthYear{C: mystartY.C, Y: mystartY.Y, M: 1}
+		}
+		if mystopMY == nil {
+			mystopMY = &gdate.MonthYear{C: mystopY.C, Y: mystopY.Y, M: 12}
+		}
+		return &model.Date{
+			Date: &gdate.MonthYearRange{
+				C:          mystartMY.C,
+				LowerYear:  mystartMY.Y,
+				LowerMonth: mystartMY.M,
+				UpperYear:  mystopMY.Y,
+				UpperMonth: mystopMY.M,
+			},
+			Derivation: deriv,
+			Span:       true,
+		}, nil
 	}
 
 	return &model.Date{
 		Date: &gdate.YearRange{
-			C:     mystart.C,
-			Lower: mystart.Y,
-			Upper: mystop.Y,
+			C:     mystartY.C,
+			Lower: mystartY.Y,
+			Upper: mystopY.Y,
 		},
 		Derivation: deriv,
 		Span:       true,

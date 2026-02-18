@@ -428,6 +428,16 @@ func (d *Date) Gedcom() string {
 		return fmt.Sprintf("%sAFT %d", prefix, dt.Y)
 	case *gdate.AboutYear:
 		return fmt.Sprintf("%sABT %d", prefix, dt.Y)
+	case *gdate.BeforePrecise:
+		return fmt.Sprintf("%sBEF %d %s %d", prefix, dt.D, strings.ToUpper(shortMonthNames[dt.M]), dt.Y)
+	case *gdate.AfterPrecise:
+		return fmt.Sprintf("%sAFT %d %s %d", prefix, dt.D, strings.ToUpper(shortMonthNames[dt.M]), dt.Y)
+	case *gdate.BetweenPrecise:
+		return fmt.Sprintf("%sBET %d %s %d AND %d %s %d", prefix,
+			dt.StartDay, strings.ToUpper(shortMonthNames[dt.StartMonth]), dt.StartYear,
+			dt.EndDay, strings.ToUpper(shortMonthNames[dt.EndMonth]), dt.EndYear)
+	case *gdate.YearRange:
+		return fmt.Sprintf("%sBET %d AND %d", prefix, dt.Lower, dt.Upper)
 	default:
 		panic(fmt.Sprintf("unsupported date type in Gedcom conversion: %T", dt))
 	}

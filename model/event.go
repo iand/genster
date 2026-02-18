@@ -488,6 +488,29 @@ var (
 	_ IndividualTimelineEvent = (*BaptismEvent)(nil)
 )
 
+// ReceivedIntoCommunionEvent represents the public reception into the church of a person who was privately baptised
+type ReceivedIntoCommunionEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+func (e *ReceivedIntoCommunionEvent) Type() string             { return "received" }
+func (e *ReceivedIntoCommunionEvent) ShortDescription() string { return e.abbrev("rec") }
+func (e *ReceivedIntoCommunionEvent) What() string             { return "received into the church" }
+func (e *ReceivedIntoCommunionEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent:
+		return false
+	default:
+		return true
+	}
+}
+
+var (
+	_ TimelineEvent           = (*ReceivedIntoCommunionEvent)(nil)
+	_ IndividualTimelineEvent = (*ReceivedIntoCommunionEvent)(nil)
+)
+
 // NamingEvent represents the naming of a person in their timeline
 type NamingEvent struct {
 	GeneralEvent
@@ -892,6 +915,29 @@ func (e *CensusEvent) SortsBefore(other TimelineEvent) bool {
 }
 
 var _ TimelineEvent = (*CensusEvent)(nil)
+
+// InquestEvent represents an inquest held into the death of a person
+type InquestEvent struct {
+	GeneralEvent
+	GeneralIndividualEvent
+}
+
+var (
+	_ TimelineEvent           = (*InquestEvent)(nil)
+	_ IndividualTimelineEvent = (*InquestEvent)(nil)
+)
+
+func (e *InquestEvent) Type() string             { return "inquest" }
+func (e *InquestEvent) ShortDescription() string { return e.abbrev("inq") }
+func (e *InquestEvent) What() string             { return "inquest held" }
+func (e *InquestEvent) SortsBefore(other TimelineEvent) bool {
+	switch other.(type) {
+	case *BirthEvent, *BaptismEvent, *DeathEvent:
+		return false
+	default:
+		return true
+	}
+}
 
 // ProbateEvent represents the granting of probate for a person who has died
 type ProbateEvent struct {
