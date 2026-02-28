@@ -91,6 +91,13 @@ var opts struct {
 	undo               bool
 }
 
+// shortcodeOpen and shortcodeClose are the Hugo private shortcode delimiters
+// used to prevent HTML comments from being carried through into generated HTML.
+const (
+	shortcodeOpen  = "{{< private >}}"
+	shortcodeClose = "{{< /private >}}"
+)
+
 var (
 	// footnoteDefRe matches a footnote definition line: [^label]: text
 	footnoteDefRe = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:\s*(.+)\n?`)
@@ -104,10 +111,10 @@ var (
 	// prevCiteRe matches a previously generated inline citation with its
 	// comment markers. Group 1 is the label, group 2 (optional) is the
 	// footnote definition text for native footnotes.
-	prevCiteRe = regexp.MustCompile(`<!-- cite \[\^([^\]]+)\](?:: (.+?))? -->.*?<!-- /cite -->`)
+	prevCiteRe = regexp.MustCompile(`<!-- \{\{< private >\}\}cite \[\^([^\]]+)\](?:: (.+?))?\{\{< /private >\}\} -->.*?<!-- \{\{< private >\}\}/cite\{\{< /private >\}\} -->`)
 
 	// prevSectionRe matches a previously generated citations section.
-	prevSectionRe = regexp.MustCompile(`(?s)\n?<!-- begin citations -->.*?<!-- end citations -->\n?`)
+	prevSectionRe = regexp.MustCompile(`(?s)\n?<!-- \{\{< private >\}\}begin citations\{\{< /private >\}\} -->.*?<!-- \{\{< private >\}\}end citations\{\{< /private >\}\} -->\n?`)
 )
 
 func annotate(cc *cli.Context) error {
@@ -345,7 +352,7 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 				return false, fmt.Errorf("citation %s not found", label)
 			}
 			cit = c
-			comment = fmt.Sprintf("<!-- cite [^%s] -->", label)
+			comment = fmt.Sprintf("<!-- %scite [^%s]%s -->", shortcodeOpen, label, shortcodeClose)
 		} else {
 			defText, ok := footnoteDefs[label]
 			if !ok {
@@ -355,7 +362,7 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 				ID:     "footnote-" + label,
 				Detail: defText,
 			}
-			comment = fmt.Sprintf("<!-- cite [^%s]: %s -->", label, defText)
+			comment = fmt.Sprintf("<!-- %scite [^%s]: %s%s -->", shortcodeOpen, label, defText, shortcodeClose)
 		}
 
 		title := cit.SourceTitle()
@@ -365,7 +372,7 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 		fmt.Printf("  %s: %s\n", label, title)
 
 		citHTML := string(enc.EncodeWithCitations("", []*model.GeneralCitation{cit}))
-		replacement := comment + citHTML + "<!-- /cite -->"
+		replacement := comment + citHTML + fmt.Sprintf("<!-- %s/cite%s -->", shortcodeOpen, shortcodeClose)
 		result = result[:start] + replacement + result[end:]
 		changeCount++
 	}
@@ -378,7 +385,7 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 	var citationSection strings.Builder
 	enc.Citations.WriteTo(&citationSection)
 	if citationSection.Len() > 0 {
-		result += "\n<!-- begin citations -->\n" + citationSection.String() + "<!-- end citations -->\n"
+		result += "\n<!-- " + shortcodeOpen + "begin citations" + shortcodeClose + " -->\n" + citationSection.String() + "<!-- " + shortcodeOpen + "end citations" + shortcodeClose + " -->\n"
 	}
 
 	if dryRun {
