@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/iand/genster/gedcom"
 	"github.com/iand/genster/gramps"
@@ -151,6 +152,7 @@ func annotate(cc *cli.Context) error {
 	}
 
 	// Find all markdown files in the directory tree.
+	timestamp := time.Now().Unix()
 	filesProcessed := 0
 	err = filepath.WalkDir(opts.markdownDir, func(fpath string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -163,7 +165,7 @@ func annotate(cc *cli.Context) error {
 			return nil
 		}
 
-		changed, err := processFile(fpath, grampsIDToCitation, lb, opts.dryRun)
+		changed, err := processFile(fpath, grampsIDToCitation, lb, opts.dryRun, timestamp)
 		if err != nil {
 			return fmt.Errorf("process %s: %w", fpath, err)
 		}
@@ -181,6 +183,7 @@ func annotate(cc *cli.Context) error {
 }
 
 func undoAnnotations() error {
+	timestamp := time.Now().Unix()
 	filesProcessed := 0
 	err := filepath.WalkDir(opts.markdownDir, func(fpath string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -193,7 +196,7 @@ func undoAnnotations() error {
 			return nil
 		}
 
-		changed, err := undoFile(fpath, opts.dryRun)
+		changed, err := undoFile(fpath, opts.dryRun, timestamp)
 		if err != nil {
 			return fmt.Errorf("undo %s: %w", fpath, err)
 		}
@@ -210,7 +213,7 @@ func undoAnnotations() error {
 	return nil
 }
 
-func undoFile(fpath string, dryRun bool) (bool, error) {
+func undoFile(fpath string, dryRun bool, timestamp int64) (bool, error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
 		return false, fmt.Errorf("read file: %w", err)
@@ -261,6 +264,11 @@ func undoFile(fpath string, dryRun bool) (bool, error) {
 		return false, fmt.Errorf("stat file: %w", err)
 	}
 
+	bakPath := fmt.Sprintf("%s.bak-%d", fpath, timestamp)
+	if err := os.WriteFile(bakPath, data, info.Mode()); err != nil {
+		return false, fmt.Errorf("write backup file: %w", err)
+	}
+
 	if err := os.WriteFile(fpath, []byte(restored), info.Mode()); err != nil {
 		return false, fmt.Errorf("write file: %w", err)
 	}
@@ -268,7 +276,7 @@ func undoFile(fpath string, dryRun bool) (bool, error) {
 	return true, nil
 }
 
-func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitation, lb md.LinkBuilder, dryRun bool) (bool, error) {
+func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitation, lb md.LinkBuilder, dryRun bool, timestamp int64) (bool, error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
 		return false, fmt.Errorf("read file: %w", err)
@@ -380,6 +388,11 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 	info, err := os.Stat(fpath)
 	if err != nil {
 		return false, fmt.Errorf("stat file: %w", err)
+	}
+
+	bakPath := fmt.Sprintf("%s.bak-%d", fpath, timestamp)
+	if err := os.WriteFile(bakPath, data, info.Mode()); err != nil {
+		return false, fmt.Errorf("write backup file: %w", err)
 	}
 
 	if err := os.WriteFile(fpath, []byte(result), info.Mode()); err != nil {
