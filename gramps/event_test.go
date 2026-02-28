@@ -119,7 +119,14 @@ func TestEventDate(t *testing.T) {
 					Type: p("Before"),
 				},
 			},
-			wantErr: true,
+			want: &model.Date{
+				Date: &gdate.BeforePrecise{
+					C: gdate.Gregorian,
+					Y: 1985,
+					M: 10,
+					D: 1,
+				},
+			},
 		},
 		{
 			ev: &grampsxml.Event{
@@ -128,7 +135,14 @@ func TestEventDate(t *testing.T) {
 					Type: p("After"),
 				},
 			},
-			wantErr: true,
+			want: &model.Date{
+				Date: &gdate.AfterPrecise{
+					C: gdate.Gregorian,
+					Y: 1985,
+					M: 10,
+					D: 1,
+				},
+			},
 		},
 		{
 			ev: &grampsxml.Event{
