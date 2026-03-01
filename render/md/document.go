@@ -25,6 +25,7 @@ const (
 	MarkdownTagID          = "id"
 	MarkdownTagImage       = "image"
 	MarkdownTagBasePath    = "basepath"
+	MarkdownTagTreeTitle   = "treetitle"
 	MarkdownTagNextPage    = "next"
 	MarkdownTagPrevPage    = "prev"
 	MarkdownTagFirstPage   = "first"
@@ -276,7 +277,14 @@ func (b *Document) Image(s string) {
 }
 
 func (b *Document) BasePath(s string) {
+	if s != "" && !strings.HasSuffix(s, "/") {
+		s += "/"
+	}
 	b.SetFrontMatterField(MarkdownTagBasePath, s)
+}
+
+func (b *Document) TreeTitle(s string) {
+	b.SetFrontMatterField(MarkdownTagTreeTitle, s)
 }
 
 func (b *Document) LastUpdated(t time.Time) {

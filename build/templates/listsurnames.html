@@ -1,0 +1,37 @@
+{{/* listsurnames - paginated alphabetical list of surnames in a tree, grouped with links to people and ancestor chart */}}
+{{define "listsurnames"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      {{template "pagination" .}}
+      <section>
+        {{.Body}}
+      </section>
+      {{template "pagination" .}}
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">
+        {{if .Summary}}{{.Summary}}{{else}}This is a full, alphabetical list of ancestors in the tree.{{end}}
+      </p>
+      {{- if .Tree.BasePath}}
+      <p>
+        Another way of finding a specific person is through the alphabetical list of all
+        <a href="{{.Tree.BasePath}}list/people/">people</a> mentioned in the tree or
+        the <a href="{{.Tree.BasePath}}chart/ancestors/">ancestor list</a>.
+      </p>
+      {{- end}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

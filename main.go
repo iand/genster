@@ -12,8 +12,10 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/iand/genster/annotate"
+	"github.com/iand/genster/build"
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/report"
+	"github.com/iand/genster/serve"
 	"github.com/iand/genster/site"
 )
 
@@ -24,6 +26,8 @@ func main() {
 		Usage:    "Generate a website from a gedcom file",
 		Commands: []*cli.Command{
 			site.Command,
+			build.Command,
+			serve.Command,
 			chart.Command,
 			report.Command,
 			annotate.Command,

@@ -1,0 +1,27 @@
+{{/* diary - research diary section index (the diary home page and year sub-sections) */}}
+{{define "diary"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "site-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      <section>
+        {{.Body}}
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">The research diary records day-to-day notes about searches, discoveries, and sources consulted. Entries are organised by year, with the most recent first.</p>
+      <p>Each entry lists the tags assigned to it, which link to pages collecting all diary entries, stories, and people that share that topic.</p>
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

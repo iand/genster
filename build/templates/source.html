@@ -1,0 +1,29 @@
+{{/* source - individual genealogical source page within a tree */}}
+{{define "source"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      <section>
+        <div class="source">
+          {{.Body}}
+        </div>
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      {{- if .Summary}}<div class="summary">{{.Summary}}</div>{{end}}
+      {{template "tags" .}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

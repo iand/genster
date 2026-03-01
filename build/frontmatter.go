@@ -9,6 +9,27 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// flexBool is a bool that unmarshals from either a YAML boolean (draft: true)
+// or a quoted string (draft: "true"), as both appear in existing content files.
+type flexBool bool
+
+func (b *flexBool) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Tag {
+	case "!!bool":
+		var v bool
+		if err := value.Decode(&v); err != nil {
+			return err
+		}
+		*b = flexBool(v)
+	case "!!str":
+		s := strings.ToLower(strings.TrimSpace(value.Value))
+		*b = flexBool(s == "true" || s == "yes" || s == "1")
+	default:
+		return fmt.Errorf("cannot unmarshal %s into bool", value.Tag)
+	}
+	return nil
+}
+
 // FrontMatter holds the metadata written by genster into the YAML front-matter
 // block (delimited by ---) of each markdown content file.
 type FrontMatter struct {
@@ -16,13 +37,15 @@ type FrontMatter struct {
 	ID     string `yaml:"id"`
 	Title  string `yaml:"title"`
 	Layout string `yaml:"layout"`
+	Draft  flexBool `yaml:"draft"`
 
 	// Page description
-	Summary  string `yaml:"summary"`
-	Category string `yaml:"category"`
-	Image    string `yaml:"image"`
-	BasePath string `yaml:"basepath"`
-	LastMod  string `yaml:"lastmod"`
+	Summary   string `yaml:"summary"`
+	Category  string `yaml:"category"`
+	Image     string `yaml:"image"`
+	BasePath  string `yaml:"basepath"`
+	TreeTitle string `yaml:"treetitle"`
+	LastMod   string `yaml:"lastmod"`
 
 	// Taxonomy
 	Tags    []string `yaml:"tags"`
@@ -51,6 +74,12 @@ type FrontMatter struct {
 
 	// Calendar-specific
 	Month string `yaml:"month"`
+
+	// Story-specific
+	Author  string `yaml:"author"`
+	Started string `yaml:"started"`
+	Updated string `yaml:"updated"`
+	Status  string `yaml:"status"`
 
 	// Sidebar link lists (person pages)
 	DiaryLinks  []map[string]string `yaml:"diarylinks"`

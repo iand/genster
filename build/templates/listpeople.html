@@ -1,0 +1,33 @@
+{{/* listpeople - paginated alphabetical list of all people in a tree */}}
+{{define "listpeople"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>People</h1>
+      </header>
+      {{template "pagination" .}}
+      <section>
+        {{.Body}}
+      </section>
+      {{template "pagination" .}}
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">
+        {{if .Summary}}{{.Summary}}{{else}}This is a full, alphabetical list of people in the tree.{{end}}
+      </p>
+      {{- if .Tree.BasePath}}
+      <p>A full list of people organised by <a href="{{.Tree.BasePath}}list/surnames/">surname</a> is also available.</p>
+      {{- end}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

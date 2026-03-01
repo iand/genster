@@ -87,29 +87,32 @@ func (e *Content) Markdown(s string) {
 }
 
 func (e *Content) Heading2(m Text, id string) {
-	e.maintext.WriteString("<h2>")
-	m.ToHTML(&e.maintext)
-	if id != "" {
-		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	if id == "" {
+		e.maintext.WriteString("<h2>")
+	} else {
+		fmt.Fprintf(&e.maintext, "<h2 id=\"%s\">", html.EscapeString(id))
 	}
+	m.ToHTML(&e.maintext)
 	e.maintext.WriteString("</h2>\n")
 }
 
 func (e *Content) Heading3(m Text, id string) {
-	e.maintext.WriteString("<h3>")
-	m.ToHTML(&e.maintext)
-	if id != "" {
-		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	if id == "" {
+		e.maintext.WriteString("<h3>")
+	} else {
+		fmt.Fprintf(&e.maintext, "<h3 id=\"%s\">", html.EscapeString(id))
 	}
+	m.ToHTML(&e.maintext)
 	e.maintext.WriteString("</h3>\n")
 }
 
 func (e *Content) Heading4(m Text, id string) {
-	e.maintext.WriteString("<h4>")
-	m.ToHTML(&e.maintext)
-	if id != "" {
-		e.maintext.WriteString(fmt.Sprintf(" <a class=\"anchor\" id=\"%[1]s\" href=\"#%[1]s\">#</a>", html.EscapeString(id)))
+	if id == "" {
+		e.maintext.WriteString("<h4>")
+	} else {
+		fmt.Fprintf(&e.maintext, "<h4 id=\"%s\">", html.EscapeString(id))
 	}
+	m.ToHTML(&e.maintext)
 	e.maintext.WriteString("</h4>\n")
 }
 

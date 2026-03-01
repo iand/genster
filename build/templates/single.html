@@ -1,0 +1,26 @@
+{{/* single - simple manually-authored content page (also used for generated tag pages) */}}
+{{define "single"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "site-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      <section>
+        {{.Body}}
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      {{template "tags" .}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

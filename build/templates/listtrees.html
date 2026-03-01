@@ -1,0 +1,28 @@
+{{/* listtrees - index page listing all available family trees on the site */}}
+{{define "listtrees"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "site-header" .}}
+    <main class="content">
+      <header>
+        <h1>Family Trees</h1>
+      </header>
+      <section>
+        <p>These are the trees available on this site.</p>
+        {{.Body}}
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">Each family tree is generated from a GEDCOM file exported from a genealogy application. The pages cover people, families, places, and sources, all cross-referenced with each other.</p>
+      <p>The research diary and stories sections contain additional notes and narratives that draw on these trees.</p>
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

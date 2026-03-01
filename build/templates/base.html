@@ -1,0 +1,113 @@
+{{/* head - HTML <head> element */}}
+{{define "head"}}
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}</title>
+  {{- if .Sitemap}}{{if index .Sitemap "disable"}}
+  <meta name="robots" content="noindex">
+  {{- end}}{{end}}
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+  <meta name="description" content="{{.Summary}}">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dimbox.min.css">
+</head>
+{{- end}}
+
+{{/* site-header - navigation header for non-tree pages */}}
+{{define "site-header"}}
+<header class="header">
+  <h1>Family History</h1>
+  <nav class="site">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/trees/">Trees</a></li>
+      <li><a href="/diary/">Research Diary</a></li>
+      <li><a href="/stories/">Stories</a></li>
+      <li><a href="/tags/">Tags</a></li>
+    </ul>
+  </nav>
+</header>
+{{- end}}
+
+{{/* tree-header - navigation header for tree pages, including per-tree nav row */}}
+{{define "tree-header"}}
+<header class="header">
+  <h1>Family History</h1>
+  <nav class="site">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/trees/">Trees</a></li>
+      <li><a href="/diary/">Research Diary</a></li>
+      <li><a href="/stories/">Stories</a></li>
+      <li><a href="/tags/">Tags</a></li>
+    </ul>
+  </nav>
+  {{- if .Tree.BasePath}}
+  <nav class="tree">
+    <ul>
+      <li><a href="{{.Tree.BasePath}}">{{if .Tree.Title}}{{.Tree.Title}}{{else}}Overview{{end}}</a></li>
+      <li><a href="{{.Tree.BasePath}}list/people/">People</a></li>
+      <li><a href="{{.Tree.BasePath}}list/surnames/">Surnames</a></li>
+      <li><a href="{{.Tree.BasePath}}list/places/">Places</a></li>
+      <li><a href="{{.Tree.BasePath}}list/todo/">Things to do</a></li>
+      <li><a href="{{.Tree.BasePath}}list/changes/">Recent updates</a></li>
+    </ul>
+  </nav>
+  {{- end}}
+</header>
+{{- end}}
+
+{{/* footer - page footer with last-modified date */}}
+{{define "footer"}}
+<footer class="footer">
+  {{- if .LastMod}}<p>Last updated {{.LastMod}}</p>{{end}}
+</footer>
+{{- end}}
+
+{{/* scripts - JS includes */}}
+{{define "scripts"}}
+<script src="/js/dimbox.min.js"></script>
+{{end}}
+
+{{/* featureimage - placeholder until gen-b81d implements full image selection logic */}}
+{{define "featureimage"}}
+{{- if .Image}}<div class="feature"><img src="{{.Image}}" class="feature" alt=""></div>{{end}}
+{{- end}}
+
+{{/* tags - sidebar tag list */}}
+{{define "tags"}}
+{{- if .Tags}}
+<section class="tags">
+  <header>Tagged as</header>
+  <ul>
+    {{range .Tags}}<li><a href="/tags/{{urlize .}}/">{{.}}</a></li>
+    {{end -}}
+  </ul>
+</section>
+{{- end}}
+{{- end}}
+
+{{/* pagination - generated pagination nav using first/prev/next/last front-matter fields */}}
+{{define "pagination"}}
+{{- if or .First .Prev .Next .Last}}
+<nav class="pagination">
+  {{- if or .First .Prev}}
+  <div class="nav-left">
+    <ul>
+      {{if .First}}<li><a href="../{{.First}}/">«« first page</a></li>{{end}}
+      {{if .Prev}}<li><a href="../{{.Prev}}/">« previous page</a></li>{{end}}
+    </ul>
+  </div>
+  {{- end}}
+  {{- if or .Next .Last}}
+  <div class="nav-right">
+    <ul>
+      {{if .Last}}<li><a href="../{{.Last}}/">last page »»</a></li>{{end}}
+      {{if .Next}}<li><a href="../{{.Next}}/">next page »</a></li>{{end}}
+    </ul>
+  </div>
+  {{- end}}
+</nav>
+{{- end}}
+{{- end}}

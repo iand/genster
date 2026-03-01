@@ -291,7 +291,7 @@ func (s *Site) AssignTags(p *model.Person) error {
 func (s *Site) BuildCalendar() error {
 	monthEvents := make(map[int]map[model.TimelineEvent]struct{})
 
-	for _, p := range s.Tree.People {
+	for _, p := range s.PublishSet.People {
 		for _, ev := range p.Timeline {
 			_, indiv := ev.(model.IndividualTimelineEvent)
 			_, party := ev.(model.UnionTimelineEvent)
@@ -800,6 +800,9 @@ func (s *Site) NewDocument() *md.Document {
 	doc := &md.Document{}
 	doc.LastUpdated(s.PublishSet.LastUpdated)
 	doc.BasePath(s.BaseURL)
+	if s.Tree.Name != "" {
+		doc.TreeTitle(s.Tree.Name)
+	}
 	doc.SetLinkBuilder(s)
 	return doc
 }

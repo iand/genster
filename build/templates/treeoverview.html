@@ -1,0 +1,28 @@
+{{/* treeoverview - overview/home page for a specific tree, with a static sidebar explaining the site's generation process */}}
+{{define "treeoverview"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      {{.Body}}
+    </main>
+    <section class="sidebar">
+      <div class="feature">
+        <img src="/images/oak-tree.png" width="256" height="256" class="feature" alt="Oak Tree">
+      </div>
+      <header><h1>About this tree</h1></header>
+      <p>The pages for this tree are generated from a GEDCOM file using <a href="https://github.com/iand/genster/">genster</a>. Any irregularities identified in the underlying data during the generation process are documented as <a href="./list/anomalies/">anomalies</a>.</p>
+      <p>Additional information may also be added as deductions based on the factual data found in the original GEDCOM. A full list of <a href="./list/inferences/">inferences</a> made are also available.</p>
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

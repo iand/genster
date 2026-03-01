@@ -1,0 +1,39 @@
+{{/* listanomalies - paginated list of data anomalies detected in a tree */}}
+{{define "listanomalies"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>Anomalies</h1>
+      </header>
+      {{template "pagination" .}}
+      <section>
+        {{.Body}}
+      </section>
+      {{template "pagination" .}}
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">
+        {{if .Summary}}{{.Summary}}{{else}}Anomalies are errors or inconsistencies that have been detected in the underlying data used to generate this site.{{end}}
+      </p>
+      <p>A variety of checks are made, including:</p>
+      <dl>
+        <dt>citation dates</dt>
+        <dd>checks whether the date of the original document has been mistakenly used instead of the transcription date.</dd>
+        <dt>places</dt>
+        <dd>checks whether a place name is well formatted and includes the country.</dd>
+        <dt>duplicate events</dt>
+        <dd>checks whether a person has multiple birth or death events.</dd>
+      </dl>
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

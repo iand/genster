@@ -1,0 +1,39 @@
+{{/* listinferences - paginated list of inferences (estimated or deduced facts) in a tree */}}
+{{define "listinferences"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>Inferences</h1>
+      </header>
+      {{template "pagination" .}}
+      <section>
+        {{.Body}}
+      </section>
+      {{template "pagination" .}}
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      <p class="summary">
+        {{if .Summary}}{{.Summary}}{{else}}&ldquo;Inferences&rdquo; refer to hints and suggestions that help fill in missing information in the family tree.{{end}}
+      </p>
+      <p>There are various types of inferences that can appear here, such as:</p>
+      <dl>
+        <dt>year of birth</dt>
+        <dd>the most recent year of birth can be estimated based on known events like baptisms, marriages, or the birth of the first child.</dd>
+        <dt>year of death</dt>
+        <dd>the year of death can be estimated based on the date of burial, if available, or set to be after the last firmly known event date.</dd>
+        <dt>general facts</dt>
+        <dd>some tags are applied based on cause of death or text in other events.</dd>
+      </dl>
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

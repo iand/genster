@@ -1,0 +1,62 @@
+{{/* person - individual person page within a tree, with ancestor path, diary links, and external links in the sidebar */}}
+{{define "person"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "tree-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      <section>
+        <div class="person">
+          {{.Body}}
+        </div>
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+      {{- if .Descendants}}
+      <div class="ancestorpath">
+        {{- range $i, $v := .Descendants}}
+        {{if gt $i 0}}<div>↓</div>{{end}}
+        <div>
+          {{- if eq $i 0}}<b>{{if index $v "link"}}<a href="{{index $v "link"}}">{{index $v "name"}}</a>{{else}}{{index $v "name"}}{{end}}</b>
+          {{- else}}{{if index $v "link"}}<a href="{{index $v "link"}}">{{index $v "name"}}</a>{{else}}{{index $v "name"}}{{end}}
+          {{- end}}
+        </div>
+        {{- if index $v "detail"}}<div><i>{{index $v "detail"}}</i></div>{{end}}
+        {{- end}}
+      </div>
+      {{- end}}
+      {{- if or .Slug .GrampsID}}
+      <p>Quick link: /r/{{if .Slug}}{{.Slug}}{{else}}{{.GrampsID}}{{end}}</p>
+      {{- end}}
+      {{- if .DiaryLinks}}
+      <section class="tags">
+        <header>Research Diary Entries</header>
+        <ul>
+          {{range .DiaryLinks}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{end -}}
+        </ul>
+      </section>
+      {{- end}}
+      {{- if .Links}}
+      <section class="tags">
+        <header>On other sites</header>
+        <ul>
+          {{range .Links}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{end -}}
+        </ul>
+      </section>
+      {{- end}}
+      {{template "tags" .}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}
