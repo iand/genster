@@ -115,6 +115,45 @@ func TestBuildNonMdFileCopied(t *testing.T) {
 	}
 }
 
+func TestBuildIgnoresDotFilesAndDirs(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	// A normal page that should be built.
+	writeFile(t, filepath.Join(contentDir, "stories", "normal.md"),
+		"---\ntitle: Normal Story\n---\n\n<p>content</p>\n")
+	// A dot-file at the top level — must be ignored.
+	writeFile(t, filepath.Join(contentDir, ".DS_Store"), "mac metadata")
+	// A dot-file inside a content directory — must be ignored.
+	writeFile(t, filepath.Join(contentDir, "stories", ".draft.md"),
+		"---\ntitle: Hidden Draft\n---\n\n<p>secret</p>\n")
+	// A dot-directory and a file inside it — directory and all contents must be skipped.
+	writeFile(t, filepath.Join(contentDir, ".obsidian", "config.md"),
+		"---\ntitle: Obsidian Config\n---\n\n<p>tool config</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	// Normal page must be built.
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "normal", "index.html")); err != nil {
+		t.Errorf("normal page not built: %v", err)
+	}
+	// Dot-file must not produce output.
+	if _, err := os.Stat(filepath.Join(pubDir, ".DS_Store")); err == nil {
+		t.Errorf("dot-file .DS_Store should not be copied to pub")
+	}
+	// Dot-.md file must not produce a page.
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", ".draft", "index.html")); err == nil {
+		t.Errorf("dot .md file should not produce a page")
+	}
+	// Dot-directory contents must not produce output.
+	if _, err := os.Stat(filepath.Join(pubDir, ".obsidian")); err == nil {
+		t.Errorf("dot-directory .obsidian should not appear in pub")
+	}
+}
+
 func TestBuildPersonSidebar(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
@@ -375,14 +414,16 @@ func TestBuildExternalAssetsOverride(t *testing.T) {
 	}
 }
 
-func TestBuildStripsPrivateShortcodes(t *testing.T) {
+func TestBuildStripsHTMLComments(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	// Simulate annotate output: shortcode markers wrapping an HTML comment.
+	// Simulate annotate output: a private annotation wrapped in an HTML comment,
+	// alongside a plain HTML comment and visible content.
 	mdContent := "---\ntitle: Test\nlayout: single\n---\n\n" +
 		"<p>Visible content.</p>\n" +
-		"<!-- {{< private >}}cite [^foo]: Some Citation{{< /private >}} -->\n"
+		"<!-- {{< private >}}cite [^foo]: Some Citation{{< /private >}} -->\n" +
+		"<!-- plain comment -->\n"
 
 	writeFile(t, filepath.Join(contentDir, "test", "index.md"), mdContent)
 
@@ -397,15 +438,18 @@ func TestBuildStripsPrivateShortcodes(t *testing.T) {
 	}
 	html := string(out)
 
-	if strings.Contains(html, "{{<") || strings.Contains(html, ">}}") {
-		t.Errorf("output still contains shortcode markers:\n%s", html)
-	}
 	if !strings.Contains(html, "Visible content.") {
 		t.Errorf("output missing visible content")
 	}
-	// The comment text itself should still be present (just without the wrappers).
-	if !strings.Contains(html, "cite [^foo]") {
-		t.Errorf("output missing comment content")
+	// The entire comment blocks must be stripped, including their content.
+	if strings.Contains(html, "<!--") {
+		t.Errorf("output still contains HTML comment: %s", html)
+	}
+	if strings.Contains(html, "cite [^foo]") {
+		t.Errorf("output should not contain annotation text from stripped comment")
+	}
+	if strings.Contains(html, "plain comment") {
+		t.Errorf("output should not contain plain comment text")
 	}
 }
 

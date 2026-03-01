@@ -7,8 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/iand/genster/logging"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -37,6 +39,11 @@ var renderer = goldmark.New(
 		extension.Typographer,
 	),
 )
+
+// htmlCommentRE matches HTML comments, including multi-line ones.
+// Used to strip comments from rendered output so that annotation markers
+// (<!-- {{< private >}} ... -->) and any other comments do not reach the browser.
+var htmlCommentRE = regexp.MustCompile(`(?s)<!--.*?-->`)
 
 // TreeData holds site-level metadata for the genealogy tree a page belongs to.
 // It is populated from the tree's section index page and is available in all
@@ -96,6 +103,12 @@ func (b *Builder) Build() error {
 	if err := filepath.WalkDir(b.ContentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			return nil
@@ -184,10 +197,21 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		}
 	}
 
+	// Warn about Hugo figure shortcodes in hand-authored sections. Generated
+	// content (person pages, lists, etc.) never contains shortcodes, so the
+	// check is limited to /diary/ and /stories/ to avoid noise.
+	relSlash := filepath.ToSlash(rel)
+	if strings.HasPrefix(relSlash, "diary/") || strings.HasPrefix(relSlash, "stories/") {
+		if strings.Contains(body, "{{< figure") {
+			logging.Warn("Hugo figure shortcode found — replace with plain HTML <figure>", "file", srcPath)
+		}
+	}
+
 	var buf bytes.Buffer
-	if err := renderer.Convert([]byte(stripPrivateShortcodes(body)), &buf); err != nil {
+	if err := renderer.Convert([]byte(body), &buf); err != nil {
 		return fmt.Errorf("render markdown %s: %w", srcPath, err)
 	}
+	rendered := htmlCommentRE.ReplaceAll(buf.Bytes(), nil)
 
 	tmpl, err := selectTemplate(fm.Layout, srcPath)
 	if err != nil {
@@ -205,7 +229,7 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		tree.Title = sectionTitles[strings.Trim(fm.BasePath, "/")]
 	}
 
-	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(buf.String()), Tree: tree}); err != nil {
+	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree}); err != nil {
 		return fmt.Errorf("render %s: %w", srcPath, err)
 	}
 
@@ -251,18 +275,6 @@ func (b *Builder) copyFile(srcPath, rel string) error {
 		return fmt.Errorf("copy %s -> %s: %w", srcPath, outPath, err)
 	}
 	return nil
-}
-
-// stripPrivateShortcodes removes Hugo {{< private >}} shortcode markers from
-// body text before rendering. These markers are inserted by the annotate
-// command to prevent Hugo from including comment content in output; without
-// Hugo in the pipeline they would appear literally in HTML comments.
-// Stripping is global because {{< private >}} is a genster-specific construct
-// that never appears in hand-authored content.
-func stripPrivateShortcodes(s string) string {
-	s = strings.ReplaceAll(s, "{{< private >}}", "")
-	s = strings.ReplaceAll(s, "{{< /private >}}", "")
-	return s
 }
 
 // outputPath converts a content-relative path to its pub destination.

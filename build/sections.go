@@ -37,6 +37,12 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 		if err != nil {
 			return err
 		}
+		if strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			return nil
 		}
