@@ -114,7 +114,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			if cp.Title == "" {
 				cp.Title = stemToTitle(dirBase)
 			}
-			cp.URL = "/" + dir + "/"
+			cp.URL = pageURL
 			cp.Date = dateFromStem(dirBase)
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
@@ -125,11 +125,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			if cp.Title == "" {
 				cp.Title = stemToTitle(stem)
 			}
-			if dir == "." {
-				cp.URL = "/" + stem + "/"
-			} else {
-				cp.URL = "/" + dir + "/" + stem + "/"
-			}
+			cp.URL = pageURL
 			cp.Date = dateFromStem(stem)
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
@@ -239,7 +235,7 @@ func generateDiaryListing(pages []childPage) template.HTML {
 					sb.WriteString(" · ")
 				}
 				sb.WriteString(`<a href="/tags/`)
-				sb.WriteString(tagSlug(tag))
+				sb.WriteString(urlize(tag))
 				sb.WriteString(`/">`)
 				sb.WriteString(template.HTMLEscapeString(tag))
 				sb.WriteString("</a>")

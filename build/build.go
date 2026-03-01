@@ -195,15 +195,6 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 	}
 
 	outPath := b.outputPath(rel)
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir for %s: %w", outPath, err)
-	}
-
-	f, err := os.Create(outPath)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", outPath, err)
-	}
-	defer f.Close()
 
 	// Populate tree-level data. BasePath comes from the normalised front-matter
 	// field; Title is looked up from the tree's own section index so it doesn't
@@ -214,8 +205,8 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		tree.Title = sectionTitles[strings.Trim(fm.BasePath, "/")]
 	}
 
-	if err := tmpl.Execute(f, PageData{FrontMatter: fm, Body: template.HTML(buf.String()), Tree: tree}); err != nil {
-		return fmt.Errorf("execute template for %s: %w", srcPath, err)
+	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(buf.String()), Tree: tree}); err != nil {
+		return fmt.Errorf("render %s: %w", srcPath, err)
 	}
 
 	if len(fm.Aliases) > 0 {

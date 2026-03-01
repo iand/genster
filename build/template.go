@@ -11,14 +11,18 @@ import (
 //go:embed templates
 var templateFS embed.FS
 
+// urlize converts a string to a URL-safe slug: lowercase, spaces → hyphens.
+// It is used both in templates (via templateFuncs) and directly in Go code
+// wherever tag slugs are needed, keeping the two in sync.
+func urlize(s string) string {
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, " ", "-")
+	return s
+}
+
 // templateFuncs provides helper functions available to all page templates.
 var templateFuncs = template.FuncMap{
-	// urlize converts a tag value to a URL-safe slug: lowercase, spaces → hyphens.
-	"urlize": func(s string) string {
-		s = strings.ToLower(s)
-		s = strings.ReplaceAll(s, " ", "-")
-		return s
-	},
+	"urlize": urlize,
 	// ukdate formats a YYYY-MM-DD date string as "2 January 2006".
 	// Returns the original string unchanged if it cannot be parsed.
 	"ukdate": func(s string) string {

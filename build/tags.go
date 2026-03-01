@@ -15,14 +15,6 @@ type pageRef struct {
 	URL   string
 }
 
-// tagSlug converts a tag string to its URL-safe slug, matching the urlize
-// template function used in page sidebars so links are consistent.
-func tagSlug(tag string) string {
-	s := strings.ToLower(tag)
-	s = strings.ReplaceAll(s, " ", "-")
-	return s
-}
-
 // writeTags writes pub/tags/index.html and pub/tags/{slug}/index.html for
 // every tag collected during the first pass.  Tags are sorted alphabetically;
 // pages within each tag are sorted by title.
@@ -54,7 +46,7 @@ func (b *Builder) writeTags(tagIndex map[string][]pageRef) error {
 			return strings.Compare(a.Title, b.Title)
 		})
 
-		outPath := filepath.Join(b.PubDir, "tags", tagSlug(tag), "index.html")
+		outPath := filepath.Join(b.PubDir, "tags", urlize(tag), "index.html")
 		if err := writePageFile(tagTmpl, outPath, PageData{
 			FrontMatter: FrontMatter{Title: "Pages tagged \"" + tag + "\""},
 			Body:        tagPageBody(pages),
@@ -148,7 +140,7 @@ func tagIndexBody(tags []string, tagIndex map[string][]pageRef) template.HTML {
 	sb.WriteString("<ul class=\"tag-list\">\n")
 	for _, tag := range tags {
 		sb.WriteString("  <li><a href=\"/tags/")
-		sb.WriteString(tagSlug(tag))
+		sb.WriteString(urlize(tag))
 		sb.WriteString("/\">")
 		sb.WriteString(template.HTMLEscapeString(tag))
 		fmt.Fprintf(&sb, " (%d)", len(tagIndex[tag]))

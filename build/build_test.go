@@ -48,15 +48,8 @@ func TestBuildMarkdownRendered(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	// Write a minimal markdown file with front-matter.
-	mdContent := "---\nid: I1\ntitle: John Smith\nlayout: person\n---\n\n<p>Hello from the body.</p>\n"
-	mdPath := filepath.Join(contentDir, "person", "I1", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"),
+		"---\nid: I1\ntitle: John Smith\nlayout: person\n---\n\n<p>Hello from the body.</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -85,14 +78,8 @@ func TestBuildNonIndexMdGetsCleanURL(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	mdContent := "---\ntitle: People page 2\nlayout: listpeople\n---\n\n<p>page content</p>\n"
-	mdPath := filepath.Join(contentDir, "list", "people", "02.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "list", "people", "02.md"),
+		"---\ntitle: People page 2\nlayout: listpeople\n---\n\n<p>page content</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -110,14 +97,8 @@ func TestBuildNonMdFileCopied(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	imgPath := filepath.Join(contentDir, "media", "photo.jpg")
-	if err := os.MkdirAll(filepath.Dir(imgPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	imgData := []byte("fake jpeg data")
-	if err := os.WriteFile(imgPath, imgData, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "media", "photo.jpg"), string(imgData))
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -165,13 +146,7 @@ links:
 
 <p>Bio text here.</p>
 `
-	mdPath := filepath.Join(contentDir, "person", "I1", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"), mdContent)
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -209,14 +184,8 @@ func TestBuildPaginationLinks(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	mdContent := "---\ntitle: People (page 2 of 4)\nlayout: listpeople\nbasepath: /trees/test/\nfirst: \"01\"\nprev: \"\"\nnext: \"03\"\nlast: \"04\"\n---\n\n<p>page 2 content</p>\n"
-	mdPath := filepath.Join(contentDir, "list", "people", "02", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "list", "people", "02", "index.md"),
+		"---\ntitle: People (page 2 of 4)\nlayout: listpeople\nbasepath: /trees/test/\nfirst: \"01\"\nprev: \"\"\nnext: \"03\"\nlast: \"04\"\n---\n\n<p>page 2 content</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -252,14 +221,8 @@ func TestBuildTreeNav(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	mdContent := "---\ntitle: Test Tree\nlayout: treeoverview\nbasepath: /trees/test/\n---\n\n<p>Tree overview.</p>\n"
-	mdPath := filepath.Join(contentDir, "trees", "test", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "trees", "test", "index.md"),
+		"---\ntitle: Test Tree\nlayout: treeoverview\nbasepath: /trees/test/\n---\n\n<p>Tree overview.</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -293,15 +256,8 @@ func TestBuildPlainLayout(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	// Empty layout means "plain" template
-	mdContent := "---\ntitle: About\n---\n\n<p>Some plain content.</p>\n"
-	mdPath := filepath.Join(contentDir, "about", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "about", "index.md"),
+		"---\ntitle: About\n---\n\n<p>Some plain content.</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -326,14 +282,8 @@ func TestBuildAliasRedirect(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	mdContent := "---\ntitle: John Smith\nlayout: person\naliases:\n  - /r/I1\n  - /r/smith-john\n---\n\n<p>Bio.</p>\n"
-	mdPath := filepath.Join(contentDir, "person", "I1", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"),
+		"---\ntitle: John Smith\nlayout: person\naliases:\n  - /r/I1\n  - /r/smith-john\n---\n\n<p>Bio.</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -368,14 +318,8 @@ func TestBuildAliasConflictIsSkipped(t *testing.T) {
 	// Two pages share the same alias — the second write is silently skipped
 	// (first writer wins) and the build succeeds.
 	for _, name := range []string{"I1", "I2"} {
-		mdContent := "---\ntitle: Person " + name + "\nlayout: person\naliases:\n  - /r/same-alias\n---\n\n<p>Bio.</p>\n"
-		mdPath := filepath.Join(contentDir, "person", name, "index.md")
-		if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-			t.Fatal(err)
-		}
+		writeFile(t, filepath.Join(contentDir, "person", name, "index.md"),
+			"---\ntitle: Person "+name+"\nlayout: person\naliases:\n  - /r/same-alias\n---\n\n<p>Bio.</p>\n")
 	}
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
@@ -415,13 +359,7 @@ func TestBuildExternalAssetsOverride(t *testing.T) {
 	assetsDir := t.TempDir()
 
 	// Write a custom CSS file in the external assets dir.
-	if err := os.MkdirAll(filepath.Join(assetsDir, "css"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	customCSS := []byte("/* custom */")
-	if err := os.WriteFile(filepath.Join(assetsDir, "css", "main.css"), customCSS, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(assetsDir, "css", "main.css"), "/* custom */")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir, AssetsDir: assetsDir}
 	if err := b.Build(); err != nil {
@@ -432,8 +370,8 @@ func TestBuildExternalAssetsOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read main.css: %v", err)
 	}
-	if string(got) != string(customCSS) {
-		t.Errorf("expected custom CSS %q, got %q", customCSS, got)
+	if string(got) != "/* custom */" {
+		t.Errorf("expected custom CSS %q, got %q", "/* custom */", got)
 	}
 }
 
@@ -446,13 +384,7 @@ func TestBuildStripsPrivateShortcodes(t *testing.T) {
 		"<p>Visible content.</p>\n" +
 		"<!-- {{< private >}}cite [^foo]: Some Citation{{< /private >}} -->\n"
 
-	mdPath := filepath.Join(contentDir, "test", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "test", "index.md"), mdContent)
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -481,14 +413,8 @@ func TestBuildUnknownLayoutErrors(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	mdContent := "---\ntitle: Weird Page\nlayout: nonexistentlayout\n---\n\n<p>body</p>\n"
-	mdPath := filepath.Join(contentDir, "weird", "index.md")
-	if err := os.MkdirAll(filepath.Dir(mdPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, filepath.Join(contentDir, "weird", "index.md"),
+		"---\ntitle: Weird Page\nlayout: nonexistentlayout\n---\n\n<p>body</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	err := b.Build()
