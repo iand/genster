@@ -15,8 +15,9 @@ type childPage struct {
 	Title     string
 	URL       string
 	Date      string   // YYYY-MM-DD for chronological sorting; empty when unknown
-	Tags      []string // front-matter tags; populated for diary entries
-	WordCount int      // rough word count of the body; populated for diary entries
+	Summary   string   // optional description shown beneath the title in listings
+	Tags      []string // front-matter tags; populated for diary and story entries
+	WordCount int      // rough word count of the body; populated for diary and story entries
 }
 
 // collectChildren walks contentDir and returns:
@@ -95,7 +96,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 					pageTitle = stemToTitle(stem)
 				}
 			}
-			ref := pageRef{Title: pageTitle, URL: pageURL}
+			ref := pageRef{Title: pageTitle, URL: pageURL, Ancestor: bool(fm.Ancestor)}
 			for _, tag := range fm.Tags {
 				tagIndex[tag] = append(tagIndex[tag], ref)
 			}
@@ -122,6 +123,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			}
 			cp.URL = pageURL
 			cp.Date = dateFromStem(dirBase)
+			cp.Summary = fm.Summary
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			children[parentDir] = append(children[parentDir], cp)
@@ -133,6 +135,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			}
 			cp.URL = pageURL
 			cp.Date = dateFromStem(stem)
+			cp.Summary = fm.Summary
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			children[dir] = append(children[dir], cp)
@@ -216,7 +219,7 @@ func generateSectionListing(pages []childPage) template.HTML {
 }
 
 // generateDiaryListing returns an HTML list for a diary year index page.
-// Each entry shows a date link, a rough word count, and the entry's tags.
+// Each entry shows a date link, an optional summary, a rough word count, and tags.
 func generateDiaryListing(pages []childPage) template.HTML {
 	if len(pages) == 0 {
 		return ""
@@ -230,9 +233,19 @@ func generateDiaryListing(pages []childPage) template.HTML {
 		sb.WriteString(`">`)
 		sb.WriteString(template.HTMLEscapeString(p.Title))
 		sb.WriteString("</a>")
+		if p.Summary != "" {
+			sb.WriteString(`<p class="listing-summary">`)
+			sb.WriteString(template.HTMLEscapeString(p.Summary))
+			sb.WriteString("</p>")
+		}
 		hasMeta := p.WordCount > 0 || len(p.Tags) > 0
 		if hasMeta {
-			sb.WriteString(`<hr class="hr-list"><span class="diary-meta">`)
+			// Use a dotted rule to separate meta from the title unless a summary
+			// paragraph already provides visual spacing.
+			if p.Summary == "" {
+				sb.WriteString(`<hr class="hr-list">`)
+			}
+			sb.WriteString(`<span class="diary-meta">`)
 			if p.WordCount > 0 {
 				fmt.Fprintf(&sb, "~%d words", p.WordCount)
 			}
@@ -247,6 +260,52 @@ func generateDiaryListing(pages []childPage) template.HTML {
 				sb.WriteString("</a>")
 			}
 			sb.WriteString("</span>")
+		}
+		sb.WriteString("</li>")
+	}
+	sb.WriteString("\n</ul>\n")
+	return template.HTML(sb.String())
+}
+
+// generateStoriesListing returns an HTML list for the stories section index page.
+// Each entry shows:
+//   - the story title as a link
+//   - if a summary is set: the summary followed by the word count in parentheses
+//   - if tags are set: "tagged as:" followed by tag links
+func generateStoriesListing(pages []childPage) template.HTML {
+	if len(pages) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString(`<ul class="list list-stories">`)
+	for _, p := range pages {
+		sb.WriteString("\n  <li>")
+		sb.WriteString(`<a href="`)
+		sb.WriteString(p.URL)
+		sb.WriteString(`">`)
+		sb.WriteString(template.HTMLEscapeString(p.Title))
+		sb.WriteString("</a>")
+		if p.Summary != "" {
+			sb.WriteString(`<p class="listing-summary">`)
+			sb.WriteString(template.HTMLEscapeString(p.Summary))
+			if p.WordCount > 0 {
+				fmt.Fprintf(&sb, " (~%d words)", p.WordCount)
+			}
+			sb.WriteString("</p>")
+		}
+		if len(p.Tags) > 0 {
+			sb.WriteString(`<p class="listing-tags">tagged as: `)
+			for i, tag := range p.Tags {
+				if i > 0 {
+					sb.WriteString(" · ")
+				}
+				sb.WriteString(`<a href="/tags/`)
+				sb.WriteString(urlize(tag))
+				sb.WriteString(`/">`)
+				sb.WriteString(template.HTMLEscapeString(tag))
+				sb.WriteString("</a>")
+			}
+			sb.WriteString("</p>")
 		}
 		sb.WriteString("</li>")
 	}

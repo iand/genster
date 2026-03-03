@@ -17,10 +17,8 @@
       {{template "pagination" .}}
     </main>
     <section class="sidebar">
-      {{template "featureimage" .}}
-      <p class="summary">
-        {{if .Summary}}{{.Summary}}{{else}}This is a full, alphabetical list of families in the tree.{{end}}
-      </p>
+      <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>
+      <p class="summary">This is a full, alphabetical list of families in the tree.</p>
     </section>
     {{template "footer" .}}
   </div>

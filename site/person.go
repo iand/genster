@@ -42,6 +42,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		doc.Image(s.LinkFor(p.FeatureImage.Object))
 	}
 
+	if p.RelationToKeyPerson != nil && p.RelationToKeyPerson.IsDirectAncestor() {
+		doc.SetFrontMatterField("ancestor", "true")
+	}
+
 	switch p.Gender {
 	case model.GenderMale:
 		doc.SetFrontMatterField("gender", "male")

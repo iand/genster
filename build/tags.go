@@ -11,8 +11,9 @@ import (
 
 // pageRef identifies a page for use in tag index listings.
 type pageRef struct {
-	Title string
-	URL   string
+	Title    string
+	URL      string
+	Ancestor bool // true when the person is a direct ancestor of the key person
 }
 
 // writeTags writes pub/tags/index.html and pub/tags/{slug}/index.html for
@@ -118,6 +119,19 @@ func tagPageBody(pages []pageRef) template.HTML {
 		ps := grouped[group]
 		if len(ps) == 0 {
 			continue
+		}
+		// For the People group, sort direct ancestors before others; within each
+		// subgroup the existing alphabetical order (from writeTags) is preserved.
+		if group == "People" {
+			slices.SortStableFunc(ps, func(a, b pageRef) int {
+				if a.Ancestor == b.Ancestor {
+					return 0
+				}
+				if a.Ancestor {
+					return -1
+				}
+				return 1
+			})
 		}
 		sb.WriteString("<h2>")
 		sb.WriteString(group)

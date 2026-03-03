@@ -51,7 +51,7 @@ var Command = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "media",
-			Usage:       "Directory in which to copy media files", // usually the hugo static folder
+			Usage:       "Directory in which to copy media files (required when --hugo is set; defaults to --site when --hugo is not set)",
 			Destination: &genopts.mediaDir,
 		},
 		&cli.StringFlag{
@@ -105,7 +105,7 @@ var Command = &cli.Command{
 		&cli.BoolFlag{
 			Name:        "hugo",
 			Usage:       "Generate Hugo-specific markup and index pages.",
-			Value:       true,
+			Value:       false,
 			Destination: &genopts.generateHugo,
 		},
 		&cli.StringFlag{
@@ -267,8 +267,15 @@ func gen(cc *cli.Context) error {
 		}
 	}
 
-	if genopts.rootDir != "" && genopts.mediaDir != "" {
-		if err := s.WritePages(genopts.rootDir, genopts.mediaDir); err != nil {
+	if genopts.rootDir != "" {
+		mediaDir := genopts.mediaDir
+		if mediaDir == "" {
+			if genopts.generateHugo {
+				return fmt.Errorf("--media is required when using --hugo")
+			}
+			mediaDir = genopts.rootDir
+		}
+		if err := s.WritePages(genopts.rootDir, mediaDir); err != nil {
 			return fmt.Errorf("write pages: %w", err)
 		}
 	}

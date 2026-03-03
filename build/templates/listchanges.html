@@ -1,21 +1,24 @@
-{{/* home - site home page */}}
-{{define "home"}}
+{{/* listchanges - paginated list of recent updates to a tree */}}
+{{define "listchanges"}}
 <!DOCTYPE html>
 <html lang="en-GB">
 {{template "head" .}}
 <body>
   <div class="page-grid">
-    {{template "site-header" .}}
+    {{template "tree-header" .}}
     <main class="content">
       <header>
-        <h1>{{.Title}}</h1>
+        <h1>Recent updates</h1>
       </header>
+      {{template "pagination" .}}
       <section>
         {{.Body}}
       </section>
+      {{template "pagination" .}}
     </main>
     <section class="sidebar">
       <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>
+      <p class="summary">This is a list of recent updates to the tree.</p>
     </section>
     {{template "footer" .}}
   </div>

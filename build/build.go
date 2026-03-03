@@ -187,9 +187,16 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		// Diary year index pages (diary/YYYY/) get a richer listing with word
 		// counts and tags; all other section index pages get the plain listing.
 		parts := strings.Split(dir, "/")
-		if len(parts) == 2 && parts[0] == "diary" {
+		switch {
+		case len(parts) == 2 && parts[0] == "diary":
+			// Diary year index pages (diary/YYYY/) get a date-sorted listing with
+			// summary, word counts, and tags.
 			listing = generateDiaryListing(children[dir])
-		} else {
+		case dir == "stories":
+			// Stories section index gets a rich listing with summary, word count,
+			// and tags.
+			listing = generateStoriesListing(children[dir])
+		default:
 			listing = generateSectionListing(children[dir])
 		}
 		if listing != "" {

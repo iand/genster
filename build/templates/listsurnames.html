@@ -17,10 +17,8 @@
       {{template "pagination" .}}
     </main>
     <section class="sidebar">
-      {{template "featureimage" .}}
-      <p class="summary">
-        {{if .Summary}}{{.Summary}}{{else}}This is a full, alphabetical list of ancestors in the tree.{{end}}
-      </p>
+      <div class="feature"><img src="/images/category-surnames.webp" width="256" height="256" class="feature" title=""/></div>
+      <p class="summary">This is a full, alphabetical list of ancestors in the tree.</p>
       {{- if .Tree.BasePath}}
       <p>
         Another way of finding a specific person is through the alphabetical list of all

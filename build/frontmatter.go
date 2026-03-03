@@ -58,15 +58,16 @@ type FrontMatter struct {
 	Prev  string `yaml:"prev"`
 
 	// Person-specific
-	Gender         string `yaml:"gender"`
-	Era            string `yaml:"era"`
-	Maturity       string `yaml:"maturity"`
-	Trade          string `yaml:"trade"`
-	GrampsID       string `yaml:"grampsid"`
-	Slug           string `yaml:"slug"`
-	WikiTreeFormat string `yaml:"wikitreeformat"`
-	WikiTreeID     string `yaml:"wikitreeid"`
-	MarkdownFormat string `yaml:"markdownformat"`
+	Gender         string   `yaml:"gender"`
+	Era            string   `yaml:"era"`
+	Maturity       string   `yaml:"maturity"`
+	Trade          string   `yaml:"trade"`
+	GrampsID       string   `yaml:"grampsid"`
+	Slug           string   `yaml:"slug"`
+	WikiTreeFormat string   `yaml:"wikitreeformat"`
+	WikiTreeID     string   `yaml:"wikitreeid"`
+	MarkdownFormat string   `yaml:"markdownformat"`
+	Ancestor       flexBool `yaml:"ancestor"`
 
 	// Place-specific
 	PlaceType    string `yaml:"placetype"`

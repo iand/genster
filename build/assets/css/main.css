@@ -522,6 +522,24 @@ nav.tree li a:hover {
     flex: 0 1 auto;
 }
 
+.list-stories li {
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+.listing-summary {
+    margin: 0.1rem 0 0 0;
+    font-size: 0.9375rem;
+}
+
+.listing-tags {
+    margin: 0.1rem 0 0 0;
+    font-size: 0.875rem;
+    color: #666;
+}
+
 .diary-meta {
     font-size: 0.875rem;
     color: #666;

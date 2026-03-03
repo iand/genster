@@ -772,6 +772,106 @@ func TestBuildDiaryYearListingMeta(t *testing.T) {
 	}
 }
 
+func TestBuildStoriesListing(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "stories", "_index.md"),
+		"---\nlayout: list\n---\n")
+	// Story with summary, tags, and content.
+	writeFile(t, filepath.Join(contentDir, "stories", "suffolk.md"),
+		"---\ntitle: Suffolk Hinksmans\nsummary: The story of the Hinksman family in Suffolk.\ntags: [hinksman, suffolk]\n---\n\nLots of words about the Hinksman family in Suffolk.\n")
+	// Story with no summary, no tags.
+	writeFile(t, filepath.Join(contentDir, "stories", "norfolk.md"),
+		"---\ntitle: Norfolk Story\n---\n\n<p>A short story.</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "stories", "index.html"))
+	if err != nil {
+		t.Fatalf("read stories/index.html: %v", err)
+	}
+	html := string(out)
+
+	// Both story titles must appear as links.
+	if !strings.Contains(html, "Suffolk Hinksmans") {
+		t.Errorf("stories listing: missing Suffolk Hinksmans")
+	}
+	if !strings.Contains(html, "Norfolk Story") {
+		t.Errorf("stories listing: missing Norfolk Story")
+	}
+	// Summary with word count in parentheses must appear for the Suffolk story.
+	if !strings.Contains(html, "The story of the Hinksman family in Suffolk.") {
+		t.Errorf("stories listing: missing summary for Suffolk Hinksmans")
+	}
+	if !strings.Contains(html, "words)") {
+		t.Errorf("stories listing: missing word count in parentheses")
+	}
+	// Tags must appear under "tagged as:".
+	if !strings.Contains(html, "tagged as:") {
+		t.Errorf("stories listing: missing 'tagged as:' prefix")
+	}
+	if !strings.Contains(html, `href="/tags/hinksman/"`) {
+		t.Errorf("stories listing: missing hinksman tag link")
+	}
+	if !strings.Contains(html, `href="/tags/suffolk/"`) {
+		t.Errorf("stories listing: missing suffolk tag link")
+	}
+	// Story with no summary must not show a word count.
+	norfolkPos := strings.Index(html, "Norfolk Story")
+	suffolkPos := strings.Index(html, "Suffolk Hinksmans")
+	if norfolkPos == -1 || suffolkPos == -1 {
+		t.Fatalf("could not find both story titles")
+	}
+	// The word count appears in the Suffolk block; Norfolk has no summary so no count.
+	// A rough check: "words)" should not appear after the Norfolk title.
+	norfolkBlock := html[norfolkPos:]
+	nextLI := strings.Index(norfolkBlock[1:], "<li>")
+	if nextLI != -1 {
+		norfolkBlock = norfolkBlock[:nextLI+1]
+	}
+	if strings.Contains(norfolkBlock, "words)") {
+		t.Errorf("stories listing: word count should not appear for story without summary")
+	}
+}
+
+func TestBuildDiarySummary(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
+		"---\ntitle: 2024 Diary\n---\n")
+	// Entry with a summary.
+	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-03-15.md"),
+		"---\nsummary: A brief note about March.\n---\n\nSome diary content.\n")
+	// Entry without a summary — hr separator should still appear when there is meta.
+	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
+		"---\ntags: [alcock]\n---\n\nJanuary content.\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "diary", "2024", "index.html"))
+	if err != nil {
+		t.Fatalf("read diary/2024/index.html: %v", err)
+	}
+	html := string(out)
+
+	// Summary must appear for the March entry.
+	if !strings.Contains(html, "A brief note about March.") {
+		t.Errorf("diary listing: missing summary")
+	}
+	// The hr separator must appear for the January entry (no summary, but has tags).
+	if !strings.Contains(html, `hr class="hr-list"`) {
+		t.Errorf("diary listing: expected hr separator for entry with no summary")
+	}
+}
+
 func TestGroupFromURL(t *testing.T) {
 	for _, tt := range []struct {
 		url  string
@@ -848,6 +948,67 @@ func TestBuildTagPages(t *testing.T) {
 	}
 	if storiesPos > diaryPos {
 		t.Errorf("tags/england: Stories heading should appear before Diary entries")
+	}
+}
+
+func TestBuildTagAncestorOrdering(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	// Two people with the same tag: one a direct ancestor, one not.
+	writeFile(t, filepath.Join(contentDir, "trees", "at", "person", "I1.md"),
+		"---\ntitle: Alice Smith\nlayout: person\ntags: [Smith]\nancestor: true\n---\n\n<p>Person.</p>\n")
+	writeFile(t, filepath.Join(contentDir, "trees", "at", "person", "I2.md"),
+		"---\ntitle: Bob Smith\nlayout: person\ntags: [Smith]\n---\n\n<p>Person.</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "tags", "smith", "index.html"))
+	if err != nil {
+		t.Fatalf("read tags/smith/index.html: %v", err)
+	}
+	html := string(out)
+
+	// Alice (ancestor) must appear before Bob (non-ancestor).
+	alicePos := strings.Index(html, "Alice Smith")
+	bobPos := strings.Index(html, "Bob Smith")
+	if alicePos < 0 {
+		t.Fatal("Alice Smith not found in tag page")
+	}
+	if bobPos < 0 {
+		t.Fatal("Bob Smith not found in tag page")
+	}
+	if alicePos > bobPos {
+		t.Errorf("ancestor Alice Smith should appear before non-ancestor Bob Smith")
+	}
+}
+
+func TestBuildHomeLayoutShowsDefaultOak(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "index.md"),
+		"---\ntitle: Family History\nlayout: home\nlastmod: 2024-07-03\n---\n\nWelcome.\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "index.html"))
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	html := string(out)
+
+	if !strings.Contains(html, "default-oak.webp") {
+		t.Errorf("homepage missing default-oak.webp feature image; got:\n%s", html)
+	}
+	if !strings.Contains(html, `class="feature"`) {
+		t.Errorf("homepage missing feature image div; got:\n%s", html)
 	}
 }
 

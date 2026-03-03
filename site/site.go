@@ -14,6 +14,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/chart"
+	"github.com/iand/genster/layout"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
@@ -23,31 +24,34 @@ import (
 	"github.com/iand/gtree"
 )
 
-type PageLayout string
+// PageLayout is an alias for layout.PageLayout so existing callers in this
+// package continue to work without modification.
+type PageLayout = layout.PageLayout
 
+// Re-export all layout constants so callers that import site do not also need
+// to import layout.
 const (
-	PageLayoutPerson          PageLayout = "person"
-	PageLayoutPlace           PageLayout = "place"
-	PageLayoutSource          PageLayout = "source"
-	PageLayoutFamily          PageLayout = "family"
-	PageLayoutCitation        PageLayout = "citation"
-	PageLayoutListInferences  PageLayout = "listinferences"
-	PageLayoutListAnomalies   PageLayout = "listanomalies"
-	PageLayoutListTodo        PageLayout = "listtodo"
-	PageLayoutListPeople      PageLayout = "listpeople"
-	PageLayoutListPlaces      PageLayout = "listplaces"
-	PageLayoutListSources     PageLayout = "listsources"
-	PageLayoutListSurnames    PageLayout = "listsurnames"
-	PageLayoutListChanges     PageLayout = "listchanges"
-	PageLayoutListFamilies    PageLayout = "listfamilies"
-	PageLayoutListFamilyLines PageLayout = "listfamilylines"
-	PageLayoutCalendar        PageLayout = "calendar"
-	PageLayoutTreeOverview    PageLayout = "treeoverview"
-	PageLayoutChartAncestors  PageLayout = "chartancestors"
-	PageLayoutChartTrees      PageLayout = "charttrees"
+	PageLayoutPerson          = layout.PageLayoutPerson
+	PageLayoutPlace           = layout.PageLayoutPlace
+	PageLayoutSource          = layout.PageLayoutSource
+	PageLayoutFamily          = layout.PageLayoutFamily
+	PageLayoutCitation        = layout.PageLayoutCitation
+	PageLayoutListInferences  = layout.PageLayoutListInferences
+	PageLayoutListAnomalies   = layout.PageLayoutListAnomalies
+	PageLayoutListTodo        = layout.PageLayoutListTodo
+	PageLayoutListPeople      = layout.PageLayoutListPeople
+	PageLayoutListPlaces      = layout.PageLayoutListPlaces
+	PageLayoutListSources     = layout.PageLayoutListSources
+	PageLayoutListSurnames    = layout.PageLayoutListSurnames
+	PageLayoutListChanges     = layout.PageLayoutListChanges
+	PageLayoutListFamilies    = layout.PageLayoutListFamilies
+	PageLayoutListFamilyLines = layout.PageLayoutListFamilyLines
+	PageLayoutListTrees       = layout.PageLayoutListTrees
+	PageLayoutCalendar        = layout.PageLayoutCalendar
+	PageLayoutTreeOverview    = layout.PageLayoutTreeOverview
+	PageLayoutChartAncestors  = layout.PageLayoutChartAncestors
+	PageLayoutChartTrees      = layout.PageLayoutChartTrees
 )
-
-func (p PageLayout) String() string { return string(p) }
 
 const (
 	PageSectionPerson     = "person"
@@ -1592,12 +1596,102 @@ func (s *Site) WriteChangelog(root string) error {
 	doc := s.NewDocument()
 	doc.Title("Recent updates")
 	doc.Summary("This is a list of recent updates to the tree")
-	doc.Layout(PageLayoutChartAncestors.String())
+	doc.Layout(PageLayoutListChanges.String())
 	doc.SetSitemapDisable()
 
 	count := 0
 	sectiondate := ""
 	changesForObjects := make(map[any][]*Change)
+
+	// flushSection writes all buffered changes for the given date. The heading
+	// is deferred until the first paragraph is actually written, so days where
+	// every change entry produces no visible output are silently skipped.
+	flushSection := func(date string) {
+		headingWritten := false
+		writeHeading := func() {
+			if !headingWritten {
+				doc.Heading3(doc.EncodeText(date), "")
+				headingWritten = true
+			}
+		}
+		for obj, chs := range changesForObjects {
+			count++
+			uniq := make(map[any]*Change)
+			for _, ch := range chs {
+				uniq[ch.Object] = ch
+			}
+			switch v := obj.(type) {
+			case *model.Person:
+				seen := make(map[string]bool)
+				changes := make([]string, 0, len(chs))
+				for _, ch := range uniq {
+					action := ""
+					chtext := ""
+					if ch.Created {
+						action = "added"
+					} else {
+						action = "updated"
+					}
+					type typer interface {
+						Type() string
+					}
+					switch tv := ch.Object.(type) {
+					case typer:
+						chtext = action + " " + tv.Type()
+					}
+					if chtext != "" && !seen[chtext] {
+						changes = append(changes, chtext)
+						seen[chtext] = true
+					}
+				}
+				sort.Strings(changes)
+				link := doc.EncodeModelLink(doc.EncodeText(v.PreferredUniqueName), v)
+				url := s.LinkFor(v)
+				if url == "" {
+					if v.Father != nil {
+						url = s.LinkFor(v.Father)
+						if url != "" {
+							link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Father.PreferredFullName), v.Father).String())))
+						}
+					}
+					if url == "" && v.Mother != nil {
+						url = s.LinkFor(v.Mother)
+						if url != "" {
+							link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Mother.PreferredFullName), v.Mother).String())))
+						}
+					}
+				}
+				if url != "" {
+					if len(changes) == 0 {
+						continue // Nothing useful to say at the moment
+					} else if len(changes) == 1 {
+						writeHeading()
+						doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(changes[0], "for", link.String()))))
+					} else {
+						writeHeading()
+						doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Updates for", link.String(), " &mdash; "+text.JoinList(changes)))))
+					}
+				}
+			case *model.Place:
+				if len(chs) > 0 && chs[0].Created {
+					link := doc.EncodeModelLink(doc.EncodeText(v.NameWithDistrict), v)
+					if !link.IsZero() {
+						writeHeading()
+						doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Added a new place:", link.String()))))
+					}
+				}
+			case *model.GeneralCitation:
+				if len(chs) > 0 && chs[0].Created {
+					link := doc.EncodeModelLink(doc.EncodeText(v.String()), v)
+					if !link.IsZero() {
+						writeHeading()
+						doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Added a new citation:", link.String()))))
+					}
+				}
+			}
+		}
+	}
+
 	for _, c := range s.Changelog {
 		if count > 150 {
 			break
@@ -1605,104 +1699,8 @@ func (s *Site) WriteChangelog(root string) error {
 		date := c.Time.Format("_2 January 2006")
 		if date != sectiondate {
 			if sectiondate != "" {
-				for obj, chs := range changesForObjects {
-					count++
-
-					uniq := make(map[any]*Change)
-					for _, ch := range chs {
-						uniq[ch.Object] = ch
-					}
-					switch v := obj.(type) {
-					case *model.Person:
-						seen := make(map[string]bool)
-						changes := make([]string, 0, len(chs))
-						for _, ch := range uniq {
-							action := ""
-							text := ""
-							if ch.Created {
-								action = "added"
-							} else {
-								action = "updated"
-							}
-
-							type typer interface {
-								Type() string
-							}
-							switch v := ch.Object.(type) {
-							case typer:
-								text = action + " " + v.Type()
-							}
-
-							if text != "" && !seen[text] {
-								changes = append(changes, text)
-								seen[text] = true
-							}
-						}
-
-						sort.Strings(changes)
-
-						link := doc.EncodeModelLink(doc.EncodeText(v.PreferredUniqueName), v)
-						url := s.LinkFor(v)
-						if url == "" {
-							if v.Father != nil {
-								url = s.LinkFor(v.Father)
-								if url != "" {
-									link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Father.PreferredFullName), v.Father).String())))
-								}
-							}
-							if url == "" && v.Mother != nil {
-								url = s.LinkFor(v.Mother)
-								if url != "" {
-									link = doc.EncodeText(text.AppendClause(link.String(), text.JoinSentenceParts(v.Gender.RelationToParentNoun(), "of", doc.EncodeModelLink(doc.EncodeText(v.Mother.PreferredFullName), v.Mother).String())))
-								}
-							}
-						}
-						if url != "" {
-							changetext := ""
-							if len(changes) == 0 {
-								// doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Various updates for", link.String()))))
-								continue // Nothing useful to say at the moment
-							} else if len(changes) == 1 {
-								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(changes[0], "for", link.String()))))
-							} else {
-								changetext = " &mdash; " + text.JoinList(changes)
-								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts("Updates for", link.String(), changetext))))
-							}
-
-						}
-					case *model.Place:
-						if len(chs) > 0 {
-							action := ""
-							if chs[0].Created {
-								action = "Added a new place:"
-							} else {
-								// action = "Various updates to the place"
-								continue // Nothing useful to say at the moment
-							}
-							link := doc.EncodeModelLink(doc.EncodeText(v.NameWithDistrict), v)
-							if !link.IsZero() {
-								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(action, link.String()))))
-							}
-						}
-					case *model.GeneralCitation:
-						if len(chs) > 0 {
-							action := ""
-							if chs[0].Created {
-								action = "Added a new citation:"
-							} else {
-								// action = "Updated citation"
-								continue // Nothing useful to say at the moment
-							}
-							link := doc.EncodeModelLink(doc.EncodeText(v.String()), v)
-							if !link.IsZero() {
-								doc.Para(doc.EncodeText(text.FormatSentence(text.JoinSentenceParts(action, link.String()))))
-							}
-						}
-
-					}
-				}
+				flushSection(sectiondate)
 			}
-			doc.Heading3(doc.EncodeText(date), "")
 			sectiondate = date
 			changesForObjects = make(map[any][]*Change)
 		}
@@ -1729,6 +1727,9 @@ func (s *Site) WriteChangelog(root string) error {
 			changesForObjects[v.GetHusband()] = append(changesForObjects[v.GetHusband()], c)
 			changesForObjects[v.GetWife()] = append(changesForObjects[v.GetWife()], c)
 		}
+	}
+	if sectiondate != "" {
+		flushSection(sectiondate)
 	}
 
 	baseDir := filepath.Join(root, s.ListChangesDir)
