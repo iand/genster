@@ -25,14 +25,18 @@ type childPage struct {
 //     to the list of its immediate child pages.
 //   - sectionTitles: a map from content-relative, slash-separated section
 //     directory to the title of its index page, used to look up tree titles.
+//   - draftDirs: content-relative slash-separated directory paths whose index
+//     file has draft:true (only populated when includeDrafts is false). Used
+//     by Build to skip the entire directory, including images.
 //
 // Section index files (_index.md / index.md) are registered as children of
 // their parent section; leaf .md files are registered as children of their
 // own directory.  The root _index.md is skipped (it has no parent section).
-func collectChildren(contentDir string, includeDrafts bool) (children map[string][]childPage, sectionTitles map[string]string, tagIndex map[string][]pageRef, err error) {
+func collectChildren(contentDir string, includeDrafts bool) (children map[string][]childPage, sectionTitles map[string]string, tagIndex map[string][]pageRef, draftDirs map[string]bool, err error) {
 	children = make(map[string][]childPage)
 	sectionTitles = make(map[string]string)
 	tagIndex = make(map[string][]pageRef)
+	draftDirs = make(map[string]bool)
 
 	walkErr := filepath.WalkDir(contentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -66,6 +70,11 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 		}
 
 		if bool(fm.Draft) && !includeDrafts {
+			// If this is a directory index, mark the whole directory as a draft
+			// so that Build can skip it entirely (including images etc.).
+			if stem == "_index" || stem == "index" {
+				draftDirs[dir] = true
+			}
 			return nil
 		}
 
@@ -144,7 +153,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 		return nil
 	})
 	if walkErr != nil {
-		return nil, nil, nil, walkErr
+		return nil, nil, nil, nil, walkErr
 	}
 
 	// Sort each child list: date descending, then title ascending.
@@ -157,7 +166,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 		})
 	}
 
-	return children, sectionTitles, tagIndex, nil
+	return children, sectionTitles, tagIndex, draftDirs, nil
 }
 
 // countWords returns a rough word count for a body string by stripping HTML

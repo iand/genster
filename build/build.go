@@ -59,8 +59,9 @@ type TreeData struct {
 // directly alongside {{.Body}} and {{.Tree}}.
 type PageData struct {
 	FrontMatter
-	Body template.HTML
-	Tree TreeData
+	Body    template.HTML
+	Tree    TreeData
+	Section string // human-readable section name inferred from path (e.g. "Stories", "Research Diary")
 }
 
 // Builder walks a content directory and renders each file into a pub directory.
@@ -101,7 +102,7 @@ func (b *Builder) Build() error {
 
 	b.templates = buildSiteTemplates(filepath.Join(b.ContentDir, "images"))
 
-	children, sectionTitles, tagIndex, err := collectChildren(b.ContentDir, b.IncludeDrafts)
+	children, sectionTitles, tagIndex, draftDirs, err := collectChildren(b.ContentDir, b.IncludeDrafts)
 	if err != nil {
 		return fmt.Errorf("collect children: %w", err)
 	}
@@ -117,6 +118,15 @@ func (b *Builder) Build() error {
 			return nil
 		}
 		if d.IsDir() {
+			if len(draftDirs) > 0 {
+				rel, err := filepath.Rel(b.ContentDir, path)
+				if err != nil {
+					return err
+				}
+				if draftDirs[filepath.ToSlash(rel)] {
+					return filepath.SkipDir
+				}
+			}
 			return nil
 		}
 
@@ -242,7 +252,21 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		tree.Title = sectionTitles[strings.Trim(fm.BasePath, "/")]
 	}
 
-	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree}); err != nil {
+	var section string
+	switch {
+	case strings.HasPrefix(filepath.ToSlash(rel), "stories/"):
+		section = "Stories"
+	case strings.HasPrefix(filepath.ToSlash(rel), "diary/"):
+		// Exclude diary year index pages (diary/YYYY/_index.md, diary/YYYY/index.md).
+		// Those are listing pages, not individual entries.
+		dir := filepath.ToSlash(filepath.Dir(rel))
+		parts := strings.Split(dir, "/")
+		if !((stem == "_index" || stem == "index") && len(parts) == 2) {
+			section = "Research Diary"
+		}
+	}
+
+	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree, Section: section}); err != nil {
 		return fmt.Errorf("render %s: %w", srcPath, err)
 	}
 

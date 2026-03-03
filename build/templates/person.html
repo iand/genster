@@ -6,9 +6,9 @@
 <body>
   <div class="page-grid">
     {{template "tree-header" .}}
-    <main class="content">
+    <main class="content" data-pagefind-body data-pagefind-weight="5" data-pagefind-meta="section:{{.Tree.Title}}">
       <header>
-        <h1>{{.Title}}</h1>
+        <h1 data-pagefind-meta="title">{{.Title}}</h1>
       </header>
       <section>
         <div class="person">

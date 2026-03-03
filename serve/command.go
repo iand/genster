@@ -25,7 +25,7 @@ var Command = &cli.Command{
 			Name:        "addr",
 			Aliases:     []string{"a"},
 			Usage:       "Address to listen on",
-			Value:       "localhost:7777",
+			Value:       "localhost:1313",
 			Destination: &serveOpts.addr,
 		},
 	}, logging.Flags...),

@@ -543,6 +543,47 @@ func TestBuildDraftPageNotInSectionListing(t *testing.T) {
 	}
 }
 
+func TestBuildDraftDirectorySkippedEntirely(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	// Draft story directory: has index.md (draft), an image, and a subdirectory.
+	writeFile(t, filepath.Join(contentDir, "stories", "wip", "index.md"),
+		"---\ntitle: Draft Story\nlayout: single\ndraft: true\n---\n\n<p>not ready</p>\n")
+	writeFile(t, filepath.Join(contentDir, "stories", "wip", "photo.jpg"), "imgdata")
+	writeFile(t, filepath.Join(contentDir, "stories", "wip", "sub", "index.md"),
+		"---\ntitle: Sub Page\nlayout: single\n---\n\n<p>sub</p>\n")
+
+	// Published story directory for contrast.
+	writeFile(t, filepath.Join(contentDir, "stories", "ready", "index.md"),
+		"---\ntitle: Ready Story\nlayout: single\n---\n\n<p>ready</p>\n")
+	writeFile(t, filepath.Join(contentDir, "stories", "ready", "image.png"), "imgdata")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	// The draft directory's HTML, image, and subdirectory must all be absent.
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "wip", "index.html")); err == nil {
+		t.Error("draft story index.html should not be published")
+	}
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "wip", "photo.jpg")); err == nil {
+		t.Error("draft story image should not be copied")
+	}
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "wip", "sub", "index.html")); err == nil {
+		t.Error("draft story subdirectory should not be published")
+	}
+
+	// The published story's files must be present.
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "ready", "index.html")); err != nil {
+		t.Errorf("published story index.html missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(pubDir, "stories", "ready", "image.png")); err != nil {
+		t.Errorf("published story image missing: %v", err)
+	}
+}
+
 func TestStemToTitle(t *testing.T) {
 	for _, tt := range []struct {
 		stem string
@@ -582,7 +623,7 @@ func TestCollectChildren(t *testing.T) {
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
 		"<p>entry</p>\n")
 
-	children, sectionTitles, _, err := collectChildren(contentDir, false)
+	children, sectionTitles, _, _, err := collectChildren(contentDir, false)
 	if err != nil {
 		t.Fatalf("collectChildren: %v", err)
 	}
@@ -1082,8 +1123,8 @@ func TestBuildDiaryDateTitle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read 2021-05-17/index.html: %v", err)
 	}
-	if !strings.Contains(string(out), "<h1>17 May 2021</h1>") {
-		t.Errorf("2021-05-17 page: expected <h1>17 May 2021</h1>; got:\n%s", out)
+	if !strings.Contains(string(out), ">17 May 2021</h1>") {
+		t.Errorf("2021-05-17 page: expected >17 May 2021</h1>; got:\n%s", out)
 	}
 
 	// Case 2: page should show formatted date, not raw string.
@@ -1094,8 +1135,8 @@ func TestBuildDiaryDateTitle(t *testing.T) {
 	if strings.Contains(string(out), "<h1>2021-02-25</h1>") {
 		t.Errorf("2021-02-25 page: raw date should not appear as title")
 	}
-	if !strings.Contains(string(out), "<h1>25 Feb 2021</h1>") {
-		t.Errorf("2021-02-25 page: expected <h1>25 Feb 2021</h1>; got:\n%s", out)
+	if !strings.Contains(string(out), ">25 Feb 2021</h1>") {
+		t.Errorf("2021-02-25 page: expected >25 Feb 2021</h1>; got:\n%s", out)
 	}
 
 	// Both should appear with formatted titles in the tag index for "alcock".

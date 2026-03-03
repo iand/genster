@@ -24,9 +24,9 @@ func (b *Builder) writeTags(tagIndex map[string][]pageRef) error {
 		return nil
 	}
 
-	tagTmpl := b.templates.Lookup("single")
+	tagTmpl := b.templates.Lookup("tagpage")
 	if tagTmpl == nil {
-		return fmt.Errorf("single template not found")
+		return fmt.Errorf("tagpage template not found")
 	}
 	indexTmpl := b.templates.Lookup("tagsindex")
 	if indexTmpl == nil {

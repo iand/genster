@@ -7,15 +7,22 @@
   <div class="page-grid">
     {{template "site-header" .}}
     <main class="content">
-      <header>
-        <h1>{{.Title}}</h1>
-      </header>
-      <section>
-        {{.Body}}
-      </section>
+      <article>
+        <p>Enter words or phrases to search for:</p>
+        <link href="/pagefind/pagefind-ui.css" rel="stylesheet">
+        <script src="/pagefind/pagefind-ui.js"></script>
+        <div id="search"></div>
+        <script>
+          window.addEventListener('DOMContentLoaded', (event) => {
+            new PagefindUI({ element: "#search", showSubResults: true });
+          });
+        </script>
+      </article>
     </main>
     <section class="sidebar">
       {{template "featureimage" .}}
+      <heading><h1>Site Search</h1></heading>
+      <p>This page allows you to search through all the pages on this site. Type words or phrases to find pages that match.</p>
     </section>
     {{template "footer" .}}
   </div>

@@ -1,14 +1,14 @@
-{{/* single - simple manually-authored content page (also used for generated tag pages) */}}
-{{define "single"}}
+{{/* tagpage - tag listing page; like single but excluded from pagefind indexing */}}
+{{define "tagpage"}}
 <!DOCTYPE html>
 <html lang="en-GB">
 {{template "head" .}}
 <body>
   <div class="page-grid">
     {{template "site-header" .}}
-    <main class="content" data-pagefind-body>
+    <main class="content">
       <header>
-        <h1 data-pagefind-meta="title">{{.Title}}</h1>
+        <h1>{{.Title}}</h1>
       </header>
       <section>
         {{.Body}}

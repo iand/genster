@@ -6,10 +6,10 @@
 <body>
   <div class="page-grid">
     {{template "site-header" .}}
-    <main class="content">
+    <main class="content"{{if .Section}} data-pagefind-body data-pagefind-weight="7" data-pagefind-meta="section:{{.Section}}"{{end}}>
       {{- if .Title}}
       <header>
-        <h1>{{.Title}}</h1>
+        <h1 data-pagefind-meta="title">{{.Title}}</h1>
       </header>
       {{- end}}
       {{- if or .Author .Started .Updated .Status}}
