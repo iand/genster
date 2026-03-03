@@ -1277,3 +1277,85 @@ func TestBuildSitemapOmittedWithoutBaseURL(t *testing.T) {
 		t.Errorf("sitemap.xml should not be created when BaseURL is empty")
 	}
 }
+
+func TestBuildFeatureImagePersonGeneric(t *testing.T) {
+	// A person page with no image: front matter but a matching silhouette in
+	// images/ should render the silhouette with the representative-image caption.
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	touch(t, filepath.Join(contentDir, "images", "person-male-1800s.webp"))
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"),
+		"---\nlayout: person\ncategory: person\ngender: male\nera: 1800s\n---\n\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "person", "I1", "index.html"))
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	html := string(out)
+
+	if !strings.Contains(html, "/images/person-male-1800s.webp") {
+		t.Errorf("expected person-male-1800s.webp in output; got:\n%s", html)
+	}
+	if !strings.Contains(html, "representative image") {
+		t.Errorf("expected representative-image caption in output; got:\n%s", html)
+	}
+}
+
+func TestBuildFeatureImagePersonRealPhoto(t *testing.T) {
+	// A person page with image: set (real photo from gen) should render that
+	// photo with no representative-image caption.
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"),
+		"---\nlayout: person\ncategory: person\ngender: male\nera: 1800s\nimage: /trees/abc/person/I1/photo.jpg\n---\n\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "person", "I1", "index.html"))
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	html := string(out)
+
+	if !strings.Contains(html, "/trees/abc/person/I1/photo.jpg") {
+		t.Errorf("expected real photo URL in output; got:\n%s", html)
+	}
+	if strings.Contains(html, "representative image") {
+		t.Errorf("expected no representative-image caption for real photo; got:\n%s", html)
+	}
+}
+
+func TestBuildFeatureImageNoMatch(t *testing.T) {
+	// A person page with no image and no matching silhouette files renders no
+	// <img> tag at all (no broken image).
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "person", "I1", "index.md"),
+		"---\nlayout: person\ncategory: person\ngender: male\nera: 1800s\n---\n\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "person", "I1", "index.html"))
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	html := string(out)
+
+	if strings.Contains(html, `class="feature"`) {
+		t.Errorf("expected no feature image when no files match; got:\n%s", html)
+	}
+}

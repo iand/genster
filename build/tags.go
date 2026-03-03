@@ -24,11 +24,11 @@ func (b *Builder) writeTags(tagIndex map[string][]pageRef) error {
 		return nil
 	}
 
-	tagTmpl := siteTemplates.Lookup("single")
+	tagTmpl := b.templates.Lookup("single")
 	if tagTmpl == nil {
 		return fmt.Errorf("single template not found")
 	}
-	indexTmpl := siteTemplates.Lookup("tagsindex")
+	indexTmpl := b.templates.Lookup("tagsindex")
 	if indexTmpl == nil {
 		return fmt.Errorf("tagsindex template not found")
 	}

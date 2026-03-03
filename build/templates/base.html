@@ -70,9 +70,17 @@
 <script src="/js/dimbox.min.js"></script>
 {{end}}
 
-{{/* featureimage - placeholder until gen-e7ye implements full image selection logic */}}
+{{/* featureimage - renders the best available image for the page, or nothing if none found */}}
 {{define "featureimage"}}
-{{- if .Image}}<div class="feature"><img src="{{.Image}}" class="feature" alt=""></div>{{end}}
+{{- $src := featureImageSrc .FrontMatter -}}
+{{- if $src -}}
+<div class="feature">
+  <img src="{{$src}}" class="feature" alt="">
+  {{- if and (not .Image) (eq .Category "person") -}}
+  <p class="feature-caption">This is a representative image for people of this era, not a picture of the person.</p>
+  {{- end -}}
+</div>
+{{- end -}}
 {{- end}}
 
 {{/* tags - sidebar tag list */}}

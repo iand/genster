@@ -80,6 +80,10 @@ type Builder struct {
 
 	// sitemapEntries accumulates pages for sitemap.xml during the build.
 	sitemapEntries []sitemapEntry
+
+	// templates is the per-build template set, created at the start of Build()
+	// with image-selection functions that close over ContentDir.
+	templates *template.Template
 }
 
 // Build walks ContentDir and processes every file into PubDir. Markdown files
@@ -94,6 +98,8 @@ func (b *Builder) Build() error {
 	if err := writeAssets(b.PubDir, b.AssetsDir); err != nil {
 		return fmt.Errorf("write assets: %w", err)
 	}
+
+	b.templates = buildSiteTemplates(filepath.Join(b.ContentDir, "images"))
 
 	children, sectionTitles, tagIndex, err := collectChildren(b.ContentDir, b.IncludeDrafts)
 	if err != nil {
@@ -220,7 +226,7 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 	}
 	rendered := htmlCommentRE.ReplaceAll(buf.Bytes(), nil)
 
-	tmpl, err := selectTemplate(fm.Layout, srcPath)
+	tmpl, err := selectTemplate(b.templates, fm.Layout, srcPath)
 	if err != nil {
 		return err
 	}

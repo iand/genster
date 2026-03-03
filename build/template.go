@@ -22,25 +22,31 @@ func urlize(s string) string {
 	return s
 }
 
-// templateFuncs provides helper functions available to all page templates.
-var templateFuncs = template.FuncMap{
-	"urlize": urlize,
-	// ukdate formats a YYYY-MM-DD date string as "2 January 2006".
-	// Returns the original string unchanged if it cannot be parsed.
-	"ukdate": func(s string) string {
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			return s
-		}
-		return t.Format("2 January 2006")
-	},
+// buildSiteTemplates creates a fresh template set for one Build() run.
+// imageDir is the filesystem path to the images/ subdirectory of the content
+// root. The featureImageSrc template function closes over this path and calls
+// SelectFeatureImage to resolve the best available image for each page.
+func buildSiteTemplates(imageDir string) *template.Template {
+	funcs := template.FuncMap{
+		"urlize": urlize,
+		// ukdate formats a YYYY-MM-DD date string as "2 January 2006".
+		// Returns the original string unchanged if it cannot be parsed.
+		"ukdate": func(s string) string {
+			t, err := time.Parse("2006-01-02", s)
+			if err != nil {
+				return s
+			}
+			return t.Format("2 January 2006")
+		},
+		// featureImageSrc resolves the best available feature image URL for a
+		// page based on its front-matter. It returns an empty string when no
+		// suitable image is found so the template can suppress the <img> tag.
+		"featureImageSrc": func(fm FrontMatter) string {
+			return SelectFeatureImage(fm, imageDir)
+		},
+	}
+	return template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html"))
 }
-
-// siteTemplates is the parsed template set containing all named layout
-// templates and the shared partials they reference (head, footer, etc.).
-var siteTemplates = template.Must(
-	template.New("").Funcs(templateFuncs).ParseFS(templateFS, "templates/*.html"),
-)
 
 // knownLayouts is the set of layout values that genster and manual content
 // files may use. An unrecognised layout causes an error at build time so
@@ -80,7 +86,7 @@ var knownLayouts = map[string]bool{
 // selectTemplate returns the named template to render the given layout. An
 // unrecognised layout returns an error that identifies both the source file
 // and the bad layout value.
-func selectTemplate(layout, srcPath string) (*template.Template, error) {
+func selectTemplate(tmpls *template.Template, layout, srcPath string) (*template.Template, error) {
 	if !knownLayouts[layout] {
 		return nil, fmt.Errorf("unknown layout %q in %s", layout, srcPath)
 	}
@@ -91,7 +97,7 @@ func selectTemplate(layout, srcPath string) (*template.Template, error) {
 		name = "plain"
 	}
 
-	tmpl := siteTemplates.Lookup(name)
+	tmpl := tmpls.Lookup(name)
 	if tmpl == nil {
 		// All knownLayouts should have matching templates; this indicates a
 		// programming error (template file missing or define block misspelled).
