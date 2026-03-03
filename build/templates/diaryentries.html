@@ -1,0 +1,30 @@
+{{/* diaryentries - diary year listing page showing individual diary entries */}}
+{{define "diaryentries"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "site-header" .}}
+    <main class="content">
+      <header>
+        <h1>{{.Title}}</h1>
+      </header>
+      {{- if .Summary}}
+      <p class="preface">{{.Summary}}</p>
+      {{- end}}
+      <section>
+        {{.Body}}
+        {{template "diary-listing" .Children}}
+      </section>
+    </main>
+    <section class="sidebar">
+      <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>
+      {{template "diary-years" .DiaryYears}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

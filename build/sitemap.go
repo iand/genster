@@ -14,52 +14,20 @@ type sitemapEntry struct {
 	LastMod string // YYYY-MM-DD; empty when unknown
 }
 
-// sitemapRules is the inclusion allow-list for sitemap.xml.  Every URL is
-// excluded by default; a URL is included only when it matches at least one
-// rule here.
-//
-// Precedence (highest to lowest):
-//
-//  1. Front-matter sitemap.disable — if set on a page, that page is excluded
-//     regardless of sitemapRules.
-//  2. sitemapRules — the first matching rule wins.  If no rule matches, the
-//     URL is excluded.
-//
-// Rule syntax (gitignore-inspired; all rules are root-anchored):
-//
-//	/exact/path/    Exact match.  Only that specific URL is included.
-//
-//	/prefix/**      Prefix match.  The prefix URL itself and every URL beneath
-//	                it are included.  "**" at the end matches zero or more
-//	                additional path segments, so /diary/** includes /diary/,
-//	                /diary/2021/, and /diary/2021/2021-05-17/.
-//
-//	/path/*/rest/   Single-segment wildcard.  "*" matches exactly one non-empty
-//	                path segment and does not cross a slash.  For example,
-//	                /trees/*/ includes /trees/at/ and /trees/cg/ but not
-//	                /trees/ itself or /trees/at/person/.
-var sitemapRules = []string{
-	"/",          // homepage only
-	"/diary/**",  // diary section index and all diary entries
-	"/stories/**", // stories section index and all stories
-	"/trees/",    // trees section index
-	"/trees/*/",  // tree homepages (one level deep; grandchildren excluded)
-}
-
 // sitemapIncluded reports whether the site-root-relative url should appear in
 // sitemap.xml according to sitemapRules.  It does not consult front-matter;
 // callers must apply the sitemap.disable override separately.
 func sitemapIncluded(url string) bool {
 	for _, rule := range sitemapRules {
-		if matchSitemapRule(rule, url) {
+		if matchURLPattern(rule, url) {
 			return true
 		}
 	}
 	return false
 }
 
-// matchSitemapRule reports whether url matches the single pattern rule.
-func matchSitemapRule(pattern, url string) bool {
+// matchURLPattern reports whether url matches the single pattern rule.
+func matchURLPattern(pattern, url string) bool {
 	if !strings.Contains(pattern, "*") {
 		// No wildcard: exact match only.
 		return pattern == url

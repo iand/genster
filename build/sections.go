@@ -207,6 +207,94 @@ func dateFromStem(stem string) string {
 	return ""
 }
 
+// buildDiaryNav collects all diary leaf entries (children of diary/YYYY
+// directories), sorts them chronologically ascending, and returns a map from
+// each entry's canonical URL to its [prev, next] NavEntry pair.  Entries with
+// no date sort last.  A zero NavEntry means no adjacent entry exists.
+func buildDiaryNav(children map[string][]childPage) map[string][2]NavEntry {
+	var entries []childPage
+	for key, pages := range children {
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 && parts[0] == "diary" {
+			entries = append(entries, pages...)
+		}
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Sort ascending by date so prev=older, next=newer.
+	slices.SortFunc(entries, func(a, b childPage) int {
+		if a.Date == b.Date {
+			return strings.Compare(a.Title, b.Title)
+		}
+		if a.Date == "" {
+			return 1
+		}
+		if b.Date == "" {
+			return -1
+		}
+		return strings.Compare(a.Date, b.Date)
+	})
+
+	nav := make(map[string][2]NavEntry, len(entries))
+	for i, e := range entries {
+		var prev, next NavEntry
+		if i > 0 {
+			prev = NavEntry{URL: entries[i-1].URL, Title: entries[i-1].Title}
+		}
+		if i < len(entries)-1 {
+			next = NavEntry{URL: entries[i+1].URL, Title: entries[i+1].Title}
+		}
+		nav[e.URL] = [2]NavEntry{prev, next}
+	}
+	return nav
+}
+
+// recentDiaryEntries collects all diary leaf entries across all diary year
+// directories, sorts them by date descending (most recent first), and returns
+// at most n entries. Entries with no date sort last.
+func recentDiaryEntries(children map[string][]childPage, n int) []childPage {
+	var entries []childPage
+	for key, pages := range children {
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 && parts[0] == "diary" {
+			entries = append(entries, pages...)
+		}
+	}
+	slices.SortFunc(entries, func(a, b childPage) int {
+		if a.Date == b.Date {
+			return strings.Compare(b.Title, a.Title)
+		}
+		if a.Date == "" {
+			return 1
+		}
+		if b.Date == "" {
+			return -1
+		}
+		return strings.Compare(b.Date, a.Date) // descending
+	})
+	if n > 0 && len(entries) > n {
+		entries = entries[:n]
+	}
+	return entries
+}
+
+// collectDiaryYears returns the diary years present in children, sorted
+// descending (most recent first), for use in sidebar navigation.
+func collectDiaryYears(children map[string][]childPage) []string {
+	var years []string
+	for key := range children {
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 && parts[0] == "diary" {
+			years = append(years, parts[1])
+		}
+	}
+	slices.Sort(years)
+	slices.Reverse(years)
+	return years
+}
+
 // generateSectionListing returns an HTML unordered list of the given child
 // pages.  The caller is responsible for sorting before calling.
 // Returns empty HTML when pages is empty.
@@ -227,97 +315,4 @@ func generateSectionListing(pages []childPage) template.HTML {
 	return template.HTML(sb.String())
 }
 
-// generateDiaryListing returns an HTML list for a diary year index page.
-// Each entry shows a date link, an optional summary, a rough word count, and tags.
-func generateDiaryListing(pages []childPage) template.HTML {
-	if len(pages) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString(`<ul class="list">`)
-	for _, p := range pages {
-		sb.WriteString("\n  <li>")
-		sb.WriteString(`<a href="`)
-		sb.WriteString(p.URL)
-		sb.WriteString(`">`)
-		sb.WriteString(template.HTMLEscapeString(p.Title))
-		sb.WriteString("</a>")
-		if p.Summary != "" {
-			sb.WriteString(`<p class="listing-summary">`)
-			sb.WriteString(template.HTMLEscapeString(p.Summary))
-			sb.WriteString("</p>")
-		}
-		hasMeta := p.WordCount > 0 || len(p.Tags) > 0
-		if hasMeta {
-			// Use a dotted rule to separate meta from the title unless a summary
-			// paragraph already provides visual spacing.
-			if p.Summary == "" {
-				sb.WriteString(`<hr class="hr-list">`)
-			}
-			sb.WriteString(`<span class="diary-meta">`)
-			if p.WordCount > 0 {
-				fmt.Fprintf(&sb, "~%d words", p.WordCount)
-			}
-			for i, tag := range p.Tags {
-				if i > 0 || p.WordCount > 0 {
-					sb.WriteString(" · ")
-				}
-				sb.WriteString(`<a href="/tags/`)
-				sb.WriteString(urlize(tag))
-				sb.WriteString(`/">`)
-				sb.WriteString(template.HTMLEscapeString(tag))
-				sb.WriteString("</a>")
-			}
-			sb.WriteString("</span>")
-		}
-		sb.WriteString("</li>")
-	}
-	sb.WriteString("\n</ul>\n")
-	return template.HTML(sb.String())
-}
 
-// generateStoriesListing returns an HTML list for the stories section index page.
-// Each entry shows:
-//   - the story title as a link
-//   - if a summary is set: the summary followed by the word count in parentheses
-//   - if tags are set: "tagged as:" followed by tag links
-func generateStoriesListing(pages []childPage) template.HTML {
-	if len(pages) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString(`<ul class="list list-stories">`)
-	for _, p := range pages {
-		sb.WriteString("\n  <li>")
-		sb.WriteString(`<a href="`)
-		sb.WriteString(p.URL)
-		sb.WriteString(`">`)
-		sb.WriteString(template.HTMLEscapeString(p.Title))
-		sb.WriteString("</a>")
-		if p.Summary != "" {
-			sb.WriteString(`<p class="listing-summary">`)
-			sb.WriteString(template.HTMLEscapeString(p.Summary))
-			if p.WordCount > 0 {
-				fmt.Fprintf(&sb, " (~%d words)", p.WordCount)
-			}
-			sb.WriteString("</p>")
-		}
-		if len(p.Tags) > 0 {
-			sb.WriteString(`<p class="listing-tags">tagged as: `)
-			for i, tag := range p.Tags {
-				if i > 0 {
-					sb.WriteString(" · ")
-				}
-				sb.WriteString(`<a href="/tags/`)
-				sb.WriteString(urlize(tag))
-				sb.WriteString(`/">`)
-				sb.WriteString(template.HTMLEscapeString(tag))
-				sb.WriteString("</a>")
-			}
-			sb.WriteString("</p>")
-		}
-		sb.WriteString("</li>")
-	}
-	sb.WriteString("\n</ul>\n")
-	return template.HTML(sb.String())
-}

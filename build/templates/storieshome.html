@@ -1,22 +1,21 @@
-{{/* plain - used for content files with no layout specified */}}
-{{define "plain"}}
+{{/* storieshome - stories section index listing individual stories */}}
+{{define "storieshome"}}
 <!DOCTYPE html>
 <html lang="en-GB">
 {{template "head" .}}
 <body>
   <div class="page-grid">
     {{template "site-header" .}}
-    <main class="content" data-pagefind-body>
+    <main class="content">
       <header>
-        <h1 data-pagefind-meta="title">{{.Title}}</h1>
+        <h1>{{.Title}}</h1>
       </header>
       <section>
-        {{.Body}}
+        {{template "stories-listing" .Children}}
       </section>
     </main>
     <section class="sidebar">
-      {{template "featureimage" .}}
-      {{template "tags" .}}
+      <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>
     </section>
     {{template "footer" .}}
   </div>

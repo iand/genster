@@ -529,6 +529,13 @@ nav.tree li a:hover {
     margin-bottom: 0.75rem;
 }
 
+.list-diary li {
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
 .listing-summary {
     margin: 0.1rem 0 0 0;
     font-size: 0.9375rem;

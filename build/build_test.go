@@ -1,6 +1,7 @@
 package build
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -205,7 +206,7 @@ links:
 		"Test Tree",
 		`href="/trees/test/list/people/"`,
 		`href="/trees/test/person/I2/"`, // descendant link
-		"b. 1850",                        // descendant detail
+		"b. 1850",                       // descendant detail
 		"Diary 1850",
 		"/diary/1850/",
 		"Ancestry",
@@ -314,6 +315,38 @@ func TestBuildPlainLayout(t *testing.T) {
 	}
 	if !strings.Contains(html, "Some plain content.") {
 		t.Errorf("output missing body content")
+	}
+}
+
+func TestBuildDebugFooter(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "about", "index.md"),
+		"---\ntitle: About\nlayout: single\n---\n\n<p>content</p>\n")
+
+	// Without --debug: no debug footer.
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	out, _ := os.ReadFile(filepath.Join(pubDir, "about", "index.html"))
+	if strings.Contains(string(out), "debug-footer") {
+		t.Errorf("debug footer present without --debug flag")
+	}
+
+	// With --debug: debug footer appears and shows the layout.
+	b.Debug = true
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build (debug): %v", err)
+	}
+	out, _ = os.ReadFile(filepath.Join(pubDir, "about", "index.html"))
+	html := string(out)
+	if !strings.Contains(html, "debug-footer") {
+		t.Errorf("debug footer missing with --debug flag")
+	}
+	if !strings.Contains(html, "single") {
+		t.Errorf("debug footer missing layout name")
 	}
 }
 
@@ -518,7 +551,7 @@ func TestBuildDraftPageNotInSectionListing(t *testing.T) {
 	pubDir := t.TempDir()
 
 	writeFile(t, filepath.Join(contentDir, "stories", "_index.md"),
-		"---\nlayout: list\n---\n")
+		"---\nlayout: storieshome\n---\n")
 	writeFile(t, filepath.Join(contentDir, "stories", "ready", "index.md"),
 		"---\ntitle: Ready Story\nlayout: single\n---\n\n<p>content</p>\n")
 	writeFile(t, filepath.Join(contentDir, "stories", "wip", "index.md"),
@@ -615,9 +648,9 @@ func TestCollectChildren(t *testing.T) {
 
 	// diary section: year sub-section with dated leaf entries
 	writeFile(t, filepath.Join(contentDir, "diary", "_index.md"),
-		"---\nlayout: home\n---\n")
+		"---\nlayout: diaryhome\n---\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
-		"---\ntitle: All diary entries made in 2024\n---\n")
+		"---\ntitle: All diary entries made in 2024\nlayout: diaryentries\n---\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-02-22.md"),
 		"<p>entry</p>\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
@@ -711,11 +744,41 @@ func TestBuildSectionIndexWithBodyUnchanged(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()
 
-	// diary/_index.md has hand-authored body; should not be replaced.
-	writeFile(t, filepath.Join(contentDir, "diary", "_index.md"),
+	// A section index with a hand-authored body should not have its body replaced.
+	// Use a path not covered by layoutRules so the layout: home is respected.
+	writeFile(t, filepath.Join(contentDir, "notes", "_index.md"),
 		"---\nlayout: home\n---\n\n<p>Hand-authored intro text.</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "notes", "index.html"))
+	if err != nil {
+		t.Fatalf("read diary/index.html: %v", err)
+	}
+	html := string(out)
+
+	if !strings.Contains(html, "Hand-authored intro text.") {
+		t.Errorf("diary/index.html missing hand-authored content")
+	}
+}
+
+func TestBuildDiaryHomeListing(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "diary", "_index.md"),
+		"---\ntitle: Research Diary\nlayout: diaryhome\nsummary: Notes from my research.\n---\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
-		"---\ntitle: 2024 entries\n---\n")
+		"---\ntitle: 2024\nlayout: diaryentries\n---\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-03-15.md"),
+		"---\ntitle: March entry\n---\n<p>content</p>\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2025", "_index.md"),
+		"---\ntitle: 2025\nlayout: diaryentries\n---\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2025", "2025-01-10.md"),
+		"---\ntitle: January entry\n---\n<p>content</p>\n")
 
 	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
 	if err := b.Build(); err != nil {
@@ -728,8 +791,65 @@ func TestBuildSectionIndexWithBodyUnchanged(t *testing.T) {
 	}
 	html := string(out)
 
-	if !strings.Contains(html, "Hand-authored intro text.") {
-		t.Errorf("diary/index.html missing hand-authored content")
+	// Summary must appear.
+	if !strings.Contains(html, "Notes from my research.") {
+		t.Errorf("diary/index.html missing summary")
+	}
+	// Both diary entries must appear as links.
+	if !strings.Contains(html, "March entry") {
+		t.Errorf("diary/index.html missing March entry")
+	}
+	if !strings.Contains(html, "January entry") {
+		t.Errorf("diary/index.html missing January entry")
+	}
+	// Most recent entry (2025) must appear before older entry (2024).
+	janPos := strings.Index(html, "January entry")
+	marPos := strings.Index(html, "March entry")
+	if janPos == -1 || marPos == -1 {
+		t.Fatalf("could not find both entries")
+	}
+	if janPos > marPos {
+		t.Errorf("expected 2025 entry to appear before 2024 entry")
+	}
+}
+
+func TestBuildDiaryHomeListingLimit(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "diary", "_index.md"),
+		"---\ntitle: Research Diary\nlayout: diaryhome\n---\n")
+	// 2023: one old entry — should be excluded when 2024 fills the 20-slot limit.
+	writeFile(t, filepath.Join(contentDir, "diary", "2023", "_index.md"),
+		"---\ntitle: 2023\nlayout: diaryentries\n---\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2023", "2023-12-01.md"),
+		"<p>old entry</p>\n")
+	// 2024: exactly 20 entries (days 1–20 of January).
+	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
+		"---\ntitle: 2024\nlayout: diaryentries\n---\n")
+	for d := 1; d <= 20; d++ {
+		name := fmt.Sprintf("2024-01-%02d.md", d)
+		writeFile(t, filepath.Join(contentDir, "diary", "2024", name), "<p>entry</p>\n")
+	}
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "diary", "index.html"))
+	if err != nil {
+		t.Fatalf("read diary/index.html: %v", err)
+	}
+	html := string(out)
+
+	// The 2023 entry must be excluded (limit of 20 filled by 2024 entries).
+	if strings.Contains(html, "1 Dec 2023") {
+		t.Errorf("diary/index.html should not contain the excluded 2023 entry")
+	}
+	// The most recent 2024 entry must appear.
+	if !strings.Contains(html, "20 Jan 2024") {
+		t.Errorf("diary/index.html missing most recent entry (20 Jan 2024)")
 	}
 }
 
@@ -738,7 +858,7 @@ func TestBuildDiaryYearSectionDateSorted(t *testing.T) {
 	pubDir := t.TempDir()
 
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
-		"---\ntitle: 2024 Diary\n---\n")
+		"---\ntitle: 2024 Diary\nlayout: diaryentries\n---\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
 		"<p>January entry.</p>\n")
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-03-15.md"),
@@ -770,10 +890,10 @@ func TestBuildDiaryYearListingMeta(t *testing.T) {
 	pubDir := t.TempDir()
 
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
-		"---\ntitle: 2024 Diary\n---\n")
-	// Entry with tags and enough words to get a non-zero word count.
+		"---\ntitle: 2024 Diary\nlayout: diaryentries\n---\n")
+	// Entry with tags.
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-03-15.md"),
-		"---\ntags: [alcock, dunmore]\n---\n\nThis is a diary entry with several words in it.\n")
+		"---\ntags: [alcock, dunmore]\n---\n\nThis is a diary entry.\n")
 	// Entry with no tags, minimal content.
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
 		"<p>January entry.</p>\n")
@@ -797,11 +917,6 @@ func TestBuildDiaryYearListingMeta(t *testing.T) {
 		t.Errorf("diary/2024 listing: missing dunmore tag link")
 	}
 
-	// March entry should show a word count.
-	if !strings.Contains(html, "words") {
-		t.Errorf("diary/2024 listing: missing word count")
-	}
-
 	// Entries must remain in date-descending order (March before January).
 	marchPos := strings.Index(html, "15 Mar 2024")
 	janPos := strings.Index(html, "10 Jan 2024")
@@ -818,7 +933,7 @@ func TestBuildStoriesListing(t *testing.T) {
 	pubDir := t.TempDir()
 
 	writeFile(t, filepath.Join(contentDir, "stories", "_index.md"),
-		"---\nlayout: list\n---\n")
+		"---\nlayout: storieshome\n---\n")
 	// Story with summary, tags, and content.
 	writeFile(t, filepath.Join(contentDir, "stories", "suffolk.md"),
 		"---\ntitle: Suffolk Hinksmans\nsummary: The story of the Hinksman family in Suffolk.\ntags: [hinksman, suffolk]\n---\n\nLots of words about the Hinksman family in Suffolk.\n")
@@ -884,11 +999,11 @@ func TestBuildDiarySummary(t *testing.T) {
 	pubDir := t.TempDir()
 
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "_index.md"),
-		"---\ntitle: 2024 Diary\n---\n")
+		"---\ntitle: 2024 Diary\nlayout: diaryentries\n---\n")
 	// Entry with a summary.
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-03-15.md"),
 		"---\nsummary: A brief note about March.\n---\n\nSome diary content.\n")
-	// Entry without a summary — hr separator should still appear when there is meta.
+	// Entry without a summary but with tags.
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
 		"---\ntags: [alcock]\n---\n\nJanuary content.\n")
 
@@ -907,9 +1022,12 @@ func TestBuildDiarySummary(t *testing.T) {
 	if !strings.Contains(html, "A brief note about March.") {
 		t.Errorf("diary listing: missing summary")
 	}
-	// The hr separator must appear for the January entry (no summary, but has tags).
-	if !strings.Contains(html, `hr class="hr-list"`) {
-		t.Errorf("diary listing: expected hr separator for entry with no summary")
+	// Tags must appear with "tagged as:" prefix for the January entry.
+	if !strings.Contains(html, "tagged as:") {
+		t.Errorf("diary listing: missing 'tagged as:' prefix for tagged entry")
+	}
+	if !strings.Contains(html, `href="/tags/alcock/"`) {
+		t.Errorf("diary listing: missing alcock tag link")
 	}
 }
 
@@ -1231,7 +1349,7 @@ func TestBuildSitemapGenerated(t *testing.T) {
 	}
 }
 
-func TestMatchSitemapRule(t *testing.T) {
+func TestMatchURLPattern(t *testing.T) {
 	for _, tt := range []struct {
 		pattern string
 		url     string
@@ -1244,10 +1362,10 @@ func TestMatchSitemapRule(t *testing.T) {
 		{"/trees/", "/trees/at/", false},
 
 		// Prefix match (**).
-		{"/diary/**", "/diary/", true},          // prefix itself included
+		{"/diary/**", "/diary/", true}, // prefix itself included
 		{"/diary/**", "/diary/2021/", true},
 		{"/diary/**", "/diary/2021/2021-05-17/", true},
-		{"/diary/**", "/diaryextra/", false},    // must not match partial segments
+		{"/diary/**", "/diaryextra/", false}, // must not match partial segments
 		{"/stories/**", "/stories/foo/bar/", true},
 
 		// Single-segment wildcard (*).
@@ -1255,8 +1373,10 @@ func TestMatchSitemapRule(t *testing.T) {
 		{"/trees/*/", "/trees/cg/", true},
 		{"/trees/*/", "/trees/", false},           // * must match a non-empty segment
 		{"/trees/*/", "/trees/at/person/", false}, // too many segments
+		{"/trees/*/*", "/trees/at/", false},
+		{"/trees/*/*", "/trees/at/foo", true},
 	} {
-		got := matchSitemapRule(tt.pattern, tt.url)
+		got := matchURLPattern(tt.pattern, tt.url)
 		if got != tt.want {
 			t.Errorf("matchSitemapRule(%q, %q) = %v, want %v", tt.pattern, tt.url, got, tt.want)
 		}
@@ -1398,5 +1518,71 @@ func TestBuildFeatureImageNoMatch(t *testing.T) {
 
 	if strings.Contains(html, `class="feature"`) {
 		t.Errorf("expected no feature image when no files match; got:\n%s", html)
+	}
+}
+
+func TestBuildDiaryNavigation(t *testing.T) {
+	// Three entries across two years.  Chronological order: A < B < C.
+	// A should have only a next link (to B).
+	// B should have both prev (A) and next (C).
+	// C should have only a prev link (to B).
+	// Year index pages should have no nav at all.
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	writeFile(t, filepath.Join(contentDir, "diary", "2020", "2020-06-01.md"),
+		"<p>Entry A.</p>\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2021", "_index.md"),
+		"---\ntitle: 2021\n---\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2021", "2021-02-10", "index.md"),
+		"<p>Entry B.</p>\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2021", "2021-05-17.md"),
+		"<p>Entry C.</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	readHTML := func(path string) string {
+		t.Helper()
+		out, err := os.ReadFile(filepath.Join(pubDir, path))
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		return string(out)
+	}
+
+	// Entry A: next only.
+	a := readHTML(filepath.Join("diary", "2020", "2020-06-01", "index.html"))
+	if strings.Contains(a, "previous entry") {
+		t.Errorf("entry A: should have no previous link; got:\n%s", a)
+	}
+	if !strings.Contains(a, `href="/diary/2021/2021-02-10/"`) {
+		t.Errorf("entry A: expected next link to /diary/2021/2021-02-10/; got:\n%s", a)
+	}
+
+	// Entry B: both prev and next.
+	b2 := readHTML(filepath.Join("diary", "2021", "2021-02-10", "index.html"))
+	if !strings.Contains(b2, `href="/diary/2020/2020-06-01/"`) {
+		t.Errorf("entry B: expected prev link to /diary/2020/2020-06-01/; got:\n%s", b2)
+	}
+	if !strings.Contains(b2, `href="/diary/2021/2021-05-17/"`) {
+		t.Errorf("entry B: expected next link to /diary/2021/2021-05-17/; got:\n%s", b2)
+	}
+
+	// Entry C: prev only.
+	c := readHTML(filepath.Join("diary", "2021", "2021-05-17", "index.html"))
+	if !strings.Contains(c, `href="/diary/2021/2021-02-10/"`) {
+		t.Errorf("entry C: expected prev link to /diary/2021/2021-02-10/; got:\n%s", c)
+	}
+	if strings.Contains(c, "next entry") {
+		t.Errorf("entry C: should have no next link; got:\n%s", c)
+	}
+
+	// Year index pages should not have nav links.
+	y := readHTML(filepath.Join("diary", "2021", "index.html"))
+	if strings.Contains(y, `class="pages"`) {
+		t.Errorf("diary/2021 year index: should have no nav; got:\n%s", y)
 	}
 }

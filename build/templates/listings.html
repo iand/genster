@@ -1,0 +1,29 @@
+{{define "diary-listing"}}
+<ul class="list list-diary">
+{{- range .}}
+  <li><a href="{{.URL}}">{{.Title}}</a>
+    {{- if .Summary}}
+    <p class="listing-summary">{{.Summary}}</p>
+    {{- end}}
+    {{- if .Tags}}
+    <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>
+    {{- end}}
+  </li>
+{{- end}}
+</ul>
+{{end}}
+
+{{define "stories-listing"}}
+<ul class="list list-stories">
+{{- range .}}
+  <li><a href="{{.URL}}">{{.Title}}</a>
+    {{- if .Summary}}
+    <p class="listing-summary">{{.Summary}}{{if .WordCount}} (about {{.WordCount}} words){{end}}</p>
+    {{- end}}
+    {{- if .Tags}}
+    <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>
+    {{- end}}
+  </li>
+{{- end}}
+</ul>
+{{end}}

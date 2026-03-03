@@ -1,5 +1,5 @@
-{{/* list - generic list layout for manual content pages not associated with a tree */}}
-{{define "list"}}
+{{/* diaryhome - top-level research diary index listing diary year sections */}}
+{{define "diaryhome"}}
 <!DOCTYPE html>
 <html lang="en-GB">
 {{template "head" .}}
@@ -10,12 +10,17 @@
       <header>
         <h1>{{.Title}}</h1>
       </header>
+      {{- if .Summary}}
+      <p class="preface">{{.Summary}}</p>
+      {{- end}}
       <section>
         {{.Body}}
+        {{template "diary-listing" .Children}}
       </section>
     </main>
     <section class="sidebar">
       <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>
+      {{template "diary-years" .DiaryYears}}
     </section>
     {{template "footer" .}}
   </div>

@@ -64,6 +64,13 @@
 {{define "footer"}}
 <footer class="footer">
   {{- if .LastMod}}<p>Last updated {{.LastMod}}</p>{{end}}
+  {{- if .Debug}}
+  <div class="debug-footer">
+    <dl>
+      <dt>Layout</dt><dd>{{- if .PageLayout -}}{{.PageLayout}}{{- else -}}none{{- end -}}</dd>
+    </dl>
+  </div>
+  {{- end}}
 </footer>
 {{- end}}
 
@@ -95,6 +102,20 @@
     {{end -}}
   </ul>
 </section>
+{{- end}}
+{{- end}}
+
+{{/* diary-years - sidebar year navigation for diary pages; receives []string of years */}}
+{{define "diary-years"}}
+{{- if .}}
+<nav class="diary-years">
+  <header>Diary Entries by Year</header>
+  <ul>
+    {{- range .}}
+    <li><a href="/diary/{{.}}/">{{.}}</a></li>
+    {{- end}}
+  </ul>
+</nav>
 {{- end}}
 {{- end}}
 

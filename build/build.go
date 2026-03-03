@@ -54,14 +54,27 @@ type TreeData struct {
 	BasePath string
 }
 
+// NavEntry is a link to an adjacent page used for previous/next navigation.
+// A zero-value NavEntry (empty URL) means no adjacent page exists.
+type NavEntry struct {
+	URL   string
+	Title string
+}
+
 // PageData is passed to each page template during rendering. Embedding
 // FrontMatter lets templates access fields like {{.Title}}, {{.Layout}}, etc.
 // directly alongside {{.Body}} and {{.Tree}}.
 type PageData struct {
 	FrontMatter
-	Body    template.HTML
-	Tree    TreeData
-	Section string // human-readable section name inferred from path (e.g. "Stories", "Research Diary")
+	Body       template.HTML
+	Tree       TreeData
+	Section    string      // human-readable section name inferred from path (e.g. "Stories", "Research Diary")
+	PrevEntry  NavEntry    // previous page in sequence (e.g. previous diary entry); zero if none
+	NextEntry  NavEntry    // next page in sequence (e.g. next diary entry); zero if none
+	Children   []childPage // non-nil when page uses diaryentries or storieshome layout
+	DiaryYears []string    // descending list of diary years for sidebar nav (diaryhome and diaryentries only)
+	Debug      bool        // true when the build was invoked with --debug
+	PageLayout string      // resolved layout name, available to debug footer
 }
 
 // Builder walks a content directory and renders each file into a pub directory.
@@ -71,6 +84,8 @@ type Builder struct {
 	// AssetsDir, if non-empty, is a directory of static assets (css/, js/)
 	// to copy into PubDir. When empty the assets embedded in the binary are used.
 	AssetsDir string
+	// Debug, when true, adds a debug footer to every rendered page.
+	Debug bool
 	// BaseURL, if non-empty, is the scheme+host used to build absolute <loc>
 	// URLs in sitemap.xml (e.g. "https://example.com"). When empty, no
 	// sitemap.xml is written.
@@ -81,6 +96,10 @@ type Builder struct {
 
 	// sitemapEntries accumulates pages for sitemap.xml during the build.
 	sitemapEntries []sitemapEntry
+
+	// diaryNav maps each diary entry URL to its [prev, next] NavEntry pair.
+	// Built during the first pass (collectChildren) and consulted in renderMarkdown.
+	diaryNav map[string][2]NavEntry
 
 	// templates is the per-build template set, created at the start of Build()
 	// with image-selection functions that close over ContentDir.
@@ -106,6 +125,7 @@ func (b *Builder) Build() error {
 	if err != nil {
 		return fmt.Errorf("collect children: %w", err)
 	}
+	b.diaryNav = buildDiaryNav(children)
 
 	if err := filepath.WalkDir(b.ContentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -197,33 +217,47 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		}
 	}
 
-	if (stem == "_index" || stem == "index") && strings.TrimSpace(body) == "" {
-		dir := filepath.ToSlash(filepath.Dir(rel))
-		var listing template.HTML
-		// Diary year index pages (diary/YYYY/) get a richer listing with word
-		// counts and tags; all other section index pages get the plain listing.
-		parts := strings.Split(dir, "/")
-		switch {
-		case len(parts) == 2 && parts[0] == "diary":
-			// Diary year index pages (diary/YYYY/) get a date-sorted listing with
-			// summary, word counts, and tags.
-			listing = generateDiaryListing(children[dir])
-		case dir == "stories":
-			// Stories section index gets a rich listing with summary, word count,
-			// and tags.
-			listing = generateStoriesListing(children[dir])
-		default:
-			listing = generateSectionListing(children[dir])
+	relSlash := filepath.ToSlash(rel)
+	relDir := filepath.ToSlash(filepath.Dir(rel))
+
+	// Compute the canonical URL early so it can drive layout resolution.
+	var pageURL string
+	if stem == "_index" || stem == "index" {
+		if relDir == "." {
+			pageURL = "/"
+		} else {
+			pageURL = "/" + relDir + "/"
 		}
-		if listing != "" {
-			body = string(listing)
+	} else {
+		pageURL = "/" + relDir + "/" + stem + "/"
+	}
+
+	layout := resolveLayout(pageURL, fm.Layout)
+	if layout == "" {
+		logging.Warn("layout not resolved", "url", pageURL)
+	}
+	var listingChildren []childPage
+	var diaryYears []string
+	if layout == "diaryhome" {
+		listingChildren = recentDiaryEntries(children, 20)
+		diaryYears = collectDiaryYears(children)
+	} else if (stem == "_index" || stem == "index") && strings.TrimSpace(body) == "" {
+		switch layout {
+		case "diaryentries":
+			listingChildren = children[relDir]
+			diaryYears = collectDiaryYears(children)
+		case "storieshome":
+			listingChildren = children[relDir]
+		default:
+			if listing := generateSectionListing(children[relDir]); listing != "" {
+				body = string(listing)
+			}
 		}
 	}
 
 	// Warn about Hugo figure shortcodes in hand-authored sections. Generated
 	// content (person pages, lists, etc.) never contains shortcodes, so the
 	// check is limited to /diary/ and /stories/ to avoid noise.
-	relSlash := filepath.ToSlash(rel)
 	if strings.HasPrefix(relSlash, "diary/") || strings.HasPrefix(relSlash, "stories/") {
 		if strings.Contains(body, "{{< figure") {
 			logging.Warn("Hugo figure shortcode found — replace with plain HTML <figure>", "file", srcPath)
@@ -236,7 +270,7 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 	}
 	rendered := htmlCommentRE.ReplaceAll(buf.Bytes(), nil)
 
-	tmpl, err := selectTemplate(b.templates, fm.Layout, srcPath)
+	tmpl, err := selectTemplate(b.templates, layout, srcPath)
 	if err != nil {
 		return err
 	}
@@ -254,19 +288,26 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 
 	var section string
 	switch {
-	case strings.HasPrefix(filepath.ToSlash(rel), "stories/"):
+	case strings.HasPrefix(relSlash, "stories/"):
 		section = "Stories"
-	case strings.HasPrefix(filepath.ToSlash(rel), "diary/"):
+	case strings.HasPrefix(relSlash, "diary/"):
 		// Exclude diary year index pages (diary/YYYY/_index.md, diary/YYYY/index.md).
 		// Those are listing pages, not individual entries.
-		dir := filepath.ToSlash(filepath.Dir(rel))
-		parts := strings.Split(dir, "/")
+		parts := strings.Split(relDir, "/")
 		if !((stem == "_index" || stem == "index") && len(parts) == 2) {
 			section = "Research Diary"
 		}
 	}
 
-	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree, Section: section}); err != nil {
+	var prevEntry, nextEntry NavEntry
+	if b.diaryNav != nil {
+		if pair, ok := b.diaryNav[pageURL]; ok {
+			prevEntry = pair[0]
+			nextEntry = pair[1]
+		}
+	}
+
+	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree, Section: section, PrevEntry: prevEntry, NextEntry: nextEntry, Children: listingChildren, DiaryYears: diaryYears, Debug: b.Debug, PageLayout: layout}); err != nil {
 		return fmt.Errorf("render %s: %w", srcPath, err)
 	}
 

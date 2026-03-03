@@ -42,6 +42,11 @@ var Command = &cli.Command{
 			Usage:       "Include pages marked draft: true in the output",
 			Destination: &buildOpts.includeDrafts,
 		},
+		&cli.BoolFlag{
+			Name:        "debug",
+			Usage:       "Add a debug footer to every rendered page",
+			Destination: &buildOpts.debug,
+		},
 	}, logging.Flags...),
 }
 
@@ -51,6 +56,7 @@ var buildOpts struct {
 	assetsDir     string
 	baseURL       string
 	includeDrafts bool
+	debug         bool
 }
 
 func buildAction(cc *cli.Context) error {
@@ -62,6 +68,7 @@ func buildAction(cc *cli.Context) error {
 		AssetsDir:     buildOpts.assetsDir,
 		BaseURL:       buildOpts.baseURL,
 		IncludeDrafts: buildOpts.includeDrafts,
+		Debug:         buildOpts.debug,
 	}
 
 	if err := b.Build(); err != nil {

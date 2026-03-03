@@ -464,7 +464,6 @@ func (s *Site) WriteFamilyLinesListPages(root string) error {
 		pn.AddEntry(fl.Name+"~"+fl.ID, fl.Name, b.String())
 
 	}
-	fmt.Println("XXXX familyline page " + PageLayoutListFamilyLines)
 	if err := pn.WritePages(s, baseDir, PageLayoutListFamilyLines, "Family Lines", "This is a full, alphabetical list of family lines in the tree."); err != nil {
 		return err
 	}
