@@ -32,11 +32,12 @@ func buildSiteTemplates(imageDir string) *template.Template {
 		// ukdate formats a YYYY-MM-DD date string as "2 January 2006".
 		// Returns the original string unchanged if it cannot be parsed.
 		"ukdate": func(s string) string {
-			t, err := time.Parse("2006-01-02", s)
-			if err != nil {
-				return s
+			for _, layout := range []string{"2006-01-02", time.RFC3339} {
+				if t, err := time.Parse(layout, s); err == nil {
+					return t.Format("2 January 2006")
+				}
 			}
-			return t.Format("2 January 2006")
+			return s
 		},
 		// featureImageSrc resolves the best available feature image URL for a
 		// page based on its front-matter. It returns an empty string when no

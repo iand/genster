@@ -37,6 +37,18 @@ func checkFlags(cc *cli.Context) error {
 		return fmt.Errorf("unsupported page size: %s", chartopts.target)
 	}
 
+	if chartopts.directOnly {
+		chartopts.children = "direct"
+	}
+
+	switch chartopts.children {
+	case "all":
+	case "direct":
+	case "none":
+	default:
+		return fmt.Errorf("unsupported page size: %s", chartopts.target)
+	}
+
 	return nil
 }
 
@@ -60,6 +72,7 @@ var chartopts struct {
 	detail          int
 	directOnly      bool
 	parents         bool
+	children        string
 	compact         bool
 	minimalSurnames bool
 	nodecoration    bool
@@ -133,7 +146,7 @@ var Command = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:        "direct",
-			Usage:       "only show children of direct ancestors (for descendant charts)",
+			Usage:       "only show children of direct ancestors (same as children=direct) DEPRECATED",
 			Value:       false,
 			Destination: &chartopts.directOnly,
 		},
@@ -142,6 +155,12 @@ var Command = &cli.Command{
 			Usage:       "include parents of person",
 			Value:       false,
 			Destination: &chartopts.parents,
+		},
+		&cli.StringFlag{
+			Name:        "children",
+			Usage:       "which children to show in the descendant chart (all, direct=children of direct ancestors, none=no children",
+			Value:       "all",
+			Destination: &chartopts.children,
 		},
 		&cli.BoolFlag{
 			Name:        "minimalsurnames",
@@ -234,8 +253,7 @@ func chartCmd(cc *cli.Context) error {
 		return fmt.Errorf("generate tree facts: %w", err)
 	}
 
-	// Find the root of the tree, i.e. the earliest ancester we want to show on the tree
-	// assume id is a genster id first
+	// Find the start person
 	startPerson, ok := t.GetPerson(chartopts.startPersonID)
 	if !ok {
 		// not a genster id, so look for a native id
@@ -260,7 +278,7 @@ func chartCmd(cc *cli.Context) error {
 	var lay gtree.Layout
 	switch chartopts.chartType {
 	case "descendant":
-		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.compact, chartopts.directOnly, chartopts.parents, chartopts.minimalSurnames, !chartopts.nodecoration)
+		ch, err := BuildDescendantChart(t, startPerson, chartopts.detail, chartopts.generations, chartopts.compact, chartopts.children, chartopts.parents, chartopts.minimalSurnames, !chartopts.nodecoration)
 		if err != nil {
 			return fmt.Errorf("build descendant chart: %w", err)
 		}
@@ -283,6 +301,7 @@ func chartCmd(cc *cli.Context) error {
 		if chartopts.target == "web" {
 			opts.BackgroundColor = ""
 		}
+
 		lay, err = ch.Layout(opts)
 		if err != nil {
 			return fmt.Errorf("layout chart: %w", err)

@@ -13,20 +13,17 @@
       </header>
       {{- end}}
       {{- if or .Author .Started .Updated .Status}}
-      <p class="preface">
-        {{- if .Author}}Written by {{.Author}}.{{end}}
-        {{- if .Started}} Started {{ukdate .Started}}.
-        {{- else if .Updated}} Last updated {{ukdate .Updated}}.{{end}}
-        {{- if eq .Status "wip"}}
-        This is a work in progress. The substance of the story is complete but there are still some rough edges and missing areas that need to be fleshed out.
-          {{- if and (not .Started) .Updated}} Last update was {{ukdate .Updated}}.{{end}}
-        {{- else if eq .Status "draft"}}
-        This is an early and incomplete draft. It&#39;s lacking most of the story substance, may contain incorrect information and/or omit key facts.
-          {{- if and (not .Started) .Updated}} Last update was {{ukdate .Updated}}.{{end}}
-        {{- end}}
-      </p>
       {{- end}}
       <section>
+		{{- if or (or (or .Status .Author) (or .Updated .LastMod)) .Started }}
+		<p class="preface">
+			{{- if .Author}}Written by {{.Author}}. {{ else }}Written by Ian Davis. {{end -}}
+	        {{- if .Started}}Started {{ukdate .Started}}. {{end -}}
+	        {{- if eq .Status "wip"}}This is a work in progress. The substance of the story is complete but there are still some rough edges and missing areas that need to be fleshed out. {{end -}}
+	        {{- if .Updated}}Last updated {{ukdate .Updated}}. {{- else -}}{{- if .LastMod -}}Last updated {{ukdate .LastMod}}. {{end}}{{end -}}
+		</p>
+
+		{{end -}}
         {{.Body}}
       </section>
       {{- if or .PrevEntry.URL .NextEntry.URL}}
@@ -50,6 +47,10 @@
     </main>
     <section class="sidebar">
       {{template "featureimage" .}}
+		{{- if .Ai }}
+			<p class="summary">This document was authored with generative AI assistance for writing, rephrasing, and organising content. All information has been reviewed for accuracy.</p>
+		{{ end -}}
+
       {{template "tags" .}}
     </section>
     {{template "footer" .}}

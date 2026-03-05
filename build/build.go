@@ -187,6 +187,12 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		return fmt.Errorf("parse %s: %w", srcPath, err)
 	}
 
+	if fm.LastMod == "" {
+		if info, err := os.Stat(srcPath); err == nil {
+			fm.LastMod = info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
+		}
+	}
+
 	if bool(fm.Draft) && !b.IncludeDrafts {
 		return nil
 	}

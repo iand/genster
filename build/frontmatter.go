@@ -34,9 +34,9 @@ func (b *flexBool) UnmarshalYAML(value *yaml.Node) error {
 // block (delimited by ---) of each markdown content file.
 type FrontMatter struct {
 	// Core identification
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Layout string `yaml:"layout"`
+	ID     string   `yaml:"id"`
+	Title  string   `yaml:"title"`
+	Layout string   `yaml:"layout"`
 	Draft  flexBool `yaml:"draft"`
 
 	// Page description
@@ -81,6 +81,7 @@ type FrontMatter struct {
 	Started string `yaml:"started"`
 	Updated string `yaml:"updated"`
 	Status  string `yaml:"status"`
+	Ai      string `yaml:"ai"`
 
 	// Sidebar link lists (person pages)
 	DiaryLinks  []map[string]string `yaml:"diarylinks"`

@@ -56,28 +56,41 @@ func AbbrevWhenWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
+	pl := ev.GetPlace()
+	if pl.IsUnknown() {
 		return AbbrevWhen(ev)
 	}
-	return AbbrevWhen(ev) + ", " + ev.GetPlace().NameWithDistrict
+	if pl.District == nil {
+		return AbbrevWhen(ev) + ", " + pl.Name
+	}
+	return AbbrevWhen(ev) + ", " + pl.District.Name
 }
 
 func AbbrevWhatWhenWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
+
+	pl := ev.GetPlace()
+	if pl.IsUnknown() {
 		return AbbrevWhatWhen(ev)
 	}
-	return AbbrevWhatWhen(ev) + ", " + ev.GetPlace().NameWithDistrict
+	if pl.District == nil {
+		return AbbrevWhatWhen(ev) + ", " + pl.Name
+	}
+	return AbbrevWhatWhen(ev) + ", " + pl.District.Name
 }
 
 func AbbrevWhere(ev TimelineEvent) string {
 	if ev == nil {
 		return "unk."
 	}
-	if ev.GetPlace().IsUnknown() || ev.GetPlace().NameWithDistrict == "" {
+	pl := ev.GetPlace()
+	if pl.IsUnknown() {
 		return "unk."
+	}
+	if pl.District == nil {
+		return pl.Name
 	}
 	return ev.GetPlace().NameWithDistrict
 }

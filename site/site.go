@@ -1221,7 +1221,7 @@ func (s *Site) WriteChartTrees(root string) error {
 }
 
 func (s *Site) WriteDescendantTree(fname string, p *model.Person, depth int) error {
-	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true, true, true, true, true)
+	ch, err := chart.BuildDescendantChart(s.Tree, p, 3, depth, true, "direct", true, true, true)
 	if err != nil {
 		return fmt.Errorf("build lineage: %w", err)
 	}

@@ -74,8 +74,8 @@ type Logger = slog.Logger
 func Dump(v any) {
 	switch vt := v.(type) {
 	case string:
-		slog.Info(vt)
+		println(vt)
 	default:
-		slog.Info(utter.Sdump(v))
+		utter.Dump(v)
 	}
 }
