@@ -47,9 +47,18 @@
     </main>
     <section class="sidebar">
       {{template "featureimage" .}}
-		{{- if .Ai }}
-			<p class="summary">This document was authored with generative AI assistance for writing, rephrasing, and organising content. All information has been reviewed for accuracy.</p>
-		{{ end -}}
+	  {{- if .Ai }}
+		<p class="summary">This document was authored with generative AI assistance for writing, rephrasing, and organising content. All information has been reviewed for accuracy.</p>
+	  {{ end -}}
+      {{- if .StoryParts}}
+      <section class="links">
+        <header>Parts</header>
+        <ul>
+          {{range .StoryParts}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{end -}}
+        </ul>
+      </section>
+      {{- end}}
 
       {{template "tags" .}}
     </section>

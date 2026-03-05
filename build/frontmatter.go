@@ -77,11 +77,12 @@ type FrontMatter struct {
 	Month string `yaml:"month"`
 
 	// Story-specific
-	Author  string `yaml:"author"`
-	Started string `yaml:"started"`
-	Updated string `yaml:"updated"`
-	Status  string `yaml:"status"`
-	Ai      string `yaml:"ai"`
+	Author     string              `yaml:"author"`
+	Started    string              `yaml:"started"`
+	Updated    string              `yaml:"updated"`
+	Status     string              `yaml:"status"`
+	Ai         string              `yaml:"ai"`
+	StoryParts []map[string]string `yaml:"storyparts"`
 
 	// Sidebar link lists (person pages)
 	DiaryLinks  []map[string]string `yaml:"diarylinks"`

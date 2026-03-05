@@ -35,7 +35,7 @@
       <p>Quick link: /r/{{if .Slug}}{{.Slug}}{{else}}{{.GrampsID}}{{end}}</p>
       {{- end}}
       {{- if .DiaryLinks}}
-      <section class="tags">
+      <section class="links">
         <header>Research Diary Entries</header>
         <ul>
           {{range .DiaryLinks}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
@@ -44,7 +44,7 @@
       </section>
       {{- end}}
       {{- if .Links}}
-      <section class="tags">
+      <section class="links">
         <header>On other sites</header>
         <ul>
           {{range .Links}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
