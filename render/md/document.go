@@ -1,4 +1,4 @@
-// Package wt provides types and functions for encoding markdown
+// Package md provides types and functions for encoding markdown
 package md
 
 import (

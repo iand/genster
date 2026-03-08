@@ -26,6 +26,17 @@ var IsBurialEvent EventMatcher = func(ev TimelineEvent) bool {
 	return ok
 }
 
+func IsVitalEvent(p *Person) EventMatcher {
+	return func(ev TimelineEvent) bool {
+		switch ev.(type) {
+		case *BirthEvent, *BaptismEvent, *DeathEvent, *BurialEvent, *CremationEvent:
+			return true
+		default:
+			return false
+		}
+	}
+}
+
 func IsOwnBirthEvent(p *Person) EventMatcher {
 	return func(ev TimelineEvent) bool {
 		if _, ok := ev.(*BirthEvent); ok {
@@ -59,6 +70,29 @@ func IsOwnBurialEvent(p *Person) EventMatcher {
 			return ev.DirectlyInvolves(p)
 		}
 		return false
+	}
+}
+
+func IsOwnVitalEvent(p *Person) EventMatcher {
+	return func(ev TimelineEvent) bool {
+		switch ev.(type) {
+		case *BirthEvent, *BaptismEvent, *DeathEvent, *BurialEvent, *CremationEvent:
+			return ev.DirectlyInvolves(p)
+		default:
+			return false
+		}
+	}
+}
+
+func AfterEvent(cutoff TimelineEvent) EventMatcher {
+	if cutoff == nil || cutoff.GetDate().IsUnknown() {
+		return func(ev TimelineEvent) bool {
+			return true
+		}
+	}
+	cdate := cutoff.GetDate()
+	return func(ev TimelineEvent) bool {
+		return cdate.SortsBefore(ev.GetDate())
 	}
 }
 

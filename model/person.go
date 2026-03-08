@@ -2,6 +2,7 @@ package model
 
 import (
 	"log/slog"
+	"slices"
 	"sort"
 	"time"
 
@@ -596,4 +597,9 @@ func FilterPersonList(people []*Person, include PersonMatcher) []*Person {
 		}
 		return l
 	}
+}
+
+// MatchPersonList reports whether any person matches the supplied PersonMatcher
+func MatchPersonList(people []*Person, match PersonMatcher) bool {
+	return slices.ContainsFunc(people, match)
 }

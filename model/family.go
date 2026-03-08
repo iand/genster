@@ -121,4 +121,5 @@ type FamilyLine struct {
 	Name string
 
 	Families []*Family
+	Lineage  []*Person // list of people in the family line for each family (usually the male)
 }

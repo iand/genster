@@ -1,4 +1,4 @@
-// Package wt provides types and functions for encoding pandoc flavoured markdown
+// Package pandoc provides types and functions for encoding pandoc flavoured markdown
 package pandoc
 
 import (

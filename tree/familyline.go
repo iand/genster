@@ -14,6 +14,7 @@ func WalkFamilyLines(keyPerson *model.Person) []*model.FamilyLine {
 
 	var familyLines []*model.FamilyLine
 	familyLine := make([]*model.Family, 0, 20)
+	lineage := make([]*model.Person, 0, 20)
 
 	p := keyPerson
 	for !p.IsUnknown() {
@@ -21,6 +22,7 @@ func WalkFamilyLines(keyPerson *model.Person) []*model.FamilyLine {
 			if !p.Father.IsUnknown() {
 				if !p.Redacted {
 					familyLine = append(familyLine, p.ParentFamily)
+					lineage = append(lineage, p)
 				}
 				if !p.Mother.IsUnknown() {
 					stack = append(stack, p.Mother)
@@ -32,6 +34,7 @@ func WalkFamilyLines(keyPerson *model.Person) []*model.FamilyLine {
 			if !p.Mother.IsUnknown() {
 				if !p.Redacted {
 					familyLine = append(familyLine, p.ParentFamily)
+					lineage = append(lineage, p)
 				}
 				p = p.Mother
 				continue
@@ -43,9 +46,14 @@ func WalkFamilyLines(keyPerson *model.Person) []*model.FamilyLine {
 				ID:       familyLine[len(familyLine)-1].ID,
 				Name:     familyLine[len(familyLine)-1].PreferredUniqueName,
 				Families: make([]*model.Family, 0, len(familyLine)),
+				Lineage:  make([]*model.Person, 0, len(lineage)),
 			}
 			for _, f := range slices.Backward(familyLine) {
 				fl.Families = append(fl.Families, f)
+			}
+			lineage = append(lineage, p)
+			for _, f := range slices.Backward(lineage) {
+				fl.Lineage = append(fl.Lineage, f)
 			}
 			familyLines = append(familyLines, fl)
 			familyLine = make([]*model.Family, 0, 20)

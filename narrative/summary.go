@@ -23,6 +23,9 @@ func AgeQualifier(age int) string {
 }
 
 func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
+	if ev == nil {
+		return "unknown"
+	}
 	var title string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
@@ -43,6 +46,9 @@ func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.T
 }
 
 func WhoWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+	if ev == nil {
+		return "unknown"
+	}
 	var title string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
