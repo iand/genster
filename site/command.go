@@ -50,11 +50,6 @@ var Command = &cli.Command{
 			Destination: &genopts.rootDir,
 		},
 		&cli.StringFlag{
-			Name:        "media",
-			Usage:       "Directory in which to copy media files (defaults to --site if not set)",
-			Destination: &genopts.mediaDir,
-		},
-		&cli.StringFlag{
 			Name:        "basepath",
 			Aliases:     []string{"b"},
 			Usage:       "Base URL path to use as a prefix to all links.",
@@ -123,7 +118,6 @@ var genopts struct {
 	grampsDatabaseName string
 	treeID             string
 	rootDir            string
-	mediaDir           string
 	keyIndividual      string
 	includePrivate     bool
 	configDir          string
@@ -261,11 +255,7 @@ func gen(cc *cli.Context) error {
 	}
 
 	if genopts.rootDir != "" {
-		mediaDir := genopts.mediaDir
-		if mediaDir == "" {
-			mediaDir = genopts.rootDir
-		}
-		if err := s.WritePages(genopts.rootDir, mediaDir); err != nil {
+		if err := s.WritePages(genopts.rootDir); err != nil {
 			return fmt.Errorf("write pages: %w", err)
 		}
 	}

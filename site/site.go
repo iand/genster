@@ -578,7 +578,7 @@ func FlattenMapByValueDesc[M ~map[K]V, K simplevalue, V simplevalue](m M) []Tupl
 	return list
 }
 
-func (s *Site) WritePages(contentDir string, mediaDir string) error {
+func (s *Site) WritePages(contentDir string) error {
 	for _, p := range s.PublishSet.People {
 		if s.LinkFor(p) == "" {
 			continue
@@ -705,7 +705,7 @@ func (s *Site) WritePages(contentDir string, mediaDir string) error {
 		// 	return fmt.Errorf("unsupported media type: %v", mo.MediaType)
 		// }
 
-		fname := filepath.Join(mediaDir, fmt.Sprintf("%s/%s", s.MediaDir, mo.FileName))
+		fname := filepath.Join(contentDir, fmt.Sprintf("%s/%s", s.MediaDir, mo.FileName))
 
 		if err := CopyFile(fname, mo.SrcFilePath); err != nil {
 			return fmt.Errorf("copy media object: %w", err)
