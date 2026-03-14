@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/iand/gedcom"
-	"github.com/iand/genster/identifier"
 	"github.com/iand/genster/logging"
 )
 
@@ -36,9 +35,7 @@ func (l *Loader) populateSourceFacts(m ModelFinder, sr *gedcom.SourceRecord) err
 			so.SearchLink = fmt.Sprintf("https://www.ancestry.com/search/collections/%s/", matches[1])
 		}
 
-		alias := identifier.New(l.ScopeName, sr.Xref)
-		m.AddAlias(alias, so.ID)
-		logger.Debug("adding source alias", "alias", alias)
+
 	}
 
 	if so.Title == "" {

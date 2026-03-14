@@ -19,7 +19,7 @@ This will download and build a binary in `$GOBIN`.
 ## Workflow
 
 ```
-genster gen   --gedcom family.ged --id mytree --site content/
+genster gen   --gedcom family.ged --config mytree.kdl --output content/
 genster build --content content/ --pub pub/
 npx serve pub/           # or: rsync pub/ user@host:/var/www/html/
 ```
@@ -44,13 +44,12 @@ Exactly one of `--gedcom` or `--gramps` must be supplied.
 | `--gedcom <file>` | `-g` | GEDCOM file to read |
 | `--gramps <file>` | | Gramps XML file to read |
 | `--gramps-dbname <name>` | | Name of the Gramps database, used to keep IDs stable across exports |
-| `--id <string>` | | Identifier for this tree (used in URL paths and to locate config) |
-| `--site <dir>` | `-s` | Directory to write generated content files into |
+| `--config <file>` | `-c` | Path to the KDL tree configuration file (required; see [Tree configuration file](#tree-configuration-file)) |
+| `--output <dir>` | `-o` | Directory to write generated content files into |
 | `--basepath <path>` | `-b` | URL path prefix for all links (default `/`) |
 | `--key <id>` | `-k` | ID of the key individual; sets the anchor person for relation filtering and ancestor charts |
 | `--relation <mode>` | | Filter which people get pages: `any` (default), `common` (must share a common ancestor with key person), or `direct` (must be a direct ancestor) |
 | `--include-private` | | Include living people and those who died within the last 20 years (normally redacted) |
-| `--config <dir>` | `-c` | Path to the config directory (default: OS-appropriate user config dir) |
 | `--wikitree` | | Generate WikiTree markup on person pages for copy-and-paste |
 | `--inspect <type/id>` | | Print the internal data structure for one object (e.g. `person/I123`) and exit |
 | `--debug` | | Embed debug information as inline HTML comments |
@@ -80,6 +79,149 @@ Outputs a plain-text `descendant` or `familyline` report to stdout.
 ### `genster annotate` — annotate diary markdown files
 
 Walks a directory of hand-authored markdown files and replaces bare footnote references (`[^label]`) with fully-rendered citation links drawn from the genealogy database. Pass `--undo` to strip the generated citations and restore original syntax.
+
+---
+
+## Tree configuration file
+
+All commands that load genealogy data accept `--config`/`-c` pointing to a [KDL 1.0](https://kdl.dev/spec-v1/) file. The file has three top-level nodes: `tree`, `surname-groups`, and `annotations`.
+
+### `tree` — tree identity and description
+
+```kdl
+tree id="weston" {
+    name "The Weston and Pryor Family Tree"
+    description r#"
+        The Westons were a farming family from rural Shropshire, England, working
+        the same land from the mid-17th century until the agricultural depression
+        of the 1870s drove the younger sons into the Midlands coalfields.
+
+        The Pryors came from South Wales and moved to Birmingham in the 1890s,
+        where Thomas Pryor met and married Alice Weston in 1903.
+        "#
+}
+```
+
+| Child node | Description |
+|------------|-------------|
+| `id` | Short identifier used in URL paths (e.g. `trees/weston/`) |
+| `name` | Display name shown on the tree overview page |
+| `description` | Multi-paragraph description rendered on the tree overview page. Use a raw string (`r#"..."#`) for multi-line text. Blank lines produce paragraph breaks. |
+
+`id` may also be written as a property on the `tree` node: `tree id="weston" { ... }`.
+
+### `surname-groups` — variant surname groupings
+
+Groups spelling variants under a single canonical surname for surname list pages and relationship display.
+
+```kdl
+surname-groups {
+    Weston "Wheston" "Westen"
+    Pryor "Prior" "Pryer" "Priar"
+    Griffiths "Griffith" "Gryffith"
+    Hughes "Hughs" "Hewes"
+}
+```
+
+Each child node names the canonical surname; its arguments are the variants that should be merged into that group.
+
+### `annotations` — corrections and additions
+
+Overrides and supplements data from the source GEDCOM or Gramps file. Organised into `people`, `places`, and `sources` sections.
+
+```kdl
+annotations {
+    people {
+        person id="A3KMNP2XWQR8T" {
+            // Thomas Weston (1847-1921)
+            nickname "Tom"
+            olb "Agricultural labourer turned coal miner from Shropshire."
+            wikitreeid "Weston-4521"
+        }
+        person id="B7YQZR4VNDX2L" {
+            // Alice Pryor (1882-1954)
+            preferredgivenname "Alice"
+            preferredfamilyname "Weston"
+        }
+        person id="C9WLFT6HJMS3K" {
+            // Living relative
+            redacted true
+        }
+        person id="D2PXNK8GRVC5M" {
+            // William Griffiths (1801-1879)
+            tags "Direct Ancestor" "Shropshire"
+        }
+    }
+
+    places {
+        place id="E5QRTB9YNWJ7H" {
+            // Shifnal, Shropshire — missing coordinates
+            latlong "52.669, -2.368"
+        }
+        place id="F1MVZK3DCXP4G" {
+            // Historical variant name
+            name "Brewood, Staffordshire, England"
+        }
+    }
+
+    sources {
+        source id="G8HNWQ2YBXR6T" { iscivilregistration }
+        source id="H4KCJP7FMVZ3L" { iscivilregistration }
+        source id="J6TRWB5SDXN9Q" { iscensus }
+        source id="K2LQMF8PVYC4H" { iscensus }
+        source id="M9ZXDN3JWKR7B" {
+            title "Shropshire Parish Records 1600–1900"
+            repositoryname "Shropshire Archives"
+        }
+    }
+}
+```
+
+#### Person annotation fields
+
+All fields use `replace` semantics (overwrite the loaded value) except `tags`, which appends.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nickname` | string | Preferred nickname |
+| `olb` | string | One-line biography |
+| `epithet` | string | Distinguishing epithet (e.g. "the Elder") |
+| `preferredfullname` | string | Override full display name |
+| `preferredgivenname` | string | Override given name |
+| `preferredfamiliarname` | string | Override informal given name |
+| `preferredfamiliarfullname` | string | Override informal full name |
+| `preferredfamilyname` | string | Override family name |
+| `preferredsortname` | string | Override sort key |
+| `preferreduniquename` | string | Override unique display name |
+| `wikitreeid` | string | WikiTree profile ID |
+| `possiblyalive` | bool | Mark as possibly still living |
+| `unmarried` | bool | Mark as known to have never married |
+| `childless` | bool | Mark as known to have had no children |
+| `illegitimate` | bool | Mark as born outside marriage |
+| `redacted` | bool | Suppress this person from the published site |
+| `featured` | bool | Highlight this person |
+| `tags` | string or list | Append one or more tags |
+
+#### Place annotation fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Override place name |
+| `latlong` | string | Set coordinates as `"lat, long"` (e.g. `"52.669, -2.368"`) |
+| `tags` | string or list | Append one or more tags |
+
+#### Source annotation fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Override source title |
+| `searchlink` | string | URL for searching this source online |
+| `repositoryname` | string | Override repository name |
+| `repositorylink` | string | URL for the repository |
+| `iscivilregistration` | bool | Mark as a civil registration record |
+| `iscensus` | bool | Mark as a census record |
+| `isunreliable` | bool | Mark as an unreliable source |
+| `tags` | string or list | Append one or more tags |
 
 ---
 

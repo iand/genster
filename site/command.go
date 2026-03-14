@@ -39,9 +39,11 @@ var Command = &cli.Command{
 			Destination: &genopts.grampsDatabaseName,
 		},
 		&cli.StringFlag{
-			Name:        "id",
-			Usage:       "Identifier to give this tree",
-			Destination: &genopts.treeID,
+			Name:        "config",
+			Aliases:     []string{"c"},
+			Usage:       "Path to a KDL tree configuration file",
+			Required:    true,
+			Destination: &genopts.treeConfig,
 		},
 		&cli.StringFlag{
 			Name:        "output",
@@ -80,13 +82,6 @@ var Command = &cli.Command{
 			Destination: &genopts.debug,
 		},
 		&cli.StringFlag{
-			Name:        "config",
-			Aliases:     []string{"c"},
-			Value:       tree.DefaultConfigDir(),
-			Usage:       "Path to the folder where config should be stored.",
-			Destination: &genopts.configDir,
-		},
-		&cli.StringFlag{
 			Name:        "inspect",
 			Usage:       "Type and ID of an object to inspect. The internal data structure of the object will be printed to stdout. Use format '{object}/{id}' where object can be 'person', 'place' or 'source'.",
 			Destination: &genopts.inspect,
@@ -116,14 +111,14 @@ var genopts struct {
 	gedcomFile         string
 	grampsFile         string
 	grampsDatabaseName string
-	treeID             string
 	rootDir            string
 	keyIndividual      string
 	includePrivate     bool
-	configDir          string
+
 	basePath           string
 	inspect            string
 	generateWikiTree   bool
+	treeConfig         string
 	verbose            bool
 	veryverbose        bool
 	relation           string
@@ -151,7 +146,12 @@ func gen(cc *cli.Context) error {
 		return fmt.Errorf("no gedcom or gramps file specified")
 	}
 
-	t, err := tree.LoadTree(genopts.treeID, genopts.configDir, l)
+	treeCfg, err := tree.ReadConfig(genopts.treeConfig)
+	if err != nil {
+		return fmt.Errorf("read tree config: %w", err)
+	}
+
+	t, err := tree.LoadTree(treeCfg, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}

@@ -24,6 +24,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a // indirect

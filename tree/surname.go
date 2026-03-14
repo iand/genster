@@ -24,6 +24,30 @@ func (g *SurnameGroup) String() string {
 	return fmt.Sprintf("%s (%s)", g.Surname, strings.Join(g.Names, ", "))
 }
 
+// Lookup returns the SurnameGroup for the given name (canonical or variant), or nil if not found.
+func (sg *SurnameGroups) Lookup(name string) (*SurnameGroup, bool) {
+	if sg.surnames == nil {
+		return nil, false
+	}
+	g, ok := sg.surnames[name]
+	return g, ok
+}
+
+// AddGroup registers a canonical surname and its variants in the group map.
+func (sg *SurnameGroups) AddGroup(canonical string, variants []string) {
+	if sg.surnames == nil {
+		sg.surnames = make(map[string]*SurnameGroup)
+	}
+	g := &SurnameGroup{
+		Surname: canonical,
+		Names:   variants,
+	}
+	sg.surnames[canonical] = g
+	for _, v := range variants {
+		sg.surnames[v] = g
+	}
+}
+
 func (sg *SurnameGroups) UnmarshalJSON(data []byte) error {
 	r := bytes.NewReader(data)
 	d := json.NewDecoder(r)

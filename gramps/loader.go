@@ -28,7 +28,6 @@ type ModelFinder interface {
 	FindFamily(scope string, id string) *model.Family
 	FindFamilyByParents(father *model.Person, mother *model.Person) *model.Family
 	FindMediaObject(path string) *model.MediaObject
-	AddAlias(alias string, canonical string)
 }
 
 type Loader struct {

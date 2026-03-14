@@ -57,8 +57,7 @@ var chartopts struct {
 	grampsFile         string
 	grampsDatabaseName string
 	chartType          string
-	treeID             string
-	configDir          string
+	treeConfig         string
 	keyPersonID        string
 	startPersonID      string
 	title              string
@@ -107,9 +106,10 @@ var Command = &cli.Command{
 			Destination: &chartopts.chartType,
 		},
 		&cli.StringFlag{
-			Name:        "id",
-			Usage:       "Identifier to give this tree (mainly to pick up configured annotations)",
-			Destination: &chartopts.treeID,
+			Name:        "config",
+			Aliases:     []string{"c"},
+			Usage:       "Path to a KDL tree configuration file",
+			Destination: &chartopts.treeConfig,
 		},
 		&cli.StringFlag{
 			Name:        "output",
@@ -201,13 +201,6 @@ var Command = &cli.Command{
 			Value:       "A3Landscape",
 			Destination: &chartopts.target,
 		},
-		&cli.StringFlag{
-			Name:        "config",
-			Aliases:     []string{"c"},
-			Value:       tree.DefaultConfigDir(),
-			Usage:       "Path to the folder where tree config can be found.",
-			Destination: &chartopts.configDir,
-		},
 	}, logging.Flags...),
 }
 
@@ -235,7 +228,15 @@ func chartCmd(cc *cli.Context) error {
 		return fmt.Errorf("no gedcom or gramps file specified")
 	}
 
-	t, err := tree.LoadTree(chartopts.treeID, chartopts.configDir, l)
+	treeCfg := &tree.Config{}
+	if chartopts.treeConfig != "" {
+		treeCfg, err = tree.ReadConfig(chartopts.treeConfig)
+		if err != nil {
+			return fmt.Errorf("read tree config: %w", err)
+		}
+	}
+
+	t, err := tree.LoadTree(treeCfg, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}

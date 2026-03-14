@@ -26,7 +26,6 @@ type ModelFinder interface {
 	FindPerson(scope string, id string) *model.Person
 	FindSource(scope string, id string) *model.Source
 	FindPlaceUnstructured(name string, hints ...place.Hint) *model.Place
-	AddAlias(alias string, canonical string)
 }
 
 type Loader struct {

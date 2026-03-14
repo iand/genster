@@ -18,7 +18,6 @@ type Tree struct {
 	ID            string
 	Name          string
 	Description   string
-	IdentityMap   *IdentityMap
 	Annotations   *Annotations
 	SurnameGroups *SurnameGroups
 	People        map[string]*model.Person
@@ -31,10 +30,9 @@ type Tree struct {
 	KeyPerson     *model.Person
 }
 
-func NewTree(id string, m *IdentityMap, a *Annotations, sg *SurnameGroups) *Tree {
+func NewTree(id string, a *Annotations, sg *SurnameGroups) *Tree {
 	return &Tree{
 		ID:            id,
-		IdentityMap:   m,
 		Annotations:   a,
 		SurnameGroups: sg,
 		People:        make(map[string]*model.Person),
@@ -247,18 +245,12 @@ func (t *Tree) FindMediaObject(path string) *model.MediaObject {
 }
 
 func (t *Tree) CanonicalID(scope string, sid string) string {
-	return t.IdentityMap.ID(scope, sid)
-}
-
-func (t *Tree) AddAlias(alias string, canonical string) {
-	t.IdentityMap.AddAlias(alias, canonical)
+	return identifier.New(scope, sid)
 }
 
 func (t *Tree) Generate(redactLiving bool) error {
 	// Apply any annotations first, they may be redacted after
 	if t.Annotations != nil {
-		t.Annotations.ApplyTree(t)
-
 		for _, p := range t.People {
 			t.Annotations.ApplyPerson(p)
 		}

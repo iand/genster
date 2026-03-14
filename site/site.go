@@ -823,10 +823,13 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 	fname := "index.md"
 
-	desc := s.Tree.Description
-
-	if desc != "" {
-		doc.Para(md.Text(text.FormatSentence(desc)))
+	if s.Tree.Description != "" {
+		for _, para := range strings.Split(s.Tree.Description, "\n\n") {
+			para = strings.TrimSpace(para)
+			if para != "" {
+				doc.Para(md.Text(text.FormatSentence(para)))
+			}
+		}
 	}
 
 	peopleDesc := ""

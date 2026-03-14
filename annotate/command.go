@@ -40,16 +40,11 @@ var Command = &cli.Command{
 			Destination: &opts.grampsDatabaseName,
 		},
 		&cli.StringFlag{
-			Name:        "id",
-			Usage:       "Identifier to give this tree",
-			Destination: &opts.treeID,
-		},
-		&cli.StringFlag{
 			Name:        "config",
 			Aliases:     []string{"c"},
-			Value:       tree.DefaultConfigDir(),
-			Usage:       "Path to the folder where config should be stored",
-			Destination: &opts.configDir,
+			Usage:       "Path to a KDL tree configuration file",
+			Required:    true,
+			Destination: &opts.treeConfig,
 		},
 		&cli.StringFlag{
 			Name:        "dir",
@@ -83,8 +78,7 @@ var opts struct {
 	gedcomFile         string
 	grampsFile         string
 	grampsDatabaseName string
-	treeID             string
-	configDir          string
+	treeConfig         string
 	markdownDir        string
 	basePath           string
 	dryRun             bool
@@ -134,7 +128,12 @@ func annotate(cc *cli.Context) error {
 		return fmt.Errorf("no gedcom or gramps file specified")
 	}
 
-	t, err := tree.LoadTree(opts.treeID, opts.configDir, l)
+	treeCfg, err := tree.ReadConfig(opts.treeConfig)
+	if err != nil {
+		return fmt.Errorf("read tree config: %w", err)
+	}
+
+	t, err := tree.LoadTree(treeCfg, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}
@@ -148,7 +147,7 @@ func annotate(cc *cli.Context) error {
 	}
 
 	lb := &citationLinkBuilder{
-		citationLinkPattern: path.Join(opts.basePath, "trees", opts.treeID, "citation/%s/"),
+		citationLinkPattern: path.Join(opts.basePath, "trees", t.ID, "citation/%s/"),
 	}
 
 	// Find all markdown files in the directory tree.

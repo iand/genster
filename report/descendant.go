@@ -23,22 +23,16 @@ var descendantCommand = &cli.Command{
 			Destination: &descendantOpts.gedcomFile,
 		},
 		&cli.StringFlag{
-			Name:        "id",
-			Usage:       "Identifier to give this tree (mainly for annotation support)",
-			Destination: &descendantOpts.treeID,
+			Name:        "config",
+			Aliases:     []string{"c"},
+			Usage:       "Path to a KDL tree configuration file",
+			Destination: &descendantOpts.treeConfig,
 		},
 		&cli.BoolFlag{
 			Name:        "include-private",
 			Usage:       "Include living people and people who died less than 20 years ago.",
 			Value:       false,
 			Destination: &descendantOpts.includePrivate,
-		},
-		&cli.StringFlag{
-			Name:        "config",
-			Aliases:     []string{"c"},
-			Value:       tree.DefaultConfigDir(),
-			Usage:       "Path to the folder where config should be stored.",
-			Destination: &descendantOpts.configDir,
 		},
 		&cli.StringFlag{
 			Name:        "person",
@@ -75,9 +69,9 @@ var descendantCommand = &cli.Command{
 
 var descendantOpts struct {
 	gedcomFile     string
-	treeID         string
+	treeConfig     string
 	includePrivate bool
-	configDir      string
+
 	startPersonID  string
 	keyPersonID    string
 	generations    int
@@ -111,7 +105,15 @@ func descendant(cc *cli.Context) error {
 		return fmt.Errorf("load gedcom: %w", err)
 	}
 
-	t, err := tree.LoadTree(descendantOpts.treeID, descendantOpts.configDir, l)
+	treeCfg := &tree.Config{}
+	if descendantOpts.treeConfig != "" {
+		treeCfg, err = tree.ReadConfig(descendantOpts.treeConfig)
+		if err != nil {
+			return fmt.Errorf("read tree config: %w", err)
+		}
+	}
+
+	t, err := tree.LoadTree(treeCfg, l)
 	if err != nil {
 		return fmt.Errorf("load tree: %w", err)
 	}
