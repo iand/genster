@@ -691,7 +691,7 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 	}
 
 	if g, ok := t.SurnameGroups.surnames[p.PreferredFamilyName]; ok {
-		p.FamilyNameGrouping = g.String()
+		p.FamilyNameGrouping = g.Surname
 	} else {
 		p.FamilyNameGrouping = p.PreferredFamilyName
 	}

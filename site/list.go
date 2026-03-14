@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/gosimple/slug"
 	"github.com/iand/genster/logging"
@@ -312,6 +311,7 @@ func (s *Site) WriteSourceListPages(root string) error {
 
 func (s *Site) WriteSurnameListPages(root string) error {
 	peopleBySurname := make(map[string][]*model.Person)
+	surnameLabel := make(map[string]string) // canonical surname → display label
 	for _, p := range s.PublishSet.People {
 		if s.LinkFor(p) == "" || p.IsUnknown() {
 			continue
@@ -327,6 +327,13 @@ func (s *Site) WriteSurnameListPages(root string) error {
 			continue
 		}
 		peopleBySurname[p.FamilyNameGrouping] = append(peopleBySurname[p.FamilyNameGrouping], p)
+		if _, seen := surnameLabel[p.FamilyNameGrouping]; !seen {
+			if g, ok := s.Tree.SurnameGroups.Lookup(p.FamilyNameGrouping); ok && len(g.Names) > 0 {
+				surnameLabel[p.FamilyNameGrouping] = g.String()
+			} else {
+				surnameLabel[p.FamilyNameGrouping] = p.FamilyNameGrouping
+			}
+		}
 	}
 
 	surnames := make([]string, 0, len(peopleBySurname))
@@ -368,16 +375,16 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 		baseDir := filepath.Join(root, s.ListSurnamesDir, slug.Make(surname))
 
-		desc := "This is a full, alphabetical list of ancestors with the surname " + surname + "."
-		if strings.Contains(surname, "(") {
-			clean := strings.Replace(surname, "(", " ", -1)
-			clean = strings.Replace(clean, ")", " ", -1)
-			clean = strings.Replace(clean, ",", " ", -1)
-			surnames := strings.Fields(clean)
-			desc = "This is a full, alphabetical list of ancestors with the surnames " + text.JoinListOr(surnames) + "."
+		label := surnameLabel[surname]
+		var desc string
+		if g, ok := s.Tree.SurnameGroups.Lookup(surname); ok && len(g.Names) > 0 {
+			allNames := append([]string{g.Surname}, g.Names...)
+			desc = "This is a full, alphabetical list of ancestors with the surnames " + text.JoinListOr(allNames) + "."
+		} else {
+			desc = "This is a full, alphabetical list of ancestors with the surname " + surname + "."
 		}
 
-		if err := pn.WritePages(s, baseDir, PageLayoutListSurnames, surname, desc); err != nil {
+		if err := pn.WritePages(s, baseDir, PageLayoutListSurnames, label, desc); err != nil {
 			return err
 		}
 
@@ -394,7 +401,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	alist := make([]md.Text, 0, len(surnames))
 	for _, surname := range surnames {
-		alist = append(alist, doc.EncodeLink(doc.EncodeText(surname), s.LinkForSurnameListPage(surname)))
+		alist = append(alist, doc.EncodeLink(doc.EncodeText(surnameLabel[surname]), s.LinkForSurnameListPage(surname)))
 	}
 	doc.UnorderedList(alist)
 
