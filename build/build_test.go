@@ -852,6 +852,38 @@ func TestBuildTagPages(t *testing.T) {
 	}
 }
 
+func TestBuildTagDiaryDateOrdering(t *testing.T) {
+	contentDir := t.TempDir()
+	pubDir := t.TempDir()
+
+	// Two diary entries with the same tag: earlier and later dates.
+	writeFile(t, filepath.Join(contentDir, "diary", "2021", "2021-05-17.md"),
+		"---\ntags: [England]\n---\n\n<p>May entry.</p>\n")
+	writeFile(t, filepath.Join(contentDir, "diary", "2021", "2021-01-10.md"),
+		"---\ntags: [England]\n---\n\n<p>January entry.</p>\n")
+
+	b := &Builder{ContentDir: contentDir, PubDir: pubDir}
+	if err := b.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	out, err := os.ReadFile(filepath.Join(pubDir, "tags", "england", "index.html"))
+	if err != nil {
+		t.Fatalf("read tags/england/index.html: %v", err)
+	}
+	html := string(out)
+
+	// May (later) must appear before January (earlier).
+	mayPos := strings.Index(html, "17 May 2021")
+	janPos := strings.Index(html, "10 Jan 2021")
+	if mayPos == -1 || janPos == -1 {
+		t.Fatalf("tags/england: missing diary entries (mayPos=%d, janPos=%d)", mayPos, janPos)
+	}
+	if mayPos > janPos {
+		t.Errorf("tags/england: May entry should appear before January entry (date descending)")
+	}
+}
+
 func TestBuildTagAncestorOrdering(t *testing.T) {
 	contentDir := t.TempDir()
 	pubDir := t.TempDir()

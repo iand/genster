@@ -93,6 +93,10 @@ type Builder struct {
 	// IncludeDrafts, when true, publishes pages with draft: true in their
 	// front-matter instead of skipping them.
 	IncludeDrafts bool
+	// IncludePrivate, when true, renders the full body of pages with
+	// private: yes in their front-matter. When false, the body is hidden
+	// and a placeholder message is shown instead.
+	IncludePrivate bool
 
 	// sitemapEntries accumulates pages for sitemap.xml during the build.
 	sitemapEntries []sitemapEntry
@@ -275,6 +279,9 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		return fmt.Errorf("render markdown %s: %w", srcPath, err)
 	}
 	rendered := htmlCommentRE.ReplaceAll(buf.Bytes(), nil)
+	if bool(fm.Private) && !b.IncludePrivate {
+		rendered = nil
+	}
 
 	tmpl, err := selectTemplate(b.templates, layout, srcPath)
 	if err != nil {

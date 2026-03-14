@@ -3,7 +3,7 @@
 {{- range .}}
   <li><a href="{{.URL}}">{{.Title}}</a>
     {{- if .Summary}}
-    <p class="listing-summary">{{.Summary}}</p>
+    <p class="listing-summary">{{ if .Private }}(private) {{end}}{{.Summary}}</p>
     {{- end}}
     {{- if .Tags}}
     <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>

@@ -18,6 +18,7 @@ type childPage struct {
 	Summary   string   // optional description shown beneath the title in listings
 	Tags      []string // front-matter tags; populated for diary and story entries
 	WordCount int      // rough word count of the body; populated for diary and story entries
+	Private   bool
 }
 
 // collectChildren walks contentDir and returns:
@@ -133,6 +134,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.URL = pageURL
 			cp.Date = dateFromStem(dirBase)
 			cp.Summary = fm.Summary
+			cp.Private = bool(fm.Private)
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			children[parentDir] = append(children[parentDir], cp)
@@ -145,6 +147,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.URL = pageURL
 			cp.Date = dateFromStem(stem)
 			cp.Summary = fm.Summary
+			cp.Private = bool(fm.Private)
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			children[dir] = append(children[dir], cp)
@@ -314,5 +317,3 @@ func generateSectionListing(pages []childPage) template.HTML {
 	sb.WriteString("\n</ul>\n")
 	return template.HTML(sb.String())
 }
-
-

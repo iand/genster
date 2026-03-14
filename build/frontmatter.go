@@ -34,10 +34,11 @@ func (b *flexBool) UnmarshalYAML(value *yaml.Node) error {
 // block (delimited by ---) of each markdown content file.
 type FrontMatter struct {
 	// Core identification
-	ID     string   `yaml:"id"`
-	Title  string   `yaml:"title"`
-	Layout string   `yaml:"layout"`
-	Draft  flexBool `yaml:"draft"`
+	ID      string   `yaml:"id"`
+	Title   string   `yaml:"title"`
+	Layout  string   `yaml:"layout"`
+	Draft   flexBool `yaml:"draft"`
+	Private flexBool `yaml:"private"`
 
 	// Page description
 	Summary   string `yaml:"summary"`
@@ -46,6 +47,7 @@ type FrontMatter struct {
 	BasePath  string `yaml:"basepath"`
 	TreeTitle string `yaml:"treetitle"`
 	LastMod   string `yaml:"lastmod"`
+	Converted bool   `yaml:"converted"`
 
 	// Taxonomy
 	Tags    []string `yaml:"tags"`

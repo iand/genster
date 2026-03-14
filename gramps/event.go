@@ -407,7 +407,6 @@ func (l *Loader) lookupEvent(grer *grampsxml.Eventref) (model.TimelineEvent, boo
 	return ev, ok
 }
 
-
 func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.Place {
 	if grev.Place == nil {
 		return model.UnknownPlace()
@@ -426,7 +425,6 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.
 func maybeFixCensusDate(grev *grampsxml.Event) (*model.Date, bool) {
 	return nil, false
 }
-
 
 var censusEntryRelationLookup = map[string]model.CensusEntryRelation{
 	"head":            model.CensusEntryRelationHead,
@@ -974,4 +972,3 @@ func ParseDatespan(ds grampsxml.Datespan, dp gdate.Parser) (*model.Date, error) 
 		Span:       true,
 	}, nil
 }
-

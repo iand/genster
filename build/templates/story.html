@@ -26,24 +26,6 @@
 		{{end -}}
         {{.Body}}
       </section>
-      {{- if or .PrevEntry.URL .NextEntry.URL}}
-      <nav class="pages">
-        {{- if .PrevEntry.URL}}
-        <div class="nav-left">
-          <ul>
-            <li><a href="{{.PrevEntry.URL}}">« previous entry ({{.PrevEntry.Title}})</a></li>
-          </ul>
-        </div>
-        {{- end}}
-        {{- if .NextEntry.URL}}
-        <div class="nav-right">
-          <ul>
-            <li><a href="{{.NextEntry.URL}}">next entry ({{.NextEntry.Title}}) »</a></li>
-          </ul>
-        </div>
-        {{- end}}
-      </nav>
-      {{- end}}
     </main>
     <section class="sidebar">
       {{template "featureimage" .}}

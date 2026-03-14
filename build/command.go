@@ -43,6 +43,11 @@ var Command = &cli.Command{
 			Destination: &buildOpts.includeDrafts,
 		},
 		&cli.BoolFlag{
+			Name:        "include-private",
+			Usage:       "Include body content of pages marked private: yes in the output",
+			Destination: &buildOpts.includePrivate,
+		},
+		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "Add a debug footer to every rendered page",
 			Destination: &buildOpts.debug,
@@ -51,12 +56,13 @@ var Command = &cli.Command{
 }
 
 var buildOpts struct {
-	contentDir    string
-	pubDir        string
-	assetsDir     string
-	baseURL       string
-	includeDrafts bool
-	debug         bool
+	contentDir     string
+	pubDir         string
+	assetsDir      string
+	baseURL        string
+	includeDrafts  bool
+	includePrivate bool
+	debug          bool
 }
 
 func buildAction(cc *cli.Context) error {
@@ -67,8 +73,9 @@ func buildAction(cc *cli.Context) error {
 		PubDir:        buildOpts.pubDir,
 		AssetsDir:     buildOpts.assetsDir,
 		BaseURL:       buildOpts.baseURL,
-		IncludeDrafts: buildOpts.includeDrafts,
-		Debug:         buildOpts.debug,
+		IncludeDrafts:  buildOpts.includeDrafts,
+		IncludePrivate: buildOpts.includePrivate,
+		Debug:          buildOpts.debug,
 	}
 
 	if err := b.Build(); err != nil {

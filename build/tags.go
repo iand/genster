@@ -133,6 +133,14 @@ func tagPageBody(pages []pageRef) template.HTML {
 				return 1
 			})
 		}
+		// For Diary entries, sort by URL descending so the most recent entries
+		// appear first (URLs are /diary/YYYY/YYYY-MM-DD/ so lexicographic order
+		// matches chronological order).
+		if group == "Diary entries" {
+			slices.SortFunc(ps, func(a, b pageRef) int {
+				return strings.Compare(b.URL, a.URL)
+			})
+		}
 		sb.WriteString("<h2>")
 		sb.WriteString(group)
 		sb.WriteString("</h2>\n<ul>\n")

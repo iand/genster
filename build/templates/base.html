@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex">
   {{- end}}{{end}}
   <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
-  <meta name="description" content="{{.Summary}}">
+  {{ if .Summary }}<meta name="description" content="{{.Summary}}">{{ end }}
   <meta name="viewport" content="width=device-width">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/dimbox.min.css">
