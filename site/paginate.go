@@ -10,7 +10,6 @@ import (
 )
 
 type Paginator struct {
-	HugoStyle   bool
 	MaxPageSize int
 
 	Entries []PaginatorEntry
@@ -50,9 +49,6 @@ func (p *Paginator) AddEntryWithGroup(key string, title string, content string, 
 
 func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title string, summary string) error {
 	indexPage := "index.md"
-	if p.HugoStyle {
-		indexPage = "_index.md"
-	}
 	sort.Slice(p.Entries, func(i, j int) bool {
 		if p.Entries[i].Group != p.Entries[j].Group {
 			return p.Entries[i].GroupPriority < p.Entries[j].GroupPriority
@@ -132,12 +128,7 @@ func (p *Paginator) WritePages(s *Site, baseDir string, layout PageLayout, title
 
 			doc.SetBody(pg.Content)
 
-			var fname string
-			if p.HugoStyle {
-				fname = pg.Name + ".md"
-			} else {
-				fname = filepath.Join(pg.Name, indexPage)
-			}
+			fname := filepath.Join(pg.Name, indexPage)
 
 			if err := writePage(doc, baseDir, fname); err != nil {
 				return fmt.Errorf("failed to write paginated page: %w", err)

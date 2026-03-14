@@ -17,7 +17,6 @@ import (
 func (s *Site) WriteAnomalyListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListAnomaliesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
 		if s.LinkFor(p) == "" {
 			continue
@@ -86,7 +85,6 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 func (s *Site) WriteInferenceListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListInferencesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
 		if s.LinkFor(p) == "" {
 			continue
@@ -126,7 +124,6 @@ func (s *Site) WriteInferenceListPages(root string) error {
 func (s *Site) WriteTodoListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListTodoDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.Tree.People {
 		if s.LinkFor(p) == "" {
 			continue
@@ -216,7 +213,6 @@ func (s *Site) WriteTodoListPages(root string) error {
 func (s *Site) WritePersonListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListPeopleDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 
 	mentioned := make(map[string]*model.Person)
 
@@ -275,7 +271,6 @@ func (s *Site) WritePersonListPages(root string) error {
 func (s *Site) WritePlaceListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListPlacesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, p := range s.PublishSet.Places {
 		if len(p.Timeline) == 0 {
 			continue
@@ -298,7 +293,6 @@ func (s *Site) WritePlaceListPages(root string) error {
 func (s *Site) WriteSourceListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListSourcesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, so := range s.PublishSet.Sources {
 		items := make([][2]md.Text, 0)
 		b := s.NewMarkdownBuilder()
@@ -342,8 +336,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 		model.SortPeopleByGeneration(people)
 
 		pn := NewPaginator()
-		pn.HugoStyle = s.GenerateHugo
-		pn.MaxPageSize = -1
+			pn.MaxPageSize = -1
 
 		for _, p := range people {
 			items := make([][2]md.Text, 0)
@@ -392,9 +385,6 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	sort.Slice(surnames, func(i, j int) bool { return surnames[i] < surnames[j] })
 	indexPage := "index.md"
-	if s.GenerateHugo {
-		indexPage = "_index.md"
-	}
 
 	doc := s.NewDocument()
 	doc.Title("Surnames")
@@ -419,7 +409,6 @@ func (s *Site) WriteSurnameListPages(root string) error {
 func (s *Site) WriteFamilyListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListFamiliesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, f := range s.PublishSet.Families {
 		if s.LinkFor(f) == "" {
 			continue
@@ -446,7 +435,6 @@ func (s *Site) WriteFamilyListPages(root string) error {
 func (s *Site) WriteFamilyLinesListPages(root string) error {
 	baseDir := filepath.Join(root, s.ListFamilyLinesDir)
 	pn := NewPaginator()
-	pn.HugoStyle = s.GenerateHugo
 	for _, fl := range s.PublishSet.FamilyLines {
 		if s.LinkFor(fl) == "" {
 			continue

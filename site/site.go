@@ -123,8 +123,6 @@ type Site struct {
 	IncludeDebugInfo   bool
 	ExperimentFamilies bool
 
-	GenerateHugo bool
-
 	GenerateWikiTree    bool
 	WikiTreeDir         string
 	WikiTreeLinkPattern string
@@ -141,17 +139,12 @@ type Change struct {
 	Object  any
 }
 
-func NewSite(baseURL string, hugoIndexNaming bool, t *tree.Tree) *Site {
+func NewSite(baseURL string, t *tree.Tree) *Site {
 	indexPage := "index.md"
-	if hugoIndexNaming {
-		indexPage = "_index.md"
-	}
 	s := &Site{
 		BaseURL:   baseURL,
 		Tree:      t,
 		Calendars: make(map[int]*Calendar),
-
-		GenerateHugo: hugoIndexNaming,
 
 		PersonDir:         PageSectionPerson,
 		PersonLinkPattern: path.Join(baseURL, PageSectionPerson, "/%s/"),
@@ -829,9 +822,6 @@ func (s *Site) WriteTreeOverview(root string) error {
 	doc.SetSitemapDisable()
 
 	fname := "index.md"
-	if s.GenerateHugo {
-		fname = "_index.md"
-	}
 
 	desc := s.Tree.Description
 
@@ -1051,9 +1041,6 @@ func (s *Site) WriteTreeOverview(root string) error {
 
 func (s *Site) WriteChartAncestors(root string) error {
 	fname := "index.md"
-	if s.GenerateHugo {
-		fname = "_index.md"
-	}
 
 	generations := 8
 	ancestors := s.PublishSet.Ancestors(s.Tree.KeyPerson, generations)
@@ -1153,9 +1140,6 @@ func (s *Site) WriteChartAncestors(root string) error {
 
 func (s *Site) WriteChartTrees(root string) error {
 	fname := "index.md"
-	if s.GenerateHugo {
-		fname = "_index.md"
-	}
 
 	generations := 8
 	ancestors := s.PublishSet.Ancestors(s.Tree.KeyPerson, generations)
@@ -1585,9 +1569,6 @@ func (s *Site) AddChangelog(o any) {
 
 func (s *Site) WriteChangelog(root string) error {
 	fname := "index.md"
-	if s.GenerateHugo {
-		fname = "_index.md"
-	}
 
 	sort.Slice(s.Changelog, func(i, j int) bool {
 		return s.Changelog[j].Time.Before(s.Changelog[i].Time)

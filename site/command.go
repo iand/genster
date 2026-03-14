@@ -46,12 +46,12 @@ var Command = &cli.Command{
 		&cli.StringFlag{
 			Name:        "site",
 			Aliases:     []string{"s"},
-			Usage:       "Directory in which to write generated site", // usually the hugo content folder
+			Usage:       "Directory in which to write generated site",
 			Destination: &genopts.rootDir,
 		},
 		&cli.StringFlag{
 			Name:        "media",
-			Usage:       "Directory in which to copy media files (required when --hugo is set; defaults to --site when --hugo is not set)",
+			Usage:       "Directory in which to copy media files (defaults to --site if not set)",
 			Destination: &genopts.mediaDir,
 		},
 		&cli.StringFlag{
@@ -102,12 +102,6 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &genopts.generateWikiTree,
 		},
-		&cli.BoolFlag{
-			Name:        "hugo",
-			Usage:       "Generate Hugo-specific markup and index pages.",
-			Value:       false,
-			Destination: &genopts.generateHugo,
-		},
 		&cli.StringFlag{
 			Name:        "relation",
 			Usage:       "Only generate pages for people who are related to the key person. One of 'direct' (must be a direct ancestor), 'common' (must have a common ancestor) or 'any' (any relation). Ignored if no key person is specified.",
@@ -136,7 +130,6 @@ var genopts struct {
 	basePath           string
 	inspect            string
 	generateWikiTree   bool
-	generateHugo       bool
 	verbose            bool
 	veryverbose        bool
 	relation           string
@@ -187,7 +180,7 @@ func gen(cc *cli.Context) error {
 	// 	fmt.Printf("%s -->%q\n", id, pages)
 	// }
 
-	s := NewSite(genopts.basePath, genopts.generateHugo, t)
+	s := NewSite(genopts.basePath, t)
 	s.IncludePrivate = genopts.includePrivate
 	s.IncludeDebugInfo = genopts.debug
 	s.ExperimentFamilies = genopts.experimentFamilies
@@ -270,9 +263,6 @@ func gen(cc *cli.Context) error {
 	if genopts.rootDir != "" {
 		mediaDir := genopts.mediaDir
 		if mediaDir == "" {
-			if genopts.generateHugo {
-				return fmt.Errorf("--media is required when using --hugo")
-			}
 			mediaDir = genopts.rootDir
 		}
 		if err := s.WritePages(genopts.rootDir, mediaDir); err != nil {
@@ -342,8 +332,6 @@ func walkDiaryPages(dir string, urlPrefix string) (map[string][]model.Link, erro
 				return nil
 			}
 			link.URL = urlPrefix + filepath.ToSlash(filepath.Join(parts[0], parts[1])+"/")
-		} else if d.Name() == "_index.md" {
-			return nil
 		} else {
 			var ok bool
 			link.Title, ok = isoToHuman(strings.TrimSuffix(parts[1], ".md"))
