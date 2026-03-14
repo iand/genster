@@ -13,9 +13,9 @@ var Command = &cli.Command{
 	Action: buildAction,
 	Flags: append([]cli.Flag{
 		&cli.StringFlag{
-			Name:        "content",
-			Aliases:     []string{"c"},
-			Usage:       "Path to the content directory",
+			Name:        "input",
+			Aliases:     []string{"i"},
+			Usage:       "Path to the input directory",
 			Required:    true,
 			Destination: &buildOpts.contentDir,
 		},
@@ -69,10 +69,10 @@ func buildAction(cc *cli.Context) error {
 	logging.Setup()
 
 	b := &Builder{
-		ContentDir:    buildOpts.contentDir,
-		PubDir:        buildOpts.pubDir,
-		AssetsDir:     buildOpts.assetsDir,
-		BaseURL:       buildOpts.baseURL,
+		ContentDir:     buildOpts.contentDir,
+		PubDir:         buildOpts.pubDir,
+		AssetsDir:      buildOpts.assetsDir,
+		BaseURL:        buildOpts.baseURL,
 		IncludeDrafts:  buildOpts.includeDrafts,
 		IncludePrivate: buildOpts.includePrivate,
 		Debug:          buildOpts.debug,

@@ -44,8 +44,8 @@ var Command = &cli.Command{
 			Destination: &genopts.treeID,
 		},
 		&cli.StringFlag{
-			Name:        "site",
-			Aliases:     []string{"s"},
+			Name:        "output",
+			Aliases:     []string{"o"},
 			Usage:       "Directory in which to write generated site",
 			Destination: &genopts.rootDir,
 		},
