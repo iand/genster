@@ -15,6 +15,7 @@ import (
 	"github.com/iand/gedcom"
 	"github.com/iand/genster/chart"
 	"github.com/iand/genster/layout"
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/render"
@@ -122,6 +123,7 @@ type Site struct {
 	IncludePrivate     bool
 	IncludeDebugInfo   bool
 	ExperimentFamilies bool
+	MapTilerAPIKey     string // API key for MapTiler Cloud (NLS historic maps)
 
 	GenerateWikiTree    bool
 	WikiTreeDir         string
@@ -612,7 +614,17 @@ func (s *Site) WritePages(contentDir string) error {
 		if s.LinkFor(p) == "" {
 			continue
 		}
-		d, err := RenderPlacePage(s, p)
+
+		var placeMap *PlaceMap
+		if s.MapTilerAPIKey != "" && p.GeoLocation != nil {
+			var err error
+			placeMap, err = s.WritePlaceMapImage(p, contentDir)
+			if err != nil {
+				logging.Warn("place map image failed", "place", p.ID, "err", err)
+			}
+		}
+
+		d, err := RenderPlacePage(s, p, placeMap)
 		if err != nil {
 			return fmt.Errorf("render place page: %w", err)
 		}

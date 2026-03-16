@@ -179,6 +179,7 @@ func gen(cc *cli.Context) error {
 	s.IncludeDebugInfo = genopts.debug
 	s.ExperimentFamilies = genopts.experimentFamilies
 	s.GenerateWikiTree = genopts.generateWikiTree
+	s.MapTilerAPIKey = os.Getenv("MAPTILER_API_KEY")
 
 	// Look for key individual, assume id is a genster id first
 	keyIndividual, ok := t.GetPerson(genopts.keyIndividual)

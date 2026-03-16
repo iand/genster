@@ -55,6 +55,26 @@ Exactly one of `--gedcom` or `--gramps` must be supplied.
 | `--debug` | | Embed debug information as inline HTML comments |
 | `--verbose` / `--veryverbose` | | Increase log verbosity |
 
+#### Place maps
+
+When the `MAPTILER_API_KEY` environment variable is set and a place has coordinates, `gen` downloads a static map image and embeds it inline on the place page. Maps are sourced from [MapTiler Cloud](https://cloud.maptiler.com/), which hosts the National Library of Scotland historic map layers as well as OpenStreetMap raster tiles.
+
+The map layer and zoom level are chosen automatically based on place type:
+
+| Coverage | Layer | Used for |
+|----------|-------|----------|
+| UK — smaller places | Ordnance Survey six-inch to the mile, 1888–1913 | Street, building, address, hamlet, village, parish, burial ground |
+| UK — larger places | Ordnance Survey one-inch Hills edition, 1885–1903 | Town, city, county, country |
+| Greater London | Ordnance Survey five-foot to the mile, 1893–1896 | Any place in the London hierarchy |
+| Ireland | Bartholomew quarter-inch to the mile, 1940 | Republic of Ireland and Northern Ireland |
+| Elsewhere | OpenStreetMap | Places outside UK and Ireland coverage |
+
+Each place map includes a downward-pointing arrow marking the place's coordinates and a figcaption with a link to the interactive map viewer (NLS Geo/Explore for historic layers, OpenStreetMap for the OSM fallback).
+
+**Tile cache** — individual map tiles are cached in `$XDG_CACHE_HOME/genster/maptiles/` (defaulting to `~/.cache/genster/maptiles/` when `XDG_CACHE_HOME` is not set), organised as `{layer}/{z}/{x}/{y}.jpg`. Cached tiles are reused on subsequent runs.
+
+**Image cache** — stitched 800×600 JPEG map images are cached in `$XDG_CACHE_HOME/genster/maps/` as `place-map-{id}.jpg`. If the cached image exists it is copied directly to the output media directory without re-downloading any tiles. Delete a cached image to force it to be regenerated.
+
 ### `genster build` — render content to HTML
 
 Walks a content directory and renders every markdown file into a complete HTML page.

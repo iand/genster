@@ -11,7 +11,7 @@ import (
 	"github.com/iand/genster/text"
 )
 
-func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) {
+func RenderPlacePage(s *Site, p *model.Place, placeMap *PlaceMap) (render.Document[md.Text], error) {
 	pov := &model.POV{Place: p}
 
 	doc := s.NewDocument()
@@ -39,6 +39,12 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 
 	for _, t := range p.Comments {
 		narrative.RenderText(t, doc)
+	}
+
+	if placeMap != nil {
+		exploreLink := doc.EncodeLink(doc.EncodeText(placeMap.ExploreText), placeMap.ExploreURL)
+		caption := doc.EncodeText(p.Name+". "+placeMap.MapName+" (") + exploreLink + doc.EncodeText(")")
+		doc.Figure(placeMap.ImageLink, p.Name, caption, nil, "")
 	}
 
 	t := &model.Timeline{
@@ -74,8 +80,6 @@ func RenderPlacePage(s *Site, p *model.Place) (render.Document[md.Text], error) 
 			narrative.RenderText(t, doc)
 		}
 	}
-
-	// TODO: link to https://maps.nls.uk/geo/explore/#zoom=14&lat=52.32243&lon=1.26273&layers=161&b=1
 
 	return doc, nil
 }
