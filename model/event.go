@@ -1,7 +1,6 @@
 package model
 
 import (
-	"sort"
 	"time"
 )
 
@@ -93,12 +92,6 @@ type EventParticipant struct {
 
 func (e *EventParticipant) IsUnknown() bool {
 	return e == nil || e.Person.IsUnknown()
-}
-
-func SortTimelineEvents(evs []TimelineEvent) {
-	sort.Slice(evs, func(i, j int) bool {
-		return EventSortsBefore(evs[i], evs[j])
-	})
 }
 
 const (

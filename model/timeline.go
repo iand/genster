@@ -1,5 +1,10 @@
 package model
 
+import (
+	"slices"
+	"sort"
+)
+
 type Timeline struct {
 	Events []TimelineEvent
 }
@@ -127,28 +132,36 @@ func FilterEventList(evs []TimelineEvent, include EventMatcher) []TimelineEvent 
 	}
 }
 
+func SortTimelineEvents(evs []TimelineEvent) {
+	sort.Slice(evs, func(i, j int) bool {
+		return EventSortsBefore(evs[i], evs[j])
+	})
+}
+
 // CollapseEventList returns a new slice that includes only unique events
 func CollapseEventList(evs []TimelineEvent) []TimelineEvent {
-	switch len(evs) {
-	case 0:
-		return []TimelineEvent{}
-	case 1:
-		return []TimelineEvent{evs[0]}
-	case 2:
-		if evs[0] == evs[1] {
-			return []TimelineEvent{evs[0]}
-		}
-		return []TimelineEvent{evs[0], evs[1]}
-	default:
-		seen := make(map[TimelineEvent]bool)
-		l := make([]TimelineEvent, 0, len(evs))
-		for _, ev := range evs {
-			if seen[ev] {
-				continue
-			}
-			seen[ev] = true
-			l = append(l, ev)
-		}
-		return l
-	}
+	SortTimelineEvents(evs)
+	return slices.Compact(evs)
+	// switch len(evs) {
+	// case 0:
+	// 	return []TimelineEvent{}
+	// case 1:
+	// 	return []TimelineEvent{evs[0]}
+	// case 2:
+	// 	if evs[0] == evs[1] {
+	// 		return []TimelineEvent{evs[0]}
+	// 	}
+	// 	return []TimelineEvent{evs[0], evs[1]}
+	// default:
+	// 	seen := make(map[TimelineEvent]bool)
+	// 	l := make([]TimelineEvent, 0, len(evs))
+	// 	for _, ev := range evs {
+	// 		if seen[ev] {
+	// 			continue
+	// 		}
+	// 		seen[ev] = true
+	// 		l = append(l, ev)
+	// 	}
+	// 	return l
+	// }
 }

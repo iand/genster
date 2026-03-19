@@ -195,3 +195,42 @@ func (c TimelineNameChooser) SubsequentSplit(v any, pov *model.POV) (string, str
 		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
 	}
 }
+
+// UniqueNameChooser always returns the unique name
+type UniqueNameChooser struct{}
+
+var _ NameChooser = UniqueNameChooser{}
+
+func (c UniqueNameChooser) FirstUse(v any) string {
+	switch vt := v.(type) {
+	case *model.Person:
+		return vt.PreferredUniqueName
+	case *model.Place:
+		return vt.FullName
+	case *model.Family:
+		return vt.PreferredUniqueName
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
+}
+
+func (c UniqueNameChooser) Subsequent(v any) string {
+	return c.FirstUse(v)
+}
+
+func (c UniqueNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, string) {
+	switch vt := v.(type) {
+	case *model.Person:
+		return "", vt.PreferredUniqueName, ""
+	case *model.Place:
+		return "", vt.FullName, ""
+	case *model.Family:
+		return "", vt.PreferredUniqueName, ""
+	default:
+		panic(fmt.Sprintf("unexpected object type in name chooser: %T", v))
+	}
+}
+
+func (c UniqueNameChooser) SubsequentSplit(v any, pov *model.POV) (string, string, string) {
+	return c.FirstUseSplit(v, pov)
+}

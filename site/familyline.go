@@ -89,7 +89,7 @@ func RenderFamilyLineEventsPage(s *Site, fl *model.FamilyLine) (render.Document[
 		}
 
 		fmtr := &citationIDFormatter[md.Text]{
-			inner: NewNarrativeTimelineEntryFormatter(pov, doc, logging.Default(), &narrative.TimelineNameChooser{}, false),
+			inner: narrative.NewNarrativeTimelineEntryFormatter(pov, doc, logging.Default(), &narrative.TimelineNameChooser{}, false),
 		}
 
 		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {

@@ -48,7 +48,7 @@ type ContentBuilder[T EncodedText] interface {
 
 type TimelineRow[T EncodedText] struct {
 	Year    string
-	Date    string
+	Date    string // day and month
 	Details []T
 }
 

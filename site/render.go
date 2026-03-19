@@ -114,21 +114,6 @@ func RenderFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc rend
 
 	enc.FactList(items)
 
-	// <div><strong>Name</strong><br>Thomas Musson</div>
-	// <div><strong>Sex</strong><br>Male</div>
-	// <div><strong>Birth</strong><br>10 March 1768<br>Swinstead, Lincolnshire, England</div>
-	// <div><strong>Christening</strong><br>3 Oct 1769<br>Swineshead, Lincolnshire, England<sup class="citref"><a href="#a1">a1</a></sup></div>
-	// <div><strong>Death</strong><br>27 Jan 1853<br>Coningsby, Lincolnshire, England<sup class="citref"><a href="#g2">g2</a></sup></div>
-	// <div><strong>Burial</strong><br>31 Jan 1853<br>St. Michael's Church, Coningsby<sup class="citref"><a href="#e3">e3</a></sup></div>
-	// <div><strong>Literacy</strong><br>Could not sign their name<sup class="citref"><a href="#b1">b1</a></sup></div>
-	// <div><strong>Variant Names</strong>
-	//   <ul>
-	//     <li>Thomas Musson<sup class="citref"><a href="#f1">f1</a>,<a href="#b11">b11</a></sup></li>
-	//     <li>Thomas Mussam<sup class="citref"><a href="#b4">b4</a>,<a href="#b2">b2</a></sup></li>
-	//     <li>Thomas Mussom<sup class="citref"><a href="#b1">b1</a></sup></li>
-	//   </ul>
-	// </div>
-
 	return nil
 }
 

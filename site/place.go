@@ -55,12 +55,7 @@ func RenderPlacePage(s *Site, p *model.Place, placeMap *PlaceMap) (render.Docume
 		doc.EmptyPara()
 		doc.Heading2("Timeline", "")
 
-		fmtr := &NarrativeTimelineEntryFormatter[md.Text]{
-			pov:    pov,
-			enc:    doc,
-			logger: logging.Default(),
-			nc:     &narrative.TimelineNameChooser{},
-		}
+		fmtr := narrative.NewNarrativeTimelineEntryFormatter[md.Text](pov, doc, logging.Default(), &narrative.TimelineNameChooser{}, false)
 
 		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)
