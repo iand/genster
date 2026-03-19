@@ -251,17 +251,14 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 	if layout == "diaryhome" {
 		listingChildren = recentDiaryEntries(children, 20)
 		diaryYears = collectDiaryYears(children)
+	} else if layout == "diaryentries" {
+		listingChildren = children[relDir]
+		diaryYears = collectDiaryYears(children)
+	} else if layout == "storieshome" || layout == "questionshome" {
+		listingChildren = children[relDir]
 	} else if (stem == "_index" || stem == "index") && strings.TrimSpace(body) == "" {
-		switch layout {
-		case "diaryentries":
-			listingChildren = children[relDir]
-			diaryYears = collectDiaryYears(children)
-		case "storieshome":
-			listingChildren = children[relDir]
-		default:
-			if listing := generateSectionListing(children[relDir]); listing != "" {
-				body = string(listing)
-			}
+		if listing := generateSectionListing(children[relDir]); listing != "" {
+			body = string(listing)
 		}
 	}
 
