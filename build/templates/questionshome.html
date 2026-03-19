@@ -1,5 +1,5 @@
 {{/* storieshome - stories section index listing individual stories */}}
-{{define "storieshome"}}
+{{define "questionshome"}}
 <!DOCTYPE html>
 <html lang="en-GB">
 {{template "head" .}}
@@ -11,7 +11,7 @@
         <h1>{{.Title}}</h1>
       </header>
       <section>
-		<ul class="list list-stories">
+		<ul class="list list-questions">
 		{{- range .Children}}
 		  <li><a href="{{.URL}}">{{.Title}}</a>
 		    {{- if .Summary}}
