@@ -106,7 +106,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 					pageTitle = stemToTitle(stem)
 				}
 			}
-			ref := pageRef{Title: pageTitle, URL: pageURL, Ancestor: bool(fm.Ancestor)}
+			ref := pageRef{Title: pageTitle, URL: pageURL, Summary: fm.Summary, Ancestor: bool(fm.Ancestor)}
 			for _, tag := range fm.Tags {
 				tagIndex[tag] = append(tagIndex[tag], ref)
 			}

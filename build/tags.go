@@ -13,7 +13,8 @@ import (
 type pageRef struct {
 	Title    string
 	URL      string
-	Ancestor bool // true when the person is a direct ancestor of the key person
+	Summary  string // optional description; shown for diary entries and stories
+	Ancestor bool   // true when the person is a direct ancestor of the key person
 }
 
 // writeTags writes pub/tags/index.html and pub/tags/{slug}/index.html for
@@ -144,12 +145,18 @@ func tagPageBody(pages []pageRef) template.HTML {
 		sb.WriteString("<h2>")
 		sb.WriteString(group)
 		sb.WriteString("</h2>\n<ul>\n")
+		showSummary := group == "Diary entries" || group == "Stories"
 		for _, p := range ps {
 			sb.WriteString("  <li><a href=\"")
 			sb.WriteString(p.URL)
 			sb.WriteString("\">")
 			sb.WriteString(template.HTMLEscapeString(p.Title))
-			sb.WriteString("</a></li>\n")
+			sb.WriteString("</a>")
+			if showSummary && p.Summary != "" {
+				sb.WriteString(" — ")
+				sb.WriteString(template.HTMLEscapeString(p.Summary))
+			}
+			sb.WriteString("</li>\n")
 		}
 		sb.WriteString("</ul>\n")
 	}
