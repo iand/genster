@@ -39,6 +39,7 @@ type FrontMatter struct {
 	Layout  string   `yaml:"layout"`
 	Draft   flexBool `yaml:"draft"`
 	Private flexBool `yaml:"private"`
+	Hide    flexBool `yaml:"hide"`
 
 	// Page description
 	Summary   string `yaml:"summary"`

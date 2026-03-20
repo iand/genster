@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/iand/genster/logging"
@@ -256,6 +257,9 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 		diaryYears = collectDiaryYears(children)
 	} else if layout == "storieshome" || layout == "questionshome" {
 		listingChildren = children[relDir]
+		slices.SortFunc(listingChildren, func(a, b childPage) int {
+			return strings.Compare(a.Title, b.Title)
+		})
 	} else if (stem == "_index" || stem == "index") && strings.TrimSpace(body) == "" {
 		if listing := generateSectionListing(children[relDir]); listing != "" {
 			body = string(listing)

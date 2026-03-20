@@ -10,20 +10,41 @@
       <header>
         <h1>{{.Title}}</h1>
       </header>
+      {{$children := .Children}}
+      {{- range $group := list "brick-wall" "unresolved" "puzzle" "" "resolved"}}
+        {{- $any := false}}{{range $children}}{{if eq .FM.Category $group}}{{$any = true}}{{end}}{{end}}
+        {{- if $any}}
       <section>
-		<ul class="list list-questions">
-		{{- range .Children}}
-		  <li><a href="{{.URL}}">{{.Title}}</a>
-		    {{- if .Summary}}
-		    <p class="listing-summary">{{.Summary}}{{if .WordCount}} (about {{.WordCount}} words){{end}}</p>
-		    {{- end}}
-		    {{- if .Tags}}
-		    <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>
-		    {{- end}}
-		  </li>
-		{{- end}}
-		</ul>
+        {{- if eq $group "brick-wall"}}
+        <h2>Brick Walls</h2>
+        <p>Brick walls are problems where all known and accessible sources exhausted without success.</p>
+        {{else if eq $group "unresolved"}}
+        <h2>Unresolved</h2>
+        <p>Unresolved are problems where progress is stalled but sources remain to be investigated.</p>
+        {{else if eq $group "puzzle"}}
+        <h2>Puzzles</h2>
+        <p>Puzzles are problems that don't impede progress but flesh out our knowledge.</p>
+        {{else if eq $group "resolved"}}
+        <h2>Resolved</h2>
+        <p>Resolved problems have been completed.</p>
+       {{else}}
+        <h2>Other Questions</h2>
+        {{end}}
+        <ul class="list list-questions">
+        {{- range $children}}{{if eq .FM.Category $group}}
+          <li><a href="{{.URL}}">{{if .FM.Draft}}<span class="badge badge-draft">draft</span> {{end}}{{.Title}}</a>
+            {{- if .Summary}}
+            <p class="listing-summary">{{.Summary}}{{if .WordCount}} (about {{.WordCount}} words){{end}}</p>
+            {{- end}}
+            {{- if .Tags}}
+            <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>
+            {{- end}}
+          </li>
+        {{- end}}{{end}}
+        </ul>
       </section>
+        {{- end}}
+      {{- end}}
     </main>
     <section class="sidebar">
       <div class="feature"><img src="/images/default-oak.webp" width="256" height="256" class="feature" title=""/></div>

@@ -29,6 +29,9 @@ func urlize(s string) string {
 func buildSiteTemplates(imageDir string) *template.Template {
 	funcs := template.FuncMap{
 		"urlize": urlize,
+		// list returns its arguments as a []any slice, allowing templates to
+		// iterate over a fixed set of values with range.
+		"list": func(v ...any) []any { return v },
 		// ukdate formats a YYYY-MM-DD date string as "2 January 2006".
 		// Returns the original string unchanged if it cannot be parsed.
 		"ukdate": func(s string) string {
@@ -80,6 +83,7 @@ var knownLayouts = map[string]bool{
 	"diaryentries":  true,
 	"storieshome":   true,
 	"questionshome": true,
+	"question":      true,
 	"story":         true,
 	"search":        true,
 	"single":        true,

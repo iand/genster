@@ -1,0 +1,52 @@
+{{/* question - used for questions */}}
+{{define "question"}}
+<!DOCTYPE html>
+<html lang="en-GB">
+{{template "head" .}}
+<body>
+  <div class="page-grid">
+    {{template "site-header" .}}
+    <main class="content"{{if .Section}} data-pagefind-body data-pagefind-weight="7" data-pagefind-meta="section:{{.Section}}"{{end}}>
+      {{- if .Title}}
+      <header>
+        <h1 data-pagefind-meta="title">{{.Title}}</h1>
+      </header>
+      {{- end}}
+      {{- if or .Author .Started .Updated .Status}}
+      {{- end}}
+      <section>
+		{{- if or (or (or .Status .Author) (or .Updated .LastMod)) .Started }}
+		<p class="preface">
+			{{- if .Author}}Written by {{.Author}}. {{ else }}Written by Ian Davis. {{end -}}
+	        {{- if .Started}}Started {{ukdate .Started}}. {{end -}}
+	        {{- if eq .Status "wip"}}This is a work in progress. The substance of the story is complete but there are still some rough edges and missing areas that need to be fleshed out. {{end -}}
+	        {{- if .Updated}}Last updated {{ukdate .Updated}}. {{- else -}}{{- if .LastMod -}}Last updated {{ukdate .LastMod}}. {{end}}{{end -}}
+		</p>
+
+		{{end -}}
+        {{.Body}}
+      </section>
+    </main>
+    <section class="sidebar">
+      {{template "featureimage" .}}
+	  {{- if .Ai }}
+		<p class="summary">This document was authored with generative AI assistance for writing, rephrasing, and organising content. All information has been reviewed for accuracy.</p>
+	  {{ end -}}
+      {{- if .StoryParts}}
+      <section class="links">
+        <header>Parts</header>
+        <ul>
+          {{range .StoryParts}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{end -}}
+        </ul>
+      </section>
+      {{- end}}
+
+      {{template "tags" .}}
+    </section>
+    {{template "footer" .}}
+  </div>
+  {{template "scripts" .}}
+</body>
+</html>
+{{end}}

@@ -1,9 +1,9 @@
 {{define "diary-listing"}}
 <ul class="list list-diary">
 {{- range .}}
-  <li><a href="{{.URL}}">{{.Title}}</a>
+  <li><a href="{{.URL}}">{{if .FM.Private}}<span class="badge badge-private" title="This entry has been marked private because it may contain personal or confidential information.">private</span> {{end}}{{.Title}}</a>
     {{- if .Summary}}
-    <p class="listing-summary">{{ if .Private }}(private) {{end}}{{.Summary}}</p>
+    <p class="listing-summary">{{.Summary}}</p>
     {{- end}}
     {{- if .Tags}}
     <p class="listing-tags">tagged as: {{range $i, $tag := .Tags}}{{if gt $i 0}} · {{end}}<a href="/tags/{{urlize $tag}}/">{{$tag}}</a>{{end}}</p>

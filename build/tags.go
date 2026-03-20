@@ -87,7 +87,7 @@ func writePageFile(tmpl *template.Template, outPath string, data PageData) error
 }
 
 // tagGroups defines the display order for content-type groups on tag pages.
-var tagGroups = []string{"People", "Places", "Stories", "Diary entries", "Other"}
+var tagGroups = []string{"People", "Places", "Stories", "Open Questions", "Diary entries", "Other"}
 
 // groupFromURL returns the content category for a page based on its URL.
 func groupFromURL(url string) string {
@@ -96,6 +96,8 @@ func groupFromURL(url string) string {
 		return "Diary entries"
 	case strings.HasPrefix(url, "/stories/"):
 		return "Stories"
+	case strings.HasPrefix(url, "/questions/"):
+		return "Open Questions"
 	case strings.Contains(url, "/person/"):
 		return "People"
 	case strings.Contains(url, "/place/"):
@@ -145,7 +147,7 @@ func tagPageBody(pages []pageRef) template.HTML {
 		sb.WriteString("<h2>")
 		sb.WriteString(group)
 		sb.WriteString("</h2>\n<ul>\n")
-		showSummary := group == "Diary entries" || group == "Stories"
+		showSummary := group == "Diary entries" || group == "Stories" || group == "Open Questions"
 		for _, p := range ps {
 			sb.WriteString("  <li><a href=\"")
 			sb.WriteString(p.URL)

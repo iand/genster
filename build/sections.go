@@ -18,7 +18,7 @@ type childPage struct {
 	Summary   string   // optional description shown beneath the title in listings
 	Tags      []string // front-matter tags; populated for diary and story entries
 	WordCount int      // rough word count of the body; populated for diary and story entries
-	Private   bool
+	FM        FrontMatter // complete front-matter for the child page
 }
 
 // collectChildren walks contentDir and returns:
@@ -79,6 +79,10 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			return nil
 		}
 
+		if bool(fm.Hide) {
+			return nil
+		}
+
 		// Compute the canonical URL for this file for use in tag listings.
 		var pageURL string
 		if stem == "_index" || stem == "index" {
@@ -134,9 +138,10 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.URL = pageURL
 			cp.Date = dateFromStem(dirBase)
 			cp.Summary = fm.Summary
-			cp.Private = bool(fm.Private)
+
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
+			cp.FM = fm
 			children[parentDir] = append(children[parentDir], cp)
 		} else {
 			// Leaf file: child of its own directory.
@@ -147,9 +152,10 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.URL = pageURL
 			cp.Date = dateFromStem(stem)
 			cp.Summary = fm.Summary
-			cp.Private = bool(fm.Private)
+
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
+			cp.FM = fm
 			children[dir] = append(children[dir], cp)
 		}
 

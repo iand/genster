@@ -33,6 +33,10 @@ var layoutRules = []struct {
 	{"/stories/", "storieshome"},
 	{"/stories/**", "story"},
 
+	// Questions section.
+	{"/questions/", "questionshome"},
+	{"/questions/**", "question"},
+
 	// Trees section index.
 	{"/trees/", "listtrees"},
 	{"/trees/*/", "treeoverview"},
@@ -93,9 +97,10 @@ func resolveLayout(pageURL, fmLayout string) string {
 //  2. sitemapRules — the first matching rule wins. If no rule matches, the
 //     URL is excluded.
 var sitemapRules = []string{
-	"/",           // homepage only
-	"/diary/**",   // diary section index and all diary entries
-	"/stories/**", // stories section index and all stories
-	"/trees/",     // trees section index
-	"/trees/*/",   // tree homepages (one level deep; grandchildren excluded)
+	"/",             // homepage only
+	"/diary/**",     // diary section index and all diary entries
+	"/stories/**",   // stories section index and all stories
+	"/questions/**", // stories section index and all stories
+	"/trees/",       // trees section index
+	"/trees/*/",     // tree homepages (one level deep; grandchildren excluded)
 }
