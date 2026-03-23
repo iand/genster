@@ -398,7 +398,7 @@ func TestCollectChildren(t *testing.T) {
 	writeFile(t, filepath.Join(contentDir, "diary", "2024", "2024-01-10.md"),
 		"<p>entry</p>\n")
 
-	children, sectionTitles, _, _, err := collectChildren(contentDir, false)
+	children, sectionTitles, _, _, _, err := collectChildren(contentDir, false)
 	if err != nil {
 		t.Fatalf("collectChildren: %v", err)
 	}

@@ -24,6 +24,9 @@
 		</p>
 
 		{{end -}}
+        {{- if .People}}
+        <p class="question-people">This question concerns {{joinPersonLinks .People}}.</p>
+        {{- end}}
         {{.Body}}
       </section>
     </main>

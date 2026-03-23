@@ -26,7 +26,9 @@ func urlize(s string) string {
 // imageDir is the filesystem path to the images/ subdirectory of the content
 // root. The featureImageSrc template function closes over this path and calls
 // SelectFeatureImage to resolve the best available image for each page.
-func buildSiteTemplates(imageDir string) *template.Template {
+// aliasIndex maps redirect paths (e.g. "/r/I0021") to the childPage for the
+// page that declares that alias; it is closed over by the personByAlias func.
+func buildSiteTemplates(imageDir string, aliasIndex map[string]childPage) *template.Template {
 	funcs := template.FuncMap{
 		"urlize": urlize,
 		// list returns its arguments as a []any slice, allowing templates to
@@ -47,6 +49,38 @@ func buildSiteTemplates(imageDir string) *template.Template {
 		// suitable image is found so the template can suppress the <img> tag.
 		"featureImageSrc": func(fm FrontMatter) string {
 			return SelectFeatureImage(fm, imageDir)
+		},
+		// personByAlias looks up a page by its redirect alias path (e.g.
+		// "/r/I0021" or "/r/richard-hinksman"). It returns a pointer to the
+		// matching childPage so templates can access .Title, .URL, .FM, etc.
+		// Returns nil when no page declares that alias.
+		"personByAlias": func(alias string) *childPage {
+			if cp, ok := aliasIndex[alias]; ok {
+				return &cp
+			}
+			return nil
+		},
+		// joinPersonLinks resolves a list of alias paths to person pages and
+		// returns an HTML fragment listing their names as links, joined with
+		// commas and "and": "X", "X and Y", or "X, Y and Z".
+		// Aliases that do not match any known page are silently skipped.
+		"joinPersonLinks": func(aliases flexStrings) template.HTML {
+			var links []string
+			for _, alias := range aliases {
+				if cp, ok := aliasIndex[alias]; ok {
+					links = append(links, `<a href="`+template.HTMLEscapeString(cp.URL)+`">`+template.HTMLEscapeString(cp.Title)+`</a>`)
+				}
+			}
+			switch len(links) {
+			case 0:
+				return ""
+			case 1:
+				return template.HTML(links[0])
+			case 2:
+				return template.HTML(links[0] + " and " + links[1])
+			default:
+				return template.HTML(strings.Join(links[:len(links)-1], ", ") + " and " + links[len(links)-1])
+			}
 		},
 	}
 	return template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html"))

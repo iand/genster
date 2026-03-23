@@ -124,13 +124,12 @@ func (b *Builder) Build() error {
 		return fmt.Errorf("write assets: %w", err)
 	}
 
-	b.templates = buildSiteTemplates(filepath.Join(b.ContentDir, "images"))
-
-	children, sectionTitles, tagIndex, draftDirs, err := collectChildren(b.ContentDir, b.IncludeDrafts)
+	children, sectionTitles, tagIndex, draftDirs, aliasIndex, err := collectChildren(b.ContentDir, b.IncludeDrafts)
 	if err != nil {
 		return fmt.Errorf("collect children: %w", err)
 	}
 	b.diaryNav = buildDiaryNav(children)
+	b.templates = buildSiteTemplates(filepath.Join(b.ContentDir, "images"), aliasIndex)
 
 	if err := filepath.WalkDir(b.ContentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

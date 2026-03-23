@@ -9,6 +9,27 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// flexStrings is a string slice that unmarshals from either a single YAML
+// string or a YAML sequence, so front-matter fields like "people" work
+// whether the author writes one value or a list.
+type flexStrings []string
+
+func (f *flexStrings) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Tag {
+	case "!!str":
+		*f = []string{value.Value}
+	case "!!seq":
+		var v []string
+		if err := value.Decode(&v); err != nil {
+			return err
+		}
+		*f = v
+	default:
+		return fmt.Errorf("cannot unmarshal %s into []string", value.Tag)
+	}
+	return nil
+}
+
 // flexBool is a bool that unmarshals from either a YAML boolean (draft: true)
 // or a quoted string (draft: "true"), as both appear in existing content files.
 type flexBool bool
@@ -79,7 +100,8 @@ type FrontMatter struct {
 	// Calendar-specific
 	Month string `yaml:"month"`
 
-	// Story-specific
+	// Question/story-specific
+	People     flexStrings         `yaml:"people"`
 	Author     string              `yaml:"author"`
 	Started    string              `yaml:"started"`
 	Updated    string              `yaml:"updated"`

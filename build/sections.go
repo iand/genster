@@ -26,18 +26,29 @@ type childPage struct {
 //     to the list of its immediate child pages.
 //   - sectionTitles: a map from content-relative, slash-separated section
 //     directory to the title of its index page, used to look up tree titles.
+//   - tagIndex: a map from tag name to the pages that carry that tag.
 //   - draftDirs: content-relative slash-separated directory paths whose index
 //     file has draft:true (only populated when includeDrafts is false). Used
 //     by Build to skip the entire directory, including images.
+//   - aliasIndex: a map from alias path (e.g. "/r/I0021") to the childPage
+//     for the page that declares that alias. Used by the personByAlias template
+//     function so templates can look up a person by their redirect path.
 //
 // Section index files (_index.md / index.md) are registered as children of
 // their parent section; leaf .md files are registered as children of their
 // own directory.  The root _index.md is skipped (it has no parent section).
-func collectChildren(contentDir string, includeDrafts bool) (children map[string][]childPage, sectionTitles map[string]string, tagIndex map[string][]pageRef, draftDirs map[string]bool, err error) {
+func collectChildren(contentDir string, includeDrafts bool) (children map[string][]childPage, sectionTitles map[string]string, tagIndex map[string][]pageRef, draftDirs map[string]bool, aliasIndex map[string]childPage, err error) {
 	children = make(map[string][]childPage)
 	sectionTitles = make(map[string]string)
 	tagIndex = make(map[string][]pageRef)
 	draftDirs = make(map[string]bool)
+	aliasIndex = make(map[string]childPage)
+
+	indexAlias := func(aliases []string, cp childPage) {
+		for _, alias := range aliases {
+			aliasIndex[alias] = cp
+		}
+	}
 
 	walkErr := filepath.WalkDir(contentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -142,6 +153,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			cp.FM = fm
+			indexAlias(fm.Aliases, cp)
 			children[parentDir] = append(children[parentDir], cp)
 		} else {
 			// Leaf file: child of its own directory.
@@ -156,13 +168,14 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 			cp.Tags = fm.Tags
 			cp.WordCount = countWords(body)
 			cp.FM = fm
+			indexAlias(fm.Aliases, cp)
 			children[dir] = append(children[dir], cp)
 		}
 
 		return nil
 	})
 	if walkErr != nil {
-		return nil, nil, nil, nil, walkErr
+		return nil, nil, nil, nil, nil, walkErr
 	}
 
 	// Sort each child list: date descending, then title ascending.
@@ -175,7 +188,7 @@ func collectChildren(contentDir string, includeDrafts bool) (children map[string
 		})
 	}
 
-	return children, sectionTitles, tagIndex, draftDirs, nil
+	return children, sectionTitles, tagIndex, draftDirs, aliasIndex, nil
 }
 
 // countWords returns a rough word count for a body string by stripping HTML
