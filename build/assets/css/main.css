@@ -1,8 +1,10 @@
 html {
 /*  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;*/
 
+  /* see https://modernfontstacks.com/ */
+  font-family: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, serif;
   /*font-family: "PT Sans", Helvetica, Arial, sans-serif;*/
-  font-family: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+  /* font-family: 'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;*/
   /*font-family: Didot, 'Bodoni MT', 'Noto Serif Display', 'URW Palladio L', P052, Sylfaen, serif;*/
   font-size: calc(13px + 0.390625vw);
   line-height: 1.5;
