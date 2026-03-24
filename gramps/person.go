@@ -167,8 +167,9 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		}
 		if strings.HasPrefix(pgc.Detail, "https://www.ancestry.co.uk/family-tree/person/") {
 			p.Links = append(p.Links, model.Link{
-				Title: "Ancestry",
-				URL:   pgc.Detail,
+				Title:    "Ancestry",
+				URL:      pgc.Detail,
+				Category: model.LinkCategoryWebsite,
 			})
 		} else if pgc.Source.Title == "WikiTree" {
 			anom := &model.Anomaly{
@@ -215,16 +216,28 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 			p.Anomalies = append(p.Anomalies, anom)
 
 		case "wikitree id":
+			if prev, ok := l.wikitreeIDsSeen[att.Value]; ok {
+				logger.Error("duplicate wikitree id attribute", "wikitree_id", att.Value, "gramps_id", p.GrampsID, "previous_gramps_id", prev)
+			} else {
+				l.wikitreeIDsSeen[att.Value] = p.GrampsID
+			}
 			p.WikiTreeID = att.Value
 			p.Links = append(p.Links, model.Link{
-				Title: "WikiTree",
-				URL:   "https://www.wikitree.com/wiki/" + att.Value,
+				Title:    "WikiTree",
+				URL:      "https://www.wikitree.com/wiki/" + att.Value,
+				Category: model.LinkCategoryWebsite,
 			})
 		case "familysearch id":
+			if prev, ok := l.familysearchIDsSeen[att.Value]; ok {
+				logger.Error("duplicate familysearch id attribute", "familysearch_id", att.Value, "gramps_id", p.GrampsID, "previous_gramps_id", prev)
+			} else {
+				l.familysearchIDsSeen[att.Value] = p.GrampsID
+			}
 			p.FamilySearchID = att.Value
 			p.Links = append(p.Links, model.Link{
-				Title: "FamilySearch",
-				URL:   "https://www.familysearch.org/tree/person/details/" + att.Value,
+				Title:    "FamilySearch",
+				URL:      "https://www.familysearch.org/tree/person/details/" + att.Value,
+				Category: model.LinkCategoryWebsite,
 			})
 		case "wikitree category":
 			p.WikiTreeCategories = append(p.WikiTreeCategories, att.Value)
@@ -276,6 +289,11 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				Citations: cits,
 			})
 		case "slug":
+			if prev, ok := l.slugsSeen[att.Value]; ok {
+				logger.Error("duplicate slug attribute", "slug", att.Value, "gramps_id", p.GrampsID, "previous_gramps_id", prev)
+			} else {
+				l.slugsSeen[att.Value] = p.GrampsID
+			}
 			p.Slug = att.Value
 		case "olb":
 			p.Olb = att.Value

@@ -44,6 +44,12 @@ func (w *Encoder) Para(m Text) {
 	w.main.WriteString("\n")
 }
 
+func (w *Encoder) Preface(m Text) {
+	w.main.WriteString("\n")
+	w.main.WriteString(string(m))
+	w.main.WriteString("\n")
+}
+
 func (w *Encoder) EmptyPara() {
 	w.main.WriteString("\n")
 }
@@ -234,7 +240,6 @@ func (w *Encoder) FactList(items []render.FactEntry[Text]) {
 		w.main.WriteString("\n")
 	}
 }
-
 
 func (w *Encoder) EncodeText(ss ...string) Text {
 	if len(ss) == 0 {

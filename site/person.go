@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/iand/genster/debug"
 	"github.com/iand/genster/logging"
@@ -150,18 +151,22 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		}
 	}
 
-	var storyLinks, questionLinks []model.Link
+	var storySubjects, storyMentions, questionSubjects, questionMentions []model.Link
 	for _, l := range p.Links {
 		switch l.Category {
-		case "story":
-			storyLinks = append(storyLinks, l)
-		case "question":
-			questionLinks = append(questionLinks, l)
+		case model.LinkCategoryStorySubject:
+			storySubjects = append(storySubjects, l)
+		case model.LinkCategoryStoryMention:
+			storyMentions = append(storyMentions, l)
+		case model.LinkCategoryQuestionSubject:
+			questionSubjects = append(questionSubjects, l)
+		case model.LinkCategoryQuestionMention:
+			questionMentions = append(questionMentions, l)
 		default:
 			doc.AddLink(l.Title, l.URL, l.Category)
 		}
 	}
-	writeContentLinksPara(doc, p.PreferredGivenName, storyLinks, questionLinks)
+	writeContentLinksPara(doc, p.PreferredGivenName, storySubjects, storyMentions, questionSubjects, questionMentions)
 
 	if p.Intro != nil {
 		narrative.RenderText(*p.Intro, doc)
@@ -307,52 +312,81 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	return doc, nil
 }
 
+// linkTitles converts a slice of model.Link into a slice of encoded markdown
+// hyperlink strings for use in prose sentences.
+func linkTitles(doc *md.Document, links []model.Link) []string {
+	titles := make([]string, len(links))
+	for i, l := range links {
+		titles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
+	}
+	return titles
+}
+
 // writeContentLinksPara adds a paragraph to doc describing which stories and
-// questions feature the person. Story/question links are rendered as markdown
-// hyperlinks inline in the sentence rather than in the sidebar.
-func writeContentLinksPara(doc *md.Document, firstname string, storyLinks, questionLinks []model.Link) {
-	if len(storyLinks) == 0 && len(questionLinks) == 0 {
+// questions the person is the subject of, and which they are merely mentioned
+// in. Links are rendered as markdown hyperlinks inline in the sentence.
+//
+// The general form is:
+//
+//	"{name} is the subject of [questions] and [stories] and is also mentioned in [questions and stories]."
+func writeContentLinksPara(doc *md.Document, firstname string, storySubjects, storyMentions, questionSubjects, questionMentions []model.Link) {
+	hasSubjects := len(storySubjects) > 0 || len(questionSubjects) > 0
+	hasMentions := len(storyMentions) > 0 || len(questionMentions) > 0
+	if !hasSubjects && !hasMentions {
 		return
 	}
 
-	storyTitles := make([]string, len(storyLinks))
-	for i, l := range storyLinks {
-		storyTitles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
-	}
-	questionTitles := make([]string, len(questionLinks))
-	for i, l := range questionLinks {
-		questionTitles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
-	}
+	var parts []string
 
-	var sentence string
-	switch {
-	case len(storyLinks) > 0 && len(questionLinks) == 0:
-		noun := "stories"
-		if len(storyLinks) == 1 {
-			noun = "story"
+	if hasSubjects {
+		var subjectParts []string
+		if len(storySubjects) > 0 {
+			titles := linkTitles(doc, storySubjects)
+			noun := "stories"
+			if len(storySubjects) == 1 {
+				noun = "story"
+			}
+			subjectParts = append(subjectParts, text.JoinList(titles)+" "+noun)
 		}
-		sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun + "."
-
-	case len(storyLinks) == 0 && len(questionLinks) > 0:
-		if len(questionLinks) == 1 {
-			sentence = firstname + " is the subject of an open question: " + questionTitles[0] + "."
-		} else {
-			sentence = firstname + " is the subject of these open questions: " + text.JoinList(questionTitles) + "."
+		if len(questionSubjects) > 0 {
+			titles := linkTitles(doc, questionSubjects)
+			noun := "open questions"
+			if len(questionSubjects) == 1 {
+				noun = "open question"
+			}
+			subjectParts = append(subjectParts, text.JoinList(titles)+" "+noun)
 		}
-
-	default: // both stories and questions
-		noun := "stories"
-		if len(storyLinks) == 1 {
-			noun = "story"
-		}
-		if len(questionLinks) == 1 {
-			sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun +
-				" and is also the subject of an open question: " + questionTitles[0] + "."
-		} else {
-			sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun +
-				" and is also the subject of these open questions: " + text.JoinList(questionTitles) + "."
-		}
+		parts = append(parts, "is the subject of the "+text.JoinList(subjectParts))
 	}
 
-	doc.Para(md.Text(sentence))
+	if hasMentions {
+		var mentionParts []string
+		prefix := "is mentioned in the"
+		if hasSubjects {
+			prefix = "is also mentioned in the"
+		}
+
+		if len(storyMentions) > 0 {
+			titles := linkTitles(doc, storyMentions)
+			noun := "stories"
+			if len(storyMentions) == 1 {
+				noun = "story"
+			}
+			mentionParts = append(mentionParts, text.JoinList(titles)+" "+noun)
+		}
+
+		if len(questionMentions) > 0 {
+			titles := linkTitles(doc, questionMentions)
+			noun := "stories"
+			if len(questionMentions) == 1 {
+				noun = "story"
+			}
+			mentionParts = append(mentionParts, text.JoinList(titles)+" "+noun)
+		}
+
+		parts = append(parts, prefix+" "+text.JoinList(mentionParts))
+	}
+
+	sentence := firstname + " " + strings.Join(parts, " and ") + "."
+	doc.Preface(md.Text(sentence))
 }

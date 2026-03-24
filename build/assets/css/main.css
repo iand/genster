@@ -165,14 +165,18 @@ dd {
 }
 
 
-
 /* Misc */
 hr {
   position: relative;
   margin: 1.5rem 12rem;
+/*
   border: 0;
   border-top: 1px solid #999;
   border-bottom: 1px solid #ccc;
+*/
+  border: none;
+  border-top: 1px solid #999;
+
 }
 
 abbr {

@@ -122,6 +122,12 @@ func (b *Content) Para(m Text) {
 	b.maintext.WriteString("</p>\n")
 }
 
+func (b *Content) Preface(m Text) {
+	b.maintext.WriteString("<p class=\"preface\">")
+	m.ToHTML(&b.maintext)
+	b.maintext.WriteString("</p>\n")
+}
+
 func (e *Content) EmptyPara() {
 	e.maintext.WriteString("<p></p>\n")
 	// e.writeEmptyPara(&b.maintext)

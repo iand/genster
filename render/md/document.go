@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/iand/genster/model"
 )
 
 var (
@@ -313,14 +315,14 @@ func (b *Document) AddAlias(s string) {
 	b.appendFrontMatterField(MarkdownTagAliases, s)
 }
 
-func (b *Document) AddLink(title string, link string, category string) {
+func (b *Document) AddLink(title string, link string, category model.LinkCategory) {
 	if title == "" {
 		return
 	}
 	b.appendFrontMatterFieldDict(MarkdownTagLinks, map[string]string{
 		"title":    title,
 		"link":     link,
-		"category": category,
+		"category": string(category),
 	})
 }
 

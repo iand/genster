@@ -34,6 +34,7 @@ type ContentBuilder[T EncodedText] interface {
 	Para(T)
 	Pre(string)
 	EmptyPara()
+	Preface(m T)
 	Heading2(m T, id string)
 	Heading3(m T, id string)
 	Heading4(m T, id string)

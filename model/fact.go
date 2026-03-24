@@ -110,10 +110,22 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 	}
 }
 
+type LinkCategory string
+
+const (
+	LinkCategoryUnknown         LinkCategory = ""
+	LinkCategoryDiary           LinkCategory = "diary"
+	LinkCategoryStorySubject    LinkCategory = "story-subject"
+	LinkCategoryStoryMention    LinkCategory = "story-mention"
+	LinkCategoryQuestionSubject LinkCategory = "question-subject"
+	LinkCategoryQuestionMention LinkCategory = "question-mention"
+	LinkCategoryWebsite         LinkCategory = "website"
+)
+
 type Link struct {
 	Title    string
 	URL      string
-	Category string
+	Category LinkCategory
 }
 
 func LinkFromURL(u string) *Link {

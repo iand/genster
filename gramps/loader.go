@@ -49,6 +49,9 @@ type Loader struct {
 	unionEvents          map[string]model.UnionTimelineEvent
 	timelineEvents       map[string]model.TimelineEvent
 	familyNameGroups     map[string]string
+	slugsSeen            map[string]string // slug → GrampsID of first person to claim it
+	wikitreeIDsSeen      map[string]string // wikitree id → GrampsID of first person to claim it
+	familysearchIDsSeen  map[string]string // familysearch id → GrampsID of first person to claim it
 }
 
 func NewLoader(filename string, databaseName string) (*Loader, error) {
@@ -82,6 +85,9 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		timelineEvents:       make(map[string]model.TimelineEvent),
 
 		familyNameGroups: make(map[string]string),
+		slugsSeen:           make(map[string]string),
+		wikitreeIDsSeen:     make(map[string]string),
+		familysearchIDsSeen: make(map[string]string),
 	}
 
 	l.indexObjects()

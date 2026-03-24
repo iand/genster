@@ -1,6 +1,7 @@
 package site
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -276,11 +277,12 @@ func gen(cc *cli.Context) error {
 }
 
 var (
-	reAliasLink = regexp.MustCompile(`\(/r/(.+?)\)`)
-	reAliasTag  = regexp.MustCompile(` - /r/(.+?)\n`)
-	reISODate   = regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)$`)
-	reFMTitle   = regexp.MustCompile(`(?m)^title:\s*["']?(.+?)["']?\s*$`)
-	reFMDraft   = regexp.MustCompile(`(?m)^draft:\s*["']?(\w+)["']?\s*$`)
+	reAliasLink    = regexp.MustCompile(`\(/r/(.+?)\)`)
+	reISODate      = regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)$`)
+	reFMTitle      = regexp.MustCompile(`(?m)^title:\s*["']?(.+?)["']?\s*$`)
+	reFMDraft      = regexp.MustCompile(`(?m)^draft:\s*["']?(\w+)["']?\s*$`)
+	reFMPeople     = regexp.MustCompile(`(?m)^people:\s*\n((?:[ \t]*-[ \t]+\S[^\n]*\n?)*)`)
+	rePeopleItem   = regexp.MustCompile(`(?m)^[ \t]*-[ \t]+/r/([^\s]+)`)
 )
 
 var isoMonths = map[string]string{
@@ -295,6 +297,31 @@ func isoToHuman(s string) (string, bool) {
 		return "", false
 	}
 	return m[3] + " " + isoMonths[m[2]] + " " + m[1], true
+}
+
+// fmPeopleIDs extracts /r/<id> aliases from the people: YAML front-matter
+// field. Returns a slice of alias strings (without the /r/ prefix).
+func fmPeopleIDs(content []byte) []string {
+	// Locate the front-matter block between leading --- delimiters.
+	if !bytes.HasPrefix(content, []byte("---")) {
+		return nil
+	}
+	end := bytes.Index(content[3:], []byte("\n---"))
+	if end < 0 {
+		return nil
+	}
+	fm := content[3 : end+3]
+
+	m := reFMPeople.FindSubmatch(fm)
+	if m == nil {
+		return nil
+	}
+	items := rePeopleItem.FindAllSubmatch(m[1], -1)
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, string(item[1]))
+	}
+	return ids
 }
 
 // fmDraft reports whether the content's front-matter has draft set to a
@@ -344,10 +371,11 @@ func resolvePageTitle(stem string, content []byte, isoTitleOnly bool) (string, b
 }
 
 type contentSection struct {
-	subdir       string
-	urlBase      string
-	category     string
-	isoTitleOnly bool // when true, title is always derived from ISO date (diary)
+	subdir          string
+	urlBase         string
+	subjectCategory model.LinkCategory
+	mentionCategory model.LinkCategory
+	isoTitleOnly    bool // when true, title is always derived from ISO date (diary)
 }
 
 // walkContentPages walks the diary, stories, and questions subdirectories
@@ -357,9 +385,9 @@ type contentSection struct {
 // Pages with draft:true in their front-matter are skipped unless includeDrafts is true.
 func walkContentPages(contentDir string, includeDrafts bool) (map[string][]model.Link, error) {
 	sections := []contentSection{
-		{"diary", "/diary/", "diary", true},
-		{"stories", "/stories/", "story", false},
-		{"questions", "/questions/", "question", false},
+		{"diary", "/diary/", model.LinkCategoryDiary, model.LinkCategoryDiary, true},
+		{"stories", "/stories/", model.LinkCategoryStorySubject, model.LinkCategoryStoryMention, false},
+		{"questions", "/questions/", model.LinkCategoryQuestionSubject, model.LinkCategoryQuestionMention, false},
 	}
 
 	result := make(map[string][]model.Link)
@@ -368,7 +396,7 @@ func walkContentPages(contentDir string, includeDrafts bool) (map[string][]model
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		}
-		if err := walkSectionPages(dir, sec.urlBase, sec.category, sec.isoTitleOnly, includeDrafts, result); err != nil {
+		if err := walkSectionPages(dir, sec.urlBase, sec.subjectCategory, sec.mentionCategory, sec.isoTitleOnly, includeDrafts, result); err != nil {
 			return nil, fmt.Errorf("walk %s: %w", sec.subdir, err)
 		}
 		if sec.isoTitleOnly {
@@ -406,7 +434,12 @@ func walkContentPages(contentDir string, includeDrafts bool) (map[string][]model
 // title is always derived from the ISO date in the filename stem (diary
 // behaviour); entries whose stem is not an ISO date are skipped. When false
 // the title comes from front-matter, falling back to the stem.
-func walkSectionPages(dir, urlBase, category string, isoTitleOnly, includeDrafts bool, result map[string][]model.Link) error {
+//
+// People listed in the front-matter people: field are assigned subjectCategory.
+// People linked anywhere in the body with (/r/...) are assigned mentionCategory.
+// When subjectCategory == mentionCategory (e.g. diary) all references use a
+// single category.
+func walkSectionPages(dir, urlBase string, subjectCategory, mentionCategory model.LinkCategory, isoTitleOnly, includeDrafts bool, result map[string][]model.Link) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			return nil
@@ -438,35 +471,37 @@ func walkSectionPages(dir, urlBase, category string, isoTitleOnly, includeDrafts
 		}
 
 		// Derive URL and title.
-		var link model.Link
-		link.Category = category
-
+		var baseLink model.Link
 		if stem == "index" || stem == "_index" {
 			// Directory-style page: URL is the parent dir path.
 			dirStem := filepath.Base(filepath.Dir(relPath))
-			link.URL = urlBase + filepath.ToSlash(filepath.Dir(relPath)) + "/"
+			baseLink.URL = urlBase + filepath.ToSlash(filepath.Dir(relPath)) + "/"
 			var ok bool
-			if link.Title, ok = resolvePageTitle(dirStem, content, isoTitleOnly); !ok {
+			if baseLink.Title, ok = resolvePageTitle(dirStem, content, isoTitleOnly); !ok {
 				return nil
 			}
 		} else {
 			// Leaf file: URL is derived from the stem.
-			link.URL = urlBase + filepath.ToSlash(strings.TrimSuffix(relSlash, ".md")) + "/"
+			baseLink.URL = urlBase + filepath.ToSlash(strings.TrimSuffix(relSlash, ".md")) + "/"
 			var ok bool
-			if link.Title, ok = resolvePageTitle(stem, content, isoTitleOnly); !ok {
+			if baseLink.Title, ok = resolvePageTitle(stem, content, isoTitleOnly); !ok {
 				return nil
 			}
 		}
 
-		// Find person references: markdown links like (/r/I0554) and
-		// YAML front-matter list entries like "  - /r/william-hinksman".
+		// People in front-matter people: field are subjects of this page.
+		for _, id := range fmPeopleIDs(content) {
+			l := baseLink
+			l.Category = subjectCategory
+			result[id] = append(result[id], l)
+		}
+
+		// People linked in the body with (/r/...) are mentions.
 		for _, match := range reAliasLink.FindAllSubmatch(content, -1) {
 			id := string(match[1])
-			result[id] = append(result[id], link)
-		}
-		for _, match := range reAliasTag.FindAllSubmatch(content, -1) {
-			id := string(match[1])
-			result[id] = append(result[id], link)
+			l := baseLink
+			l.Category = mentionCategory
+			result[id] = append(result[id], l)
 		}
 
 		return nil
