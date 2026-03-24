@@ -111,8 +111,9 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 }
 
 type Link struct {
-	Title string
-	URL   string
+	Title    string
+	URL      string
+	Category string
 }
 
 func LinkFromURL(u string) *Link {

@@ -50,6 +50,17 @@ func buildSiteTemplates(imageDir string, aliasIndex map[string]childPage) *templ
 		"featureImageSrc": func(fm FrontMatter) string {
 			return SelectFeatureImage(fm, imageDir)
 		},
+		// linksByCategory filters the links front-matter slice to those whose
+		// "category" key matches the given value.
+		"linksByCategory": func(links []map[string]string, category string) []map[string]string {
+			var out []map[string]string
+			for _, l := range links {
+				if l["category"] == category {
+					out = append(out, l)
+				}
+			}
+			return out
+		},
 		// personByAlias looks up a page by its redirect alias path (e.g.
 		// "/r/I0021" or "/r/richard-hinksman"). It returns a pointer to the
 		// matching childPage so templates can access .Title, .URL, .FM, etc.

@@ -110,7 +110,6 @@ type FrontMatter struct {
 	StoryParts []map[string]string `yaml:"storyparts"`
 
 	// Sidebar link lists (person pages)
-	DiaryLinks  []map[string]string `yaml:"diarylinks"`
 	Links       []map[string]string `yaml:"links"`
 	Descendants []map[string]string `yaml:"descendants"`
 

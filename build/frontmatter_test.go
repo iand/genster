@@ -44,8 +44,8 @@ func TestParseDocumentRoundTrip(t *testing.T) {
 	doc.SetSitemapDisable()
 
 	// []map[string]string fields
-	doc.AddDiaryLink("Research entry", "/diary/2025/01/15/")
-	doc.AddLink("WikiTree profile", "https://wikitree.com/wiki/Smith-1")
+	doc.AddLink("Research entry", "/diary/2025/01/15/", "diary")
+	doc.AddLink("WikiTree profile", "https://wikitree.com/wiki/Smith-1", "")
 	doc.AddDescendant("Jane Smith", "/person/I5678/", "b. 1875")
 
 	content := doc.String()
@@ -111,26 +111,27 @@ func TestParseDocumentRoundTrip(t *testing.T) {
 		t.Errorf("Sitemap[disable]: got %q, want %q", fm.Sitemap["disable"], "1")
 	}
 
-	// --- []map[string]string: DiaryLinks ---
-	if len(fm.DiaryLinks) != 1 {
-		t.Fatalf("DiaryLinks: got %d items, want 1", len(fm.DiaryLinks))
-	}
-	if got := fm.DiaryLinks[0]["title"]; got != "Research entry" {
-		t.Errorf("DiaryLinks[0][title]: got %q, want %q", got, "Research entry")
-	}
-	if got := fm.DiaryLinks[0]["link"]; got != "/diary/2025/01/15/" {
-		t.Errorf("DiaryLinks[0][link]: got %q, want %q", got, "/diary/2025/01/15/")
-	}
-
 	// --- []map[string]string: Links ---
-	if len(fm.Links) != 1 {
-		t.Fatalf("Links: got %d items, want 1", len(fm.Links))
+	if len(fm.Links) != 2 {
+		t.Fatalf("Links: got %d items, want 2", len(fm.Links))
 	}
-	if got := fm.Links[0]["title"]; got != "WikiTree profile" {
-		t.Errorf("Links[0][title]: got %q, want %q", got, "WikiTree profile")
+	if got := fm.Links[0]["title"]; got != "Research entry" {
+		t.Errorf("Links[0][title]: got %q, want %q", got, "Research entry")
 	}
-	if got := fm.Links[0]["link"]; got != "https://wikitree.com/wiki/Smith-1" {
-		t.Errorf("Links[0][link]: got %q, want %q", got, "https://wikitree.com/wiki/Smith-1")
+	if got := fm.Links[0]["link"]; got != "/diary/2025/01/15/" {
+		t.Errorf("Links[0][link]: got %q, want %q", got, "/diary/2025/01/15/")
+	}
+	if got := fm.Links[0]["category"]; got != "diary" {
+		t.Errorf("Links[0][category]: got %q, want %q", got, "diary")
+	}
+	if got := fm.Links[1]["title"]; got != "WikiTree profile" {
+		t.Errorf("Links[1][title]: got %q, want %q", got, "WikiTree profile")
+	}
+	if got := fm.Links[1]["link"]; got != "https://wikitree.com/wiki/Smith-1" {
+		t.Errorf("Links[1][link]: got %q, want %q", got, "https://wikitree.com/wiki/Smith-1")
+	}
+	if got := fm.Links[1]["category"]; got != "" {
+		t.Errorf("Links[1][category]: got %q, want %q", got, "")
 	}
 
 	// --- []map[string]string: Descendants ---

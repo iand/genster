@@ -74,7 +74,6 @@ type Person struct {
 	GrampsID           string   // the gramps id of this person
 	FamilySearchID     string   // the familysearch id of this person
 	Slug               string   // a short url-friendly identifier that can be used to refer to this person
-	DiaryLinks         []Link   // list of links to diary entries about this person
 	Links              []Link   // list of links to more information relevant to this person
 
 	Redacted           bool                // true if the person's details should be redacted

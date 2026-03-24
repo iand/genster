@@ -150,6 +150,19 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		}
 	}
 
+	var storyLinks, questionLinks []model.Link
+	for _, l := range p.Links {
+		switch l.Category {
+		case "story":
+			storyLinks = append(storyLinks, l)
+		case "question":
+			questionLinks = append(questionLinks, l)
+		default:
+			doc.AddLink(l.Title, l.URL, l.Category)
+		}
+	}
+	writeContentLinksPara(doc, p.PreferredGivenName, storyLinks, questionLinks)
+
 	if p.Intro != nil {
 		narrative.RenderText(*p.Intro, doc)
 	}
@@ -232,14 +245,6 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 
 	n.Render(pov, doc)
 
-	for _, l := range p.DiaryLinks {
-		doc.AddDiaryLink(l.Title, l.URL)
-	}
-
-	for _, l := range p.Links {
-		doc.AddLink(l.Title, l.URL)
-	}
-
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
 		doc.AddAlias(s.RedirectPath(p.GrampsID))
@@ -300,4 +305,54 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	}
 
 	return doc, nil
+}
+
+// writeContentLinksPara adds a paragraph to doc describing which stories and
+// questions feature the person. Story/question links are rendered as markdown
+// hyperlinks inline in the sentence rather than in the sidebar.
+func writeContentLinksPara(doc *md.Document, firstname string, storyLinks, questionLinks []model.Link) {
+	if len(storyLinks) == 0 && len(questionLinks) == 0 {
+		return
+	}
+
+	storyTitles := make([]string, len(storyLinks))
+	for i, l := range storyLinks {
+		storyTitles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
+	}
+	questionTitles := make([]string, len(questionLinks))
+	for i, l := range questionLinks {
+		questionTitles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
+	}
+
+	var sentence string
+	switch {
+	case len(storyLinks) > 0 && len(questionLinks) == 0:
+		noun := "stories"
+		if len(storyLinks) == 1 {
+			noun = "story"
+		}
+		sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun + "."
+
+	case len(storyLinks) == 0 && len(questionLinks) > 0:
+		if len(questionLinks) == 1 {
+			sentence = firstname + " is the subject of an open question: " + questionTitles[0] + "."
+		} else {
+			sentence = firstname + " is the subject of these open questions: " + text.JoinList(questionTitles) + "."
+		}
+
+	default: // both stories and questions
+		noun := "stories"
+		if len(storyLinks) == 1 {
+			noun = "story"
+		}
+		if len(questionLinks) == 1 {
+			sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun +
+				" and is also the subject of an open question: " + questionTitles[0] + "."
+		} else {
+			sentence = firstname + " features in the " + text.JoinList(storyTitles) + " " + noun +
+				" and is also the subject of these open questions: " + text.JoinList(questionTitles) + "."
+		}
+	}
+
+	doc.Para(md.Text(sentence))
 }

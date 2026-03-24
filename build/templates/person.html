@@ -34,20 +34,20 @@
       {{- if or .Slug .GrampsID}}
       <p>Quick link: /r/{{if .Slug}}{{.Slug}}{{else}}{{.GrampsID}}{{end}}</p>
       {{- end}}
-      {{- if .DiaryLinks}}
+      {{- with linksByCategory .Links "diary"}}
       <section class="links">
-        <header>Research Diary Entries</header>
+        <header>Research Diary</header>
         <ul>
-          {{range .DiaryLinks}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{range .}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
           {{end -}}
         </ul>
       </section>
       {{- end}}
-      {{- if .Links}}
+      {{- with linksByCategory .Links ""}}
       <section class="links">
         <header>On other sites</header>
         <ul>
-          {{range .Links}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
+          {{range .}}<li><a href="{{index . "link"}}">{{index . "title"}}</a></li>
           {{end -}}
         </ul>
       </section>

@@ -32,7 +32,6 @@ const (
 	MarkdownTagLastPage    = "last"
 	MarkdownTagIndexPage   = "index"
 	MarkdownTagAliases     = "aliases"
-	MarkdownTagDiaryLinks  = "diarylinks"
 	MarkdownTagLinks       = "links"
 	MarkdownTagDescendants = "descendants"
 	MarkdownTagLastMod     = "lastmod"
@@ -314,23 +313,14 @@ func (b *Document) AddAlias(s string) {
 	b.appendFrontMatterField(MarkdownTagAliases, s)
 }
 
-func (b *Document) AddDiaryLink(title string, link string) {
-	if title == "" {
-		return
-	}
-	b.appendFrontMatterFieldDict(MarkdownTagDiaryLinks, map[string]string{
-		"title": title,
-		"link":  link,
-	})
-}
-
-func (b *Document) AddLink(title string, link string) {
+func (b *Document) AddLink(title string, link string, category string) {
 	if title == "" {
 		return
 	}
 	b.appendFrontMatterFieldDict(MarkdownTagLinks, map[string]string{
-		"title": title,
-		"link":  link,
+		"title":    title,
+		"link":     link,
+		"category": category,
 	})
 }
 
