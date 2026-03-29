@@ -813,7 +813,7 @@ dl.timeline dl.tlentry dt {
 }
 
 
-table.matrix { border-collapse: collapse; }
+table.matrix { border-collapse: collapse; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.matrix th, table.matrix td {
   border: 1px solid #ccc;
   padding: 4px 6px;
