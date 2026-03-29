@@ -46,6 +46,73 @@ var renderer = goldmark.New(
 // (<!-- {{< private >}} ... -->) and any other comments do not reach the browser.
 var htmlCommentRE = regexp.MustCompile(`(?s)<!--.*?-->`)
 
+// relSrcRE matches src="..." attributes in HTML where the value is not an
+// absolute URL (no leading / and no scheme like http://).
+var relSrcRE = regexp.MustCompile(`src="([^/"#][^"]*)"`)
+
+// rewriteRelativeSrcs rewrites relative src="..." attribute values in HTML to
+// absolute paths by prepending baseURL (e.g. "/diary/2026/2026-02-05/").
+// Values that already start with / or contain :// are left unchanged.
+func rewriteRelativeSrcs(h template.HTML, baseURL string) template.HTML {
+	result := relSrcRE.ReplaceAllStringFunc(string(h), func(match string) string {
+		sub := relSrcRE.FindStringSubmatch(match)
+		if sub == nil {
+			return match
+		}
+		src := sub[1]
+		if strings.HasPrefix(src, "/") || strings.Contains(src, "://") {
+			return match
+		}
+		return `src="` + baseURL + src + `"`
+	})
+	return template.HTML(result)
+}
+
+// loadDiaryEntryBody reads and renders the markdown body for a diary childPage,
+// rewrites any relative src attributes to absolute paths, and stores the result
+// in cp.Body. The entry is located by deriving a file path from cp.URL.
+func loadDiaryEntryBody(contentDir string, cp *childPage) error {
+	relURL := strings.Trim(cp.URL, "/")
+	var srcPath string
+	// First try directory-style entries: diary/YYYY/YYYY-MM-DD/index.md
+	for _, name := range []string{"index.md", "_index.md"} {
+		candidate := filepath.Join(contentDir, filepath.FromSlash(relURL), name)
+		if _, err := os.Stat(candidate); err == nil {
+			srcPath = candidate
+			break
+		}
+	}
+	// Fall back to leaf-file entries: diary/YYYY/YYYY-MM-DD.md
+	if srcPath == "" {
+		candidate := filepath.Join(contentDir, filepath.FromSlash(relURL)+".md")
+		if _, err := os.Stat(candidate); err == nil {
+			srcPath = candidate
+		}
+	}
+	if srcPath == "" {
+		return fmt.Errorf("no content file found for diary entry %s", cp.URL)
+	}
+
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", srcPath, err)
+	}
+
+	_, body, err := ParseDocument(string(data))
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", srcPath, err)
+	}
+
+	var buf bytes.Buffer
+	if err := renderer.Convert([]byte(body), &buf); err != nil {
+		return fmt.Errorf("render %s: %w", srcPath, err)
+	}
+
+	rendered := htmlCommentRE.ReplaceAll(buf.Bytes(), nil)
+	cp.Body = rewriteRelativeSrcs(template.HTML(rendered), cp.URL)
+	return nil
+}
+
 // TreeData holds site-level metadata for the genealogy tree a page belongs to.
 // It is populated from the tree's section index page and is available in all
 // templates as {{.Tree.Title}}, {{.Tree.BasePath}}, etc., without needing to
@@ -248,8 +315,19 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 	}
 	var listingChildren []childPage
 	var diaryYears []string
+	var olderDiaryEntry NavEntry // set for diaryhome to link beyond the listed entries
 	if layout == "diaryhome" {
-		listingChildren = recentDiaryEntries(children, 20)
+		recent := recentDiaryEntries(children, 11)
+		if len(recent) > 10 {
+			olderDiaryEntry = NavEntry{URL: recent[10].URL, Title: recent[10].Title}
+			recent = recent[:10]
+		}
+		for i := range recent {
+			if err := loadDiaryEntryBody(b.ContentDir, &recent[i]); err != nil {
+				logging.Warn("failed to load diary entry body", "url", recent[i].URL, "err", err)
+			}
+		}
+		listingChildren = recent
 		diaryYears = collectDiaryYears(children)
 	} else if layout == "diaryentries" {
 		listingChildren = children[relDir]
@@ -318,6 +396,9 @@ func (b *Builder) renderMarkdown(srcPath, rel string, children map[string][]chil
 			prevEntry = pair[0]
 			nextEntry = pair[1]
 		}
+	}
+	if olderDiaryEntry.URL != "" {
+		prevEntry = olderDiaryEntry
 	}
 
 	if err := writePageFile(tmpl, outPath, PageData{FrontMatter: fm, Body: template.HTML(rendered), Tree: tree, Section: section, PrevEntry: prevEntry, NextEntry: nextEntry, Children: listingChildren, DiaryYears: diaryYears, Debug: b.Debug, PageLayout: layout}); err != nil {

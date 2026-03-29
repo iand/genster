@@ -15,7 +15,21 @@
       {{- end}}
       <section>
         {{.Body}}
-        {{template "diary-listing" .Children}}
+        {{- range .Children}}
+        <article class="diary-entry">
+          <h2><a href="{{.URL}}">{{.Title}}</a></h2>
+          {{.Body}}
+        </article>
+        {{- end}}
+        {{- if .PrevEntry.URL}}
+        <nav class="pages">
+          <div class="nav-left">
+            <ul>
+              <li><a href="{{.PrevEntry.URL}}">« previous entry ({{.PrevEntry.Title}})</a></li>
+            </ul>
+          </div>
+        </nav>
+        {{- end}}
       </section>
     </main>
     <section class="sidebar">

@@ -14,11 +14,12 @@ import (
 type childPage struct {
 	Title     string
 	URL       string
-	Date      string   // YYYY-MM-DD for chronological sorting; empty when unknown
-	Summary   string   // optional description shown beneath the title in listings
-	Tags      []string // front-matter tags; populated for diary and story entries
-	WordCount int      // rough word count of the body; populated for diary and story entries
-	FM        FrontMatter // complete front-matter for the child page
+	Date      string        // YYYY-MM-DD for chronological sorting; empty when unknown
+	Summary   string        // optional description shown beneath the title in listings
+	Tags      []string      // front-matter tags; populated for diary and story entries
+	WordCount int           // rough word count of the body; populated for diary and story entries
+	FM        FrontMatter   // complete front-matter for the child page
+	Body      template.HTML // rendered body HTML; populated on demand (e.g. for inline diary rendering)
 }
 
 // collectChildren walks contentDir and returns:
