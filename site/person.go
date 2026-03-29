@@ -314,10 +314,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 
 // linkTitles converts a slice of model.Link into a slice of encoded markdown
 // hyperlink strings for use in prose sentences.
-func linkTitles(doc *md.Document, links []model.Link) []string {
+func linkTitles(doc *md.Document, links []model.Link, prefix string) []string {
 	titles := make([]string, len(links))
 	for i, l := range links {
-		titles[i] = string(doc.EncodeLink(md.Text(l.Title), l.URL))
+		titles[i] = prefix + string(doc.EncodeLink(md.Text(l.Title), l.URL))
 	}
 	return titles
 }
@@ -341,7 +341,7 @@ func writeContentLinksPara(doc *md.Document, firstname string, storySubjects, st
 	if hasSubjects {
 		var subjectParts []string
 		if len(storySubjects) > 0 {
-			titles := linkTitles(doc, storySubjects)
+			titles := linkTitles(doc, storySubjects, "the ")
 			noun := "stories"
 			if len(storySubjects) == 1 {
 				noun = "story"
@@ -349,25 +349,25 @@ func writeContentLinksPara(doc *md.Document, firstname string, storySubjects, st
 			subjectParts = append(subjectParts, text.JoinList(titles)+" "+noun)
 		}
 		if len(questionSubjects) > 0 {
-			titles := linkTitles(doc, questionSubjects)
+			titles := linkTitles(doc, questionSubjects, "the ")
 			noun := "open questions"
 			if len(questionSubjects) == 1 {
 				noun = "open question"
 			}
 			subjectParts = append(subjectParts, text.JoinList(titles)+" "+noun)
 		}
-		parts = append(parts, "is the subject of the "+text.JoinList(subjectParts))
+		parts = append(parts, "is the subject of "+text.JoinList(subjectParts))
 	}
 
 	if hasMentions {
 		var mentionParts []string
-		prefix := "is mentioned in the"
+		prefix := "is mentioned in"
 		if hasSubjects {
-			prefix = "is also mentioned in the"
+			prefix = "is also mentioned in"
 		}
 
 		if len(storyMentions) > 0 {
-			titles := linkTitles(doc, storyMentions)
+			titles := linkTitles(doc, storyMentions, "the ")
 			noun := "stories"
 			if len(storyMentions) == 1 {
 				noun = "story"
@@ -376,10 +376,10 @@ func writeContentLinksPara(doc *md.Document, firstname string, storySubjects, st
 		}
 
 		if len(questionMentions) > 0 {
-			titles := linkTitles(doc, questionMentions)
-			noun := "stories"
+			titles := linkTitles(doc, questionMentions, "the ")
+			noun := "open questions"
 			if len(questionMentions) == 1 {
-				noun = "story"
+				noun = "open question"
 			}
 			mentionParts = append(mentionParts, text.JoinList(titles)+" "+noun)
 		}

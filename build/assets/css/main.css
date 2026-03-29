@@ -812,3 +812,30 @@ dl.timeline dl.tlentry dt {
   padding: 0;
 }
 
+
+table.matrix { border-collapse: collapse; }
+table.matrix th, table.matrix td {
+  border: 1px solid #ccc;
+  padding: 4px 6px;
+  text-align: right;
+  font-size: 0.85em;
+}
+table.matrix thead th.col-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  min-height: 6em;
+  text-align: left;
+  vertical-align: bottom;
+}
+table.matrix tbody th {
+  text-align: left;
+  font-weight: normal;
+  white-space: nowrap;
+}
+table.matrix td.self { color: #aaa; }
+table.matrix td.no-match { background: #f9f9f9; }
+
+table.matrix tr.group1 td, table.matrix tr.group1 th { background: #acc; }
+table.matrix tr.group2 td, table.matrix tr.group2 th { background: #cac; }
+

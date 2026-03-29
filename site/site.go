@@ -219,6 +219,7 @@ func (s *Site) Generate() error {
 		s.ScanPersonTodos(p)
 		s.ScanPersonForAnomalies(p)
 		s.AssignTags(p)
+		s.DetectPuzzles(p)
 	}
 
 	return nil
@@ -284,6 +285,16 @@ func (s *Site) AssignTags(p *model.Person) error {
 	// 	decade := (y.Year() / 10) * 10
 	// 	p.Tags = append(p.Tags, fmt.Sprintf("died in %ds", decade))
 	// }
+	return nil
+}
+
+func (s *Site) DetectPuzzles(p *model.Person) error {
+	for _, l := range p.Links {
+		if l.Category == model.LinkCategoryQuestionSubject {
+			p.Puzzle = true
+			break
+		}
+	}
 	return nil
 }
 
@@ -907,14 +918,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 		doc.Para("These people are the focus of current research or are brick walls that we can't currently move past.")
 		items := make([]md.Text, len(puzzlePeople))
 		for i, p := range puzzlePeople {
-			desc := p.Olb
-			for _, rn := range p.ResearchNotes {
-				if rn.Title != "" {
-					desc = rn.Title
-					break
-				}
-			}
-			items[i] = md.Text(text.AppendRelated(doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p).String(), desc))
+			items[i] = doc.EncodeModelLink(doc.EncodeText(p.PreferredUniqueName), p)
 		}
 		doc.UnorderedList(items)
 	}
