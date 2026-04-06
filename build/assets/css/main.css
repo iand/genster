@@ -71,7 +71,7 @@ h2 .anchor {
 
 h3 {
   margin-top: 1.5rem;
-  font-size: 1.25rem;
+  font-size: 1.40rem;
 }
 h3 .anchor {
   vertical-align: baseline;
@@ -82,7 +82,12 @@ h3 .anchor {
 }
 
 
-h4, h5, h6 {
+h4 {
+  margin-top: 1rem;
+  font-size: 1.20rem;
+}
+
+h5, h6 {
   margin-top: 1rem;
   font-size: 1rem;
 }
@@ -234,10 +239,8 @@ blockquote {
   padding: .5rem 1rem;
   margin: .8rem 0;
   color: #7a7a7a;
-  background-color: #fafafa;
   font-style: italic;
- /* background:#fff;*/
-  border-left: .25rem solid #e5e5e5;
+  border-left: .25rem solid #aaa;
 }
 blockquote p:last-child {
   margin-bottom: 0;
