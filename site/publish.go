@@ -546,4 +546,3 @@ func (h *PersonWithLeastNumberHeap) Pop() interface{} {
 	*h = old[0 : n-1]
 	return x
 }
-

@@ -23,7 +23,7 @@ func TestParseDocumentRoundTrip(t *testing.T) {
 	doc.BasePath("/trees/test/")
 	doc.LastUpdated(time.Date(2026, 2, 28, 12, 0, 0, 0, time.UTC))
 	doc.SetFrontMatterField("gender", "male")
-	doc.SetFrontMatterField("era", "1800s")   // contains digit, needs quoting
+	doc.SetFrontMatterField("era", "1800s") // contains digit, needs quoting
 	doc.SetFrontMatterField("maturity", "mature")
 	doc.SetFrontMatterField("trade", "labourer")
 	doc.SetFrontMatterField("grampsid", "I1234")

@@ -35,7 +35,6 @@ func (l *Loader) populateSourceFacts(m ModelFinder, sr *gedcom.SourceRecord) err
 			so.SearchLink = fmt.Sprintf("https://www.ancestry.com/search/collections/%s/", matches[1])
 		}
 
-
 	}
 
 	if so.Title == "" {

@@ -277,12 +277,12 @@ func gen(cc *cli.Context) error {
 }
 
 var (
-	reAliasLink    = regexp.MustCompile(`\(/r/(.+?)\)`)
-	reISODate      = regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)$`)
-	reFMTitle      = regexp.MustCompile(`(?m)^title:\s*["']?(.+?)["']?\s*$`)
-	reFMDraft      = regexp.MustCompile(`(?m)^draft:\s*["']?(\w+)["']?\s*$`)
-	reFMPeople     = regexp.MustCompile(`(?m)^people:\s*\n((?:[ \t]*-[ \t]+\S[^\n]*\n?)*)`)
-	rePeopleItem   = regexp.MustCompile(`(?m)^[ \t]*-[ \t]+/r/([^\s]+)`)
+	reAliasLink  = regexp.MustCompile(`\(/r/(.+?)\)`)
+	reISODate    = regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)$`)
+	reFMTitle    = regexp.MustCompile(`(?m)^title:\s*["']?(.+?)["']?\s*$`)
+	reFMDraft    = regexp.MustCompile(`(?m)^draft:\s*["']?(\w+)["']?\s*$`)
+	reFMPeople   = regexp.MustCompile(`(?m)^people:\s*\n((?:[ \t]*-[ \t]+\S[^\n]*\n?)*)`)
+	rePeopleItem = regexp.MustCompile(`(?m)^[ \t]*-[ \t]+/r/([^\s]+)`)
 )
 
 var isoMonths = map[string]string{

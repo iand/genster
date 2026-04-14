@@ -11,7 +11,7 @@ import (
 )
 
 func ptrStr(s string) *string { return &s }
-func ptrBool(b bool) *bool   { return &b }
+func ptrBool(b bool) *bool    { return &b }
 
 func TestEventDate(t *testing.T) {
 	testCases := []struct {

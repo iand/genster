@@ -72,11 +72,11 @@ var descendantOpts struct {
 	treeConfig     string
 	includePrivate bool
 
-	startPersonID  string
-	keyPersonID    string
-	generations    int
-	detail         int
-	compact        bool
+	startPersonID string
+	keyPersonID   string
+	generations   int
+	detail        int
+	compact       bool
 }
 
 func descendant(cc *cli.Context) error {

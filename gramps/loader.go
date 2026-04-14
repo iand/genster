@@ -84,7 +84,7 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 		unionEvents:          make(map[string]model.UnionTimelineEvent),
 		timelineEvents:       make(map[string]model.TimelineEvent),
 
-		familyNameGroups: make(map[string]string),
+		familyNameGroups:    make(map[string]string),
 		slugsSeen:           make(map[string]string),
 		wikitreeIDsSeen:     make(map[string]string),
 		familysearchIDsSeen: make(map[string]string),

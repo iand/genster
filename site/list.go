@@ -343,7 +343,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 		model.SortPeopleByGeneration(people)
 
 		pn := NewPaginator()
-			pn.MaxPageSize = -1
+		pn.MaxPageSize = -1
 
 		for _, p := range people {
 			items := make([][2]md.Text, 0)
