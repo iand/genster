@@ -492,12 +492,7 @@ type PersonMatcher func(*Person) bool
 
 func PersonHasTag(tag string) PersonMatcher {
 	return func(p *Person) bool {
-		for _, t := range p.Tags {
-			if t == tag {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(p.Tags, tag)
 	}
 }
 

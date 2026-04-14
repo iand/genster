@@ -458,8 +458,8 @@ func (b *Builder) outputPath(rel string) string {
 	dir := filepath.Dir(rel)
 	base := filepath.Base(rel)
 
-	if strings.HasSuffix(base, ".md") {
-		stem := strings.TrimSuffix(base, ".md")
+	if before, ok := strings.CutSuffix(base, ".md"); ok {
+		stem := before
 		if stem == "index" || stem == "_index" {
 			return filepath.Join(b.PubDir, dir, "index.html")
 		}

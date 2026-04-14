@@ -3,6 +3,7 @@ package site
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
@@ -129,7 +130,7 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], err
 		doc.Para(md.Text(text.UpperFirst(rel)))
 
 	}
-	var children string
+	var children strings.Builder
 	var ancestorChild string
 	var ancestorChildCitationPrefix string
 	var ancestorChildCitations []*model.GeneralCitation
@@ -155,13 +156,13 @@ func RenderWikiTreePage(s *Site, p *model.Person) (render.Document[md.Text], err
 		}
 
 		if seq > 0 {
-			children += ", "
+			children.WriteString(", ")
 		}
-		children += childName
+		children.WriteString(childName)
 	}
-	if children != "" {
+	if children.String() != "" {
 		doc.EmptyPara()
-		doc.Para(md.Text("Children: " + children))
+		doc.Para(md.Text("Children: " + children.String()))
 	}
 
 	if ancestorChild != "" {

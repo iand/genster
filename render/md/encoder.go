@@ -331,8 +331,8 @@ var htmlEscaper = strings.NewReplacer(
 
 func (e *Content) Pre(s string) {
 	e.maintext.WriteString("<pre>\n")
-	lines := strings.Split(s, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(s, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		e.maintext.WriteString(htmlEscaper.Replace(line))
 		e.maintext.WriteString("\n")

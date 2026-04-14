@@ -2,6 +2,7 @@ package chart
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -32,12 +33,7 @@ func excludeSingleSpouse(exclude *model.Person) model.PersonMatcher {
 
 func excludeSpouseList(excludes []*model.Person) model.PersonMatcher {
 	return func(p *model.Person) bool {
-		for _, e := range excludes {
-			if p.SameAs(e) {
-				return false
-			}
-		}
-		return true // ok, did not match any in exclude list
+		return !slices.ContainsFunc(excludes, p.SameAs) // ok, did not match any in exclude list
 	}
 }
 

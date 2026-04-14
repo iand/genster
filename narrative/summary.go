@@ -963,11 +963,7 @@ func GenerateOlb(p *model.Person) string {
 	}
 
 	if bf.AgeAtDeathOfFather != -1 && bf.AgeAtDeathOfFather < 18 && bf.AgeAtDeathOfMother != -1 && bf.AgeAtDeathOfMother < 18 {
-		if bf.AgeAtDeathOfFather > bf.AgeAtDeathOfMother {
-			bf.OrphanedAtAge = bf.AgeAtDeathOfFather
-		} else {
-			bf.OrphanedAtAge = bf.AgeAtDeathOfMother
-		}
+		bf.OrphanedAtAge = max(bf.AgeAtDeathOfFather, bf.AgeAtDeathOfMother)
 	}
 
 	for _, fam := range p.Families {

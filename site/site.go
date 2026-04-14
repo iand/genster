@@ -847,7 +847,7 @@ func (s *Site) WriteTreeOverview(root string) error {
 	fname := "index.md"
 
 	if s.Tree.Description != "" {
-		for _, para := range strings.Split(s.Tree.Description, "\n\n") {
+		for para := range strings.SplitSeq(s.Tree.Description, "\n\n") {
 			para = strings.TrimSpace(para)
 			if para != "" {
 				doc.Para(md.Text(text.FormatSentence(para)))

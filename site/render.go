@@ -82,7 +82,6 @@ func RenderFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc rend
 	factsByCategory := make(map[string][]*model.Fact)
 
 	for _, f := range p.MiscFacts {
-		f := f // avoid shadowing
 		fl, ok := factsByCategory[f.Category]
 		if ok {
 			fl = append(fl, &f)

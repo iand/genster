@@ -1,12 +1,13 @@
 package serve
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/iand/genster/logging"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Command = &cli.Command{
@@ -36,7 +37,7 @@ var serveOpts struct {
 	addr   string
 }
 
-func serveAction(cc *cli.Context) error {
+func serveAction(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
 	ln, err := net.Listen("tcp", serveOpts.addr)

@@ -338,8 +338,8 @@ func (b *Document) AddDescendant(name string, link string, detail string) {
 }
 
 func (b *Document) Comment(s string) {
-	lines := strings.Split(s, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(s, "\n")
+	for line := range lines {
 		b.maintext.WriteString("<!--- ")
 		b.maintext.WriteString(htmlEscaper.Replace(line))
 		b.maintext.WriteString(" --->\n")

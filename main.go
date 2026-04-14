@@ -6,10 +6,11 @@ information, see <http://unlicense.org/> or the accompanying UNLICENSE file.
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/iand/genster/annotate"
 	"github.com/iand/genster/build"
@@ -20,10 +21,9 @@ import (
 )
 
 func main() {
-	app := &cli.App{
-		Name:     "genster",
-		HelpName: "genster",
-		Usage:    "Generate a website from a gedcom file",
+	app := &cli.Command{
+		Name:  "genster",
+		Usage: "Generate a website from a gedcom file",
 		Commands: []*cli.Command{
 			site.Command,
 			build.Command,
@@ -34,7 +34,7 @@ func main() {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	if err := app.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "%+v\n", err)
 		os.Exit(1)
 	}

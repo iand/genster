@@ -3,7 +3,7 @@ package site
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/gosimple/slug"
 	"github.com/iand/genster/logging"
@@ -28,7 +28,6 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 		anomaliesByCategory := make(map[model.AnomalyCategory][]*model.Anomaly)
 
 		for _, a := range p.Anomalies {
-			a := a // avoid shadowing
 			al, ok := anomaliesByCategory[a.Category]
 			if ok {
 				al = append(al, a)
@@ -39,7 +38,7 @@ func (s *Site) WriteAnomalyListPages(root string) error {
 			categories = append(categories, a.Category)
 			anomaliesByCategory[a.Category] = []*model.Anomaly{a}
 		}
-		sort.Slice(categories, func(i, j int) bool { return categories[i] < categories[j] })
+		slices.Sort(categories)
 
 		if len(anomaliesByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
@@ -135,7 +134,6 @@ func (s *Site) WriteTodoListPages(root string) error {
 		todosByCategory := make(map[model.ToDoCategory][]*model.ToDo)
 
 		for _, a := range p.ToDos {
-			a := a // avoid shadowing
 			al, ok := todosByCategory[a.Category]
 			if ok {
 				al = append(al, a)
@@ -146,9 +144,7 @@ func (s *Site) WriteTodoListPages(root string) error {
 			categories = append(categories, a.Category)
 			todosByCategory[a.Category] = []*model.ToDo{a}
 		}
-		sort.Slice(categories, func(i, j int) bool {
-			return categories[i] < categories[j]
-		})
+		slices.Sort(categories)
 
 		if len(todosByCategory) > 0 {
 			b := s.NewMarkdownBuilder()
@@ -347,7 +343,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 		for _, p := range people {
 			items := make([][2]md.Text, 0)
-			b := &narrative.CitationSkippingEncoder[md.Text]{s.NewMarkdownBuilder()}
+			b := &narrative.CitationSkippingEncoder[md.Text]{ContentBuilder: s.NewMarkdownBuilder()}
 
 			title := b.EncodeModelLink(b.EncodeText(p.PreferredSortName), p)
 			summary := narrative.PersonSummary(p, b, narrative.DefaultNameChooser{}, b.EncodeText(p.PreferredFamiliarName), true, true, false, true, false)
@@ -390,7 +386,7 @@ func (s *Site) WriteSurnameListPages(root string) error {
 
 	}
 
-	sort.Slice(surnames, func(i, j int) bool { return surnames[i] < surnames[j] })
+	slices.Sort(surnames)
 	indexPage := "index.md"
 
 	doc := s.NewDocument()

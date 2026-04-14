@@ -3,6 +3,7 @@ package narrative
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render"
@@ -40,16 +41,16 @@ func EncodeText[T render.EncodedText](t model.Text, enc render.TextEncoder[T]) s
 	sort.Slice(t.Links, func(i, j int) bool {
 		return t.Links[i].Start < t.Links[j].Start
 	})
-	formatted := ""
+	var formatted strings.Builder
 	cursor := 0
 	for _, l := range t.Links {
-		formatted += string(text[cursor:l.Start])
+		formatted.WriteString(string(text[cursor:l.Start]))
 		linktext := string(text[l.Start:l.End])
-		formatted += enc.EncodeModelLink(enc.EncodeText(linktext), l.Object).String()
+		formatted.WriteString(enc.EncodeModelLink(enc.EncodeText(linktext), l.Object).String())
 		cursor = l.End
 	}
-	formatted += string(text[cursor:])
-	return formatted
+	formatted.WriteString(string(text[cursor:]))
+	return formatted.String()
 }
 
 func MediaObjectsAsFigures[T render.EncodedText](mos []*model.CitedMediaObject, enc render.ContentBuilder[T], cropMediaHighlights bool) error {

@@ -479,7 +479,7 @@ func (ps *PublishSet) EarliestBorn(limit int) []*model.Person {
 func (ps *PublishSet) Ancestors(p *model.Person, generations int) []*model.Person {
 	n := 0
 	f := 2
-	for i := 0; i < generations; i++ {
+	for range generations {
 		n += f
 		f *= 2
 	}
@@ -517,11 +517,11 @@ func (h PersonWithGreatestNumberHeap) Len() int           { return len(h) }
 func (h PersonWithGreatestNumberHeap) Less(i, j int) bool { return h[i].Number < h[j].Number }
 func (h PersonWithGreatestNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
-func (h *PersonWithGreatestNumberHeap) Push(x interface{}) {
+func (h *PersonWithGreatestNumberHeap) Push(x any) {
 	*h = append(*h, x.(*PersonWithNumber))
 }
 
-func (h *PersonWithGreatestNumberHeap) Pop() interface{} {
+func (h *PersonWithGreatestNumberHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]
@@ -535,11 +535,11 @@ func (h PersonWithLeastNumberHeap) Len() int           { return len(h) }
 func (h PersonWithLeastNumberHeap) Less(i, j int) bool { return h[j].Number < h[i].Number }
 func (h PersonWithLeastNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
-func (h *PersonWithLeastNumberHeap) Push(x interface{}) {
+func (h *PersonWithLeastNumberHeap) Push(x any) {
 	*h = append(*h, x.(*PersonWithNumber))
 }
 
-func (h *PersonWithLeastNumberHeap) Pop() interface{} {
+func (h *PersonWithLeastNumberHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]

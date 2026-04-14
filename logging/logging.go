@@ -5,7 +5,7 @@ import (
 
 	"github.com/iand/pontium/hlog"
 	"github.com/kortschak/utter"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Flags = []cli.Flag{
@@ -34,7 +34,7 @@ var Flags = []cli.Flag{
 var Opts struct {
 	Verbose     bool
 	VeryVerbose bool
-	LogIDs      cli.StringSlice
+	LogIDs      []string
 }
 
 func Setup() {
@@ -50,7 +50,7 @@ func Setup() {
 	h := new(hlog.Handler)
 	h = h.WithSource()
 	h = h.WithLevel(logLevel.Level())
-	logIDs := Opts.LogIDs.Value()
+	logIDs := Opts.LogIDs
 	if len(logIDs) > 0 {
 		for _, id := range logIDs {
 			h = h.WithAttrLevel(slog.String("id", id), slog.LevelDebug)

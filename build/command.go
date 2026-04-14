@@ -1,10 +1,11 @@
 package build
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/iand/genster/logging"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Command = &cli.Command{
@@ -65,7 +66,7 @@ var buildOpts struct {
 	debug          bool
 }
 
-func buildAction(cc *cli.Context) error {
+func buildAction(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
 	b := &Builder{

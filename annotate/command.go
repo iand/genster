@@ -1,6 +1,7 @@
 package annotate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -15,7 +16,7 @@ import (
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/tree"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Command = &cli.Command{
@@ -104,7 +105,7 @@ var (
 	prevSectionRe = regexp.MustCompile(`(?s)\n?<!-- begin citations -->.*?<!-- end citations -->\n?`)
 )
 
-func annotate(cc *cli.Context) error {
+func annotate(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
 	if opts.undo {

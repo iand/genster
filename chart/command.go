@@ -6,11 +6,12 @@ information, see <http://unlicense.org/> or the accompanying UNLICENSE file.
 package chart
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	gegedcom "github.com/iand/genster/gedcom"
 	"github.com/iand/genster/gramps"
@@ -19,7 +20,7 @@ import (
 	"github.com/iand/gtree"
 )
 
-func checkFlags(cc *cli.Context) error {
+func checkFlags(cc *cli.Command) error {
 	switch chartopts.chartType {
 	case "descendant":
 	case "ancestor":
@@ -204,7 +205,7 @@ var Command = &cli.Command{
 	}, logging.Flags...),
 }
 
-func chartCmd(cc *cli.Context) error {
+func chartCmd(ctx context.Context, cc *cli.Command) error {
 	if err := checkFlags(cc); err != nil {
 		return err
 	}
@@ -460,9 +461,6 @@ func (s *sequence) next() int {
 }
 
 func scaleFont(v gtree.Pixel, factor float64) gtree.Pixel {
-	v = gtree.Pixel(float64(v) * factor)
-	if v < 6 {
-		v = 6
-	}
+	v = max(gtree.Pixel(float64(v)*factor), 6)
 	return v
 }

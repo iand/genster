@@ -1,6 +1,7 @@
 package report
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/iand/genster/gedcom"
@@ -8,7 +9,7 @@ import (
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
 	"github.com/iand/genster/tree"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var descendantCommand = &cli.Command{
@@ -79,7 +80,7 @@ var descendantOpts struct {
 	compact       bool
 }
 
-func descendant(cc *cli.Context) error {
+func descendant(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
 	if descendantOpts.gedcomFile == "" {

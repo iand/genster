@@ -92,8 +92,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, in *gedcom.IndividualRecord)
 		if prefName.Suffix != "" {
 			if matches := reParanthesised.FindStringSubmatch(prefName.Suffix); len(matches) == 2 {
 				// suffix is paranthesised which is a convention for prominent tags
-				tags := strings.Split(matches[1], ",")
-				for _, tag := range tags {
+				tags := strings.SplitSeq(matches[1], ",")
+				for tag := range tags {
 					p.Tags = append(p.Tags, strings.TrimSpace(tag))
 				}
 				// remove the suffix

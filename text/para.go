@@ -41,18 +41,18 @@ func (p *Para) Continue(ss ...string) {
 }
 
 func (p *Para) join(ss ...string) string {
-	var str string
+	var str strings.Builder
 	for i, s := range ss {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			continue
 		}
 		if i != 0 {
-			str += " "
+			str.WriteString(" ")
 		}
-		str += s
+		str.WriteString(s)
 	}
-	return str
+	return str.String()
 }
 
 // StartSentence begins a new sentence by finishing any existing sentence and combining

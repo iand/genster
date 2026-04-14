@@ -2,6 +2,7 @@ package site
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -16,7 +17,7 @@ import (
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var Command = &cli.Command{
@@ -141,7 +142,7 @@ var genopts struct {
 	includeDrafts      bool
 }
 
-func gen(cc *cli.Context) error {
+func gen(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
 	var l tree.Loader

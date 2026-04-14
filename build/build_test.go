@@ -720,8 +720,8 @@ func TestBuildStoriesListing(t *testing.T) {
 	}
 	// Story with no summary must not show a word count.
 	norfolkPos := strings.Index(html, "Norfolk Story")
-	suffolkPos := strings.Index(html, "Suffolk Hinksmans")
-	if norfolkPos == -1 || suffolkPos == -1 {
+	found := strings.Contains(html, "Suffolk Hinksmans")
+	if norfolkPos == -1 || !found {
 		t.Fatalf("could not find both story titles")
 	}
 	// The word count appears in the Suffolk block; Norfolk has no summary so no count.

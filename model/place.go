@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -244,11 +245,6 @@ type PlaceMatcher func(*Place) bool
 
 func PlaceHasTag(tag string) PlaceMatcher {
 	return func(p *Place) bool {
-		for _, t := range p.Tags {
-			if t == tag {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(p.Tags, tag)
 	}
 }

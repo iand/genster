@@ -261,37 +261,37 @@ func MultiplicativeAdverb(n int) string {
 }
 
 func JoinList(strs []string) string {
-	var ret string
+	var ret strings.Builder
 	for i, s := range strs {
 		s = strings.Trim(s, " ,!.?")
 
 		if i != 0 {
 			if i == len(strs)-1 {
-				ret += " and "
+				ret.WriteString(" and ")
 			} else {
-				ret += ", "
+				ret.WriteString(", ")
 			}
 		}
-		ret += s
+		ret.WriteString(s)
 	}
-	return ret
+	return ret.String()
 }
 
 func JoinListOr(strs []string) string {
-	var ret string
+	var ret strings.Builder
 	for i, s := range strs {
 		s = strings.Trim(s, " ,!.?")
 
 		if i != 0 {
 			if i == len(strs)-1 {
-				ret += " or "
+				ret.WriteString(" or ")
 			} else {
-				ret += ", "
+				ret.WriteString(", ")
 			}
 		}
-		ret += s
+		ret.WriteString(s)
 	}
-	return ret
+	return ret.String()
 }
 
 func JoinSentenceParts(parts ...string) string {

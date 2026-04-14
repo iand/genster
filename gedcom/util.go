@@ -2,6 +2,7 @@ package gedcom
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/iand/gdate"
@@ -59,12 +60,7 @@ func refineHostName(h string) string {
 }
 
 func stringOneOf(s string, alts ...string) bool {
-	for _, a := range alts {
-		if a == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(alts, s)
 }
 
 func stripXref(s string) string {
