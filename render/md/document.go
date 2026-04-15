@@ -40,6 +40,7 @@ const (
 	MarkdownTagSitemap     = "sitemap"
 )
 
+
 type LinkBuilder interface {
 	LinkFor(v any) string
 }
