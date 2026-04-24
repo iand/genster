@@ -791,9 +791,12 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		if f.Bond != model.FamilyBondMarried && f.Bond != model.FamilyBondLikelyMarried {
 			continue
 		}
-		if f.BestStartEvent == nil {
+		if f.OtherParent(p).IsUnknown() {
 			continue
 		}
+		// if f.BestStartEvent == nil {
+		// 	continue
+		// }
 		fams = append(fams, f)
 	}
 
@@ -804,24 +807,34 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		// more detail
 		f := fams[0]
 		other := f.OtherParent(p)
-		what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
-		marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+		if f.BestStartEvent == nil {
+			what := "married " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+			marrs = append(marrs, what)
+		} else {
+			what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+			marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+		}
 	} else {
-		var prev model.TimelineEvent
-		for _, f := range fams {
+		for i, f := range fams {
 			other := f.OtherParent(p)
-
-			y, _ := f.BestStartEvent.GetDate().AsYear()
-
-			if prev != nil {
-				what := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other)
-				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what.String(), y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+			if f.BestStartEvent == nil {
+				what := ""
+				if i == 0 {
+					what = "married "
+				}
+				what += enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+				marrs = append(marrs, what)
 			} else {
-				what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
-				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
-			}
+				y, _ := f.BestStartEvent.GetDate().AsYear()
 
-			prev = f.BestStartEvent
+				if i == 0 {
+					what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+					marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+				} else {
+					what := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other)
+					marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what.String(), y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+				}
+			}
 		}
 	}
 

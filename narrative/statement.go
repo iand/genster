@@ -49,13 +49,9 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		return
 	}
 
-	birthNarrative := ""
 	// Prose birth
 	if s.Principal.BestBirthlikeEvent != nil {
-		// birth = text.LowerFirst(EventTitle(s.Principal.BestBirthlikeEvent, enc, &model.POV{Person: s.Principal}))
 		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
-
-		birthNarrative = EventNarrativeDetail(s.Principal.BestBirthlikeEvent, enc)
 	}
 
 	// Prose parentage
@@ -94,19 +90,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	if birth != "" {
 		detail = text.JoinSentenceParts(detail, birth)
-		if birthNarrative != "" {
-			// TODO: this is capitalizing the "was" between the name and the birth
-			// detail = text.JoinSentences(detail, birthNarrative)
-			// detail = text.FinishSentence(detail)
-		}
-		if parentDetail != "" {
-			detail = text.AppendClause(detail, parentDetail)
-		}
-	} else {
-		if parentDetail != "" {
-			detail = text.JoinSentenceParts(detail, parentDetail)
-		}
 	}
+
+	if parentDetail != "" {
+		detail = text.JoinSentenceParts(detail, parentDetail)
+	}
+
 	if detail == "" {
 		detail = text.FormatSentence(text.JoinSentenceParts("nothing is known about the early life of", s.Principal.PreferredGivenName))
 	} else {
@@ -217,6 +206,33 @@ func (s *IntroStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T
 		para.FinishSentence(text.JoinListOr(list))
 
 	}
+
+	var parentDetail string
+
+	rel := PositionInFamily(s.Principal)
+	if rel == "" {
+		rel = text.LowerFirst(s.Principal.Gender.RelationToParentNoun())
+	}
+	knownParentagePrefix := s.Principal.Gender.SubjectPronounWithLink() + " the " + rel + " of "
+
+	if s.Principal.Father.IsUnknown() {
+		if s.Principal.Mother.IsUnknown() {
+			parentDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"
+		} else {
+			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
+			parentDetail += ", but" + s.Principal.Gender.PossessivePronounSingular() + " father is not known"
+		}
+	} else {
+		if s.Principal.Mother.IsUnknown() {
+			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc)
+			parentDetail += ", but" + s.Principal.Gender.PossessivePronounSingular() + " mother is not known"
+		} else {
+			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
+		}
+	}
+
+	para.StartSentence(parentDetail)
+
 	s.AddRelationToKeyPerson(&para, enc)
 	enc.Para(enc.EncodeText(para.Text()))
 	return nil

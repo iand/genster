@@ -11,7 +11,7 @@
         <h1>{{.Title}}</h1>
       </header>
       {{$children := .Children}}
-      {{- range $group := list "brick-wall" "unresolved" "puzzle" "" "resolved"}}
+      {{- range $group := list "brick-wall" "unresolved" "puzzle" "resolved" ""}}
         {{- $any := false}}{{range $children}}{{if eq .FM.Category $group}}{{$any = true}}{{end}}{{end}}
         {{- if $any}}
       <section>

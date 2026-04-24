@@ -343,39 +343,20 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 
 	}
 
-	if lastPossibleYearAlive < year {
+	markHistoric := func(a *model.Person) (bool, error) {
+		if !a.Historic {
+			logging.Debug("marking person as historic since they lived more than one lifespan ago", "id", a.ID)
+		}
+		a.Historic = true
+		a.PossiblyAlive = false
+		return true, nil
+	}
+
+	if lastPossibleYearAlive < year || (!p.RelationToKeyPerson.IsUnknown() && p.RelationToKeyPerson.FromGenerations > 4) {
 		// set person and all ancestors as historic
-		if err := model.ApplyAndRecurseAncestors(p, func(a *model.Person) (bool, error) {
-			if !a.Historic {
-				logging.Debug("marking person as historic since they lived more than one lifespan ago", "id", a.ID)
-			}
-			a.Historic = true
-			a.PossiblyAlive = false
-			return true, nil
-		}); err != nil {
+		if err := model.ApplyAndRecurseAncestors(p, markHistoric); err != nil {
 			return fmt.Errorf("mark person as historic: %w", err)
 		}
-
-		// dt := model.BeforeYear(lastPossibleYearAlive)
-		// inf := model.Inference{
-		// 	Type:   model.InferenceTypeYearOfDeath,
-		// 	Value:  fmt.Sprintf("before %d", lastPossibleYearAlive),
-		// 	Reason: deathInferenceReason,
-		// }
-
-		// if p.BestDeathlikeEvent == nil {
-		// 	p.BestDeathlikeEvent = &model.DeathEvent{
-		// 		GeneralEvent: model.GeneralEvent{Date: dt, Inferred: true, Citations: []*model.GeneralCitation{inf.AsCitation()}},
-		// 		GeneralIndividualEvent: model.GeneralIndividualEvent{
-		// 			Principal: p,
-		// 		},
-		// 	}
-		// } else if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && bev.GetDate().IsUnknown() {
-		// 	bev.Inferred = true
-		// 	bev.Date = dt
-		// 	bev.Citations = append(bev.Citations, inf.AsCitation())
-		// }
-		// p.Inferences = append(p.Inferences, inf)
 	}
 
 	if p.Historic {
