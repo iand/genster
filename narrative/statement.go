@@ -217,129 +217,11 @@ func (s *FamilyStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 	// TODO: note for example VFA3VQS22ZHBO George Henry Chambers (1903-1985) who
 	// had a child with Dorothy Youngs in 1944 but didn't marry until 1985
 	other := s.Family.OtherParent(s.Principal)
-	if other.IsUnknown() {
-		s.renderUnknownPartner(seq, intro, enc, nc)
+	if other.IsUnknown() || s.Family.Bond == model.FamilyBondUnmarried || s.Family.Bond == model.FamilyBondLikelyUnmarried {
+		s.renderSingleParent(seq, intro, enc, nc)
 		return
 	}
-
-	if s.Family.Bond == model.FamilyBondUnmarried || s.Family.Bond == model.FamilyBondLikelyUnmarried {
-		s.renderUnmarried(seq, intro, enc, nc)
-		return
-	}
-
-	// from here, both partners are known
-
-	var detail text.Para
-	detail.StartSentence(text.UpperFirst(intro.Default(seq, s.Start())))
-
-	action := ""
-	switch s.Family.Bond {
-	case model.FamilyBondMarried:
-		action += "married"
-	case model.FamilyBondLikelyMarried:
-		action += ChooseFrom(seq, "likely married", "probably married")
-	default:
-		action += "met"
-	}
-
-	otherName := ""
-	if other.IsUnknown() {
-		otherName = "an unknown " + s.Principal.Gender.Opposite().Noun()
-	} else {
-		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
-	}
-
-	singleParent := false
-	if s.Family.Bond == model.FamilyBondUnmarried || s.Family.Bond == model.FamilyBondLikelyUnmarried ||
-		(s.Family.Bond == model.FamilyBondUnknown && other.IsUnknown()) {
-		singleParent = true
-	}
-	if singleParent && len(s.Family.Children) == 0 {
-		// nothing to say
-		return
-	}
-
-	if !singleParent {
-		startDate := s.Family.BestStartDate
-		var event string
-		if !startDate.IsUnknown() {
-			detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
-			event += " " + action
-			event += " " + otherName
-			event += " " + NamedWhen(startDate)
-			if age, ok := s.Principal.AgeInYearsAt(startDate); ok && age < 18 || age > 45 {
-				event += " " + AgeQualifier(age)
-			}
-		} else {
-			event += " " + action
-			event += " " + otherName
-		}
-		if s.Family.BestStartEvent != nil && !s.Family.BestStartEvent.GetPlace().IsUnknown() {
-			event = WhatWherePov(event, s.Family.BestStartEvent.GetPlace(), enc, nc, intro.POV)
-		}
-		if s.Family.BestStartEvent != nil {
-			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(event), s.Family.BestStartEvent.GetCitations()).String())
-		} else {
-			detail.Continue(event)
-		}
-	}
-
-	if len(s.Family.Children) == 0 {
-		// single parents already dealt with
-		if s.Principal.Childless {
-			detail.AddCompleteSentence("they had no children")
-		}
-	} else {
-
-		childCardinal := ChildCardinal(s.Family.Children)
-		if singleParent {
-			switch len(s.Family.Children) {
-			case 1:
-				detail.Continue(ChooseFrom(seq,
-					" had "+childCardinal+" with an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),
-					" had "+childCardinal+" by an unknown "+s.Principal.Gender.Opposite().Noun(),
-					" had "+childCardinal+"",
-				))
-			default:
-				detail.Continue("had", childCardinal)
-				detail.Continue(ChooseFrom(seq,
-					"",
-					", by an unknown "+s.Principal.Gender.Opposite().Noun(),
-					", by an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),
-				))
-			}
-		} else {
-			switch len(s.Family.Children) {
-			case 1:
-				detail.Continue(ChooseFrom(seq,
-					" and had "+childCardinal+":",
-					". They had just one child together:",
-					". They had "+childCardinal+":",
-				))
-			case 2:
-				detail.Continue(ChooseFrom(seq,
-					" and had "+childCardinal+":",
-					". They had "+childCardinal+": ",
-				))
-			default:
-				detail.Continue(ChooseFrom(seq,
-					". They had "+childCardinal+": ",
-					" and went on to have "+childCardinal+" with "+s.Principal.Gender.Opposite().ObjectPronoun()+": ",
-					". They went on to have "+childCardinal+": ",
-				))
-			}
-		}
-	}
-
-	childList := ChildList(s.Family.Children, enc, nc)
-	if len(childList) == 0 {
-		enc.Para(enc.EncodeText(detail.Text()))
-		return
-	}
-
-	detail.FinishSentenceWithTerminator(":–")
-	enc.Para(enc.EncodeText(detail.Text()))
-	enc.UnorderedList(childList)
+	s.renderMarried(seq, intro, enc, nc)
 }
 
 func (s *FamilyStatement[T]) Start() *model.Date {
@@ -356,6 +238,198 @@ func (s *FamilyStatement[T]) NarrativeSequence() int {
 
 func (s *FamilyStatement[T]) Priority() int {
 	return 5
+}
+
+func (s *FamilyStatement[T]) renderMarried(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
+	other := s.Family.OtherParent(s.Principal)
+	otherName := intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
+
+	var detail text.Para
+	detail.StartSentence(text.UpperFirst(intro.Default(seq, s.Start())))
+
+	var action string
+	switch s.Family.Bond {
+	case model.FamilyBondMarried:
+		action = "married"
+	case model.FamilyBondLikelyMarried:
+		action = ChooseFrom(seq, "likely married", "probably married")
+	default:
+		action = "met"
+	}
+
+	startDate := s.Family.BestStartDate
+	var event string
+	if !startDate.IsUnknown() {
+		detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+		event = action + " " + otherName + " " + NamedWhen(startDate)
+		if age, ok := s.Principal.AgeInYearsAt(startDate); ok && (age < 18 || age > 45) {
+			event += " " + AgeQualifier(age)
+		}
+	} else {
+		event = action + " " + otherName
+	}
+	if s.Family.BestStartEvent != nil && !s.Family.BestStartEvent.GetPlace().IsUnknown() {
+		event = WhatWherePov(event, s.Family.BestStartEvent.GetPlace(), enc, nc, intro.POV)
+	}
+	if s.Family.BestStartEvent != nil {
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(event), s.Family.BestStartEvent.GetCitations()).String())
+	} else {
+		detail.Continue(event)
+	}
+
+	if len(s.Family.Children) == 0 {
+		if s.Principal.Childless {
+			detail.AddCompleteSentence("they had no children")
+		}
+	} else {
+		childCardinal := ChildCardinal(s.Family.Children)
+		switch len(s.Family.Children) {
+		case 1:
+			detail.Continue(ChooseFrom(seq,
+				" and had "+childCardinal+":",
+				". They had just one child together:",
+				". They had "+childCardinal+":",
+			))
+		case 2:
+			detail.Continue(ChooseFrom(seq,
+				" and had "+childCardinal+":",
+				". They had "+childCardinal+": ",
+			))
+		default:
+			detail.Continue(ChooseFrom(seq,
+				". They had "+childCardinal+": ",
+				" and went on to have "+childCardinal+" with "+s.Principal.Gender.Opposite().ObjectPronoun()+": ",
+				". They went on to have "+childCardinal+": ",
+			))
+		}
+	}
+
+	s.renderChildListParagraph(&detail, enc, nc, s.Family.Children)
+}
+
+func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
+	if len(s.Family.Children) == 0 {
+		return
+	}
+
+	other := s.Family.OtherParent(s.Principal)
+	otherKnown := !other.IsUnknown()
+	var otherName string
+	if otherKnown {
+		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
+	}
+
+	c := s.Family.Children[0]
+	oneChild := len(s.Family.Children) == 1
+	isMother := s.Principal.Gender == model.GenderFemale
+	childFirmBirthdate := isFirmBirthdateEvent(c.BestBirthlikeEvent)
+
+	var detail text.Para
+
+	switch {
+	case oneChild && isMother && childFirmBirthdate:
+		// mother with firm birthdate: "gave birth to a [gender]..."
+		if c.BestBirthlikeEvent != nil {
+			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), otherKnown))
+			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		}
+		detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
+		if otherKnown {
+			if !c.Redacted {
+				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
+			}
+			detail.AppendClause("the child of")
+			detail.Continue(otherName)
+		} else {
+			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
+			if detail.CurrentSentenceLength() < 60 {
+				detail.Continue(ChooseFrom(seq,
+					"with an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),
+					"by an unknown "+s.Principal.Gender.Opposite().Noun(),
+				))
+			}
+		}
+
+	case oneChild && isMother && !otherKnown:
+		// unknown partner, non-firm birthdate: "had a [gender] [name] who [what/when/where]"
+		if c.BestBirthlikeEvent != nil {
+			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
+			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		}
+		detail.Continue("had a", c.Gender.RelationToParentNoun())
+		detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
+		detail.Continue("who")
+		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
+		if detail.CurrentSentenceLength() < 60 {
+			detail.Continue(ChooseFrom(seq,
+				"with an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),
+				"by an unknown "+s.Principal.Gender.Opposite().Noun(),
+			))
+		}
+
+	case oneChild:
+		// general single child: "had a child/[gender]... [with otherName if known]"
+		if c.BestBirthlikeEvent != nil {
+			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), childFirmBirthdate))
+			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		}
+		detail.Continue(ChooseFrom(seq,
+			"had a child",
+			"had a "+c.Gender.RelationToParentNoun(),
+		))
+		if !c.Redacted {
+			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
+		}
+		if otherKnown {
+			detail.Continue("with", otherName)
+		}
+
+	default:
+		// multiple children
+		if c.BestBirthlikeEvent != nil {
+			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		}
+		detail.Continue("had", ChildCardinal(s.Family.Children))
+		if otherKnown {
+			detail.Continue("with", otherName)
+		}
+	}
+
+	if oneChild {
+		s.renderSingleChildParagraph(&detail, c, enc, nc)
+	} else {
+		s.renderChildListParagraph(&detail, enc, nc, s.Family.Children)
+	}
+}
+
+func (s *FamilyStatement[T]) renderSingleChildParagraph(detail *text.Para, c *model.Person, enc render.ContentBuilder[T], nc NameChooser) {
+	if c.Redacted {
+		enc.Para(enc.EncodeText(detail.Text()))
+		return
+	}
+	detail.FinishSentenceWithTerminator(":–")
+	enc.Para(enc.EncodeText(detail.Text()))
+	enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
+}
+
+func (s *FamilyStatement[T]) renderChildListParagraph(detail *text.Para, enc render.ContentBuilder[T], nc NameChooser, children []*model.Person) {
+	childList := ChildList(children, enc, nc)
+	if len(childList) == 0 {
+		enc.Para(enc.EncodeText(detail.Text()))
+		return
+	}
+	detail.FinishSentenceWithTerminator(":–")
+	enc.Para(enc.EncodeText(detail.Text()))
+	enc.UnorderedList(childList)
+}
+
+// isFirmBirthdateEvent reports whether ev is a BirthEvent with a firm date.
+func isFirmBirthdateEvent(ev model.IndividualTimelineEvent) bool {
+	if _, ok := ev.(*model.BirthEvent); !ok {
+		return false
+	}
+	return ev.GetDate().IsFirm()
 }
 
 func ChildCardinal(clist []*model.Person) string {
@@ -419,195 +493,6 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 	}
 
 	return childList
-}
-
-func (s *FamilyStatement[T]) renderUnknownPartner(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	// unmarried and the other parent is not known
-	if len(s.Family.Children) == 0 {
-		// no children so nothing to say
-		return
-	}
-
-	isFirmBirthdate := func(ev model.IndividualTimelineEvent) bool {
-		if _, isBirth := ev.(*model.BirthEvent); !isBirth {
-			return false
-		}
-
-		return ev.GetDate().IsFirm()
-	}
-
-	oneChild := len(s.Family.Children) == 1
-	isMother := s.Principal.Gender == model.GenderFemale
-	childFirmBirthdate := isFirmBirthdate(s.Family.Children[0].BestBirthlikeEvent)
-	useBirthDateInIntro := childFirmBirthdate
-
-	var detail text.Para
-
-	if oneChild && isMother {
-		c := s.Family.Children[0]
-		if childFirmBirthdate {
-			// this form: "At the age of thirty-four, Annie gave birth to a"
-			if c.BestBirthlikeEvent != nil {
-				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
-				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-			}
-			detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
-			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
-			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
-
-		} else {
-			// this form: "At the age of thirty-four, Annie had a"
-			if c.BestBirthlikeEvent != nil {
-				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
-				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-			}
-			detail.Continue("had a", c.Gender.RelationToParentNoun())
-			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
-			detail.Continue("who")
-			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
-
-		}
-
-		// pad the sentence to be longer if needed
-		if detail.CurrentSentenceLength() < 60 {
-			detail.Continue(ChooseFrom(seq,
-				"with an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),
-				"by an unknown "+s.Principal.Gender.Opposite().Noun(),
-			))
-		}
-
-		if c.Redacted {
-			enc.Para(enc.EncodeText(detail.Text()))
-		} else {
-			detail.FinishSentenceWithTerminator(":–")
-			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
-		}
-	} else {
-		if oneChild {
-			c := s.Family.Children[0]
-			// this form: "At the age of thirty-four, Gerald had a"
-			if c.BestBirthlikeEvent != nil {
-				detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), useBirthDateInIntro))
-				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-			}
-			detail.Continue(ChooseFrom(seq,
-				"had a child",
-				"had a "+c.Gender.RelationToParentNoun(),
-			))
-			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
-			}
-			detail.FinishSentence()
-
-			if c.Redacted {
-				enc.Para(enc.EncodeText(detail.Text()))
-			} else {
-				detail.FinishSentenceWithTerminator(":–")
-				enc.Para(enc.EncodeText(detail.Text()))
-				enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
-			}
-
-		} else {
-			c := s.Family.Children[0]
-			if c.BestBirthlikeEvent != nil {
-				detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-			}
-
-			childCardinal := ChildCardinal(s.Family.Children)
-			detail.Continue("had", childCardinal)
-
-			childList := ChildList(s.Family.Children, enc, nc)
-			if len(childList) == 0 {
-				enc.Para(enc.EncodeText(detail.Text()))
-				return
-			}
-
-			detail.FinishSentenceWithTerminator(":–")
-			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList(childList)
-
-		}
-	}
-}
-
-func (s *FamilyStatement[T]) renderUnmarried(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	// unmarried but the other parent is known
-	if len(s.Family.Children) == 0 {
-		// no children so nothing to say
-		return
-	}
-
-	isFirmBirthdate := func(ev model.IndividualTimelineEvent) bool {
-		if _, isBirth := ev.(*model.BirthEvent); !isBirth {
-			return false
-		}
-
-		return ev.GetDate().IsFirm()
-	}
-
-	oneChild := len(s.Family.Children) == 1
-	isMother := s.Principal.Gender == model.GenderFemale
-	childFirmBirthdate := isFirmBirthdate(s.Family.Children[0].BestBirthlikeEvent)
-	useBirthDateInIntro := childFirmBirthdate
-
-	other := s.Family.OtherParent(s.Principal)
-	otherName := intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
-
-	var detail text.Para
-	if oneChild {
-		c := s.Family.Children[0]
-		detail.AppendAsAside(intro.RelativeTime(seq, s.Family.Children[0].BestBirthlikeEvent.GetDate(), useBirthDateInIntro))
-		detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-		if isMother && childFirmBirthdate {
-			detail.Continue("gave birth to a")
-			detail.Continue(c.Gender.RelationToParentNoun())
-			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
-			}
-			detail.AppendClause("the child of")
-			detail.Continue(otherName)
-		} else {
-			detail.Continue(ChooseFrom(seq,
-				"had a child",
-				"had a "+c.Gender.RelationToParentNoun(),
-			))
-			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
-			}
-			detail.Continue("with", otherName)
-		}
-		detail.FinishSentence()
-
-		if c.Redacted {
-			enc.Para(enc.EncodeText(detail.Text()))
-		} else {
-			detail.FinishSentenceWithTerminator(":–")
-			enc.Para(enc.EncodeText(detail.Text()))
-			enc.UnorderedList([]T{PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredFamiliarName), false, false, false, true, true)})
-		}
-
-	} else {
-		c := s.Family.Children[0]
-		detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
-
-		childCardinal := ChildCardinal(s.Family.Children)
-		detail.Continue("had", childCardinal)
-
-		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
-		detail.Continue("with", otherName)
-
-		childList := ChildList(s.Family.Children, enc, nc)
-		if len(childList) == 0 {
-			enc.Para(enc.EncodeText(detail.Text()))
-			return
-		}
-
-		detail.FinishSentenceWithTerminator(":–")
-		enc.Para(enc.EncodeText(detail.Text()))
-		enc.UnorderedList(childList)
-
-	}
 }
 
 type FamilyEndStatement[T render.EncodedText] struct {
