@@ -8,12 +8,17 @@ import (
 	"unicode"
 )
 
+// LowerFirst lowercases the first rune of s and returns the result.
+// It panics if s is empty.
 func LowerFirst(s string) string {
 	r := []rune(s)
 
 	return strings.ToLower(string(r[0])) + string(r[1:])
 }
 
+// LowerIfFirstWordIn lowercases the first rune of s if s begins with one of
+// the given words followed by a space. The match is an exact word check - a
+// bare prefix is not enough. If no word matches, s is returned unchanged.
 func LowerIfFirstWordIn(s string, words ...string) string {
 	for _, w := range words {
 		if strings.HasPrefix(s, w+" ") {
@@ -23,6 +28,8 @@ func LowerIfFirstWordIn(s string, words ...string) string {
 	return s
 }
 
+// UpperFirst trims surrounding whitespace from s, then uppercases its first
+// rune. Returns an empty string if s is blank after trimming.
 func UpperFirst(s string) string {
 	s = strings.TrimFunc(s, unicode.IsSpace)
 	if len(s) == 0 {
@@ -35,14 +42,20 @@ func UpperFirst(s string) string {
 	return strings.ToUpper(string(r[0])) + string(r[1:])
 }
 
+// RemoveRedundantWhitespace collapses each run of whitespace to a single space
+// and trims leading and trailing whitespace.
 func RemoveRedundantWhitespace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 }
 
+// RemoveAllWhitespace removes every whitespace character from s.
 func RemoveAllWhitespace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), "")
 }
 
+// CardinalNoun returns the English word for n. Values 0-199 are returned as
+// words (e.g. "forty-two"); values above 199 fall back to a decimal digit
+// string.
 func CardinalNoun(n int) string {
 	noun := cardinalNounUnderTwenty(n)
 	if noun != "" {
@@ -153,6 +166,10 @@ func cardinalNounUnderTwenty(n int) string {
 	return ""
 }
 
+// SmallCardinalNoun returns the English word for n when n is 0-5 ("no",
+// "one", ..., "five"), and a decimal digit string for larger values. Use this
+// instead of CardinalNoun when the number is expected to be small but a
+// fallback to digits is acceptable for prose readability.
 func SmallCardinalNoun(n int) string {
 	switch n {
 	case 0:
@@ -172,6 +189,9 @@ func SmallCardinalNoun(n int) string {
 	}
 }
 
+// OrdinalNoun returns the English ordinal word for n (e.g. 1 -> "first",
+// 21 -> "twenty-first"). Values above 100 are not handled and produce
+// unexpected results.
 func OrdinalNoun(n int) string {
 	if n < 10 {
 		return ordinalNounUnderTen(n)
@@ -202,7 +222,7 @@ func OrdinalNoun(n int) string {
 	case 30:
 		return "thirtieth"
 	case 40:
-		return "fourtieth"
+		return "fortieth"
 	case 50:
 		return "fiftieth"
 	case 60:
@@ -214,10 +234,10 @@ func OrdinalNoun(n int) string {
 	case 90:
 		return "ninetieth"
 	case 100:
-		return "one hundreth"
+		return "one hundredth"
 	}
 
-	return CardinalNoun(n/10) + "-" + ordinalNounUnderTen(n%10)
+	return CardinalNoun((n/10)*10) + "-" + ordinalNounUnderTen(n%10)
 }
 
 func ordinalNounUnderTen(n int) string {
@@ -247,6 +267,8 @@ func ordinalNounUnderTen(n int) string {
 	}
 }
 
+// MultiplicativeAdverb returns the English adverb for n occurrences: "no"
+// for 0, "once" for 1, "twice" for 2, and "N times" for larger values.
 func MultiplicativeAdverb(n int) string {
 	switch n {
 	case 0:
@@ -260,6 +282,9 @@ func MultiplicativeAdverb(n int) string {
 	}
 }
 
+// JoinList joins elements with commas and a final " and ", producing natural
+// English list prose (e.g. "one, two and three"). Leading/trailing
+// whitespace and punctuation are stripped from each element.
 func JoinList(strs []string) string {
 	var ret strings.Builder
 	for i, s := range strs {
@@ -277,6 +302,7 @@ func JoinList(strs []string) string {
 	return ret.String()
 }
 
+// JoinListOr is like JoinList but uses " or " before the final element.
 func JoinListOr(strs []string) string {
 	var ret strings.Builder
 	for i, s := range strs {
@@ -294,6 +320,11 @@ func JoinListOr(strs []string) string {
 	return ret.String()
 }
 
+// JoinSentenceParts concatenates non-empty parts with a single space between
+// them. Parts after the first that begin with a word from CommonSentenceStarts
+// have their first letter lowercased, preventing double-capitalisation when
+// a sentence fragment is appended mid-sentence. The colon ":" is special-cased
+// to receive no leading space.
 func JoinSentenceParts(parts ...string) string {
 	var ret string
 	for i, s := range parts {
@@ -313,6 +344,9 @@ func JoinSentenceParts(parts ...string) string {
 	return ret
 }
 
+// JoinSentences formats each argument as a complete sentence (via
+// FormatSentence) and joins them with a single space. Empty arguments are
+// skipped.
 func JoinSentences(ss ...string) string {
 	var ret string
 	for _, s := range ss {
@@ -329,6 +363,8 @@ func JoinSentences(ss ...string) string {
 	return ret
 }
 
+// AppendSentence formats s as a complete sentence and appends it to base,
+// inserting a space when base is non-empty.
 func AppendSentence(base, s string) string {
 	s = FormatSentence(s)
 	if len(base) == 0 {
@@ -340,6 +376,8 @@ func AppendSentence(base, s string) string {
 	return base + s
 }
 
+// CardinalWithUnit returns "one <singular>" when n is 1, and
+// "<CardinalNoun(n)> <plural>" otherwise (e.g. "one child", "two children").
 func CardinalWithUnit(n int, singular string, plural string) string {
 	if n == 1 {
 		return "one " + singular
@@ -347,7 +385,15 @@ func CardinalWithUnit(n int, singular string, plural string) string {
 	return CardinalNoun(n) + " " + plural
 }
 
+// CardinalSuffix returns the English ordinal suffix for n: "st", "nd", "rd",
+// or "th". It correctly handles the 11/12/13 exceptions (e.g. 11 -> "th",
+// not "st").
 func CardinalSuffix(n int) string {
+	// 11th, 12th, 13th are irregular regardless of their last digit.
+	switch n % 100 {
+	case 11, 12, 13:
+		return "th"
+	}
 	switch n % 10 {
 	case 1:
 		return "st"
@@ -360,6 +406,9 @@ func CardinalSuffix(n int) string {
 	}
 }
 
+// FinishSentence trims trailing whitespace and soft punctuation (",", ":",
+// ";") from s and appends a period if s does not already end with ".", "!",
+// or "?". Returns an empty string for blank input.
 func FinishSentence(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -372,10 +421,15 @@ func FinishSentence(s string) string {
 	return s
 }
 
+// FormatSentence applies FinishSentence then UpperFirst, producing a
+// well-formed sentence ready for output.
 func FormatSentence(s string) string {
 	return UpperFirst(FinishSentence(s))
 }
 
+// AppendClause appends clause to s, inserting a comma separator when s is
+// non-empty and does not already end with one. Words from CommonSentenceStarts
+// at the start of clause are lowercased to avoid mid-sentence capitalisation.
 func AppendClause(s, clause string) string {
 	if s == "" {
 		return clause
@@ -390,10 +444,15 @@ func AppendClause(s, clause string) string {
 	return s + " " + LowerIfFirstWordIn(clause, CommonSentenceStarts...)
 }
 
+// AppendAside is like AppendClause but also appends a trailing comma,
+// producing a parenthetical aside: "base, clause,".
 func AppendAside(s, clause string) string {
 	return AppendClause(s, clause) + ","
 }
 
+// AppendRelated joins s and clause with an HTML em-dash (&mdash;), stripping
+// any sentence terminator from s first. The first letter of clause is
+// lowercased unconditionally.
 func AppendRelated(s, clause string) string {
 	if s == "" {
 		return clause
@@ -406,10 +465,14 @@ func AppendRelated(s, clause string) string {
 	return s + "&mdash;" + LowerFirst(clause)
 }
 
+// StripTerminator removes all trailing whitespace and punctuation
+// (" ", ",", ":", ";", ".", "!", "?") from s.
 func StripTerminator(s string) string {
 	return strings.TrimRight(s, " ,:;.!?")
 }
 
+// AppendIndependentClause joins s and clause with "; ", suitable for two
+// independent but related clauses within a single sentence.
 func AppendIndependentClause(s, clause string) string {
 	if s == "" {
 		return clause
@@ -424,12 +487,17 @@ func AppendIndependentClause(s, clause string) string {
 
 var startsWithNumeral = regexp.MustCompile(`^[0-9]`)
 
+// StartsWithNumeral reports whether s begins with an ASCII digit.
 func StartsWithNumeral(s string) bool {
 	return startsWithNumeral.MatchString(s)
 }
 
 var startsWithVowel = regexp.MustCompile(`^[aeiouAEIOU]`)
 
+// MaybeAn returns a string intended to be appended to a literal "a" to form
+// the correct indefinite article. It returns "n <s>" when s starts with a
+// vowel (so "a"+"n apple" = "an apple") and " <s>" otherwise (so "a"+" book"
+// = "a book").
 func MaybeAn(s string) string {
 	if startsWithVowel.MatchString(s) {
 		return "n " + s
@@ -437,6 +505,7 @@ func MaybeAn(s string) string {
 	return " " + s
 }
 
+// MaybePluralise appends "s" to s when quantity is not 1.
 func MaybePluralise(s string, quantity int) string {
 	if quantity != 1 {
 		return s + "s"
@@ -444,6 +513,8 @@ func MaybePluralise(s string, quantity int) string {
 	return s
 }
 
+// MaybePossessiveSuffix appends the correct English possessive suffix: "'"
+// when s already ends in "s" (e.g. "Jones'"), or "'s" otherwise.
 func MaybePossessiveSuffix(s string) string {
 	if strings.HasSuffix(s, "s") {
 		return s + "'"
@@ -451,28 +522,9 @@ func MaybePossessiveSuffix(s string) string {
 	return s + "'s"
 }
 
-// // TODO: remove MaybeWasVerb
-// func MaybeWasVerb(verb string) string {
-// 	fs := strings.Fields(verb)
-// 	if len(fs) == 0 {
-// 		return verb
-// 	}
-// 	switch fs[0] {
-// 	case "born", "baptised", "buried", "cremated", "executed", "lost", "killed", "promoted", "demoted":
-// 		return "was " + verb
-// 	default:
-// 		return verb
-// 	}
-// }
-
-// func MaybeHaveBeenVerb(verb string) string {
-// 	st := MaybeWasVerb(verb)
-// 	if strings.HasPrefix(st, "was ") {
-// 		return "have been " + st[4:]
-// 	}
-// 	return "have " + st
-// }
-
+// StripWasIs removes a leading "was " or "is " auxiliary verb from st,
+// returning the remainder. Used to convert passive voice fragments into bare
+// verb phrases when tense needs to change.
 func StripWasIs(st string) string {
 	if strings.HasPrefix(st, "was ") {
 		return st[4:]
@@ -485,6 +537,9 @@ func StripWasIs(st string) string {
 
 var containsIsolatedNumber = regexp.MustCompile(`^(.*)\b([0-9]+)\b(.*)$`)
 
+// ReplaceFirstNumberWithCardinalNoun finds the first isolated digit sequence
+// in s and replaces it with its English word form via CardinalNoun. If no
+// digit sequence is found, s is returned unchanged.
 func ReplaceFirstNumberWithCardinalNoun(s string) string {
 	matches := containsIsolatedNumber.FindStringSubmatch(s)
 	if len(matches) < 4 {
@@ -499,12 +554,17 @@ func ReplaceFirstNumberWithCardinalNoun(s string) string {
 	return JoinSentenceParts(matches[1], CardinalNoun(n), matches[3])
 }
 
+// CommonSentenceStarts lists pronouns and articles that JoinSentenceParts and
+// AppendClause lowercase when they appear at the start of a non-first part,
+// preventing awkward mid-sentence capitalisation.
 var CommonSentenceStarts = []string{"He", "She", "They", "His", "Her", "Their", "The", "It"}
 
+// StripNewlines replaces every newline character in s with a space.
 func StripNewlines(s string) string {
 	return strings.Join(strings.Split(s, "\n"), " ")
 }
 
+// PrefixLines prepends prefix to every line in s, including the first.
 func PrefixLines(s string, prefix string) string {
 	return prefix + strings.Join(strings.Split(s, "\n"), "\n"+prefix)
 }
