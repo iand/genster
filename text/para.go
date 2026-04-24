@@ -8,12 +8,21 @@ type Para struct {
 	sentences []string
 }
 
+// Text finalizes the current sentence and returns the full paragraph as a string.
 func (p *Para) Text() string {
 	p.FinishSentence()
 	return strings.TrimSpace(strings.Join(p.sentences, " "))
 }
 
-// Continue continues an existing sentence
+// Current returns the accumulated text without finalizing the current sentence.
+// Unlike Text, it does not add a period or uppercase the first letter.
+func (p *Para) Current() string {
+	return strings.TrimSpace(strings.Join(p.sentences, " "))
+}
+
+// Continue appends parts to the current sentence. Empty and whitespace-only
+// parts are skipped. A colon ":" is appended without a preceding space.
+// The first letter is not uppercased until the sentence is finalized.
 func (p *Para) Continue(ss ...string) {
 	if len(ss) == 0 {
 		return
@@ -31,9 +40,11 @@ func (p *Para) Continue(ss ...string) {
 	}
 
 	if current == "" {
-		current = UpperFirst(s)
-	} else if !strings.HasSuffix(current, " ") || !strings.HasPrefix(s, " ") {
-		current += " "
+		current = s
+	} else {
+		if s != ":" {
+			current += " "
+		}
 		current += s
 	}
 
@@ -47,7 +58,7 @@ func (p *Para) join(ss ...string) string {
 		if s == "" {
 			continue
 		}
-		if i != 0 {
+		if i != 0 && s != ":" {
 			str.WriteString(" ")
 		}
 		str.WriteString(s)
@@ -110,6 +121,7 @@ func (p *Para) FinishSentenceWithTerminator(t string) {
 	}
 
 	current = strings.TrimRight(current, ",;:-!?.")
+	current = UpperFirst(current)
 	current += t
 
 	p.sentences[len(p.sentences)-1] = current

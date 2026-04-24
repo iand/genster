@@ -176,7 +176,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 	}
 
 	if trailer != "" {
-		title = text.AppendSentence(text.FormatSentence(title), trailer)
+		title = text.JoinSentences(title, trailer)
 	}
 
 	return title

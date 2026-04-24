@@ -26,78 +26,74 @@ func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.T
 	if ev == nil {
 		return "unknown"
 	}
-	var title string
+	var who string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
 	case model.UnionTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 	case model.MultipartyTimelineEvent:
 		var names []string
 		for _, p := range tev.GetPrincipals() {
 			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
 		}
-		title = text.JoinList(names)
+		who = text.JoinList(names)
 	}
 
-	title = text.JoinSentenceParts(title, EventWhatWhenWhere(ev, enc, nc))
-
-	return title
+	return text.JoinSentenceParts(who, EventWhatWhenWhere(ev, enc, nc))
 }
 
 func WhoWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
 	if ev == nil {
 		return "unknown"
 	}
-	var title string
+	var who string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
 	case model.UnionTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 	case model.MultipartyTimelineEvent:
 		var names []string
 		for _, p := range tev.GetPrincipals() {
 			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
 		}
-		title = text.JoinList(names)
+		who = text.JoinList(names)
 	}
 
-	title = text.JoinSentenceParts(title, EventWhatWhenWherePov(ev, enc, nc, pov))
-
-	return title
+	return text.JoinSentenceParts(who, EventWhatWhenWherePov(ev, enc, nc, pov))
 }
 
 func Who[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
-	var title string
+	var who string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
 	case model.UnionTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 	case model.MultipartyTimelineEvent:
 		var names []string
 		for _, p := range tev.GetPrincipals() {
 			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
 		}
-		title = text.JoinList(names)
+		who = text.JoinList(names)
 	}
 
-	return title
+	return who
 }
 
 func WhoPov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
-	var title string
+	var who string
 	switch tev := ev.(type) {
 	case model.IndividualTimelineEvent:
-		title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
+		who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetPrincipal())), tev.GetPrincipal()).String()
 		if !pov.Person.IsUnknown() && !pov.Person.SameAs(tev.GetPrincipal()) {
 			rel := tev.GetPrincipal().RelationTo(pov.Person, ev.GetDate())
 			if rel != "" {
 				rel = text.MaybePossessiveSuffix(pov.Person.PreferredFullName) + " " + rel
 			}
 
-			title = rel + " " + title
+			who = rel + " " + who
 		}
 	case model.UnionTimelineEvent:
 		if !pov.Person.IsUnknown() && !tev.GetHusband().SameAs(pov.Person) && !tev.GetWife().SameAs(pov.Person) {
@@ -109,20 +105,20 @@ func WhoPov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder
 			if wifeRel != "" {
 				wifeRel = text.MaybePossessiveSuffix(pov.Person.PreferredFullName) + " " + wifeRel
 			}
-			title = enc.EncodeModelLink(enc.EncodeText(husbRel, nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(wifeRel, nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+			who = enc.EncodeModelLink(enc.EncodeText(husbRel, nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(wifeRel, nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 
 		} else {
-			title = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
+			who = enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetHusband())), tev.GetHusband()).String() + " and " + enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(tev.GetWife())), tev.GetWife()).String()
 		}
 	case model.MultipartyTimelineEvent:
 		var names []string
 		for _, p := range tev.GetPrincipals() {
 			names = append(names, enc.EncodeModelLink(enc.EncodeText(nc.FirstUse(p)), p).String())
 		}
-		title = text.JoinList(names)
+		who = text.JoinList(names)
 	}
 
-	return title
+	return who
 }
 
 func EventWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {

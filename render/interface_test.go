@@ -1,8 +1,8 @@
 package render_test
 
 import (
-	"github.com/iand/genster/render/md"
 	"github.com/iand/genster/render"
+	"github.com/iand/genster/render/md"
 )
 
 var _ render.EncodedText = (*md.Text)(nil)

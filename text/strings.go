@@ -321,59 +321,22 @@ func JoinListOr(strs []string) string {
 }
 
 // JoinSentenceParts concatenates non-empty parts with a single space between
-// them. Parts after the first that begin with a word from CommonSentenceStarts
-// have their first letter lowercased, preventing double-capitalisation when
-// a sentence fragment is appended mid-sentence. The colon ":" is special-cased
-// to receive no leading space.
+// them. Empty and whitespace-only parts are skipped. The colon ":" is
+// special-cased to receive no leading space.
 func JoinSentenceParts(parts ...string) string {
-	var ret string
-	for i, s := range parts {
-		s = strings.TrimSpace(s)
-		if len(s) == 0 {
-			continue
-		}
-		if ret != "" && s != ":" {
-			ret += " "
-		}
-		if i == 0 {
-			ret += s
-		} else {
-			ret += LowerIfFirstWordIn(s, CommonSentenceStarts...)
-		}
-	}
-	return ret
+	var p Para
+	p.Continue(parts...)
+	return p.Current()
 }
 
-// JoinSentences formats each argument as a complete sentence (via
-// FormatSentence) and joins them with a single space. Empty arguments are
-// skipped.
+// JoinSentences formats each argument as a complete sentence and joins them
+// with a single space. Empty arguments are skipped.
 func JoinSentences(ss ...string) string {
-	var ret string
+	var p Para
 	for _, s := range ss {
-		s = FormatSentence(s)
-		// s = strings.TrimSpace(s)
-		if len(s) == 0 {
-			continue
-		}
-		if ret != "" {
-			ret += " "
-		}
-		ret += s
+		p.AddCompleteSentence(s)
 	}
-	return ret
-}
-
-// AppendSentence formats s as a complete sentence and appends it to base,
-// inserting a space when base is non-empty.
-func AppendSentence(base, s string) string {
-	s = FormatSentence(s)
-	if len(base) == 0 {
-		return s
-	}
-	if !strings.HasSuffix(base, " ") {
-		base += " "
-	}
-	return base + s
+	return p.Text()
 }
 
 // CardinalWithUnit returns "one <singular>" when n is 1, and
@@ -421,10 +384,11 @@ func FinishSentence(s string) string {
 	return s
 }
 
-// FormatSentence applies FinishSentence then UpperFirst, producing a
-// well-formed sentence ready for output.
+// FormatSentence formats s as a complete, well-formed sentence.
 func FormatSentence(s string) string {
-	return UpperFirst(FinishSentence(s))
+	var p Para
+	p.Continue(s)
+	return p.Text()
 }
 
 // AppendClause appends clause to s, inserting a comma separator when s is
@@ -469,20 +433,6 @@ func AppendRelated(s, clause string) string {
 // (" ", ",", ":", ";", ".", "!", "?") from s.
 func StripTerminator(s string) string {
 	return strings.TrimRight(s, " ,:;.!?")
-}
-
-// AppendIndependentClause joins s and clause with "; ", suitable for two
-// independent but related clauses within a single sentence.
-func AppendIndependentClause(s, clause string) string {
-	if s == "" {
-		return clause
-	}
-	if clause == "" {
-		return s
-	}
-	s = strings.TrimSpace(s)
-	s = StripTerminator(s)
-	return s + "; " + clause
 }
 
 var startsWithNumeral = regexp.MustCompile(`^[0-9]`)
