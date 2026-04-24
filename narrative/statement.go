@@ -752,7 +752,6 @@ type DeathStatement[T render.EncodedText] struct {
 var _ Statement[md.Text] = (*DeathStatement[md.Text])(nil)
 
 func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	var detail string
 	if s.Principal.BestDeathlikeEvent == nil {
 		_ = s.RenderDetailUnknown(seq, intro, enc, nc)
 		return
@@ -802,34 +801,34 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		evDetail += " on an unknown date"
 	}
 	if !bev.GetPlace().IsUnknown() {
-		pl := bev.GetPlace()
-		evDetail = WhatWherePov(evDetail, pl, enc, nc, intro.POV)
+		evDetail = WhatWherePov(evDetail, bev.GetPlace(), enc, nc, intro.POV)
 	}
 
 	burialRunOnSentence := true
 
-	detail += s.Principal.PreferredFamiliarName + " " + evDetail
+	var para text.Para
+	para.StartSentence(s.Principal.PreferredFamiliarName, enc.EncodeWithCitations(enc.EncodeText(evDetail), bev.GetCitations()).String())
 
 	if s.Principal.CauseOfDeath != nil {
-		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
-		detail = text.FinishSentence(detail)
-		detail += " " + text.FormatSentence(text.JoinSentenceParts(s.Principal.Gender.PossessivePronounSingular(), "death was attributed to", enc.EncodeWithCitations(enc.EncodeText(s.Principal.CauseOfDeath.Detail), s.Principal.CauseOfDeath.Citations).String()))
+		para.FinishSentence()
+		para.StartSentence(
+			s.Principal.Gender.PossessivePronounSingular(),
+			"death was attributed to",
+			enc.EncodeWithCitations(enc.EncodeText(s.Principal.CauseOfDeath.Detail), s.Principal.CauseOfDeath.Citations).String(),
+		)
 		burialRunOnSentence = false
 	}
 
 	additionalDetailFromDeathEvent := EventNarrativeDetail(bev, enc)
 	if additionalDetailFromDeathEvent != "" {
+		para.FinishSentence()
+		para.StartSentence(additionalDetailFromDeathEvent)
 		burialRunOnSentence = false
-		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
-		detail = text.FinishSentence(detail)
-		detail = text.JoinSentences(detail, additionalDetailFromDeathEvent)
 	}
 
 	if !burialRunOnSentence {
-		enc.Para(enc.EncodeText(detail))
-		detail = ""
-	} else {
-		detail = enc.EncodeWithCitations(enc.EncodeText(detail), bev.GetCitations()).String()
+		enc.Para(enc.EncodeText(para.Text()))
+		para = text.Para{}
 	}
 
 	funerals := []model.IndividualTimelineEvent{}
@@ -856,13 +855,13 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		// TODO: record an anomaly
 		// }
 
-		evDetail := ""
 		funeralEvent := funerals[0]
+		funeralEvDetail := ""
 		switch funeralEvent.(type) {
 		case *model.BurialEvent:
-			evDetail += "buried"
+			funeralEvDetail = "buried"
 		case *model.CremationEvent:
-			evDetail += "cremated"
+			funeralEvDetail = "cremated"
 		default:
 			panic("unhandled funeral event")
 		}
@@ -870,33 +869,25 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		interval := bev.GetDate().IntervalUntil(funeralEvent.GetDate())
 		if days, ok := interval.ApproxDays(); ok && days < 15 {
 			if days == 0 {
-				evDetail += " the same day"
+				funeralEvDetail += " the same day"
 			} else if days == 1 {
-				evDetail += " the next day"
+				funeralEvDetail += " the next day"
 			} else {
-				evDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(days))
+				funeralEvDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(days))
 			}
 		} else {
-			evDetail += " " + funeralEvent.GetDate().When()
+			funeralEvDetail += " " + funeralEvent.GetDate().When()
 		}
 		if !funeralEvent.GetPlace().IsUnknown() {
-			pl := funeralEvent.GetPlace()
-			evDetail = WhatWherePov(evDetail, pl, enc, nc, intro.POV)
-			// evDetail = text.JoinSentenceParts(evDetail, pl.InAt(), enc.EncodeModelLinkDedupe(enc.EncodeText(pl.ProseName), enc.EncodeText(pl.NameWithDistrict), pl).String())
+			funeralEvDetail = WhatWherePov(funeralEvDetail, funeralEvent.GetPlace(), enc, nc, intro.POV)
 		}
 
-		if detail == "" {
-			detail = text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
+		funeralCited := enc.EncodeWithCitations(enc.EncodeText(funeralEvDetail), funeralEvent.GetCitations()).String()
+		if para.IsEmpty() {
+			para.StartSentence(text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()), funeralCited)
 		} else {
-			if burialRunOnSentence {
-				detail += " and was "
-			} else {
-				detail = text.FinishSentence(detail) + " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " "
-			}
+			para.Continue("and was", funeralCited)
 		}
-
-		detail = text.JoinSentenceParts(detail, enc.EncodeWithCitations(enc.EncodeText(evDetail), funeralEvent.GetCitations()).String())
-
 	}
 
 	// if death is not inferred then perhaps make a statement about surviving partner
@@ -913,18 +904,19 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			possibleSurvivor := lastFamily.OtherParent(s.Principal)
 			if possibleSurvivor != nil && possibleSurvivor.BestDeathlikeEvent != nil && !possibleSurvivor.BestDeathlikeEvent.GetDate().IsUnknown() {
 				if s.Principal.BestDeathlikeEvent.GetDate().SortsBefore(possibleSurvivor.BestDeathlikeEvent.GetDate()) {
-					detail += " " + text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()) + " survived by "
+					para.Continue(text.UpperFirst(s.Principal.Gender.SubjectPronounWithLink()), "survived by")
 					if lastFamily.Bond == model.FamilyBondMarried {
-						detail += text.LowerFirst(s.Principal.Gender.PossessivePronounSingular()) + " " + text.LowerFirst(possibleSurvivor.Gender.RelationToSpouseNoun()) + " "
+						para.Continue(text.LowerFirst(s.Principal.Gender.PossessivePronounSingular()), text.LowerFirst(possibleSurvivor.Gender.RelationToSpouseNoun()))
 					}
-
-					detail += intro.IntroducePerson(seq, possibleSurvivor, s.Start(), false, enc, nc)
-					detail = text.FinishSentence(detail)
+					para.Continue(intro.IntroducePerson(seq, possibleSurvivor, s.Start(), false, enc, nc))
 				}
 			}
 		}
 	}
-	enc.Para(enc.EncodeText(detail))
+
+	if !para.IsEmpty() {
+		enc.Para(enc.EncodeText(para.Text()))
+	}
 
 	if s.IncludeMedia && bev != nil {
 		// TODO: handle error
