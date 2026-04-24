@@ -88,7 +88,6 @@ type FrontMatter struct {
 	Trade          string   `yaml:"trade"`
 	GrampsID       string   `yaml:"grampsid"`
 	Slug           string   `yaml:"slug"`
-	WikiTreeFormat string   `yaml:"wikitreeformat"`
 	WikiTreeID     string   `yaml:"wikitreeid"`
 	MarkdownFormat string   `yaml:"markdownformat"`
 	Ancestor       flexBool `yaml:"ancestor"`

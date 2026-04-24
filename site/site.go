@@ -125,11 +125,6 @@ type Site struct {
 	ExperimentFamilies bool
 	MapTilerAPIKey     string // API key for MapTiler Cloud (NLS historic maps)
 
-	GenerateWikiTree    bool
-	WikiTreeDir         string
-	WikiTreeLinkPattern string
-	WikiTreeFilePattern string
-
 	// PublishSet is the set of objects that will have pages written
 	PublishSet *PublishSet
 	Changelog  []*Change
@@ -177,10 +172,6 @@ func NewSite(baseURL string, t *tree.Tree) *Site {
 		// ListDir:         PageSectionList,
 		// ListPagePattern: path.Join(basePath, PageSectionList, "/%s/"),
 		// ListFilePattern: "/place/%s/index.md",
-
-		WikiTreeDir:         PageSectionPerson,
-		WikiTreeLinkPattern: path.Join(baseURL, PageSectionPerson, "/%s/wikitree"),
-		WikiTreeFilePattern: path.Join(PageSectionPerson, "/%s/wikitree.md"),
 
 		CalendarLinkPattern: path.Join(baseURL, "calendar/%02d/"),
 		CalendarFilePattern: "/calendar/%02d.md",
@@ -444,17 +435,6 @@ func (s *Site) LinkForFormat(v any, format string) string {
 	switch format {
 	case "markdown":
 		return s.LinkFor(v)
-	case "wikitree":
-		switch vt := v.(type) {
-		case *model.Person:
-			if vt.Redacted {
-				return ""
-			}
-			if _, ok := s.PublishSet.People[vt.ID]; !ok {
-				return ""
-			}
-			return fmt.Sprintf(s.WikiTreeLinkPattern, vt.ID)
-		}
 	}
 
 	return ""
@@ -609,16 +589,6 @@ func (s *Site) WritePages(contentDir string) error {
 			return fmt.Errorf("write person page: %w", err)
 		}
 
-		if s.GenerateWikiTree {
-			d, err := RenderWikiTreePage(s, p)
-			if err != nil {
-				return fmt.Errorf("render wikitree page: %w", err)
-			}
-
-			if err := writePage(d, contentDir, fmt.Sprintf(s.WikiTreeFilePattern, p.ID)); err != nil {
-				return fmt.Errorf("write wikitree page: %w", err)
-			}
-		}
 	}
 
 	for _, p := range s.PublishSet.Places {

@@ -69,12 +69,11 @@ type Person struct {
 	Puzzle             bool          // true if this person is the centre of a significant puzzle
 	Occupations        []*Occupation // list of occupations
 	OccupationGroup    OccupationGroup
-	WikiTreeID         string   // the wikitree id of this person
-	WikiTreeCategories []string // wikitree categories for this person
-	GrampsID           string   // the gramps id of this person
-	FamilySearchID     string   // the familysearch id of this person
-	Slug               string   // a short url-friendly identifier that can be used to refer to this person
-	Links              []Link   // list of links to more information relevant to this person
+	WikiTreeID         string // the wikitree id of this person
+	GrampsID           string // the gramps id of this person
+	FamilySearchID     string // the familysearch id of this person
+	Slug               string // a short url-friendly identifier that can be used to refer to this person
+	Links              []Link // list of links to more information relevant to this person
 
 	Redacted           bool                // true if the person's details should be redacted
 	RedactionKeepsName bool                // true if this person's name should be kept during redaction

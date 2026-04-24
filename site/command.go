@@ -89,12 +89,6 @@ var Command = &cli.Command{
 			Usage:       "Type and ID of an object to inspect. The internal data structure of the object will be printed to stdout. Use format '{object}/{id}' where object can be 'person', 'place' or 'source'.",
 			Destination: &genopts.inspect,
 		},
-		&cli.BoolFlag{
-			Name:        "wikitree",
-			Usage:       "Generate pages that include wikitree markup for copy and paste.",
-			Value:       false,
-			Destination: &genopts.generateWikiTree,
-		},
 		&cli.StringFlag{
 			Name:        "relation",
 			Usage:       "Only generate pages for people who are related to the key person. One of 'direct' (must be a direct ancestor), 'common' (must have a common ancestor) or 'any' (any relation). Ignored if no key person is specified.",
@@ -131,7 +125,6 @@ var genopts struct {
 
 	basePath           string
 	inspect            string
-	generateWikiTree   bool
 	treeConfig         string
 	verbose            bool
 	veryverbose        bool
@@ -191,7 +184,6 @@ func gen(ctx context.Context, cc *cli.Command) error {
 	s.IncludePrivate = genopts.includePrivate
 	s.IncludeDebugInfo = genopts.debug
 	s.ExperimentFamilies = genopts.experimentFamilies
-	s.GenerateWikiTree = genopts.generateWikiTree
 	s.MapTilerAPIKey = os.Getenv("MAPTILER_API_KEY")
 
 	// Look for key individual, assume id is a genster id first

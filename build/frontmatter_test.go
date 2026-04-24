@@ -28,7 +28,6 @@ func TestParseDocumentRoundTrip(t *testing.T) {
 	doc.SetFrontMatterField("trade", "labourer")
 	doc.SetFrontMatterField("grampsid", "I1234")
 	doc.SetFrontMatterField("slug", "johnsmith")
-	doc.SetFrontMatterField("wikitreeformat", "SmithJohn")
 	doc.SetFrontMatterField("wikitreeid", "Smith-1")
 	doc.SetFrontMatterField("markdownformat", "standard")
 	doc.SetFrontMatterField("placetype", "village")
@@ -75,7 +74,6 @@ func TestParseDocumentRoundTrip(t *testing.T) {
 		{"Trade", fm.Trade, "labourer"},
 		{"GrampsID", fm.GrampsID, "I1234"},
 		{"Slug", fm.Slug, "johnsmith"},
-		{"WikiTreeFormat", fm.WikiTreeFormat, "SmithJohn"},
 		{"WikiTreeID", fm.WikiTreeID, "Smith-1"},
 		{"MarkdownFormat", fm.MarkdownFormat, "standard"},
 		{"PlaceType", fm.PlaceType, "village"},

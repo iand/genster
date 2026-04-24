@@ -55,12 +55,6 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	default:
 		doc.SetFrontMatterField("gender", "unknown")
 	}
-	if s.GenerateWikiTree {
-		if l := s.LinkForFormat(p, "wikitree"); l != "" {
-			doc.SetFrontMatterField("wikitreeformat", l)
-		}
-	}
-
 	doc.AddTags(CleanTags(p.Tags))
 
 	// determine the feature image

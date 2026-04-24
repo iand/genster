@@ -171,17 +171,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				URL:      pgc.Detail,
 				Category: model.LinkCategoryWebsite,
 			})
-		} else if pgc.Source.Title == "WikiTree" {
-			anom := &model.Anomaly{
-				Category: model.AnomalyCategoryCitation,
-				Text:     "Person has 'wikitree' citation",
-				Context:  "Citation",
-			}
-			p.Anomalies = append(p.Anomalies, anom)
-			// p.Links = append(p.Links, model.Link{
-			// 	Title: "WikiTree",
-			// 	URL:   pgc.Detail,
-			// })
 		} else if strings.HasPrefix(pgc.Detail, "https://www.familysearch.org/tree/person/") {
 			anom := &model.Anomaly{
 				Category: model.AnomalyCategoryCitation,
@@ -239,8 +228,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				URL:      "https://www.familysearch.org/tree/person/details/" + att.Value,
 				Category: model.LinkCategoryWebsite,
 			})
-		case "wikitree category":
-			p.WikiTreeCategories = append(p.WikiTreeCategories, att.Value)
 		case "illegitimate":
 			p.Illegitimate = true
 		case "unmarried", "never married":
