@@ -603,6 +603,8 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 
 		switch strings.ToLower(pr.Rel) {
 		case "twin":
+			p.Twin = true
+			other.Twin = true
 			assoc := model.Association{
 				Kind:  model.AssociationKindTwin,
 				Other: other,

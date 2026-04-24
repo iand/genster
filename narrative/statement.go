@@ -39,206 +39,142 @@ type IntroStatement[T render.EncodedText] struct {
 var _ Statement[md.Text] = (*IntroStatement[md.Text])(nil)
 
 func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
-	var birth string
 	if s.NameChooser == nil {
 		s.NameChooser = nc
 	}
 
-	if s.Principal.BestBirthlikeEvent == nil {
-		_ = s.RenderDetailUnknown(seq, intro, enc, nc)
+	var para text.Para
+
+	if s.Principal.BestBirthlikeEvent == nil && s.Principal.Father.IsUnknown() && s.Principal.Mother.IsUnknown() {
+		para.StartSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
+		s.maybeAppendNickname(&para)
+		s.maybeAddPossibleBirths(&para, enc, nc, intro)
+	} else {
+		para.StartSentence(s.Principal.PreferredGivenName)
+		s.maybeAppendNickname(&para)
+		if s.Principal.BestBirthlikeEvent != nil {
+			birth := enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
+			para.Continue(birth)
+		}
+		s.addParentage(&para, enc, nc, intro, seq)
+		s.maybeAddBaptismAfterBirth(&para, enc, nc, intro)
+		s.maybeAddTwinAssociation(&para, enc)
+	}
+
+	s.maybeAddRelationToKeyPerson(&para, enc)
+	enc.Para(enc.EncodeText(para.Text()))
+
+	if s.Principal.BestBirthlikeEvent != nil {
+		if s.IncludeMedia {
+			if len(s.Principal.BestBirthlikeEvent.GetMediaObjects()) > 0 {
+				// TODO: handle error
+				MediaObjectsAsFigures(s.Principal.BestBirthlikeEvent.GetMediaObjects(), enc, s.CropMediaHighlights)
+			}
+			if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent && len(s.Baptisms[0].GetMediaObjects()) > 0 {
+				// TODO: handle error
+				MediaObjectsAsFigures(s.Baptisms[0].GetMediaObjects(), enc, s.CropMediaHighlights)
+			}
+		}
+		if len(s.Baptisms) > 1 {
+			s.renderMultipleBaptisms(enc, nc, intro, seq)
+		}
+	}
+}
+
+func (s *IntroStatement[T]) maybeAppendNickname(para *text.Para) {
+	if s.Principal.NickName != "" {
+		para.Continue("(known as " + s.Principal.NickName + ")")
+	}
+}
+
+func (s *IntroStatement[T]) maybeAddPossibleBirths(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T]) {
+	if len(s.PossibleBirths) == 0 {
 		return
 	}
-
-	// Prose birth
-	if s.Principal.BestBirthlikeEvent != nil {
-		birth = enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
+	list := []string{}
+	hasCitation := false
+	for _, ev := range s.PossibleBirths {
+		list = append(list, enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(ev, enc, nc, intro.POV)), ev.GetCitations()).String())
+		if len(ev.GetCitations()) > 0 {
+			hasCitation = true
+		}
 	}
+	if hasCitation {
+		para.StartSentence("however, there is some evidence that")
+	} else {
+		para.StartSentence("it's possible that")
+	}
+	para.Continue(s.Principal.Gender.SubjectPronounWithLink(), "born")
+	para.FinishSentence(text.JoinListOr(list))
+}
 
-	// Prose parentage
-	parentUnknownDetail := ""
-	parentDetail := ""
+func (s *IntroStatement[T]) addParentage(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T], seq int) {
 	rel := PositionInFamily(s.Principal)
 	if rel == "" {
 		rel = text.LowerFirst(s.Principal.Gender.RelationToParentNoun())
 	}
+	prefix := "the " + rel + " of "
 
-	parentageDetailPrefix := "the " + rel + " of "
-	if s.Principal.Father.IsUnknown() {
-		if s.Principal.Mother.IsUnknown() {
-			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"
-		} else {
-			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " father is not known"
-			parentDetail = parentageDetailPrefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
-		}
-	} else {
-		if s.Principal.Mother.IsUnknown() {
-			parentUnknownDetail = s.Principal.Gender.PossessivePronounSingular() + " mother is not known"
-			parentDetail = parentageDetailPrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc)
-		} else {
-			parentDetail = parentageDetailPrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
-		}
-	}
-
-	// ---------------------------------------
-	// Build detail
-	// ---------------------------------------
-	detail := ""
-
-	if s.Principal.NickName != "" {
-		detail = text.JoinSentenceParts(detail, "(known as "+s.Principal.NickName+")")
-	}
-
-	if birth != "" {
-		detail = text.JoinSentenceParts(detail, birth)
-	}
-
-	if parentDetail != "" {
-		detail = text.JoinSentenceParts(detail, parentDetail)
-	}
-
-	if detail == "" {
-		detail = text.FormatSentence(text.JoinSentenceParts("nothing is known about the early life of", s.Principal.PreferredGivenName))
-	} else {
-		detail = text.FormatSentence(text.JoinSentenceParts(s.Principal.PreferredGivenName, detail))
-
-		if parentUnknownDetail != "" {
-			detail = text.JoinSentences(detail, parentUnknownDetail)
-			detail = text.FinishSentence(detail)
-		}
-	}
-
-	// Twin association?
-	twinClause := false
-	if len(s.Principal.Associations) > 0 {
-		for _, as := range s.Principal.Associations {
-			if as.Kind != model.AssociationKindTwin {
-				continue
-			}
-			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-
-			detail = text.JoinSentenceParts(detail, text.UpperFirst(s.Principal.Gender.SubjectPronoun()), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
-			twinClause = true
-			break
-		}
-	}
-
-	// Insert baptism here if there is only one, otherwise leave for a new para
-	if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent {
-		bapDetail := AgeWhenWherePov(s.Baptisms[0], enc, nc, intro.POV)
-		if bapDetail != "" {
-
-			if twinClause {
-				detail = text.JoinSentenceParts(detail, "and")
-			} else {
-				detail = text.JoinSentenceParts(text.FinishSentence(detail), text.UpperFirst(s.Principal.Gender.SubjectPronoun()))
-			}
-
-			detail = text.JoinSentenceParts(detail, "was baptised", enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String())
-			detail = text.FinishSentence(detail)
-		}
-
-	}
-
-	// TODO: clean up this hack by using Para throughout
-	var para text.Para
-	s.AddRelationToKeyPerson(&para, enc)
-	reltext := para.Text()
-	if reltext != "" {
-		detail += " " + reltext
-	}
-
-	detail = text.FinishSentence(detail)
-	enc.Para(enc.EncodeText(detail))
-
-	if s.IncludeMedia {
-		if s.Principal.BestBirthlikeEvent != nil && len(s.Principal.BestBirthlikeEvent.GetMediaObjects()) > 0 {
-			// TODO: handle error
-			MediaObjectsAsFigures(s.Principal.BestBirthlikeEvent.GetMediaObjects(), enc, s.CropMediaHighlights)
-		}
-		if len(s.Baptisms) == 1 && s.Baptisms[0] != s.Principal.BestBirthlikeEvent && len(s.Baptisms[0].GetMediaObjects()) > 0 {
-			// TODO: handle error
-			MediaObjectsAsFigures(s.Baptisms[0].GetMediaObjects(), enc, s.CropMediaHighlights)
-		}
-	}
-
-	if len(s.Baptisms) > 1 {
-
-		var bapDetail string
-		for i, bev := range s.Baptisms {
-			logging.Debug("adding baptism event to narrative intro statement", "id", s.Principal.ID, "bev", bev, "BestBirthlikeEvent", s.Principal.BestBirthlikeEvent)
-			if s.Baptisms[i] == s.Principal.BestBirthlikeEvent {
-				continue
-			}
-			evDetail := ""
-			if i == 0 {
-				evDetail += "was baptised"
-			} else {
-				evDetail += "and again"
-			}
-			aww := AgeWhenWherePov(bev, enc, nc, intro.POV)
-			if aww != "" {
-				bapDetail = text.JoinSentenceParts(bapDetail, evDetail, enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String())
-			}
-		}
-		bapDetail = text.FinishSentence(text.JoinSentenceParts(intro.Pronoun(seq, s.Start(), s.Principal), bapDetail))
-		enc.Para(enc.EncodeText(bapDetail))
+	switch {
+	case s.Principal.Father.IsUnknown() && s.Principal.Mother.IsUnknown():
+		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "parents are not known")
+	case s.Principal.Father.IsUnknown():
+		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
+		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "father is not known")
+	case s.Principal.Mother.IsUnknown():
+		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc))
+		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "mother is not known")
+	default:
+		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
 	}
 }
 
-func (s *IntroStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) error {
+func (s *IntroStatement[T]) maybeAddTwinAssociation(para *text.Para, enc render.ContentBuilder[T]) {
+	for _, as := range s.Principal.Associations {
+		if as.Kind != model.AssociationKindTwin {
+			continue
+		}
+		twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
+		para.StartSentence(s.Principal.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
+		return
+	}
+}
+
+func (s *IntroStatement[T]) maybeAddBaptismAfterBirth(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T]) {
+	if len(s.Baptisms) != 1 || s.Baptisms[0] == s.Principal.BestBirthlikeEvent {
+		return
+	}
+	bapDetail := AgeWhenWherePov(s.Baptisms[0], enc, nc, intro.POV)
+	if bapDetail == "" {
+		return
+	}
+	bapCited := enc.EncodeWithCitations(enc.EncodeText(bapDetail), s.Baptisms[0].GetCitations()).String()
+	para.StartSentence(s.Principal.Gender.SubjectPronoun(), "was baptised", bapCited)
+}
+
+func (s *IntroStatement[T]) renderMultipleBaptisms(enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T], seq int) {
 	var para text.Para
-	para.AddCompleteSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
-	if len(s.PossibleBirths) > 0 {
-		list := []string{}
-		hasCitation := false
-		for _, ev := range s.PossibleBirths {
-			list = append(list, enc.EncodeWithCitations(enc.EncodeText(EventWhenWherePov(ev, enc, nc, intro.POV)), ev.GetCitations()).String())
-			if len(ev.GetCitations()) > 0 {
-				hasCitation = true
-			}
+	para.StartSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+	for i, bev := range s.Baptisms {
+		logging.Debug("adding baptism event to narrative intro statement", "id", s.Principal.ID, "bev", bev, "BestBirthlikeEvent", s.Principal.BestBirthlikeEvent)
+		if s.Baptisms[i] == s.Principal.BestBirthlikeEvent {
+			continue
 		}
-		if hasCitation {
-			para.StartSentence("however, there is some evidence that")
-		} else {
-			para.StartSentence("it's possible that")
+		aww := AgeWhenWherePov(bev, enc, nc, intro.POV)
+		if aww == "" {
+			continue
 		}
-		para.Continue(s.Principal.Gender.SubjectPronounWithLink(), "born")
-		para.FinishSentence(text.JoinListOr(list))
-
-	}
-
-	var parentDetail string
-
-	rel := PositionInFamily(s.Principal)
-	if rel == "" {
-		rel = text.LowerFirst(s.Principal.Gender.RelationToParentNoun())
-	}
-	knownParentagePrefix := s.Principal.Gender.SubjectPronounWithLink() + " the " + rel + " of "
-
-	if s.Principal.Father.IsUnknown() {
-		if s.Principal.Mother.IsUnknown() {
-			parentDetail = s.Principal.Gender.PossessivePronounSingular() + " parents are not known"
+		cited := enc.EncodeWithCitations(enc.EncodeText(aww), bev.GetCitations()).String()
+		if i == 0 {
+			para.Continue("was baptised", cited)
 		} else {
-			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
-			parentDetail += ", but" + s.Principal.Gender.PossessivePronounSingular() + " father is not known"
-		}
-	} else {
-		if s.Principal.Mother.IsUnknown() {
-			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc)
-			parentDetail += ", but" + s.Principal.Gender.PossessivePronounSingular() + " mother is not known"
-		} else {
-			parentDetail = knownParentagePrefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc)
+			para.Continue("and again", cited)
 		}
 	}
-
-	para.StartSentence(parentDetail)
-
-	s.AddRelationToKeyPerson(&para, enc)
 	enc.Para(enc.EncodeText(para.Text()))
-	return nil
 }
 
-func (s *IntroStatement[T]) AddRelationToKeyPerson(para *text.Para, enc render.ContentBuilder[T]) {
+func (s *IntroStatement[T]) maybeAddRelationToKeyPerson(para *text.Para, enc render.ContentBuilder[T]) {
 	// ---------------------------------------
 	// Prose relation to key person
 	// ---------------------------------------
@@ -810,7 +746,6 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	para.StartSentence(s.Principal.PreferredFamiliarName, enc.EncodeWithCitations(enc.EncodeText(evDetail), bev.GetCitations()).String())
 
 	if s.Principal.CauseOfDeath != nil {
-		para.FinishSentence()
 		para.StartSentence(
 			s.Principal.Gender.PossessivePronounSingular(),
 			"death was attributed to",
@@ -821,7 +756,6 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	additionalDetailFromDeathEvent := EventNarrativeDetail(bev, enc)
 	if additionalDetailFromDeathEvent != "" {
-		para.FinishSentence()
 		para.StartSentence(additionalDetailFromDeathEvent)
 		burialRunOnSentence = false
 	}
@@ -868,11 +802,12 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 		interval := bev.GetDate().IntervalUntil(funeralEvent.GetDate())
 		if days, ok := interval.ApproxDays(); ok && days < 15 {
-			if days == 0 {
+			switch days {
+			case 0:
 				funeralEvDetail += " the same day"
-			} else if days == 1 {
+			case 1:
 				funeralEvDetail += " the next day"
-			} else {
+			default:
 				funeralEvDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(days))
 			}
 		} else {
@@ -997,12 +932,6 @@ func (s *CensusStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc
 		return
 	}
 	// TODO: construct narrative of census
-
-	// detail := fmt.Sprintf("in the %d census", year)
-	// detail = text.JoinSentences(detail, intro.NameBased)
-	// detail = enc.EncodeWithCitations(detail, s.Event.GetCitations())
-	// detail = text.FormatSentence(detail)
-	// enc.Para(detail)
 
 	var detail text.Para
 	what := ChooseFrom(seq,
