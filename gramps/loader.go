@@ -232,8 +232,9 @@ func pval[T any](v *T, def T) T {
 	return *v
 }
 
+//go:fix inline
 func p[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 func changeToTime(s string) (time.Time, error) {

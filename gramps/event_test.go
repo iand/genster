@@ -10,8 +10,11 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-func ptrStr(s string) *string { return &s }
-func ptrBool(b bool) *bool    { return &b }
+//go:fix inline
+func ptrStr(s string) *string { return new(s) }
+
+//go:fix inline
+func ptrBool(b bool) *bool { return new(b) }
 
 func TestEventDate(t *testing.T) {
 	testCases := []struct {
@@ -74,7 +77,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985",
-					Type: p("Before"),
+					Type: new("Before"),
 				},
 			},
 			want: &model.Date{
@@ -89,7 +92,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985",
-					Type: p("After"),
+					Type: new("After"),
 				},
 			},
 			want: &model.Date{
@@ -104,7 +107,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985",
-					Type: p("About"),
+					Type: new("About"),
 				},
 			},
 			want: &model.Date{
@@ -119,7 +122,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985-10-01",
-					Type: p("Before"),
+					Type: new("Before"),
 				},
 			},
 			want: &model.Date{
@@ -135,7 +138,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985-10-01",
-					Type: p("After"),
+					Type: new("After"),
 				},
 			},
 			want: &model.Date{
@@ -151,7 +154,7 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:  "1985-10-01",
-					Type: p("About"),
+					Type: new("About"),
 				},
 			},
 			wantErr: true,
@@ -198,8 +201,8 @@ func TestEventDate(t *testing.T) {
 			ev: &grampsxml.Event{
 				Dateval: &grampsxml.Dateval{
 					Val:       "1651-03-10",
-					Cformat:   ptrStr("Julian"),
-					Dualdated: ptrBool(true),
+					Cformat:   new("Julian"),
+					Dualdated: new(true),
 				},
 			},
 			want: &model.Date{
@@ -249,8 +252,8 @@ func TestParseDatevalSortOrder(t *testing.T) {
 	// 10 Mar 1650/51 OS — Gramps stores NS year 1651 in val.
 	earlyMarch, err := ParseDateval(grampsxml.Dateval{
 		Val:       "1651-03-10",
-		Cformat:   ptrStr("Julian"),
-		Dualdated: ptrBool(true),
+		Cformat:   new("Julian"),
+		Dualdated: new(true),
 	}, dp)
 	if err != nil {
 		t.Fatalf("ParseDateval(1651-03-10 Julian dualdated): %v", err)
@@ -259,7 +262,7 @@ func TestParseDatevalSortOrder(t *testing.T) {
 	// 4 Jun 1650 Julian — plain Julian date, no dual date.
 	june, err := ParseDateval(grampsxml.Dateval{
 		Val:     "1650-06-04",
-		Cformat: ptrStr("Julian"),
+		Cformat: new("Julian"),
 	}, dp)
 	if err != nil {
 		t.Fatalf("ParseDateval(1650-06-04 Julian): %v", err)

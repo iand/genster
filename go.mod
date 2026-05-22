@@ -1,6 +1,6 @@
 module github.com/iand/genster
 
-go 1.25.0
+go 1.26.2
 
 require (
 	github.com/adrg/strutil v0.3.1
