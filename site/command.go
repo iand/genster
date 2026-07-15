@@ -171,7 +171,8 @@ func gen(ctx context.Context, cc *cli.Command) error {
 			return fmt.Errorf("walk content pages: %w", err)
 		}
 		for _, p := range t.People {
-			if pages, ok := pageMap[p.GrampsID]; ok {
+
+			if pages, ok := pageMap[model.MaybeNormalizeGrampsID(p.GrampsID)]; ok {
 				p.Links = append(p.Links, pages...)
 			}
 			if pages, ok := pageMap[p.Slug]; ok {
@@ -491,7 +492,7 @@ func walkSectionPages(dir, urlBase string, subjectCategory, mentionCategory mode
 
 		// People linked in the body with (/r/...) are mentions.
 		for _, match := range reAliasLink.FindAllSubmatch(content, -1) {
-			id := string(match[1])
+			id := model.MaybeNormalizeGrampsID(string(match[1]))
 			l := baseLink
 			l.Category = mentionCategory
 			result[id] = append(result[id], l)

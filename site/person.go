@@ -3,7 +3,9 @@ package site
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/iand/genster/debug"
@@ -247,6 +249,27 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
 		doc.AddAlias(s.RedirectPath(p.GrampsID))
+		// Add legacy aliases for gramps id with leading zeroes
+		var reGrampsID = regexp.MustCompile(`^([A-Z])([0-9]+)$`)
+		m := reGrampsID.FindStringSubmatch(p.GrampsID)
+		if m != nil && len(m) == 3 {
+			v, err := strconv.Atoi(m[2])
+			if err == nil {
+				if v < 10000 {
+					pad5 := fmt.Sprintf("%s%05d", m[1], v)
+					if pad5 != p.GrampsID {
+						doc.AddAlias(s.RedirectPath(pad5))
+					}
+				}
+				if v < 1000 {
+					pad4 := fmt.Sprintf("%s%04d", m[1], v)
+					if pad4 != p.GrampsID {
+						doc.AddAlias(s.RedirectPath(pad4))
+					}
+				}
+			}
+
+		}
 	}
 
 	if p.Slug != "" {

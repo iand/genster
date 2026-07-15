@@ -14,7 +14,7 @@ import (
 var reUppercase = regexp.MustCompile(`^[A-Z \-]{3}[A-Z \-]+$`)
 
 func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error {
-	id := pval(gp.ID, gp.Handle)
+	id := persistentID(gp.ID, gp.Handle)
 	p := m.FindPerson(l.ScopeName, id)
 	p.NativeID = id
 
@@ -101,7 +101,6 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 				sb.WriteString(s.Surname)
 			}
 			prefName.surname = sb.String()
-			// return fmt.Errorf("multiple surnames not supported yet (person id: %s)", pval(gp.ID, gp.Handle))
 		}
 
 		prefName.given = strings.ReplaceAll(prefName.given, "-?-", model.UnknownNamePlaceholder)
@@ -588,7 +587,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		if !ok {
 			return fmt.Errorf("person child of unknown family (person id: %s, childof hlink:%s)", pval(gp.ID, gp.Handle), co.Hlink)
 		}
-		fam := m.FindFamily(l.ScopeName, pval(gfam.ID, gfam.Handle))
+		fam := m.FindFamily(l.ScopeName, persistentID(gfam.ID, gfam.Handle))
 		fam.Children = append(fam.Children, p)
 	}
 
@@ -598,7 +597,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		if !ok {
 			continue
 		}
-		id := pval(ap.ID, ap.Handle)
+		id := persistentID(ap.ID, ap.Handle)
 		other := m.FindPerson(l.ScopeName, id)
 
 		switch strings.ToLower(pr.Rel) {

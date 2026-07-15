@@ -10,7 +10,7 @@ import (
 )
 
 func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error {
-	id := pval(fr.ID, fr.Handle)
+	id := persistentID(fr.ID, fr.Handle)
 	fam := m.FindFamily(l.ScopeName, id)
 
 	logger := logging.With("source", "family", "id", fam.ID, "native_id", id)
@@ -31,7 +31,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 	if fr.Father != nil {
 		fp, ok := l.PeopleByHandle[fr.Father.Hlink]
 		if ok {
-			father = m.FindPerson(l.ScopeName, pval(fp.ID, fp.Handle))
+			father = m.FindPerson(l.ScopeName, persistentID(fp.ID, fp.Handle))
 			fatherPresent = true
 			fam.Father = father
 			father.Families = append(father.Families, fam)
@@ -46,7 +46,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 	if fr.Mother != nil {
 		mp, ok := l.PeopleByHandle[fr.Mother.Hlink]
 		if ok {
-			mother = m.FindPerson(l.ScopeName, pval(mp.ID, mp.Handle))
+			mother = m.FindPerson(l.ScopeName, persistentID(mp.ID, mp.Handle))
 			motherPresent = true
 			fam.Mother = mother
 			mother.Families = append(mother.Families, fam)
@@ -64,7 +64,7 @@ func (l *Loader) populateFamilyFacts(m ModelFinder, fr *grampsxml.Family) error 
 			logger.Warn("could not find child with handle", "handle", cr.Hlink)
 			continue
 		}
-		child := m.FindPerson(l.ScopeName, pval(cp.ID, cp.Handle))
+		child := m.FindPerson(l.ScopeName, persistentID(cp.ID, cp.Handle))
 
 		if fatherPresent {
 			if child.Father.IsUnknown() {

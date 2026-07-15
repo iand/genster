@@ -12,7 +12,7 @@ import (
 )
 
 func (l *Loader) populateRepositoryFacts(m ModelFinder, gr *grampsxml.Repository) error {
-	id := pval(gr.ID, gr.Handle)
+	id := persistentID(gr.ID, gr.Handle)
 	r := m.FindRepository(l.ScopeName, id)
 	r.Name = gr.Rname
 
@@ -20,7 +20,7 @@ func (l *Loader) populateRepositoryFacts(m ModelFinder, gr *grampsxml.Repository
 }
 
 func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error {
-	id := pval(gs.ID, gs.Handle)
+	id := persistentID(gs.ID, gs.Handle)
 	s := m.FindSource(l.ScopeName, id)
 
 	logger := logging.With("source", "source", "id", s.ID, "native_id", id)
@@ -41,7 +41,7 @@ func (l *Loader) populateSourceFacts(m ModelFinder, gs *grampsxml.Source) error 
 			if !ok {
 				logging.Warn("could not find repository", "hlink", grr.Hlink)
 			}
-			r := m.FindRepository(l.ScopeName, pval(repo.ID, repo.Handle))
+			r := m.FindRepository(l.ScopeName, persistentID(repo.ID, repo.Handle))
 
 			rr := model.RepositoryRef{
 				Repository: r,
@@ -102,7 +102,7 @@ func (l *Loader) parseCitationRecords(m ModelFinder, gcrs []grampsxml.Citationre
 }
 
 func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *slog.Logger) (*model.GeneralCitation, error) {
-	id := pval(gc.ID, gc.Handle)
+	id := persistentID(gc.ID, gc.Handle)
 	cit, done := m.FindCitation(l.ScopeName, id)
 	if done {
 		return cit, nil
@@ -119,7 +119,7 @@ func (l *Loader) parseCitation(m ModelFinder, gc *grampsxml.Citation, logger *sl
 	if gc.Sourceref != nil {
 		gs, ok := l.SourcesByHandle[gc.Sourceref.Hlink]
 		if ok {
-			cit.Source = m.FindSource(l.ScopeName, pval(gs.ID, gs.Handle))
+			cit.Source = m.FindSource(l.ScopeName, persistentID(gs.ID, gs.Handle))
 		}
 	}
 
@@ -216,7 +216,7 @@ func CitationDate(gc *grampsxml.Citation, dp gdate.Parser) (*model.Date, error) 
 
 func (l *Loader) parseNote(gn *grampsxml.Note, m ModelFinder) model.Text {
 	txt := model.Text{
-		ID:   pval(gn.ID, ""),
+		ID:   persistentID(gn.ID, ""),
 		Text: gn.Text,
 	}
 	if pval(gn.Format, false) {
@@ -295,7 +295,7 @@ func (l *Loader) resolveGrampsLink(link string, m ModelFinder) (any, bool) {
 		if !ok {
 			return nil, false
 		}
-		id := pval(gp.ID, gp.Handle)
+		id := persistentID(gp.ID, gp.Handle)
 		p := m.FindPerson(l.ScopeName, id)
 		return p, true
 	case "Place":
@@ -303,7 +303,7 @@ func (l *Loader) resolveGrampsLink(link string, m ModelFinder) (any, bool) {
 		if !ok {
 			return nil, false
 		}
-		id := pval(gp.ID, gp.Handle)
+		id := persistentID(gp.ID, gp.Handle)
 		p := m.FindPlace(l.ScopeName, id)
 		return p, true
 	}

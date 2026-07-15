@@ -14,7 +14,7 @@ import (
 )
 
 func (l *Loader) populateEventFacts(m ModelFinder, grev *grampsxml.Event) error {
-	id := pval(grev.ID, grev.Handle)
+	id := persistentID(grev.ID, grev.Handle)
 	logger := logging.With("id", id)
 	logger.Debug("populating from event record", "handle", grev.Handle)
 
@@ -401,7 +401,7 @@ func (l *Loader) lookupEvent(grer *grampsxml.Eventref) (model.TimelineEvent, boo
 	if !ok {
 		return nil, false
 	}
-	id := pval(grev.ID, grev.Handle)
+	id := persistentID(grev.ID, grev.Handle)
 	ev, ok := l.timelineEvents[id]
 
 	return ev, ok
@@ -417,7 +417,7 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.
 		return model.UnknownPlace()
 	}
 
-	id := pval(po.ID, po.Handle)
+	id := persistentID(po.ID, po.Handle)
 	pl := m.FindPlace(l.ScopeName, id)
 	return pl
 }

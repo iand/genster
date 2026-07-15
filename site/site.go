@@ -1290,6 +1290,8 @@ func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
 		return fmt.Errorf("build publish set: %w", err)
 	}
 
+	logging.Info("Publish set", "People", len(subset.People), "Places", len(subset.Places), "Citations", len(subset.Citations))
+
 	s.PublishSet = subset
 	return nil
 }

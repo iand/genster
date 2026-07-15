@@ -13,7 +13,7 @@ import (
 )
 
 func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error {
-	id := pval(gp.ID, gp.Handle)
+	id := persistentID(gp.ID, gp.Handle)
 	pl := m.FindPlace(l.ScopeName, id)
 
 	changeTime, err := changeToTime(gp.Change)
@@ -173,7 +173,7 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 					return fmt.Errorf("populate parent place: %w", err)
 				}
 			}
-			parent := m.FindPlace(l.ScopeName, pval(paro.ID, paro.Handle))
+			parent := m.FindPlace(l.ScopeName, persistentID(paro.ID, paro.Handle))
 
 			// handle buildings or streets
 			if !parent.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding) {

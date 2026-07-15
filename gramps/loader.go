@@ -55,6 +55,7 @@ type Loader struct {
 }
 
 func NewLoader(filename string, databaseName string) (*Loader, error) {
+	logging.Info("Loading from gramps XML", "filename", filename)
 	db, err := openGrampsDB(filename)
 	if err != nil {
 		return nil, fmt.Errorf("open gramps file: %w", err)
@@ -91,6 +92,7 @@ func NewLoader(filename string, databaseName string) (*Loader, error) {
 	}
 
 	l.indexObjects()
+
 	return l, nil
 }
 
@@ -262,4 +264,14 @@ func createdTimeFromHandle(h string) (time.Time, error) {
 	}
 
 	return time.Unix(n/10000, 0), nil
+}
+
+// persistentID chooses a persistent ID from a normalized
+// gramps identifer falling back to the object handle if the
+// id is not present.
+func persistentID(grampsID *string, handle string) string {
+	if grampsID == nil {
+		return handle
+	}
+	return model.MaybeNormalizeGrampsID(*grampsID)
 }
