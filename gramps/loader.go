@@ -273,5 +273,5 @@ func persistentID(grampsID *string, handle string) string {
 	if grampsID == nil {
 		return handle
 	}
-	return model.MaybeNormalizeGrampsID(*grampsID)
+	return model.NormalizeGrampsID(*grampsID)
 }

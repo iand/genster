@@ -29,7 +29,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 	}
 
 	if gp.ID != nil {
-		p.GrampsID = *gp.ID
+		p.GrampsID = model.NormalizeGrampsID(*gp.ID)
 	}
 
 	logger := logging.With("source", "person", "id", p.ID, "native_id", id)

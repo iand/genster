@@ -143,7 +143,7 @@ func annotate(ctx context.Context, cc *cli.Command) error {
 	grampsIDToCitation := make(map[string]*model.GeneralCitation)
 	for _, cit := range t.Citations {
 		if cit.GrampsID != "" {
-			grampsIDToCitation[cit.GrampsID] = cit
+			grampsIDToCitation[model.NormalizeGrampsID(cit.GrampsID)] = cit
 		}
 	}
 
@@ -340,7 +340,8 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 		var cit *model.GeneralCitation
 		var comment string
 		if grampsIDRe.MatchString(label) {
-			c, ok := grampsIDToCitation[label]
+			normalizedLabel := model.NormalizeGrampsID(label)
+			c, ok := grampsIDToCitation[normalizedLabel]
 			if !ok {
 				return false, fmt.Errorf("citation %s not found", label)
 			}

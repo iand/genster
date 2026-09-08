@@ -151,6 +151,7 @@ func gen(ctx context.Context, cc *cli.Command) error {
 		if err != nil {
 			return fmt.Errorf("load gedcom: %w", err)
 		}
+		genopts.keyIndividual = model.NormalizeGrampsID(genopts.keyIndividual)
 	} else {
 		return fmt.Errorf("no gedcom or gramps file specified")
 	}
@@ -172,7 +173,7 @@ func gen(ctx context.Context, cc *cli.Command) error {
 		}
 		for _, p := range t.People {
 
-			if pages, ok := pageMap[model.MaybeNormalizeGrampsID(p.GrampsID)]; ok {
+			if pages, ok := pageMap[model.NormalizeGrampsID(p.GrampsID)]; ok {
 				p.Links = append(p.Links, pages...)
 			}
 			if pages, ok := pageMap[p.Slug]; ok {
@@ -492,7 +493,7 @@ func walkSectionPages(dir, urlBase string, subjectCategory, mentionCategory mode
 
 		// People linked in the body with (/r/...) are mentions.
 		for _, match := range reAliasLink.FindAllSubmatch(content, -1) {
-			id := model.MaybeNormalizeGrampsID(string(match[1]))
+			id := model.NormalizeGrampsID(string(match[1]))
 			l := baseLink
 			l.Category = mentionCategory
 			result[id] = append(result[id], l)

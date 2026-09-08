@@ -16,6 +16,7 @@ import (
 	gegedcom "github.com/iand/genster/gedcom"
 	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
+	"github.com/iand/genster/model"
 	"github.com/iand/genster/tree"
 	"github.com/iand/gtree"
 )
@@ -225,6 +226,8 @@ func chartCmd(ctx context.Context, cc *cli.Command) error {
 		if err != nil {
 			return fmt.Errorf("load gedcom: %w", err)
 		}
+		chartopts.keyPersonID = model.NormalizeGrampsID(chartopts.keyPersonID)
+		chartopts.startPersonID = model.NormalizeGrampsID(chartopts.startPersonID)
 	} else {
 		return fmt.Errorf("no gedcom or gramps file specified")
 	}
@@ -249,6 +252,10 @@ func chartCmd(ctx context.Context, cc *cli.Command) error {
 	if !ok {
 		keyPerson = t.FindPerson(l.Scope(), chartopts.keyPersonID)
 	}
+	if chartopts.keyPersonID != "" && keyPerson.IsUnknown() {
+		return fmt.Errorf("failed to find key person: %v", chartopts.keyPersonID)
+	}
+	logging.Info("setting key person", "id", keyPerson.ID, "native_id", keyPerson.NativeID, "name", keyPerson.PreferredFullName)
 	t.SetKeyPerson(keyPerson)
 
 	if err := t.Generate(false); err != nil {
@@ -261,8 +268,8 @@ func chartCmd(ctx context.Context, cc *cli.Command) error {
 		// not a genster id, so look for a native id
 		startPerson = t.FindPerson(l.Scope(), chartopts.startPersonID)
 	}
-	if startPerson.IsUnknown() {
-		return fmt.Errorf("person with id %s not found", chartopts.startPersonID)
+	if chartopts.startPersonID != "" && startPerson.IsUnknown() {
+		return fmt.Errorf("failed to find start person: %v", chartopts.startPersonID)
 	}
 
 	pageSize := func(ps string) *gtree.PaperSize {
