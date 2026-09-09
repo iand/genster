@@ -2,7 +2,6 @@ package chart
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/text"
@@ -28,12 +27,6 @@ func includeSurname(p *model.Person, minimalSurnames bool) bool {
 func excludeSingleSpouse(exclude *model.Person) model.PersonMatcher {
 	return func(p *model.Person) bool {
 		return !p.SameAs(exclude)
-	}
-}
-
-func excludeSpouseList(excludes []*model.Person) model.PersonMatcher {
-	return func(p *model.Person) bool {
-		return !slices.ContainsFunc(excludes, p.SameAs) // ok, did not match any in exclude list
 	}
 }
 

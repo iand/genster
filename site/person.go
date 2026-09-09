@@ -252,7 +252,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		// Add legacy aliases for gramps id with leading zeroes
 		var reGrampsID = regexp.MustCompile(`^([A-Z])([0-9]+)$`)
 		m := reGrampsID.FindStringSubmatch(p.GrampsID)
-		if m != nil && len(m) == 3 {
+		if len(m) == 3 {
 			v, err := strconv.Atoi(m[2])
 			if err == nil {
 				if v < 10000 {

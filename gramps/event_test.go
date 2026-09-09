@@ -10,12 +10,6 @@ import (
 	"github.com/iand/grampsxml"
 )
 
-//go:fix inline
-func ptrStr(s string) *string { return new(s) }
-
-//go:fix inline
-func ptrBool(b bool) *bool { return new(b) }
-
 func TestEventDate(t *testing.T) {
 	testCases := []struct {
 		ev      *grampsxml.Event
