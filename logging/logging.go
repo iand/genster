@@ -24,6 +24,13 @@ var Flags = []cli.Flag{
 		Destination: &Opts.VeryVerbose,
 	},
 
+	&cli.BoolFlag{
+		Name:        "quiet",
+		Aliases:     []string{"q"},
+		Usage:       "Set logging level to show only errors, suppressing warnings",
+		Destination: &Opts.Quiet,
+	},
+
 	&cli.StringSliceFlag{
 		Name:        "log-ids",
 		Usage:       "Always emit logging for these ids, comma separated",
@@ -34,6 +41,7 @@ var Flags = []cli.Flag{
 var Opts struct {
 	Verbose     bool
 	VeryVerbose bool
+	Quiet       bool
 	LogIDs      []string
 }
 
@@ -45,6 +53,9 @@ func Setup() {
 	}
 	if Opts.VeryVerbose {
 		logLevel.Set(slog.LevelDebug)
+	}
+	if Opts.Quiet {
+		logLevel.Set(slog.LevelError)
 	}
 
 	h := new(hlog.Handler)
