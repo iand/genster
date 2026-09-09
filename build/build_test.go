@@ -39,8 +39,11 @@ func TestBuildOutputPath(t *testing.T) {
 		{"trees/export.ged", "/pub/trees/export.ged"},
 	} {
 		got := b.outputPath(tt.rel)
-		if got != tt.want {
-			t.Errorf("outputPath(%q): got %q, want %q", tt.rel, got, tt.want)
+		// outputPath returns an OS-native filesystem path, so normalise the
+		// forward-slash literals above to the host separator before comparing.
+		want := filepath.FromSlash(tt.want)
+		if got != want {
+			t.Errorf("outputPath(%q): got %q, want %q", tt.rel, got, want)
 		}
 	}
 }
