@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/iand/genster/debug"
-	"github.com/iand/genster/genbio"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/narrative"
@@ -230,7 +229,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	n.Statements = append(n.Statements, death)
 
 	if s.IncludeDebugInfo {
-		doc.Para(doc.EncodeText(genbio.BioFromPerson(p)))
+		doc.Para(doc.EncodeText(narrative.Bio(p)))
 	}
 
 	for _, f := range p.Families {
@@ -255,7 +254,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
 		doc.AddAlias(s.RedirectPath(p.GrampsID))
 		// Add legacy aliases for gramps id with leading zeroes
-		var reGrampsID = regexp.MustCompile(`^([A-Z])([0-9]+)$`)
+		reGrampsID := regexp.MustCompile(`^([A-Z])([0-9]+)$`)
 		m := reGrampsID.FindStringSubmatch(p.GrampsID)
 		if len(m) == 3 {
 			v, err := strconv.Atoi(m[2])

@@ -9,5 +9,6 @@ var Command = &cli.Command{
 	Usage: "Generate a text report from a gedcom file",
 	Commands: []*cli.Command{
 		descendantCommand,
+		bioCommand,
 	},
 }

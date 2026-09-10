@@ -15,7 +15,6 @@ import (
 	"github.com/iand/genster/annotate"
 	"github.com/iand/genster/build"
 	"github.com/iand/genster/chart"
-	"github.com/iand/genster/genbio"
 	"github.com/iand/genster/report"
 	"github.com/iand/genster/serve"
 	"github.com/iand/genster/site"
@@ -30,7 +29,6 @@ func main() {
 			build.Command,
 			serve.Command,
 			chart.Command,
-			genbio.Command,
 			report.Command,
 			annotate.Command,
 		},

@@ -1,9 +1,4 @@
-/*
-This is free and unencumbered software released into the public domain. For more
-information, see <http://unlicense.org/> or the accompanying UNLICENSE file.
-*/
-
-package genbio
+package report
 
 import (
 	"context"
@@ -14,39 +9,38 @@ import (
 	"github.com/iand/genster/gramps"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
+	"github.com/iand/genster/narrative"
 	"github.com/iand/genster/tree"
 )
 
-var cmdopts struct {
+var bioOpts struct {
 	grampsFile         string
 	grampsDatabaseName string
 }
 
-// Command is a temporary subcommand that prints the generated biography for each
-// supplied identifier, used to iterate the generator against real data.
-var Command = &cli.Command{
-	Name:      "genbio",
-	Usage:     "Print generated biographies for the given people (temporary, for iteration).",
+var bioCommand = &cli.Command{
+	Name:      "bio",
+	Usage:     "Print generated biographies for the given people.",
 	ArgsUsage: "[id...]",
-	Action:    genbioCmd,
+	Action:    bioReport,
 	Flags: append([]cli.Flag{
 		&cli.StringFlag{
 			Name:        "gramps",
 			Usage:       "Gramps xml file to read from",
-			Destination: &cmdopts.grampsFile,
+			Destination: &bioOpts.grampsFile,
 		},
 		&cli.StringFlag{
 			Name:        "gramps-dbname",
 			Usage:       "Name of the gramps database, used to keep IDs consistent between versions of the same database",
-			Destination: &cmdopts.grampsDatabaseName,
+			Destination: &bioOpts.grampsDatabaseName,
 		},
 	}, logging.Flags...),
 }
 
-func genbioCmd(ctx context.Context, cc *cli.Command) error {
+func bioReport(ctx context.Context, cc *cli.Command) error {
 	logging.Setup()
 
-	if cmdopts.grampsFile == "" {
+	if bioOpts.grampsFile == "" {
 		return fmt.Errorf("no gramps file specified")
 	}
 
@@ -55,7 +49,7 @@ func genbioCmd(ctx context.Context, cc *cli.Command) error {
 		return fmt.Errorf("no person identifiers specified")
 	}
 
-	l, err := gramps.NewLoader(cmdopts.grampsFile, cmdopts.grampsDatabaseName)
+	l, err := gramps.NewLoader(bioOpts.grampsFile, bioOpts.grampsDatabaseName)
 	if err != nil {
 		return fmt.Errorf("load gramps: %w", err)
 	}
@@ -80,7 +74,7 @@ func genbioCmd(ctx context.Context, cc *cli.Command) error {
 		}
 
 		fmt.Printf("# %s (%s)\n", p.PreferredFullName, id)
-		fmt.Println(BioFromPerson(p))
+		fmt.Println(narrative.Bio(p))
 		fmt.Println()
 	}
 

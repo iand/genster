@@ -1,4 +1,4 @@
-package genbio
+package narrative
 
 import (
 	"strconv"
@@ -683,7 +683,7 @@ func TestBioGolden(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := bio(FromPerson(tc.p))
+			got := bio(tc.p)
 			if got != tc.want {
 				t.Errorf("got:\n  %q\nwant:\n  %q", got, tc.want)
 			}
@@ -693,9 +693,9 @@ func TestBioGolden(t *testing.T) {
 
 func TestBioDeterministic(t *testing.T) {
 	p := fullMale()
-	first := BioFromPerson(p)
+	first := Bio(p)
 	for range 5 {
-		if got := BioFromPerson(p); got != first {
+		if got := Bio(p); got != first {
 			t.Fatalf("Bio is not deterministic: %q then %q", first, got)
 		}
 	}

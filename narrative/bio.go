@@ -1,4 +1,4 @@
-package genbio
+package narrative
 
 import (
 	"sort"
@@ -9,14 +9,9 @@ import (
 	"github.com/iand/genster/text"
 )
 
-// Bio returns a plain-text short biography of s.
-func Bio(s Subject) string {
-	return bio(s)
-}
-
-// BioFromPerson returns a plain-text short biography of p.
-func BioFromPerson(p *model.Person) string {
-	return Bio(FromPerson(p))
+// Bio returns a plain-text short biography of p.
+func Bio(p *model.Person) string {
+	return bio(p)
 }
 
 // bio assembles the biography as a sequence of terse fragment sentences in the
@@ -24,8 +19,8 @@ func BioFromPerson(p *model.Person) string {
 // birth, occupation and residence, marriages and children in order, the notable
 // events of the life, and finally death. The subject's name is the heading and
 // never appears in the body, so the prose carries no pronouns.
-func bio(s Subject) string {
-	b := &builder{s: s}
+func bio(p *model.Person) string {
+	b := &bioBuilder{p: p}
 	b.addNotable()
 	b.addBirth()
 	b.addOrphaned()
@@ -43,9 +38,9 @@ func bio(s Subject) string {
 	return strings.Join(b.frags, " ")
 }
 
-// builder accumulates the fragment sentences of a single biography.
-type builder struct {
-	s           Subject
+// bioBuilder accumulates the fragment sentences of a single biography.
+type bioBuilder struct {
+	p           *model.Person
 	frags       []string
 	widowCount  int      // number of widowhoods reported, so the second reads "widowed again"
 	firstPlace  []string // components of the first full place shown, used to elide repeated trailing parts
@@ -58,7 +53,7 @@ type builder struct {
 // shares with the first removed (always keeping its locality), so a repeated
 // country is stated once and a place unchanged since birth collapses to its
 // locality.
-func (b *builder) placeWhere(pl *model.Place) string {
+func (b *bioBuilder) placeWhere(pl *model.Place) string {
 	b.noteLocation(pl)
 	parts := placeParts(pl.FullName)
 	if len(b.firstPlace) == 0 {
@@ -72,7 +67,7 @@ func (b *builder) placeWhere(pl *model.Place) string {
 // when the marriage was in the town already mentioned. A marriage elsewhere is
 // given by its town alone, unless the country has changed, in which case the
 // town, region and country are given so a move abroad reads in full.
-func (b *builder) marriagePlace(pl *model.Place) string {
+func (b *bioBuilder) marriagePlace(pl *model.Place) string {
 	if pl == nil || pl.IsUnknown() {
 		return ""
 	}
@@ -104,7 +99,7 @@ func (b *builder) marriagePlace(pl *model.Place) string {
 
 // noteLocation records the town and country of a place as the running location,
 // against which a later marriage place is judged.
-func (b *builder) noteLocation(pl *model.Place) {
+func (b *bioBuilder) noteLocation(pl *model.Place) {
 	if town := placeTown(pl); town != "" {
 		b.lastTown = town
 	}
@@ -168,7 +163,7 @@ func elideCommonSuffix(parts, ref []string) []string {
 
 // add appends fragment as a sentence, capitalising its first letter and giving
 // it a full stop. Empty fragments are ignored.
-func (b *builder) add(fragment string) {
+func (b *bioBuilder) add(fragment string) {
 	fragment = text.UpperFirst(fragment)
 	if fragment == "" {
 		return
@@ -181,8 +176,8 @@ func (b *builder) add(fragment string) {
 
 // addNotable leads the biography with the curated notable fact, stated as a
 // fragment without embellishment.
-func (b *builder) addNotable() {
-	n := strings.TrimSpace(b.s.Notable)
+func (b *bioBuilder) addNotable() {
+	n := strings.TrimSpace(b.p.Notable)
 	if n == "" {
 		return
 	}
@@ -194,8 +189,8 @@ func (b *builder) addNotable() {
 
 // addNameChange notes a recorded change of name, drawn from the notable fact of
 // the form "Changed name from X to Y".
-func (b *builder) addNameChange() {
-	rest, ok := cutPrefixFold(b.s.Notable, "changed name from ")
+func (b *bioBuilder) addNameChange() {
+	rest, ok := cutPrefixFold(b.p.Notable, "changed name from ")
 	if !ok {
 		return
 	}
@@ -217,8 +212,8 @@ func cutPrefixFold(s, prefix string) (string, bool) {
 
 // addAltSurname notes any further surnames the subject was recorded under, drawn
 // from a slash-joined dual surname.
-func (b *builder) addAltSurname() {
-	_, rest, ok := strings.Cut(b.s.PreferredFamilyName, "/")
+func (b *bioBuilder) addAltSurname() {
+	_, rest, ok := strings.Cut(b.p.PreferredFamilyName, "/")
 	if !ok || rest == "" {
 		return
 	}
@@ -230,9 +225,9 @@ func (b *builder) addAltSurname() {
 	b.add("also recorded under the " + noun + " " + text.JoinList(alts))
 }
 
-func (b *builder) addBirth() {
+func (b *bioBuilder) addBirth() {
 	twin := b.isTwin()
-	ev := b.s.BestBirthlikeEvent
+	ev := b.p.BestBirthlikeEvent
 	var date *model.Date
 	var place *model.Place
 	if ev != nil {
@@ -263,18 +258,18 @@ func (b *builder) addBirth() {
 		b.add("born a twin")
 	}
 
-	if b.s.Illegitimate && b.fatherUnknown() {
+	if b.p.Illegitimate && b.fatherUnknown() {
 		b.add("father unknown")
 	}
 }
 
 // isTwin reports whether the subject is recorded as a twin, by the flag or an
 // association.
-func (b *builder) isTwin() bool {
-	if b.s.Twin {
+func (b *bioBuilder) isTwin() bool {
+	if b.p.Twin {
 		return true
 	}
-	for _, a := range b.s.Associations {
+	for _, a := range b.p.Associations {
 		if a.Kind == model.AssociationKindTwin {
 			return true
 		}
@@ -283,8 +278,8 @@ func (b *builder) isTwin() bool {
 }
 
 // fatherUnknown reports whether no father is recorded for the subject.
-func (b *builder) fatherUnknown() bool {
-	return b.s.Father == nil || b.s.Father.IsUnknown()
+func (b *bioBuilder) fatherUnknown() bool {
+	return b.p.Father == nil || b.p.Father.IsUnknown()
 }
 
 // orphanedBelowAge is the age below which the death of both parents is taken to
@@ -293,12 +288,12 @@ const orphanedBelowAge = 16
 
 // addOrphaned notes a subject both of whose recorded parents died during their
 // childhood, stating the age reached when the second parent died.
-func (b *builder) addOrphaned() {
-	fatherAge, ok := b.ageAtParentDeath(b.s.Father)
+func (b *bioBuilder) addOrphaned() {
+	fatherAge, ok := b.ageAtParentDeath(b.p.Father)
 	if !ok || fatherAge >= orphanedBelowAge {
 		return
 	}
-	motherAge, ok := b.ageAtParentDeath(b.s.Mother)
+	motherAge, ok := b.ageAtParentDeath(b.p.Mother)
 	if !ok || motherAge >= orphanedBelowAge {
 		return
 	}
@@ -313,7 +308,7 @@ func (b *builder) addOrphaned() {
 // ageAtParentDeath returns the subject's age when a parent died, and whether it
 // could be determined, needing a known birth for the subject and a known death
 // for the parent.
-func (b *builder) ageAtParentDeath(parent *model.Person) (int, bool) {
+func (b *bioBuilder) ageAtParentDeath(parent *model.Person) (int, bool) {
 	if parent == nil || parent.IsUnknown() {
 		return 0, false
 	}
@@ -325,13 +320,13 @@ func (b *builder) ageAtParentDeath(parent *model.Person) (int, bool) {
 	if d == nil || d.IsUnknown() {
 		return 0, false
 	}
-	return b.s.AgeInYearsAt(d)
+	return b.p.AgeInYearsAt(d)
 }
 
 // subjectDeathKnown reports whether the subject has a known date of death, the
 // evidence that they outlived a partner whose death ended a marriage.
-func (b *builder) subjectDeathKnown() bool {
-	ev := b.s.BestDeathlikeEvent
+func (b *bioBuilder) subjectDeathKnown() bool {
+	ev := b.p.BestDeathlikeEvent
 	if ev == nil {
 		return false
 	}
@@ -339,7 +334,7 @@ func (b *builder) subjectDeathKnown() bool {
 	return d != nil && !d.IsUnknown()
 }
 
-func (b *builder) addFamily() {
+func (b *bioBuilder) addFamily() {
 	unions := mergeUnions(b.unions())
 
 	deathKnown := b.subjectDeathKnown()
@@ -361,9 +356,9 @@ func (b *builder) addFamily() {
 		}
 	}
 
-	hasChildren := len(b.s.Children) > 0
+	hasChildren := len(b.p.Children) > 0
 	if !emitted && hasChildren {
-		b.add(childCount(len(b.s.Children)))
+		b.add(childCount(len(b.p.Children)))
 	}
 
 	b.addMaritalStatus(married, hasChildren)
@@ -373,9 +368,9 @@ func (b *builder) addFamily() {
 // from the Unmarried and Childless flags and combined so they read as one
 // statement. A flag is not repeated when the family itself already shows a
 // marriage or children.
-func (b *builder) addMaritalStatus(married, hasChildren bool) {
-	unmarried := b.s.Unmarried && !married
-	childless := b.s.Childless && !hasChildren
+func (b *bioBuilder) addMaritalStatus(married, hasChildren bool) {
+	unmarried := b.p.Unmarried && !married
+	childless := b.p.Childless && !hasChildren
 	switch {
 	case unmarried && childless:
 		b.add("never married and had no children")
@@ -389,7 +384,7 @@ func (b *builder) addMaritalStatus(married, hasChildren bool) {
 // unionEnding describes how a marriage ended, as a fragment, or the empty string
 // when there is nothing to report. Widowhood is reported only when widowConfirmed
 // is set, meaning the subject is known to have outlived the partner.
-func (b *builder) unionEnding(u union, widowConfirmed bool) string {
+func (b *bioBuilder) unionEnding(u union, widowConfirmed bool) string {
 	if !u.married {
 		return ""
 	}
@@ -412,7 +407,7 @@ func (b *builder) unionEnding(u union, widowConfirmed bool) string {
 
 // unionPhrase renders one union as a fragment without the subject. An empty
 // string means the union carries nothing worth stating.
-func (b *builder) unionPhrase(u union) string {
+func (b *bioBuilder) unionPhrase(u union) string {
 	if u.married {
 		p := "married"
 		if u.partner != "" {
@@ -445,19 +440,19 @@ func (b *builder) unionPhrase(u union) string {
 
 // otherParentNoun returns the word for the parent of the subject's children who
 // is not the subject, chosen from the subject's gender.
-func (b *builder) otherParentNoun() string {
+func (b *bioBuilder) otherParentNoun() string {
 	switch {
-	case b.s.Gender.IsFemale():
+	case b.p.Gender.IsFemale():
 		return "father"
-	case b.s.Gender.IsMale():
+	case b.p.Gender.IsMale():
 		return "mother"
 	default:
 		return "parent"
 	}
 }
 
-func (b *builder) addOccupation() {
-	desc := strings.TrimSpace(b.s.Epithet)
+func (b *bioBuilder) addOccupation() {
+	desc := strings.TrimSpace(b.p.Epithet)
 	if desc == "" {
 		if o := b.primaryOccupation(); o != nil {
 			desc = o.Name
@@ -472,7 +467,7 @@ func (b *builder) addOccupation() {
 // addResidence notes where the subject spent much of their life: a lifelong
 // residence when every placed event falls in one place, otherwise a dominant
 // district or county across their residence and census records.
-func (b *builder) addResidence() {
+func (b *bioBuilder) addResidence() {
 	if place, ok := b.lifelongPlace(); ok {
 		b.add("lifelong resident of " + place)
 		b.lastTown = place
@@ -482,7 +477,7 @@ func (b *builder) addResidence() {
 	districts := map[string]int{}
 	regions := map[string]int{}
 	total := 0
-	for _, ev := range b.s.Timeline {
+	for _, ev := range b.p.Timeline {
 		switch ev.(type) {
 		case *model.ResidenceRecordedEvent, *model.CensusEvent:
 			pl := ev.GetPlace()
@@ -513,9 +508,9 @@ func (b *builder) addResidence() {
 // lifelongPlace returns the district, or failing that the region, that a subject
 // never left: every placed event falls within it and a placed birth and death
 // bracket the life. The empty string and false mean no such place is evident.
-func (b *builder) lifelongPlace() (string, bool) {
-	birthPl := eventPlace(b.s.BestBirthlikeEvent)
-	deathPl := eventPlace(b.s.BestDeathlikeEvent)
+func (b *bioBuilder) lifelongPlace() (string, bool) {
+	birthPl := eventPlace(b.p.BestBirthlikeEvent)
+	deathPl := eventPlace(b.p.BestDeathlikeEvent)
 	if birthPl == nil || deathPl == nil {
 		return "", false
 	}
@@ -544,8 +539,8 @@ func (b *builder) lifelongPlace() (string, bool) {
 
 	note(birthPl)
 	note(deathPl)
-	for _, ev := range b.s.Timeline {
-		if ev == b.s.BestBirthlikeEvent || ev == b.s.BestDeathlikeEvent {
+	for _, ev := range b.p.Timeline {
+		if ev == b.p.BestBirthlikeEvent || ev == b.p.BestDeathlikeEvent {
 			continue
 		}
 		note(ev.GetPlace())
@@ -624,10 +619,10 @@ func maxEntry(m map[string]int) (string, int) {
 
 // addMilitary notes the named battles the subject took part in, the vivid part
 // of a military life; enlistment and rank are left to the occupation segment.
-func (b *builder) addMilitary() {
+func (b *bioBuilder) addMilitary() {
 	var names []string
 	seen := map[string]bool{}
-	for _, ev := range b.s.Timeline {
+	for _, ev := range b.p.Timeline {
 		be, ok := ev.(*model.BattleEvent)
 		if !ok {
 			continue
@@ -683,10 +678,10 @@ func battleList(names []string) string {
 }
 
 // addHardship notes that the subject was, at some point, recorded as a pauper.
-func (b *builder) addHardship() {
-	pauper := b.s.Pauper
+func (b *bioBuilder) addHardship() {
+	pauper := b.p.Pauper
 	if !pauper {
-		for _, ev := range b.s.Timeline {
+		for _, ev := range b.p.Timeline {
 			if e, ok := ev.(*model.EconomicStatusEvent); ok && strings.Contains(strings.ToLower(e.GetDetail()), "pauper") {
 				pauper = true
 				break
@@ -701,10 +696,10 @@ func (b *builder) addHardship() {
 
 // addTravel notes a move to another country, reading it as transportation when
 // a conviction preceded the arrival and as emigration otherwise.
-func (b *builder) addTravel() {
+func (b *bioBuilder) addTravel() {
 	var dest *model.Place
 	var arrivalDate *model.Date
-	for _, ev := range b.s.Timeline {
+	for _, ev := range b.p.Timeline {
 		switch ev.(type) {
 		case *model.ArrivalEvent, *model.ImmigrationEvent:
 			if pl := ev.GetPlace(); pl != nil && !pl.IsUnknown() {
@@ -721,15 +716,15 @@ func (b *builder) addTravel() {
 		return
 	}
 
-	if b.s.BestBirthlikeEvent != nil {
-		bp := b.s.BestBirthlikeEvent.GetPlace()
+	if b.p.BestBirthlikeEvent != nil {
+		bp := b.p.BestBirthlikeEvent.GetPlace()
 		if bp != nil && bp.Country != nil && dest.Country != nil && bp.Country.SameAs(dest.Country) {
 			return
 		}
 	}
 
 	transported := false
-	for _, ev := range b.s.Timeline {
+	for _, ev := range b.p.Timeline {
 		if _, ok := ev.(*model.ConvictionEvent); ok && arrivalDate != nil && ev.GetDate().SortsBefore(arrivalDate) {
 			transported = true
 			break
@@ -757,11 +752,11 @@ func placeCountryOrRegion(pl *model.Place) string {
 
 // addCrime notes convictions and court appearances. Named offences are listed;
 // court appearances are summarised by a representative, most serious one.
-func (b *builder) addCrime() {
+func (b *bioBuilder) addCrime() {
 	var crimes []string
 	seen := map[string]bool{}
 	var court []string
-	for _, ev := range b.s.Timeline {
+	for _, ev := range b.p.Timeline {
 		switch e := ev.(type) {
 		case *model.ConvictionEvent:
 			c := strings.ToLower(strings.TrimSpace(e.Crime))
@@ -815,9 +810,9 @@ func courtNotable(d string) bool {
 
 // primaryOccupation returns the occupation recorded most often, which best
 // represents how the subject made a living, or nil when none is known.
-func (b *builder) primaryOccupation() *model.Occupation {
+func (b *bioBuilder) primaryOccupation() *model.Occupation {
 	var best *model.Occupation
-	for _, o := range b.s.Occupations {
+	for _, o := range b.p.Occupations {
 		if o == nil || o.Unknown || o.Name == "" {
 			continue
 		}
@@ -828,8 +823,8 @@ func (b *builder) primaryOccupation() *model.Occupation {
 	return best
 }
 
-func (b *builder) addDeath() {
-	ev := b.s.BestDeathlikeEvent
+func (b *bioBuilder) addDeath() {
+	ev := b.p.BestDeathlikeEvent
 	if ev == nil {
 		return
 	}
@@ -848,8 +843,8 @@ func (b *builder) addDeath() {
 	case *model.CremationEvent:
 		verb = "cremated"
 	default:
-		if b.s.ModeOfDeath != model.ModeOfDeathNatural {
-			verb = b.s.ModeOfDeath.What()
+		if b.p.ModeOfDeath != model.ModeOfDeathNatural {
+			verb = b.p.ModeOfDeath.What()
 		}
 	}
 	parts := []string{verb}
@@ -861,7 +856,7 @@ func (b *builder) addDeath() {
 	}
 	frag := strings.Join(parts, " ")
 	if hasDate {
-		if age, ok := b.s.AgeInYearsAt(date); ok && age >= 0 {
+		if age, ok := b.p.AgeInYearsAt(date); ok && age >= 0 {
 			frag += ", aged " + strconv.Itoa(age)
 		}
 	}
@@ -892,14 +887,14 @@ const maxGlossWords = 4
 // addCauseOfDeath notes a recorded cause of death, attributed rather than stated
 // outright because the underlying records vary in wording and reliability.
 // Unremarkable causes such as old age are left out.
-func (b *builder) addCauseOfDeath() {
-	if b.s.CauseOfDeath == nil {
+func (b *bioBuilder) addCauseOfDeath() {
+	if b.p.CauseOfDeath == nil {
 		return
 	}
-	if term := causeTerm(b.s.CauseOfDeath.Detail); term == "" || unremarkableCause[term] {
+	if term := causeTerm(b.p.CauseOfDeath.Detail); term == "" || unremarkableCause[term] {
 		return
 	}
-	b.add("death attributed to " + causeDisplay(b.s.CauseOfDeath.Detail))
+	b.add("death attributed to " + causeDisplay(b.p.CauseOfDeath.Detail))
 }
 
 // causeTerm reduces a cause-of-death fact detail to its bare term, dropping the
@@ -949,13 +944,13 @@ type union struct {
 }
 
 // unions returns the subject's families in chronological order of their start.
-func (b *builder) unions() []union {
+func (b *bioBuilder) unions() []union {
 	var out []union
-	for _, fam := range b.s.Families {
+	for _, fam := range b.p.Families {
 		u := union{
 			married:  fam.Bond == model.FamilyBondMarried || fam.Bond == model.FamilyBondLikelyMarried,
 			children: len(fam.Children),
-			partner:  partnerName(fam.OtherParent(b.s.Person)),
+			partner:  partnerName(fam.OtherParent(b.p)),
 		}
 		if fam.BestStartDate != nil && !fam.BestStartDate.IsUnknown() {
 			u.date = fam.BestStartDate
@@ -965,7 +960,7 @@ func (b *builder) unions() []union {
 			u.place = fam.BestStartEvent.GetPlace()
 		}
 		u.endReason = fam.EndReason
-		if fam.EndReason == model.FamilyEndReasonDeath && fam.EndDeathPerson != nil && !fam.EndDeathPerson.SameAs(b.s.Person) {
+		if fam.EndReason == model.FamilyEndReasonDeath && fam.EndDeathPerson != nil && !fam.EndDeathPerson.SameAs(b.p) {
 			u.widowed = true
 		}
 		out = append(out, u)
