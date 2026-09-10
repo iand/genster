@@ -13,11 +13,3 @@ type Subject struct {
 func FromPerson(p *model.Person) Subject {
 	return Subject{Person: p}
 }
-
-// seed returns the value used to seed deterministic phrasing choices.
-func (s Subject) seed() string {
-	if s.Person == nil {
-		return ""
-	}
-	return s.Person.ID
-}
