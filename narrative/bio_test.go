@@ -434,6 +434,26 @@ func TestBioGolden(t *testing.T) {
 	orphan.Father = orphanFather
 	orphan.Mother = orphanMother
 
+	// Both parents died in the subject's first year, so the subject was orphaned in infancy.
+	orphanInfant := &model.Person{ID: "p47", PreferredFullName: "Seth Small", Gender: model.GenderMale}
+	orphanInfant.BestBirthlikeEvent = birth(orphanInfant, model.PreciseDate(1830, 2, 1), place("Norwich, England"))
+	orphanInfantFather := &model.Person{ID: "p47f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	orphanInfantFather.BestDeathlikeEvent = death(orphanInfantFather, model.PreciseDate(1830, 6, 1), nil)
+	orphanInfantMother := &model.Person{ID: "p47m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	orphanInfantMother.BestDeathlikeEvent = death(orphanInfantMother, model.PreciseDate(1830, 8, 1), nil)
+	orphanInfant.Father = orphanInfantFather
+	orphanInfant.Mother = orphanInfantMother
+
+	// Both parents died before the subject turned eight, so the subject was orphaned as a child.
+	orphanChild := &model.Person{ID: "p48", PreferredFullName: "Mary Small", Gender: model.GenderFemale}
+	orphanChild.BestBirthlikeEvent = birth(orphanChild, model.PreciseDate(1830, 2, 1), place("Norwich, England"))
+	orphanChildFather := &model.Person{ID: "p48f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	orphanChildFather.BestDeathlikeEvent = death(orphanChildFather, model.PreciseDate(1833, 6, 1), nil)
+	orphanChildMother := &model.Person{ID: "p48m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	orphanChildMother.BestDeathlikeEvent = death(orphanChildMother, model.PreciseDate(1834, 6, 1), nil)
+	orphanChild.Father = orphanChildFather
+	orphanChild.Mother = orphanChildMother
+
 	// Only one parent died during childhood, so the subject was not orphaned.
 	halfOrphan := &model.Person{ID: "p46", PreferredFullName: "Kate Small", Gender: model.GenderFemale}
 	halfOrphan.BestBirthlikeEvent = birth(halfOrphan, model.PreciseDate(1830, 2, 1), place("Norwich, England"))
@@ -672,7 +692,17 @@ func TestBioGolden(t *testing.T) {
 		{
 			name: "orphaned_in_childhood",
 			p:    orphan,
-			want: "Born 1 Feb 1830 in Norwich, England. Orphaned at the age of 8.",
+			want: "Born 1 Feb 1830 in Norwich, England. Orphaned at the age of eight.",
+		},
+		{
+			name: "orphaned_in_infancy",
+			p:    orphanInfant,
+			want: "Born 1 Feb 1830 in Norwich, England. Orphaned in infancy.",
+		},
+		{
+			name: "orphaned_as_a_child",
+			p:    orphanChild,
+			want: "Born 1 Feb 1830 in Norwich, England. Orphaned as a child.",
 		},
 		{
 			name: "one_parent_survived_not_orphaned",

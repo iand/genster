@@ -15,8 +15,8 @@ import (
 
 func AgeQualifier(age int) string {
 	if age == 0 {
-		return "as an infant"
-	} else if age < 10 {
+		return "in infancy"
+	} else if age < 8 {
 		return "as a child"
 	}
 	return fmt.Sprintf("at the age of %s", text.CardinalNoun(age))

@@ -297,12 +297,7 @@ func (b *bioBuilder) addOrphaned() {
 	if !ok || motherAge >= orphanedBelowAge {
 		return
 	}
-	age := max(fatherAge, motherAge)
-	if age < 1 {
-		b.add("orphaned in infancy")
-		return
-	}
-	b.add("orphaned at the age of " + strconv.Itoa(age))
+	b.add("orphaned " + AgeQualifier(max(fatherAge, motherAge)))
 }
 
 // ageAtParentDeath returns the subject's age when a parent died, and whether it
@@ -358,7 +353,7 @@ func (b *bioBuilder) addFamily() {
 
 	hasChildren := len(b.p.Children) > 0
 	if !emitted && hasChildren {
-		b.add(childCount(len(b.p.Children)))
+		b.add(text.CardinalWithUnit(len(b.p.Children), "child", "children"))
 	}
 
 	b.addMaritalStatus(married, hasChildren)
@@ -420,7 +415,7 @@ func (b *bioBuilder) unionPhrase(u union) string {
 			p = text.JoinSentenceParts(p, where)
 		}
 		if u.children > 0 {
-			p += "; " + childCount(u.children)
+			p += "; " + text.CardinalWithUnit(u.children, "child", "children")
 		}
 		return p
 	}
@@ -428,7 +423,7 @@ func (b *bioBuilder) unionPhrase(u union) string {
 	if u.children == 0 {
 		return ""
 	}
-	cc := childCount(u.children)
+	cc := text.CardinalWithUnit(u.children, "child", "children")
 	if u.partner != "" {
 		return cc + " with " + u.partner
 	}
@@ -1015,12 +1010,4 @@ func partnerName(p *model.Person) string {
 		return given
 	}
 	return ""
-}
-
-// childCount renders a number of children as a noun phrase.
-func childCount(n int) string {
-	if n == 1 {
-		return "one child"
-	}
-	return text.CardinalNoun(n) + " children"
 }
