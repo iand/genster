@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/iand/genster/debug"
+	"github.com/iand/genster/genbio"
 	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/narrative"
@@ -227,6 +228,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	}
 	n.Statements = append(n.Statements, intro)
 	n.Statements = append(n.Statements, death)
+
+	if s.IncludeDebugInfo {
+		doc.Para(doc.EncodeText(genbio.BioFromPerson(p)))
+	}
 
 	for _, f := range p.Families {
 		if s.IncludeDebugInfo {

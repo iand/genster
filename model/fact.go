@@ -63,7 +63,7 @@ func ParseCauseOfDeathFact(text string, citations []*GeneralCitation) *Fact {
 		comment = "a build up of fluid in the abdomen caused by heart failure or kidney disease"
 	case "dropsy":
 		comment = "a swelling caused by accumulation of abnormally large amounts of fluid often caused by kidney disease or congestive heart failure"
-	case "lockjaw", "trismus":
+	case "lockjaw", "trismus", "lock jaw":
 		comment = "tetanus"
 	case "natural decay":
 		comment = "death through old age"

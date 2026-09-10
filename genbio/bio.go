@@ -38,6 +38,7 @@ func bio(s Subject) string {
 	b.addTravel()
 	b.addHardship()
 	b.addDeath()
+	b.addCauseOfDeath()
 	return strings.Join(b.frags, " ")
 }
 
@@ -229,64 +230,130 @@ func (b *builder) addAltSurname() {
 }
 
 func (b *builder) addBirth() {
+	twin := b.isTwin()
 	ev := b.s.BestBirthlikeEvent
-	if ev == nil {
-		return
+	var date *model.Date
+	var place *model.Place
+	if ev != nil {
+		date = ev.GetDate()
+		place = ev.GetPlace()
 	}
-	date := ev.GetDate()
-	place := ev.GetPlace()
 	hasDate := date != nil && !date.IsUnknown()
 	hasPlace := place != nil && !place.IsUnknown()
-	if !hasDate && !hasPlace {
-		return
+
+	if hasDate || hasPlace {
+		verb := "born"
+		if _, ok := ev.(*model.BaptismEvent); ok {
+			verb = "baptised"
+		}
+		parts := []string{verb}
+		if hasDate {
+			parts = append(parts, dateBare(date))
+		}
+		if hasPlace {
+			parts = append(parts, b.placeWhere(place))
+		}
+		frag := strings.Join(parts, " ")
+		if twin {
+			frag += ", a twin"
+		}
+		b.add(frag)
+	} else if twin {
+		b.add("born a twin")
 	}
 
-	verb := "born"
-	if _, ok := ev.(*model.BaptismEvent); ok {
-		verb = "baptised"
+	if b.s.Illegitimate && b.fatherUnknown() {
+		b.add("father unknown")
 	}
-	parts := []string{verb}
-	if hasDate {
-		parts = append(parts, dateBare(date))
+}
+
+// isTwin reports whether the subject is recorded as a twin, by the flag or an
+// association.
+func (b *builder) isTwin() bool {
+	if b.s.Twin {
+		return true
 	}
-	if hasPlace {
-		parts = append(parts, b.placeWhere(place))
+	for _, a := range b.s.Associations {
+		if a.Kind == model.AssociationKindTwin {
+			return true
+		}
 	}
-	b.add(strings.Join(parts, " "))
+	return false
+}
+
+// fatherUnknown reports whether no father is recorded for the subject.
+func (b *builder) fatherUnknown() bool {
+	return b.s.Father == nil || b.s.Father.IsUnknown()
+}
+
+// subjectDeathKnown reports whether the subject has a known date of death, the
+// evidence that they outlived a partner whose death ended a marriage.
+func (b *builder) subjectDeathKnown() bool {
+	ev := b.s.BestDeathlikeEvent
+	if ev == nil {
+		return false
+	}
+	d := ev.GetDate()
+	return d != nil && !d.IsUnknown()
 }
 
 func (b *builder) addFamily() {
 	unions := mergeUnions(b.unions())
 
+	deathKnown := b.subjectDeathKnown()
+	married := false
 	emitted := false
-	for _, u := range unions {
+	for i, u := range unions {
 		phrase := b.unionPhrase(u)
 		if phrase == "" {
 			continue
 		}
 		b.add(phrase)
 		emitted = true
-		if ending := b.unionEnding(u); ending != "" {
+		if u.married {
+			married = true
+		}
+		widowConfirmed := deathKnown || i < len(unions)-1
+		if ending := b.unionEnding(u, widowConfirmed); ending != "" {
 			b.add(ending)
 		}
 	}
 
-	if !emitted {
-		if n := len(b.s.Children); n > 0 {
-			b.add(childCount(n))
-		}
+	hasChildren := len(b.s.Children) > 0
+	if !emitted && hasChildren {
+		b.add(childCount(len(b.s.Children)))
+	}
+
+	b.addMaritalStatus(married, hasChildren)
+}
+
+// addMaritalStatus notes a life certainly without marriage or children, drawn
+// from the Unmarried and Childless flags and combined so they read as one
+// statement. A flag is not repeated when the family itself already shows a
+// marriage or children.
+func (b *builder) addMaritalStatus(married, hasChildren bool) {
+	unmarried := b.s.Unmarried && !married
+	childless := b.s.Childless && !hasChildren
+	switch {
+	case unmarried && childless:
+		b.add("never married and had no children")
+	case unmarried:
+		b.add("never married")
+	case childless:
+		b.add("had no children")
 	}
 }
 
 // unionEnding describes how a marriage ended, as a fragment, or the empty string
-// when there is nothing to report.
-func (b *builder) unionEnding(u union) string {
+// when there is nothing to report. Widowhood is reported only when widowConfirmed
+// is set, meaning the subject is known to have outlived the partner.
+func (b *builder) unionEnding(u union, widowConfirmed bool) string {
 	if !u.married {
 		return ""
 	}
 	switch u.endReason {
 	case model.FamilyEndReasonDeath:
-		if u.widowed {
+		if u.widowed && widowConfirmed {
 			b.widowCount++
 			if b.widowCount > 1 {
 				return "widowed again"
@@ -360,9 +427,16 @@ func (b *builder) addOccupation() {
 	b.add(desc)
 }
 
-// addResidence notes where the subject spent much of their life, drawn from a
-// dominant district or county across their residence and census records.
+// addResidence notes where the subject spent much of their life: a lifelong
+// residence when every placed event falls in one place, otherwise a dominant
+// district or county across their residence and census records.
 func (b *builder) addResidence() {
+	if place, ok := b.lifelongPlace(); ok {
+		b.add("lifelong resident of " + place)
+		b.lastTown = place
+		return
+	}
+
 	districts := map[string]int{}
 	regions := map[string]int{}
 	total := 0
@@ -392,6 +466,89 @@ func (b *builder) addResidence() {
 	}
 	b.add("resident of " + place + " for many years")
 	b.lastTown = place
+}
+
+// lifelongPlace returns the district, or failing that the region, that a subject
+// never left: every placed event falls within it and a placed birth and death
+// bracket the life. The empty string and false mean no such place is evident.
+func (b *builder) lifelongPlace() (string, bool) {
+	birthPl := eventPlace(b.s.BestBirthlikeEvent)
+	deathPl := eventPlace(b.s.BestDeathlikeEvent)
+	if birthPl == nil || deathPl == nil {
+		return "", false
+	}
+
+	districts := map[string]bool{}
+	regions := map[string]bool{}
+	placed := 0
+	districtEverywhere := true
+	regionEverywhere := true
+	note := func(pl *model.Place) {
+		if pl == nil || pl.IsUnknown() {
+			return
+		}
+		placed++
+		if d := placeDistrictName(pl); d != "" {
+			districts[d] = true
+		} else {
+			districtEverywhere = false
+		}
+		if r := placeRegionName(pl); r != "" {
+			regions[r] = true
+		} else {
+			regionEverywhere = false
+		}
+	}
+
+	note(birthPl)
+	note(deathPl)
+	for _, ev := range b.s.Timeline {
+		if ev == b.s.BestBirthlikeEvent || ev == b.s.BestDeathlikeEvent {
+			continue
+		}
+		note(ev.GetPlace())
+	}
+
+	if placed < 4 {
+		return "", false
+	}
+	if districtEverywhere && len(districts) == 1 {
+		return soleKey(districts), true
+	}
+	if regionEverywhere && len(regions) == 1 {
+		return soleKey(regions), true
+	}
+	return "", false
+}
+
+// eventPlace returns the known place of an event, or nil when the event or its
+// place is absent or unknown.
+func eventPlace(ev model.TimelineEvent) *model.Place {
+	if ev == nil {
+		return nil
+	}
+	pl := ev.GetPlace()
+	if pl == nil || pl.IsUnknown() {
+		return nil
+	}
+	return pl
+}
+
+// placeDistrictName returns the district (town or parish) of a place, or the
+// empty string when it is not known.
+func placeDistrictName(pl *model.Place) string {
+	if pl.District != nil && pl.District.Name != "" {
+		return pl.District.Name
+	}
+	return ""
+}
+
+// soleKey returns the single key of a one-element set.
+func soleKey(m map[string]bool) string {
+	for k := range m {
+		return k
+	}
+	return ""
 }
 
 // dominantPlace returns the district, or failing that the county, where a clear
@@ -667,6 +824,60 @@ func (b *builder) addDeath() {
 		}
 	}
 	b.add(frag)
+}
+
+// unremarkableCause lists causes of death not worth noting, being the ordinary
+// end of a long life rather than a distinguishing fact.
+var unremarkableCause = map[string]bool{
+	"old age":          true,
+	"natural decay":    true,
+	"senile decay":     true,
+	"natural causes":   true,
+	"natural death":    true,
+	"decay":            true,
+	"decline":          true,
+	"senility":         true,
+	"debility":         true,
+	"general debility": true,
+	"senile debility":  true,
+	"gradual decay":    true,
+}
+
+// maxGlossWords is the longest parenthetical gloss kept alongside a cause of
+// death; a longer one is a full definition better left out of a terse line.
+const maxGlossWords = 4
+
+// addCauseOfDeath notes a recorded cause of death, attributed rather than stated
+// outright because the underlying records vary in wording and reliability.
+// Unremarkable causes such as old age are left out.
+func (b *builder) addCauseOfDeath() {
+	if b.s.CauseOfDeath == nil {
+		return
+	}
+	if term := causeTerm(b.s.CauseOfDeath.Detail); term == "" || unremarkableCause[term] {
+		return
+	}
+	b.add("death attributed to " + causeDisplay(b.s.CauseOfDeath.Detail))
+}
+
+// causeTerm reduces a cause-of-death fact detail to its bare term, dropping the
+// quotes and any parenthetical gloss the loader adds.
+func causeTerm(detail string) string {
+	term, _, _ := strings.Cut(strings.TrimSpace(detail), " (")
+	return strings.ToLower(strings.Trim(term, `"`))
+}
+
+// causeDisplay renders a cause-of-death fact detail for the biography: the bare
+// term with the loader's quotes removed, keeping a short parenthetical gloss but
+// dropping a longer one.
+func causeDisplay(detail string) string {
+	term, gloss, _ := strings.Cut(strings.TrimSpace(detail), " (")
+	term = strings.Trim(term, `"`)
+	gloss = strings.TrimSuffix(gloss, ")")
+	if gloss != "" && len(strings.Fields(gloss)) <= maxGlossWords {
+		return term + " (" + gloss + ")"
+	}
+	return term
 }
 
 // dateBare returns a date for leading a "Born" or "Died" fragment: the plain

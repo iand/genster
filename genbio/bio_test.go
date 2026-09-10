@@ -194,11 +194,21 @@ func TestBioGolden(t *testing.T) {
 		{ID: "f9c", Bond: model.FamilyBondMarried, Father: cook, Mother: thrice, BestStartDate: model.Year(1870), Children: kids(2)},
 	}
 
-	// A single marriage that ended in the death of the spouse.
+	// A single marriage that ended in the death of the spouse, the subject's own
+	// death known so the widowhood is confirmed.
 	widow := &model.Person{ID: "p10", PreferredFullName: "Sarah Vale", Gender: model.GenderFemale}
+	widow.BestDeathlikeEvent = death(widow, model.Year(1890), nil)
 	vale := &model.Person{ID: "p10h", PreferredFamiliarFullName: "Peter Vale", Gender: model.GenderMale}
 	widow.Families = []*model.Family{
 		{ID: "f10", Bond: model.FamilyBondMarried, Father: vale, Mother: widow, BestStartDate: model.Year(1880), Children: kids(1), EndReason: model.FamilyEndReasonDeath, EndDeathPerson: vale},
+	}
+
+	// The marriage ended in the spouse's death, but the subject's own death is
+	// unknown, so the subject may have predeceased; widowhood is not claimed.
+	maybeWidow := &model.Person{ID: "p44", PreferredFullName: "Owen Gray", Gender: model.GenderMale}
+	gwen := &model.Person{ID: "p44w", PreferredFamiliarFullName: "Gwen Gray", Gender: model.GenderFemale}
+	maybeWidow.Families = []*model.Family{
+		{ID: "f44", Bond: model.FamilyBondMarried, Father: maybeWidow, Mother: gwen, BestStartDate: model.Year(1860), Children: kids(1), EndReason: model.FamilyEndReasonDeath, EndDeathPerson: gwen},
 	}
 
 	// A tradesman known only by occupation.
@@ -372,6 +382,48 @@ func TestBioGolden(t *testing.T) {
 	crematedPerson := &model.Person{ID: "p35", PreferredFullName: "Iris Frost", Gender: model.GenderFemale}
 	crematedPerson.BestDeathlikeEvent = cremation(crematedPerson, model.Year(1980), place("Golders Green, Middlesex, England"))
 
+	// A twin, noted in the birth line without naming the twin.
+	twinFlagged := &model.Person{ID: "p39", PreferredFullName: "Silas Poole", Gender: model.GenderMale, Twin: true}
+	twinFlagged.BestBirthlikeEvent = birth(twinFlagged, model.PreciseDate(1850, 3, 3), place("Ipswich, Suffolk, England"))
+
+	// Twin status carried by an association rather than the flag.
+	twinAssoc := &model.Person{ID: "p40", PreferredFullName: "Iris Poole", Gender: model.GenderFemale}
+	twinAssoc.Associations = []model.Association{{Kind: model.AssociationKindTwin}}
+	twinAssoc.BestBirthlikeEvent = birth(twinAssoc, model.Year(1852), nil)
+
+	// Certainly unmarried and childless, combined into one statement.
+	spinster := &model.Person{ID: "p41", PreferredFullName: "Edith Vane", Gender: model.GenderFemale, Unmarried: true, Childless: true}
+	spinster.BestBirthlikeEvent = birth(spinster, model.Year(1800), nil)
+
+	// Illegitimate with no recorded father, noted after the birth.
+	baseborn := &model.Person{ID: "p42", PreferredFullName: "Tom Reed", Gender: model.GenderMale, Illegitimate: true}
+	baseborn.BestBirthlikeEvent = birth(baseborn, model.Year(1830), place("Norwich, England"))
+
+	// A childless marriage: the marriage shows, then the childlessness.
+	childlessCouple := &model.Person{ID: "p43", PreferredFullName: "Hugh Frost", Gender: model.GenderMale, Childless: true}
+	wifeC := &model.Person{ID: "p43w", PreferredFamiliarFullName: "Ada Frost", Gender: model.GenderFemale}
+	childlessCouple.Families = []*model.Family{
+		{ID: "f43", Bond: model.FamilyBondMarried, Father: childlessCouple, Mother: wifeC, BestStartDate: model.Year(1850)},
+	}
+
+	// A remarkable cause of death is noted, attributed rather than asserted.
+	causePerson := &model.Person{ID: "p37", PreferredFullName: "Eli Ward", Gender: model.GenderMale}
+	causePerson.BestDeathlikeEvent = death(causePerson, model.Year(1875), nil)
+	causePerson.CauseOfDeath = model.ParseCauseOfDeathFact("lockjaw", nil)
+
+	// An unremarkable cause of death is left out.
+	oldAge := &model.Person{ID: "p38", PreferredFullName: "Ada Hale", Gender: model.GenderFemale}
+	oldAge.BestDeathlikeEvent = death(oldAge, model.Year(1900), nil)
+	oldAge.CauseOfDeath = model.ParseCauseOfDeathFact("old age", nil)
+
+	// Every placed event falls in one county, bracketed by a birth and death there.
+	neverLeft := &model.Person{ID: "p36", PreferredFullName: "Rebecca Field", Gender: model.GenderFemale}
+	neverLeft.BestBirthlikeEvent = birth(neverLeft, model.PreciseDate(1841, 5, 8), placeFull("Withersdale", "Suffolk", "England"))
+	neverLeft.BestDeathlikeEvent = death(neverLeft, model.PreciseDate(1881, 8, 24), placeFull("Wilby", "Suffolk", "England"))
+	neverLeft.Timeline = []model.TimelineEvent{
+		census("Framlingham", "Suffolk"), residence("Hoxne", "Suffolk"), census("Eye", "Suffolk"),
+	}
+
 	testCases := []struct {
 		name string
 		p    *model.Person
@@ -425,7 +477,12 @@ func TestBioGolden(t *testing.T) {
 		{
 			name: "single_marriage_widowed",
 			p:    widow,
-			want: "Married Peter Vale in 1880; one child. Widowed.",
+			want: "Married Peter Vale in 1880; one child. Widowed. Died in 1890.",
+		},
+		{
+			name: "widowhood_unconfirmed_when_death_unknown",
+			p:    maybeWidow,
+			want: "Married Gwen Gray in 1860; one child.",
 		},
 		{
 			name: "occupation_most_recorded",
@@ -551,6 +608,46 @@ func TestBioGolden(t *testing.T) {
 			name: "cremation",
 			p:    crematedPerson,
 			want: "Cremated in 1980 in Golders Green, Middlesex, England.",
+		},
+		{
+			name: "lifelong_resident",
+			p:    neverLeft,
+			want: "Born 8 May 1841 in Withersdale, Suffolk, England. Lifelong resident of Suffolk. Died 24 Aug 1881 in Wilby, aged 40.",
+		},
+		{
+			name: "twin_flagged",
+			p:    twinFlagged,
+			want: "Born 3 Mar 1850 in Ipswich, Suffolk, England, a twin.",
+		},
+		{
+			name: "unmarried_and_childless",
+			p:    spinster,
+			want: "Born in 1800. Never married and had no children.",
+		},
+		{
+			name: "illegitimate_father_unknown",
+			p:    baseborn,
+			want: "Born in 1830 in Norwich, England. Father unknown.",
+		},
+		{
+			name: "childless_marriage",
+			p:    childlessCouple,
+			want: "Married Ada Frost in 1850. Had no children.",
+		},
+		{
+			name: "twin_via_association",
+			p:    twinAssoc,
+			want: "Born in 1852, a twin.",
+		},
+		{
+			name: "cause_of_death_noted",
+			p:    causePerson,
+			want: "Died in 1875. Death attributed to lockjaw (tetanus).",
+		},
+		{
+			name: "cause_of_death_unremarkable_omitted",
+			p:    oldAge,
+			want: "Died in 1900.",
 		},
 	}
 
