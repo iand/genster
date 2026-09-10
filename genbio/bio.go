@@ -28,6 +28,7 @@ func bio(s Subject) string {
 	b := &builder{s: s}
 	b.addNotable()
 	b.addBirth()
+	b.addOrphaned()
 	b.addAltSurname()
 	b.addNameChange()
 	b.addOccupation()
@@ -284,6 +285,47 @@ func (b *builder) isTwin() bool {
 // fatherUnknown reports whether no father is recorded for the subject.
 func (b *builder) fatherUnknown() bool {
 	return b.s.Father == nil || b.s.Father.IsUnknown()
+}
+
+// orphanedBelowAge is the age below which the death of both parents is taken to
+// have orphaned the subject in childhood.
+const orphanedBelowAge = 16
+
+// addOrphaned notes a subject both of whose recorded parents died during their
+// childhood, stating the age reached when the second parent died.
+func (b *builder) addOrphaned() {
+	fatherAge, ok := b.ageAtParentDeath(b.s.Father)
+	if !ok || fatherAge >= orphanedBelowAge {
+		return
+	}
+	motherAge, ok := b.ageAtParentDeath(b.s.Mother)
+	if !ok || motherAge >= orphanedBelowAge {
+		return
+	}
+	age := max(fatherAge, motherAge)
+	if age < 1 {
+		b.add("orphaned in infancy")
+		return
+	}
+	b.add("orphaned at the age of " + strconv.Itoa(age))
+}
+
+// ageAtParentDeath returns the subject's age when a parent died, and whether it
+// could be determined, needing a known birth for the subject and a known death
+// for the parent.
+func (b *builder) ageAtParentDeath(parent *model.Person) (int, bool) {
+	if parent == nil || parent.IsUnknown() {
+		return 0, false
+	}
+	ev := parent.BestDeathlikeEvent
+	if ev == nil {
+		return 0, false
+	}
+	d := ev.GetDate()
+	if d == nil || d.IsUnknown() {
+		return 0, false
+	}
+	return b.s.AgeInYearsAt(d)
 }
 
 // subjectDeathKnown reports whether the subject has a known date of death, the

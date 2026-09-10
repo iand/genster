@@ -424,6 +424,26 @@ func TestBioGolden(t *testing.T) {
 		census("Framlingham", "Suffolk"), residence("Hoxne", "Suffolk"), census("Eye", "Suffolk"),
 	}
 
+	// Both parents died while the subject was a child, so the subject was orphaned.
+	orphan := &model.Person{ID: "p45", PreferredFullName: "Job Small", Gender: model.GenderMale}
+	orphan.BestBirthlikeEvent = birth(orphan, model.PreciseDate(1830, 2, 1), place("Norwich, England"))
+	orphanFather := &model.Person{ID: "p45f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	orphanFather.BestDeathlikeEvent = death(orphanFather, model.PreciseDate(1835, 6, 1), nil)
+	orphanMother := &model.Person{ID: "p45m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	orphanMother.BestDeathlikeEvent = death(orphanMother, model.PreciseDate(1838, 6, 1), nil)
+	orphan.Father = orphanFather
+	orphan.Mother = orphanMother
+
+	// Only one parent died during childhood, so the subject was not orphaned.
+	halfOrphan := &model.Person{ID: "p46", PreferredFullName: "Kate Small", Gender: model.GenderFemale}
+	halfOrphan.BestBirthlikeEvent = birth(halfOrphan, model.PreciseDate(1830, 2, 1), place("Norwich, England"))
+	halfOrphanFather := &model.Person{ID: "p46f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	halfOrphanFather.BestDeathlikeEvent = death(halfOrphanFather, model.PreciseDate(1836, 6, 1), nil)
+	halfOrphanMother := &model.Person{ID: "p46m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	halfOrphanMother.BestDeathlikeEvent = death(halfOrphanMother, model.PreciseDate(1870, 6, 1), nil)
+	halfOrphan.Father = halfOrphanFather
+	halfOrphan.Mother = halfOrphanMother
+
 	testCases := []struct {
 		name string
 		p    *model.Person
@@ -648,6 +668,16 @@ func TestBioGolden(t *testing.T) {
 			name: "cause_of_death_unremarkable_omitted",
 			p:    oldAge,
 			want: "Died in 1900.",
+		},
+		{
+			name: "orphaned_in_childhood",
+			p:    orphan,
+			want: "Born 1 Feb 1830 in Norwich, England. Orphaned at the age of 8.",
+		},
+		{
+			name: "one_parent_survived_not_orphaned",
+			p:    halfOrphan,
+			want: "Born 1 Feb 1830 in Norwich, England.",
 		},
 	}
 
