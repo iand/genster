@@ -464,6 +464,29 @@ func TestBioGolden(t *testing.T) {
 	halfOrphan.Father = halfOrphanFather
 	halfOrphan.Mother = halfOrphanMother
 
+	// First child in a fully-known sibling list, both parents named.
+	firstborn := &model.Person{ID: "p49", PreferredFullName: "Job Small", Gender: model.GenderMale}
+	firstbornFather := &model.Person{ID: "p49f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	firstbornMother := &model.Person{ID: "p49m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	firstbornSib := &model.Person{ID: "p49s", PreferredFullName: "Amos Small", Gender: model.GenderMale}
+	firstborn.Father = firstbornFather
+	firstborn.Mother = firstbornMother
+	firstborn.ParentFamily = &model.Family{ID: "f49", Father: firstbornFather, Mother: firstbornMother, Children: []*model.Person{firstborn, firstbornSib}, AllChildrenKnown: true}
+
+	// Eldest of their gender, both parents named.
+	eldest := &model.Person{ID: "p50", PreferredFullName: "John Small", Gender: model.GenderMale}
+	eldestFather := &model.Person{ID: "p50f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+	eldestMother := &model.Person{ID: "p50m", PreferredFullName: "Ruth Small", Gender: model.GenderFemale}
+	eldestSis := &model.Person{ID: "p50d", PreferredFullName: "Ann Small", Gender: model.GenderFemale}
+	eldestBro := &model.Person{ID: "p50b", PreferredFullName: "Amos Small", Gender: model.GenderMale}
+	eldest.Father = eldestFather
+	eldest.Mother = eldestMother
+	eldest.ParentFamily = &model.Family{ID: "f50", Father: eldestFather, Mother: eldestMother, Children: []*model.Person{eldestSis, eldest, eldestBro}, AllChildrenKnown: true}
+
+	// Only the father is recorded, and birth order is unknown.
+	fatherOnly := &model.Person{ID: "p51", PreferredFullName: "Seth Small", Gender: model.GenderMale}
+	fatherOnly.Father = &model.Person{ID: "p51f", PreferredFullName: "Eli Small", Gender: model.GenderMale}
+
 	testCases := []struct {
 		name string
 		p    *model.Person
@@ -692,22 +715,37 @@ func TestBioGolden(t *testing.T) {
 		{
 			name: "orphaned_in_childhood",
 			p:    orphan,
-			want: "Born 1 Feb 1830 in Norwich, England. Orphaned at the age of eight.",
+			want: "Born 1 Feb 1830 in Norwich, England. Son of Eli Small and Ruth Small. Orphaned at the age of eight.",
 		},
 		{
 			name: "orphaned_in_infancy",
 			p:    orphanInfant,
-			want: "Born 1 Feb 1830 in Norwich, England. Orphaned in infancy.",
+			want: "Born 1 Feb 1830 in Norwich, England. Son of Eli Small and Ruth Small. Orphaned in infancy.",
 		},
 		{
 			name: "orphaned_as_a_child",
 			p:    orphanChild,
-			want: "Born 1 Feb 1830 in Norwich, England. Orphaned as a child.",
+			want: "Born 1 Feb 1830 in Norwich, England. Daughter of Eli Small and Ruth Small. Orphaned as a child.",
+		},
+		{
+			name: "parentage_first_child",
+			p:    firstborn,
+			want: "First child of Eli Small and Ruth Small.",
+		},
+		{
+			name: "parentage_eldest_son",
+			p:    eldest,
+			want: "Eldest son of Eli Small and Ruth Small.",
+		},
+		{
+			name: "parentage_father_only",
+			p:    fatherOnly,
+			want: "Son of Eli Small.",
 		},
 		{
 			name: "one_parent_survived_not_orphaned",
 			p:    halfOrphan,
-			want: "Born 1 Feb 1830 in Norwich, England.",
+			want: "Born 1 Feb 1830 in Norwich, England. Daughter of Eli Small and Ruth Small.",
 		},
 	}
 

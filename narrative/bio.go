@@ -23,6 +23,7 @@ func bio(p *model.Person) string {
 	b := &bioBuilder{p: p}
 	b.addNotable()
 	b.addBirth()
+	b.addParentage()
 	b.addOrphaned()
 	b.addAltSurname()
 	b.addNameChange()
@@ -280,6 +281,45 @@ func (b *bioBuilder) isTwin() bool {
 // fatherUnknown reports whether no father is recorded for the subject.
 func (b *bioBuilder) fatherUnknown() bool {
 	return b.p.Father == nil || b.p.Father.IsUnknown()
+}
+
+// addParentage names the subject's parents, led by their position among their
+// siblings when it is known, such as the eldest son or an only child. Nothing is
+// stated when neither parent is named.
+func (b *bioBuilder) addParentage() {
+	father := parentName(b.p.Father)
+	mother := parentName(b.p.Mother)
+	if father == "" && mother == "" {
+		return
+	}
+
+	rel := PositionInFamily(b.p)
+	if rel == "" {
+		rel = text.LowerFirst(b.p.Gender.RelationToParentNoun())
+	}
+
+	var parents string
+	switch {
+	case father != "" && mother != "":
+		parents = father + " and " + mother
+	case father != "":
+		parents = father
+	default:
+		parents = mother
+	}
+	b.add(rel + " of " + parents)
+}
+
+// parentName returns a parent's full name for prose, or the empty string when no
+// usable name is recorded.
+func parentName(p *model.Person) string {
+	if p == nil || p.IsUnknown() {
+		return ""
+	}
+	if name := p.PreferredFullName; name != "" && !strings.Contains(name, model.UnknownNamePlaceholder) {
+		return name
+	}
+	return ""
 }
 
 // orphanedBelowAge is the age below which the death of both parents is taken to
