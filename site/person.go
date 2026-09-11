@@ -549,13 +549,9 @@ func RenderAltPersonPage(s *Site, p *model.Person) (render.Document[md.Text], er
 		} else {
 			doc.Heading2("Families", "")
 		}
-		for _, f := range p.Families {
-			if err := RenderPersonFamily(p, f, pov, doc); err != nil {
-				return nil, fmt.Errorf("render person family: %w", err)
-			}
-
+		if err := RenderPersonFamilies(p, pov, doc); err != nil {
+			return nil, fmt.Errorf("render person families: %w", err)
 		}
-
 	}
 	// for _, f := range p.Families {
 	// 	// if s.IncludeDebugInfo {

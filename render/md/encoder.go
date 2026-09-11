@@ -434,6 +434,40 @@ func (e *Content) FactList(items []render.FactEntry[Text]) {
 	e.maintext.WriteString("</div>")
 }
 
+func (e *Content) GroupedList(groups []render.Grouping[Text]) {
+	e.maintext.WriteString(`<div class="grouped-list">` + "\n")
+	for _, g := range groups {
+		e.maintext.WriteString(`<div class="group">`)
+		e.maintext.WriteString(`<p class="group-heading">`)
+		g.Heading.ToHTML(&e.maintext)
+		e.maintext.WriteString("</p>\n")
+		for _, note := range g.Notes {
+			e.maintext.WriteString(`<p class="group-note">`)
+			note.ToHTML(&e.maintext)
+			e.maintext.WriteString("</p>\n")
+		}
+		if len(g.Items) > 0 {
+			tag := "ul"
+			if g.Ordered {
+				tag = "ol"
+			}
+			e.maintext.WriteString("<")
+			e.maintext.WriteString(tag)
+			e.maintext.WriteString(` class="group-items">` + "\n")
+			for _, item := range g.Items {
+				e.maintext.WriteString("<li>")
+				item.ToHTML(&e.maintext)
+				e.maintext.WriteString("</li>\n")
+			}
+			e.maintext.WriteString("</")
+			e.maintext.WriteString(tag)
+			e.maintext.WriteString(">\n")
+		}
+		e.maintext.WriteString("</div>\n")
+	}
+	e.maintext.WriteString("</div>\n")
+}
+
 func (e *Content) ConvertMarkdown(text string, w io.Writer) error {
 	if err := goldmark.Convert([]byte(text), w); err != nil {
 		return fmt.Errorf("goldmark: %v", err)

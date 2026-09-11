@@ -45,6 +45,7 @@ type ContentBuilder[T EncodedText] interface {
 	Timeline([]TimelineRow[T])
 	Figure(link string, alt string, caption T, highlight *model.Region, downloadName string)
 	FactList([]FactEntry[T])
+	GroupedList([]Grouping[T])
 }
 
 type TimelineRow[T EncodedText] struct {
@@ -56,6 +57,14 @@ type TimelineRow[T EncodedText] struct {
 type FactEntry[T EncodedText] struct {
 	Category string
 	Details  []T
+}
+
+// Grouping is a titled group of related items for rendering as a GroupedList.
+type Grouping[T EncodedText] struct {
+	Heading T    // the group's heading line
+	Notes   []T  // secondary lines shown under the heading, above the items
+	Items   []T  // the members of the group
+	Ordered bool // true if the items form a numbered sequence
 }
 
 type TextEncoder[T EncodedText] interface {

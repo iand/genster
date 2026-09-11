@@ -29,6 +29,7 @@ func DumpPerson(p *model.Person, w io.Writer) error {
 	}
 
 	fmt.Fprintln(w, "Epithet:", p.Epithet)
+	fmt.Fprintln(w, "Notable:", p.Notable)
 	fmt.Fprintln(w, "Olb:", p.Olb)
 	fmt.Fprintln(w, "Gender:", p.Gender)
 	fmt.Fprintln(w, "VitalYears:", p.VitalYears)

@@ -793,6 +793,41 @@ dl.timeline dl.tlentry dt {
 	padding-top: 1rem;
 }
 
+.grouped-list {
+	padding-top: 1rem;
+}
+
+.grouped-list .group {
+	margin-bottom: 1rem;
+}
+
+.grouped-list .group-heading {
+	margin: 0 0 0.15rem;
+}
+
+.grouped-list .group-note {
+	margin: 0 0 0.15rem;
+	padding-left: 1rem;
+	font-size: 0.9em;
+}
+
+.grouped-list .group-items {
+	margin: 0;
+}
+
+.grouped-list ul.group-items {
+	list-style: none;
+	padding-left: 1rem;
+}
+
+.grouped-list ol.group-items {
+	padding-left: 1.5rem;
+}
+
+.grouped-list .group-items li {
+	margin: 0.15rem 0;
+}
+
 #TableOfContents {
   margin: 1rem 0 1.5rem;
   padding: 0.75rem 1rem;

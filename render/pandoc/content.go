@@ -241,6 +241,10 @@ func (w *Content) FactList([]render.FactEntry[Text]) {
 	logging.Error("pandoc.Content called but it is not implemented")
 }
 
+func (w *Content) GroupedList([]render.Grouping[Text]) {
+	logging.Error("pandoc.GroupedList called but it is not implemented")
+}
+
 // Requires implicit_figures extension
 func (w *Content) Figure(link string, alt string, caption Text, highlight *model.Region, downloadName string) {
 	w.main.WriteString("\n")
