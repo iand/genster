@@ -65,7 +65,7 @@ func DumpPerson(p *model.Person, w io.Writer) error {
 	} else {
 		fmt.Fprintln(w, "CHILDREN:")
 		for _, c := range p.Children {
-			fmt.Fprintf(w, " - %s\n", ObjectTitle(c))
+			fmt.Fprintf(w, " - %s %s\n", ObjectTitle(c), c.VitalYears)
 		}
 	}
 
@@ -82,13 +82,14 @@ func DumpPerson(p *model.Person, w io.Writer) error {
 			fmt.Fprintln(w, "  ID:", f.ID)
 			fmt.Fprintln(w, "  Father:", ObjectTitle(f.Father))
 			fmt.Fprintln(w, "  Mother:", ObjectTitle(f.Mother))
+			fmt.Fprintln(w, "  OtherParent:", ObjectTitle(f.OtherParent(p)))
 
 			if len(f.Children) == 0 {
 				fmt.Fprintln(w, "  Children: none")
 			} else {
 				fmt.Fprintln(w, "  Children:")
 				for _, c := range f.Children {
-					fmt.Fprintf(w, "   - %s (%s)\n", c.PreferredUniqueName, c.ID)
+					fmt.Fprintf(w, "   - %s (%s) %s\n", c.PreferredUniqueName, c.ID, c.VitalYears)
 				}
 			}
 

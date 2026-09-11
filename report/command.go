@@ -10,5 +10,6 @@ var Command = &cli.Command{
 	Commands: []*cli.Command{
 		descendantCommand,
 		bioCommand,
+		personCommand,
 	},
 }
