@@ -120,10 +120,11 @@ type Site struct {
 	ChartTreesDir     string
 	GedcomDir         string
 
-	IncludePrivate     bool
-	IncludeDebugInfo   bool
-	ExperimentFamilies bool
-	MapTilerAPIKey     string // API key for MapTiler Cloud (NLS historic maps)
+	IncludePrivate          bool
+	IncludeDebugInfo        bool
+	ExperimentFamilies      bool
+	ExperimentAltPersonPage bool
+	MapTilerAPIKey          string // API key for MapTiler Cloud (NLS historic maps)
 
 	// PublishSet is the set of objects that will have pages written
 	PublishSet *PublishSet
@@ -206,6 +207,7 @@ func (s *Site) Generate() error {
 		return err
 	}
 	for _, p := range s.Tree.People {
+		p.Bio = narrative.Bio(p)
 		// GenerateOlb(p)
 		s.ScanPersonTodos(p)
 		s.ScanPersonForAnomalies(p)
@@ -576,10 +578,19 @@ func (s *Site) WritePages(contentDir string) error {
 		if s.LinkFor(p) == "" {
 			continue
 		}
-		d, err := RenderPersonPage(s, p)
+		var d render.Document[md.Text]
+		var err error
+
+		if s.ExperimentAltPersonPage {
+			d, err = RenderAltPersonPage(s, p)
+
+		} else {
+			d, err = RenderPersonPage(s, p)
+		}
 		if err != nil {
 			return fmt.Errorf("render person page: %w", err)
 		}
+
 		s.AddChangelog(p)
 		for _, ev := range p.Timeline {
 			s.AddChangelog(ev)
@@ -1290,7 +1301,7 @@ func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
 		return fmt.Errorf("build publish set: %w", err)
 	}
 
-	logging.Info("Publish set", "People", len(subset.People), "Places", len(subset.Places), "Citations", len(subset.Citations))
+	logging.Info("publish set built", "people", len(subset.People), "places", len(subset.Places), "pitations", len(subset.Citations))
 
 	s.PublishSet = subset
 	return nil

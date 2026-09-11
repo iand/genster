@@ -122,9 +122,6 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 
 			}
 
-			for i := len(p.Occupations) - 1; i >= 0; i-- {
-			}
-
 		}
 	}
 
@@ -313,6 +310,334 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 	if len(p.MiscFacts) > 0 || len(p.KnownNames) > 1 {
 		doc.Heading2("Facts", "")
 		if err := RenderFacts(p, pov, doc); err != nil {
+			return nil, fmt.Errorf("render facts: %w", err)
+		}
+	}
+
+	if len(p.ResearchNotes) > 0 {
+		doc.Heading2("Research Notes", "")
+		for _, t := range p.ResearchNotes {
+			narrative.RenderText(t, doc)
+		}
+	}
+
+	if s.IncludeDebugInfo {
+		var buf bytes.Buffer
+		debug.DumpPerson(p, &buf)
+		doc.Comment(buf.String())
+	}
+
+	return doc, nil
+}
+
+func RenderAltPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error) {
+	pov := &model.POV{Person: p}
+
+	if p.BestBirthlikeEvent != nil {
+		pl := p.BestBirthlikeEvent.GetPlace()
+		if !pl.IsUnknown() {
+			pov.Place = pl.Country
+		}
+	}
+
+	doc := s.NewDocument()
+	doc.Layout(PageLayoutPerson.String())
+	doc.Category(PageCategoryPerson)
+	doc.SetSitemapDisable()
+	if p.UpdateTime != nil {
+		doc.LastUpdated(*p.UpdateTime)
+	}
+	doc.ID(p.ID)
+	doc.Title(p.PreferredUniqueName)
+	if p.Redacted {
+		doc.Summary("information withheld to preserve privacy")
+		return doc, nil
+	}
+
+	if p.FeatureImage != nil {
+		doc.Image(s.LinkFor(p.FeatureImage.Object))
+	}
+
+	if p.RelationToKeyPerson != nil && p.RelationToKeyPerson.IsDirectAncestor() {
+		doc.SetFrontMatterField("ancestor", "true")
+	}
+
+	switch p.Gender {
+	case model.GenderMale:
+		doc.SetFrontMatterField("gender", "male")
+	case model.GenderFemale:
+		doc.SetFrontMatterField("gender", "female")
+	default:
+		doc.SetFrontMatterField("gender", "unknown")
+	}
+	doc.AddTags(CleanTags(p.Tags))
+
+	// determine the feature image
+	if !p.Gender.IsUnknown() {
+		birthYear, hasBirthYear := p.BestBirthDate().Year()
+		deathYear, hasDeathYear := p.BestDeathDate().Year()
+		if hasBirthYear || hasDeathYear {
+			eraYear := 0
+			age := 0
+			if hasBirthYear {
+				eraYear = birthYear + 18
+				if hasDeathYear {
+					age = deathYear - birthYear
+					if age < 18 {
+						eraYear = birthYear
+					}
+
+					if age < 14 {
+						doc.SetFrontMatterField("maturity", "child")
+					} else if age < 30 {
+						doc.SetFrontMatterField("maturity", "young")
+					} else if age < 70 {
+						doc.SetFrontMatterField("maturity", "mature")
+					} else {
+						doc.SetFrontMatterField("maturity", "old")
+					}
+				}
+			} else {
+				eraYear = deathYear
+			}
+
+			if eraYear != 0 {
+				if eraYear < 1700 {
+					doc.SetFrontMatterField("era", "1600s")
+				} else if eraYear < 1800 {
+					doc.SetFrontMatterField("era", "1700s")
+				} else if eraYear < 1900 {
+					doc.SetFrontMatterField("era", "1800s")
+				} else if eraYear < 2000 {
+					doc.SetFrontMatterField("era", "1900s")
+				} else {
+					doc.SetFrontMatterField("era", "modern")
+				}
+			}
+
+			switch p.OccupationGroup {
+			case model.OccupationGroupLabouring:
+				doc.SetFrontMatterField("trade", "labourer")
+			case model.OccupationGroupIndustrial:
+				doc.SetFrontMatterField("trade", "miner")
+			case model.OccupationGroupMaritime:
+				doc.SetFrontMatterField("trade", "nautical")
+			case model.OccupationGroupCrafts:
+				doc.SetFrontMatterField("trade", "crafts")
+			case model.OccupationGroupClerical:
+				doc.SetFrontMatterField("trade", "clerical")
+			case model.OccupationGroupCommercial:
+				doc.SetFrontMatterField("trade", "commercial")
+			case model.OccupationGroupMilitary:
+				doc.SetFrontMatterField("trade", "military")
+			case model.OccupationGroupService:
+				doc.SetFrontMatterField("trade", "service")
+
+			}
+
+			for i := len(p.Occupations) - 1; i >= 0; i-- {
+			}
+
+		}
+	}
+
+	ap := p.RelationToKeyPerson.Path()
+	if len(ap) > 2 {
+		doc.AddDescendant(ap[len(ap)-1].PreferredUniqueName, "", p.Epithet)
+		for i := len(ap) - 2; i >= 0; i-- {
+			if ap[i].Redacted {
+				break
+			}
+			doc.AddDescendant(ap[i].PreferredUniqueName, doc.LinkBuilder.LinkFor(ap[i]), "")
+		}
+	}
+
+	var storySubjects, storyMentions, questionSubjects, questionMentions []model.Link
+	for _, l := range p.Links {
+		switch l.Category {
+		case model.LinkCategoryStorySubject:
+			storySubjects = append(storySubjects, l)
+		case model.LinkCategoryStoryMention:
+			storyMentions = append(storyMentions, l)
+		case model.LinkCategoryQuestionSubject:
+			questionSubjects = append(questionSubjects, l)
+		case model.LinkCategoryQuestionMention:
+			questionMentions = append(questionMentions, l)
+		default:
+			doc.AddLink(l.Title, l.URL, l.Category)
+		}
+	}
+	writeContentLinksPara(doc, p.PreferredGivenName, storySubjects, storyMentions, questionSubjects, questionMentions)
+
+	// if p.Intro != nil {
+	// 	narrative.RenderText(*p.Intro, doc)
+	// }
+
+	// // Render narrative
+	// n := &narrative.PersonNarrative[md.Text]{
+	// 	Statements: make([]narrative.Statement[md.Text], 0),
+	// }
+
+	// // Everyone has an intro
+	// intro := &narrative.IntroStatement[md.Text]{
+	// 	Principal: p,
+	// }
+	// death := &narrative.DeathStatement[md.Text]{
+	// 	Principal: p,
+	// }
+	// for _, ev := range p.Timeline {
+	// 	switch tev := ev.(type) {
+	// 	case *model.BaptismEvent:
+	// 		if tev.IsParticipant(p) {
+	// 			intro.Baptisms = append(intro.Baptisms, tev)
+	// 		}
+	// 	case *model.CensusEvent:
+	// 		if tev.IsParticipant(p) {
+	// 			n.Statements = append(n.Statements, &narrative.CensusStatement[md.Text]{
+	// 				Principal: p,
+	// 				Event:     tev,
+	// 			})
+	// 		}
+	// 	case *model.IndividualNarrativeEvent:
+	// 		n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+	// 			Principal: p,
+	// 			Event:     tev,
+	// 		})
+	// 	case *model.BirthEvent:
+	// 	case *model.DeathEvent:
+	// 	case *model.BurialEvent:
+	// 	case *model.CremationEvent:
+	// 	case *model.PhysicalDescriptionEvent:
+	// 		n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+	// 			Principal: p,
+	// 			Event:     tev,
+	// 		})
+	// 	case *model.PossibleBirthEvent:
+	// 		intro.PossibleBirths = append(intro.PossibleBirths, tev)
+	// 	case *model.PossibleDeathEvent:
+	// 		death.PossibleDeaths = append(death.PossibleDeaths, tev)
+	// 	default:
+	// 		if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
+	// 			n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+	// 				Principal: p,
+	// 				Event:     tev,
+	// 			})
+	// 		}
+	// 	}
+	// }
+	// if len(intro.Baptisms) > 0 {
+	// 	sort.Slice(intro.Baptisms, func(i, j int) bool {
+	// 		return intro.Baptisms[i].GetDate().SortsBefore(intro.Baptisms[j].GetDate())
+	// 	})
+	// }
+	// n.Statements = append(n.Statements, intro)
+	// n.Statements = append(n.Statements, death)
+
+	doc.Para(doc.EncodeItalic(doc.EncodeText(p.Bio)))
+	doc.Heading2("Facts", "")
+	if err := RenderVitalFacts(p, pov, doc); err != nil {
+		return nil, fmt.Errorf("render vital facts: %w", err)
+	}
+	doc.Heading2("Parents", "")
+	if err := RenderPersonParents(p, pov, doc); err != nil {
+		return nil, fmt.Errorf("render person parents: %w", err)
+	}
+
+	if len(p.Families) > 0 {
+		if len(p.Families) == 1 {
+			doc.Heading2("Family", "")
+		} else {
+			doc.Heading2("Families", "")
+		}
+		for _, f := range p.Families {
+			if err := RenderPersonFamily(p, f, pov, doc); err != nil {
+				return nil, fmt.Errorf("render person family: %w", err)
+			}
+
+		}
+
+	}
+	// for _, f := range p.Families {
+	// 	// if s.IncludeDebugInfo {
+	// 	// 	doc.Para(doc.EncodeModelLink("family", f))
+	// 	// }
+	// 	n.Statements = append(n.Statements, &narrative.FamilyStatement[md.Text]{
+	// 		Principal: p,
+	// 		Family:    f,
+	// 	})
+	// 	if !f.BestEndDate.IsUnknown() && f.BestEndEvent != nil && !f.BestEndEvent.IsInferred() {
+	// 		n.Statements = append(n.Statements, &narrative.FamilyEndStatement[md.Text]{
+	// 			Principal: p,
+	// 			Family:    f,
+	// 		})
+	// 	}
+	// }
+
+	// n.Render(pov, doc)
+
+	if p.GrampsID != "" {
+		doc.SetFrontMatterField("grampsid", p.GrampsID)
+		doc.AddAlias(s.RedirectPath(p.GrampsID))
+		// Add legacy aliases for gramps id with leading zeroes
+		reGrampsID := regexp.MustCompile(`^([A-Z])([0-9]+)$`)
+		m := reGrampsID.FindStringSubmatch(p.GrampsID)
+		if len(m) == 3 {
+			v, err := strconv.Atoi(m[2])
+			if err == nil {
+				if v < 10000 {
+					pad5 := fmt.Sprintf("%s%05d", m[1], v)
+					if pad5 != p.GrampsID {
+						doc.AddAlias(s.RedirectPath(pad5))
+					}
+				}
+				if v < 1000 {
+					pad4 := fmt.Sprintf("%s%04d", m[1], v)
+					if pad4 != p.GrampsID {
+						doc.AddAlias(s.RedirectPath(pad4))
+					}
+				}
+			}
+
+		}
+	}
+
+	if p.Slug != "" {
+		doc.SetFrontMatterField("slug", p.Slug)
+		doc.AddAlias(s.RedirectPath(p.Slug))
+	}
+
+	if len(p.Comments) > 0 {
+		doc.Heading3("Comments", "")
+		for _, t := range p.Comments {
+			narrative.RenderText(t, doc)
+		}
+	}
+
+	t := &model.Timeline{
+		Events: make([]model.TimelineEvent, 0, len(p.Timeline)),
+	}
+	for _, ev := range p.Timeline {
+		if !ev.GetDate().IsUnknown() || !ev.GetPlace().IsUnknown() {
+			t.Events = append(t.Events, ev)
+		}
+	}
+
+	if len(p.Timeline) > 0 {
+		doc.EmptyPara()
+		doc.Heading2("Timeline", "")
+
+		doc.ResetSeenLinks()
+
+		fmtr := narrative.NewNarrativeTimelineEntryFormatter[md.Text](pov, doc, logging.With("id", p.ID), &narrative.TimelineNameChooser{}, false)
+
+		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {
+			return nil, fmt.Errorf("render timeline narrative: %w", err)
+		}
+	}
+
+	if len(p.MiscFacts) > 0 || len(p.KnownNames) > 1 {
+		doc.Heading2("Other Information", "")
+		if err := RenderMiscFacts(p, pov, doc); err != nil {
 			return nil, fmt.Errorf("render facts: %w", err)
 		}
 	}

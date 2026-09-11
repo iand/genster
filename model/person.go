@@ -30,6 +30,7 @@ type Person struct {
 	FamilyNameGrouping        string    // the group of surnames this person's name is part of (e.g. Clarke/Clark), by default is the PreferredFamilyName
 	Epithet                   string    // Short epithet or descriptor phrase
 	Olb                       string    // One line bio, longer than the epithet
+	Bio                       string    // Plain text biography
 	Notable                   string    // A notable fact about the person
 	Gender                    Gender    // male, female or unknown
 	RelationToKeyPerson       *Relation // optional relation to the key person in the tree
