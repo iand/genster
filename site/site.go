@@ -1301,7 +1301,7 @@ func (s *Site) BuildPublishSet(m model.PersonMatcher) error {
 		return fmt.Errorf("build publish set: %w", err)
 	}
 
-	logging.Info("publish set built", "people", len(subset.People), "places", len(subset.Places), "pitations", len(subset.Citations))
+	logging.Info("publish set built", "people", len(subset.People), "places", len(subset.Places), "citations", len(subset.Citations))
 
 	s.PublishSet = subset
 	return nil

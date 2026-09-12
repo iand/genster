@@ -51,6 +51,15 @@ func IsOwnBirthEvent(p *Person) EventMatcher {
 	}
 }
 
+func IsOwnPossibleBirthEvent(p *Person) EventMatcher {
+	return func(ev TimelineEvent) bool {
+		if _, ok := ev.(*PossibleBirthEvent); ok {
+			return ev.DirectlyInvolves(p)
+		}
+		return false
+	}
+}
+
 func IsOwnBaptismEvent(p *Person) EventMatcher {
 	return func(ev TimelineEvent) bool {
 		if _, ok := ev.(*BaptismEvent); ok {
@@ -63,6 +72,15 @@ func IsOwnBaptismEvent(p *Person) EventMatcher {
 func IsOwnDeathEvent(p *Person) EventMatcher {
 	return func(ev TimelineEvent) bool {
 		if _, ok := ev.(*DeathEvent); ok {
+			return ev.DirectlyInvolves(p)
+		}
+		return false
+	}
+}
+
+func IsOwnPossibleDeathEvent(p *Person) EventMatcher {
+	return func(ev TimelineEvent) bool {
+		if _, ok := ev.(*PossibleDeathEvent); ok {
 			return ev.DirectlyInvolves(p)
 		}
 		return false

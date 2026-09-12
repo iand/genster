@@ -12,8 +12,30 @@ import (
 
 func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
 	var items []render.FactEntry[T]
+	nc := narrative.DefaultNameChooser{}
 
 	notknown := enc.EncodeText("(not known)")
+	// Father
+	fe := render.FactEntry[T]{
+		Category: "Father",
+	}
+	if !p.Father.IsUnknown() {
+		fe.Details = append(fe.Details, enc.EncodeModelLink(enc.EncodeText(p.Father.PreferredUniqueName), p.Father))
+	} else {
+		fe.Details = append(fe.Details, notknown)
+	}
+	items = append(items, fe)
+
+	// Mother
+	fe = render.FactEntry[T]{
+		Category: "Mother",
+	}
+	if !p.Mother.IsUnknown() {
+		fe.Details = append(fe.Details, enc.EncodeModelLink(enc.EncodeText(p.Mother.PreferredUniqueName), p.Mother))
+	} else {
+		fe.Details = append(fe.Details, notknown)
+	}
+	items = append(items, fe)
 
 	eventDetails := func(ev model.TimelineEvent) []T {
 		dets := make([]T, 0, 2)
@@ -25,13 +47,18 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 	}
 
 	// Birth
-	fe := render.FactEntry[T]{
+	fe = render.FactEntry[T]{
 		Category: "Birth",
 	}
 	if birth, ok := model.FindFirstEvent(p.Timeline, model.IsOwnBirthEvent(p)); ok {
 		fe.Details = eventDetails(birth)
 	} else {
-		fe.Details = append(fe.Details, notknown)
+		possible := buildPossibleBirths(p, pov, nc, enc)
+		if possible != "" {
+			fe.Details = append(fe.Details, enc.EncodeText(possible))
+		} else {
+			fe.Details = append(fe.Details, notknown)
+		}
 	}
 	items = append(items, fe)
 
@@ -53,7 +80,12 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 	if death, ok := model.FindFirstEvent(p.Timeline, model.IsOwnDeathEvent(p)); ok {
 		fe.Details = eventDetails(death)
 	} else {
-		fe.Details = append(fe.Details, notknown)
+		possible := buildPossibleDeaths(p, pov, nc, enc)
+		if possible != "" {
+			fe.Details = append(fe.Details, enc.EncodeText(possible))
+		} else {
+			fe.Details = append(fe.Details, notknown)
+		}
 	}
 	if p.CauseOfDeath != nil {
 		fe.Details = append(fe.Details, enc.EncodeWithCitations(enc.EncodeText("Death attributed to "+p.CauseOfDeath.Detail), p.CauseOfDeath.Citations))
@@ -76,6 +108,58 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 
 	return nil
 
+}
+
+func buildPossibleBirths[T render.EncodedText](p *model.Person, pov *model.POV, nc narrative.NameChooser, enc render.ContentBuilder[T]) string {
+	var para text.Para
+	para.StartSentence("not known")
+
+	evs := model.FilterEventList(p.Timeline, model.IsOwnPossibleBirthEvent(p))
+	if len(evs) == 0 {
+		return ""
+	}
+	list := []string{}
+	hasCitation := false
+	for _, ev := range evs {
+		list = append(list, enc.EncodeWithCitations(enc.EncodeText(narrative.EventWhenWherePov(ev, enc, nc, pov)), ev.GetCitations()).String())
+		if len(ev.GetCitations()) > 0 {
+			hasCitation = true
+		}
+	}
+	if hasCitation {
+		para.StartSentence("but there is some evidence that")
+	} else {
+		para.StartSentence("but it's possible that")
+	}
+	para.Continue(p.Gender.SubjectPronounWithLink(), "born")
+	para.FinishSentence(text.JoinListOr(list))
+	return para.Text()
+}
+
+func buildPossibleDeaths[T render.EncodedText](p *model.Person, pov *model.POV, nc narrative.NameChooser, enc render.ContentBuilder[T]) string {
+	var para text.Para
+	para.StartSentence("not known")
+
+	evs := model.FilterEventList(p.Timeline, model.IsOwnPossibleDeathEvent(p))
+	if len(evs) == 0 {
+		return ""
+	}
+	list := []string{}
+	hasCitation := false
+	for _, ev := range evs {
+		list = append(list, enc.EncodeWithCitations(enc.EncodeText(narrative.EventWhenWherePov(ev, enc, nc, pov)), ev.GetCitations()).String())
+		if len(ev.GetCitations()) > 0 {
+			hasCitation = true
+		}
+	}
+	if hasCitation {
+		para.StartSentence("but there is some evidence that")
+	} else {
+		para.StartSentence("but it's possible that")
+	}
+	para.Continue(p.Gender.SubjectPronoun(), "died")
+	para.FinishSentence(text.JoinListOr(list))
+	return para.Text()
 }
 
 func RenderMiscFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
@@ -135,6 +219,8 @@ func RenderFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc rend
 	var items []render.FactEntry[T]
 
 	notknown := enc.EncodeText("(not known)")
+
+	// TODO: possible add adoptive parents
 
 	eventDetails := func(ev model.TimelineEvent) []T {
 		dets := make([]T, 0, 2)
@@ -239,39 +325,15 @@ func RenderFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc rend
 	return nil
 }
 
-func RenderPersonParents[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
-	var items []render.FactEntry[T]
+// func RenderPersonParents[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
+// 	var items []render.FactEntry[T]
 
-	notknown := enc.EncodeText("(not known)")
+// 	notknown := enc.EncodeText("(not known)")
 
-	// Father
-	fe := render.FactEntry[T]{
-		Category: "Father",
-	}
-	if !p.Father.IsUnknown() {
-		fe.Details = append(fe.Details, enc.EncodeModelLink(enc.EncodeText(p.Father.PreferredUniqueName), p.Father))
-	} else {
-		fe.Details = append(fe.Details, notknown)
-	}
-	items = append(items, fe)
+// 	enc.FactList(items)
 
-	// Mother
-	fe = render.FactEntry[T]{
-		Category: "Mother",
-	}
-	if !p.Mother.IsUnknown() {
-		fe.Details = append(fe.Details, enc.EncodeModelLink(enc.EncodeText(p.Mother.PreferredUniqueName), p.Mother))
-	} else {
-		fe.Details = append(fe.Details, notknown)
-	}
-	items = append(items, fe)
-
-	// TODO: possible add adoptive parents
-
-	enc.FactList(items)
-
-	return nil
-}
+// 	return nil
+// }
 
 func CleanTags(ss []string) []string {
 	seen := make(map[string]bool, len(ss))
