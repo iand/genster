@@ -98,13 +98,13 @@ var Command = &cli.Command{
 		&cli.BoolFlag{
 			Name:        "experiment-families",
 			Usage:       "Enable experimental family pages.",
-			Value:       true,
+			Value:       false,
 			Destination: &genopts.experimentFamilies,
 		},
 		&cli.BoolFlag{
 			Name:        "experiment-altpersonpage",
 			Usage:       "Enable experimental alternative people pages.",
-			Value:       true,
+			Value:       false,
 			Destination: &genopts.experimentAltPersonPage,
 		},
 		&cli.StringFlag{
