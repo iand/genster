@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -106,7 +108,8 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 			case map[string]string:
 				bb.WriteString("\n")
 
-				for subkey, subval := range tv {
+				for _, subkey := range slices.Sorted(maps.Keys(tv)) {
+					subval := tv[subkey]
 					bb.WriteString("  ")
 
 					if safeString.MatchString(subkey) && !numericString.MatchString(subkey) {
@@ -128,7 +131,8 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 					bb.WriteString("- ")
 					indent := false
 
-					for subkey, subval := range v {
+					for _, subkey := range slices.Sorted(maps.Keys(v)) {
+						subval := v[subkey]
 						if indent {
 							bb.WriteString("  ")
 						}

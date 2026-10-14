@@ -2,6 +2,8 @@ package tree
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -251,7 +253,7 @@ func (t *Tree) CanonicalID(scope string, sid string) string {
 func (t *Tree) Generate(redactLiving bool) error {
 	// Apply any annotations first, they may be redacted after
 	if t.Annotations != nil {
-		for _, p := range t.People {
+		for _, p := range t.sortedPeople() {
 			t.Annotations.ApplyPerson(p)
 		}
 		for _, p := range t.Places {
@@ -263,28 +265,33 @@ func (t *Tree) Generate(redactLiving bool) error {
 	}
 
 	// Add data to each person
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		t.PropagateParents(p)
 	}
 
 	// Need to make sure all parents and children are linked first
 	// since expand timeline will add events to parents timelines
-	for _, f := range t.Families {
+	for _, f := range t.sortedFamilies() {
 		t.InferFamilyRelationships(f)
 	}
 
 	t.BuildRelationsToKeyPerson()
 
-	// Add data to each person
-	for _, p := range t.People {
+	// Select best birth and death events for everyone before expanding any
+	// timeline, since expanding a timeline reads the best events of relatives
+	for _, p := range t.sortedPeople() {
 		t.SelectPersonBestBirthDeathEvents(p)
+	}
+
+	// Add data to each person
+	for _, p := range t.sortedPeople() {
 		t.RefinePersonNames(p)
 		t.RefinePersonOccupations(p)
 		t.ExpandPersonTimeline(p)
 	}
 
 	// Fill in gaps with inferences
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		// infer.InferPersonBirthEventDate(p)
 		infer.InferPersonAliveOrDead(p, time.Now().Year())
 		// infer.InferPersonDeathEventDate(p)
@@ -292,7 +299,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 		infer.InferPersonGeneralFacts(p)
 	}
 
-	for _, f := range t.Families {
+	for _, f := range t.sortedFamilies() {
 		t.AddSpouses(f)
 		t.RefineFamilyNames(f)
 		t.InferFamilyStartEndDates(f)
@@ -301,7 +308,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 	// Redact any personal information
 	t.Redact(redactLiving)
 
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		t.TrimPersonTimeline(p)
 		t.CrossReferenceCitations(p)
 		p.RemoveDuplicateFamilies()
@@ -728,7 +735,7 @@ func (t *Tree) BuildOlb(p *model.Person) error {
 }
 
 func (t *Tree) Redact(redactLiving bool) error {
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		redact := false
 		if redactLiving {
 			if p.PossiblyAlive {
@@ -976,7 +983,7 @@ func descendKeyPersonRelationship(p *model.Person) {
 
 func (t *Tree) ListPeopleMatching(m model.PersonMatcher, limit int) []*model.Person {
 	matches := make([]*model.Person, 0, limit)
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		if m(p) {
 			matches = append(matches, p)
 		}
@@ -990,7 +997,7 @@ func (t *Tree) ListPeopleMatching(m model.PersonMatcher, limit int) []*model.Per
 // ApplyPeopleMatching applies fn to each person that matches m until fn returns false or an error
 // which is returned if encountered
 func (t *Tree) ApplyPeopleMatching(m model.PersonMatcher, fn model.PersonActionFunc) error {
-	for _, p := range t.People {
+	for _, p := range t.sortedPeople() {
 		if m(p) {
 			ok, err := fn(p)
 			if err != nil {
@@ -1152,4 +1159,23 @@ func (t *Tree) AddPlaceAdjectives(pl *model.Place) error {
 		pl.Adjective = "American"
 	}
 	return nil
+}
+
+// sortedPeople returns the people in the tree ordered by ID, so that work done
+// across people happens in the same order on every run.
+func (t *Tree) sortedPeople() []*model.Person {
+	ps := make([]*model.Person, 0, len(t.People))
+	for _, id := range slices.Sorted(maps.Keys(t.People)) {
+		ps = append(ps, t.People[id])
+	}
+	return ps
+}
+
+// sortedFamilies returns the families in the tree ordered by ID.
+func (t *Tree) sortedFamilies() []*model.Family {
+	fs := make([]*model.Family, 0, len(t.Families))
+	for _, id := range slices.Sorted(maps.Keys(t.Families)) {
+		fs = append(fs, t.Families[id])
+	}
+	return fs
 }

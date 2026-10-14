@@ -59,14 +59,22 @@ func EventSortsBefore(ev, other TimelineEvent) bool {
 	}
 
 	if ev.GetDate().SameDate(other.GetDate()) {
-		if sb, ok := ev.(interface {
-			SortsBefore(other TimelineEvent) bool
-		}); ok {
-			return sb.SortsBefore(other)
-		}
+		// Events on the same date are ordered only when exactly one of them
+		// claims to sort first, otherwise they are treated as equal so a stable
+		// sort keeps their existing order.
+		return typeSortsBefore(ev, other) && !typeSortsBefore(other, ev)
 	}
 
 	return false
+}
+
+// typeSortsBefore reports whether ev claims to sort before other when both
+// occur on the same date.
+func typeSortsBefore(ev, other TimelineEvent) bool {
+	sb, ok := ev.(interface {
+		SortsBefore(other TimelineEvent) bool
+	})
+	return ok && sb.SortsBefore(other)
 }
 
 type EventRole string

@@ -3,9 +3,11 @@ package site
 import (
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1459,8 +1461,10 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 		return fr
 	}
 
-	// Seed the gedcom lists from the publish set
-	for _, p := range includedPeople {
+	// Seed the gedcom lists from the publish set, in ID order so the output
+	// is the same on every run
+	for _, id := range slices.Sorted(maps.Keys(includedPeople)) {
+		p := includedPeople[id]
 		includeIndividual(p)
 		if p.ParentFamily != nil {
 			includeFamily(p.ParentFamily)
@@ -1512,15 +1516,15 @@ func (s *Site) BuildGedcom() (*gedcom.Gedcom, error) {
 		}
 	}
 
-	for id, ir := range irs {
+	for _, id := range slices.Sorted(maps.Keys(irs)) {
 		if id == kpid {
 			continue
 		}
-		g.Individual = append(g.Individual, ir)
+		g.Individual = append(g.Individual, irs[id])
 	}
 
-	for _, fr := range frs {
-		g.Family = append(g.Family, fr)
+	for _, id := range slices.Sorted(maps.Keys(frs)) {
+		g.Family = append(g.Family, frs[id])
 	}
 	return g, nil
 }
@@ -1572,9 +1576,7 @@ func (s *Site) AddChangelog(o any) {
 func (s *Site) WriteChangelog(root string) error {
 	fname := "index.md"
 
-	sort.Slice(s.Changelog, func(i, j int) bool {
-		return s.Changelog[j].Time.Before(s.Changelog[i].Time)
-	})
+	sortChanges(s.Changelog)
 
 	doc := s.NewDocument()
 	doc.Title("Recent updates")
@@ -1597,7 +1599,12 @@ func (s *Site) WriteChangelog(root string) error {
 				headingWritten = true
 			}
 		}
-		for obj, chs := range changesForObjects {
+		objs := slices.Collect(maps.Keys(changesForObjects))
+		slices.SortFunc(objs, func(a, b any) int {
+			return strings.Compare(changeObjectKey(a), changeObjectKey(b))
+		})
+		for _, obj := range objs {
+			chs := changesForObjects[obj]
 			count++
 			uniq := make(map[any]*Change)
 			for _, ch := range chs {
@@ -1721,4 +1728,35 @@ func (s *Site) WriteChangelog(root string) error {
 	}
 
 	return nil
+}
+
+// sortChanges orders changes newest first. Changes at the same time are
+// ordered by the object they concern.
+func sortChanges(changes []*Change) {
+	sort.Slice(changes, func(i, j int) bool {
+		if !changes[i].Time.Equal(changes[j].Time) {
+			return changes[j].Time.Before(changes[i].Time)
+		}
+		return changeObjectKey(changes[i].Object) < changeObjectKey(changes[j].Object)
+	})
+}
+
+// changeObjectKey returns a stable key for the object a change concerns.
+func changeObjectKey(obj any) string {
+	switch v := obj.(type) {
+	case *model.Person:
+		return "person/" + v.ID
+	case *model.Place:
+		return "place/" + v.ID
+	case *model.GeneralCitation:
+		return "citation/" + v.ID
+	case *model.Source:
+		return "source/" + v.ID
+	case *model.Family:
+		return "family/" + v.ID
+	case *model.MediaObject:
+		return "media/" + v.ID
+	default:
+		return fmt.Sprintf("%T", obj)
+	}
 }

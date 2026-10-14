@@ -2,7 +2,9 @@ package gramps
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/iand/genster/logging"
@@ -543,14 +545,7 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 		// 	p.Occupations = append(p.Occupations, oc)
 		// }
 
-		bestGroup := model.OccupationGroupUnknown
-		bestGroupCount := 0
-		for grp, count := range groupCounts {
-			if count > bestGroupCount {
-				bestGroup = grp
-			}
-		}
-		p.OccupationGroup = bestGroup
+		p.OccupationGroup = mostFrequentOccupationGroup(groupCounts)
 
 	}
 
@@ -786,4 +781,18 @@ func parseOccupation(s string) (string, model.OccupationStatus, model.Occupation
 
 	s = text.RemoveRedundantWhitespace(s)
 	return s, status, group
+}
+
+// mostFrequentOccupationGroup returns the group with the highest count. Ties
+// are broken by group name so the result does not depend on map order.
+func mostFrequentOccupationGroup(counts map[model.OccupationGroup]int) model.OccupationGroup {
+	bestGroup := model.OccupationGroupUnknown
+	bestGroupCount := 0
+	for _, grp := range slices.Sorted(maps.Keys(counts)) {
+		if counts[grp] > bestGroupCount {
+			bestGroup = grp
+			bestGroupCount = counts[grp]
+		}
+	}
+	return bestGroup
 }

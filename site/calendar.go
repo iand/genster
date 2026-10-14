@@ -33,13 +33,6 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 
 	doc := s.NewDocument()
 
-	type eventDay struct {
-		day  int
-		year int
-		ev   model.TimelineEvent
-		text string
-	}
-
 	var eventDays []eventDay
 
 	month := 0
@@ -98,12 +91,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 	doc.SetFrontMatterField("month", monthNames[month])
 	doc.SetSitemapDisable()
 
-	sort.Slice(eventDays, func(i, j int) bool {
-		if eventDays[i].day == eventDays[j].day {
-			return eventDays[i].year < eventDays[j].year
-		}
-		return eventDays[i].day < eventDays[j].day
-	})
+	sortEventDays(eventDays)
 
 	day := 0
 	for _, evd := range eventDays {
@@ -127,4 +115,26 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 	}
 
 	return doc, nil
+}
+
+// eventDay is an event shown on a calendar page.
+type eventDay struct {
+	day  int
+	year int
+	ev   model.TimelineEvent
+	text string
+}
+
+// sortEventDays orders calendar entries by day, then year, then text so that
+// entries on the same day and year always appear in the same order.
+func sortEventDays(days []eventDay) {
+	sort.Slice(days, func(i, j int) bool {
+		if days[i].day != days[j].day {
+			return days[i].day < days[j].day
+		}
+		if days[i].year != days[j].year {
+			return days[i].year < days[j].year
+		}
+		return days[i].text < days[j].text
+	})
 }

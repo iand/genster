@@ -3,6 +3,7 @@ package site
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/iand/genster/model"
@@ -165,10 +166,7 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 	for ev := range ps.Events {
 		pl := ev.GetPlace()
 		if pl != nil {
-			if _, ok := ps.Places[pl.ID]; !ok {
-				pl.Timeline = model.FilterEventList(pl.Timeline, includedEvents)
-				includePlace(pl)
-			}
+			includePlace(pl)
 		}
 
 		for _, c := range ev.GetCitations() {
@@ -194,13 +192,37 @@ func NewPublishSet(t *tree.Tree, include model.PersonMatcher) (*PublishSet, erro
 		c.EventsCited = model.FilterEventList(c.EventsCited, includedEvents)
 	}
 
-	for _, pl := range ps.Places {
-		for _, cmo := range pl.Gallery {
-			maybeIncludeMediaObject(cmo.Object)
+	// Places mentioned in a place's texts are included too, and their own texts
+	// may mention further places, so work through places until no new ones are
+	// added. Adding to a map while ranging over it gives no guarantee that the
+	// new entries are visited.
+	processedPlaces := make(map[string]bool, len(ps.Places))
+	for {
+		pending := make([]string, 0)
+		for id := range ps.Places {
+			if !processedPlaces[id] {
+				pending = append(pending, id)
+			}
 		}
-		includePlacesInTexts(pl.ResearchNotes...)
-		includePlacesInTexts(pl.Comments...)
+		if len(pending) == 0 {
+			break
+		}
+		slices.Sort(pending)
+		for _, id := range pending {
+			pl := ps.Places[id]
+			processedPlaces[id] = true
+			for _, cmo := range pl.Gallery {
+				maybeIncludeMediaObject(cmo.Object)
+			}
+			includePlacesInTexts(pl.ResearchNotes...)
+			includePlacesInTexts(pl.Comments...)
+		}
+	}
 
+	// Every included place shows only events of published people, however the
+	// place came to be included.
+	for _, pl := range ps.Places {
+		pl.Timeline = model.FilterEventList(pl.Timeline, includedEvents)
 	}
 
 	includedCitations := func(c *model.GeneralCitation) bool {
@@ -513,9 +535,17 @@ type PersonWithNumber struct {
 
 type PersonWithGreatestNumberHeap []*PersonWithNumber
 
-func (h PersonWithGreatestNumberHeap) Len() int           { return len(h) }
-func (h PersonWithGreatestNumberHeap) Less(i, j int) bool { return h[i].Number < h[j].Number }
-func (h PersonWithGreatestNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h PersonWithGreatestNumberHeap) Len() int { return len(h) }
+
+// Less orders the heap so the entry to evict first is on top: the smallest
+// number, and for equal numbers the highest person ID.
+func (h PersonWithGreatestNumberHeap) Less(i, j int) bool {
+	if h[i].Number != h[j].Number {
+		return h[i].Number < h[j].Number
+	}
+	return h[i].Person.ID > h[j].Person.ID
+}
+func (h PersonWithGreatestNumberHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 func (h *PersonWithGreatestNumberHeap) Push(x any) {
 	*h = append(*h, x.(*PersonWithNumber))
@@ -531,9 +561,17 @@ func (h *PersonWithGreatestNumberHeap) Pop() any {
 
 type PersonWithLeastNumberHeap []*PersonWithNumber
 
-func (h PersonWithLeastNumberHeap) Len() int           { return len(h) }
-func (h PersonWithLeastNumberHeap) Less(i, j int) bool { return h[j].Number < h[i].Number }
-func (h PersonWithLeastNumberHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h PersonWithLeastNumberHeap) Len() int { return len(h) }
+
+// Less orders the heap so the entry to evict first is on top: the largest
+// number, and for equal numbers the highest person ID.
+func (h PersonWithLeastNumberHeap) Less(i, j int) bool {
+	if h[i].Number != h[j].Number {
+		return h[j].Number < h[i].Number
+	}
+	return h[i].Person.ID > h[j].Person.ID
+}
+func (h PersonWithLeastNumberHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 func (h *PersonWithLeastNumberHeap) Push(x any) {
 	*h = append(*h, x.(*PersonWithNumber))

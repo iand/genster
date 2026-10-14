@@ -101,10 +101,10 @@ func (l *Loader) populateEventFacts(m ModelFinder, grev *grampsxml.Event) error 
 			}
 			gev.Narrative = l.parseNote(gn, m)
 		case "event note":
-			cit := &model.GeneralCitation{
-				ID:     gnr.Hlink,
-				Detail: gn.Text,
-			}
+			// A note may be attached to several events, so share one citation
+			// registered with the tree rather than creating one per event.
+			cit, _ := m.FindCitation(l.ScopeName, persistentID(gn.ID, gn.Handle))
+			cit.Detail = gn.Text
 			gev.Citations = append(gev.Citations, cit)
 		}
 	}

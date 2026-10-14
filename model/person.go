@@ -349,10 +349,15 @@ func (p *Person) OccupationAt(dt *Date) *Occupation {
 	return occ
 }
 
-// AllCitations returns a list of citations pertaining to this person
+// AllCitations returns a list of citations pertaining to this person, sorted by
+// ID. Events on the person's timeline that belong to someone else, such as a
+// parent's death, are excluded.
 func (p *Person) AllCitations() []*GeneralCitation {
 	cmap := make(map[string]*GeneralCitation)
 	for _, ev := range p.Timeline {
+		if !ev.DirectlyInvolves(p) {
+			continue
+		}
 		for _, c := range ev.GetCitations() {
 			cmap[c.ID] = c
 		}
@@ -383,6 +388,7 @@ func (p *Person) AllCitations() []*GeneralCitation {
 	for _, c := range cmap {
 		cits = append(cits, c)
 	}
+	sort.Slice(cits, func(i, j int) bool { return cits[i].ID < cits[j].ID })
 
 	return cits
 }

@@ -150,16 +150,27 @@ func FilterEventList(evs []TimelineEvent, include EventMatcher) []TimelineEvent 
 	}
 }
 
+// SortTimelineEvents sorts events by date. Events that sort equally keep their
+// existing order.
 func SortTimelineEvents(evs []TimelineEvent) {
-	sort.Slice(evs, func(i, j int) bool {
+	sort.SliceStable(evs, func(i, j int) bool {
 		return EventSortsBefore(evs[i], evs[j])
 	})
 }
 
-// CollapseEventList returns a new slice that includes only unique events
+// CollapseEventList returns a sorted slice that includes only unique events,
+// keeping the first occurrence of each.
 func CollapseEventList(evs []TimelineEvent) []TimelineEvent {
+	seen := make(map[TimelineEvent]bool, len(evs))
+	evs = slices.DeleteFunc(evs, func(ev TimelineEvent) bool {
+		if seen[ev] {
+			return true
+		}
+		seen[ev] = true
+		return false
+	})
 	SortTimelineEvents(evs)
-	return slices.Compact(evs)
+	return evs
 	// switch len(evs) {
 	// case 0:
 	// 	return []TimelineEvent{}
