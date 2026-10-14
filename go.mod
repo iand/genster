@@ -9,7 +9,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/iand/gdate v0.1.18
 	github.com/iand/gedcom v0.2.17
-	github.com/iand/grampsxml v0.0.3
+	github.com/iand/grampsxml v0.0.7
 	github.com/iand/gtree v0.0.6
 	github.com/iand/pontium v0.3.17
 	github.com/kortschak/utter v1.7.0
