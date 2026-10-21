@@ -214,7 +214,7 @@ const (
 	NarrativeSequencePostDeath = 4
 )
 
-func (n *PersonNarrative[T]) Render(pov *model.POV, b render.ContentBuilder[T]) {
+func (n *PersonNarrative[T]) Render(pov *model.POV, b render.ContentBuilder[T], nc NameChooser) {
 	sort.Slice(n.Statements, func(i, j int) bool {
 		if n.Statements[i].NarrativeSequence() == n.Statements[j].NarrativeSequence() {
 			if n.Statements[i].Start().SameDate(n.Statements[j].Start()) {
@@ -224,6 +224,10 @@ func (n *PersonNarrative[T]) Render(pov *model.POV, b render.ContentBuilder[T]) 
 		}
 		return n.Statements[i].NarrativeSequence() < n.Statements[j].NarrativeSequence()
 	})
+
+	if nc == nil {
+		nc = &DefaultNameChooser{}
+	}
 
 	currentNarrativeSequence := NarrativeSequenceIntro
 	sequenceInNarrative := 0
@@ -248,7 +252,7 @@ func (n *PersonNarrative[T]) Render(pov *model.POV, b render.ContentBuilder[T]) 
 			}
 		}
 
-		s.RenderDetail(sequenceInNarrative, &nintro, b, &DefaultNameChooser{})
+		s.RenderDetail(sequenceInNarrative, &nintro, b, nc)
 		b.EmptyPara()
 
 		sequenceInNarrative++

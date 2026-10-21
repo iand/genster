@@ -218,12 +218,12 @@ func WhenWherePov[T render.EncodedText](dt *model.Date, pl *model.Place, enc ren
 	return title
 }
 
-func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser) string {
+func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser, minAge int) string {
 	title := ""
 
 	date := ev.GetDate()
 	if !date.IsUnknown() {
-		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok {
+		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok && age >= minAge {
 			title = text.JoinSentenceParts(title, AgeQualifier(age))
 		}
 		title = text.JoinSentenceParts(title, date.When())
@@ -236,12 +236,12 @@ func AgeWhenWhere[T render.EncodedText](ev model.IndividualTimelineEvent, enc re
 	return title
 }
 
-func AgeWhenWherePov[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
+func AgeWhenWherePov[T render.EncodedText](ev model.IndividualTimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV, minAge int) string {
 	title := ""
 
 	date := ev.GetDate()
 	if !date.IsUnknown() {
-		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok {
+		if age, ok := ev.GetPrincipal().AgeInYearsAt(ev.GetDate()); ok && age >= minAge {
 			title = text.JoinSentenceParts(title, AgeQualifier(age))
 		}
 		title = text.JoinSentenceParts(title, date.When())

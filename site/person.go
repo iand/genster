@@ -241,7 +241,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		}
 	}
 
-	n.Render(pov, doc)
+	n.Render(pov, doc, nil)
 
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)
@@ -465,26 +465,102 @@ func RenderAltPersonPage(s *Site, p *model.Person) (render.Document[md.Text], er
 	}
 	writeContentLinksPara(doc, p.PreferredGivenName, storySubjects, storyMentions, questionSubjects, questionMentions)
 
-	doc.Para(doc.EncodeItalic(doc.EncodeText(p.Bio)))
 	doc.Heading2("Facts", "")
 	if err := RenderVitalFacts(p, pov, doc); err != nil {
 		return nil, fmt.Errorf("render vital facts: %w", err)
 	}
-	// doc.Heading2("Parents", "")
-	// if err := RenderPersonParents(p, pov, doc); err != nil {
-	// 	return nil, fmt.Errorf("render person parents: %w", err)
-	// }
 
-	if len(p.Families) > 0 {
-		if len(p.Families) == 1 {
-			doc.Heading2("Family", "")
-		} else {
-			doc.Heading2("Families", "")
-		}
-		if err := RenderPersonFamilies(p, pov, doc); err != nil {
-			return nil, fmt.Errorf("render person families: %w", err)
+	doc.Heading2("Life Story", "")
+	// Render narrative
+	n := &narrative.PersonNarrative[md.Text]{
+		Statements: make([]narrative.Statement[md.Text], 0),
+	}
+
+	// Everyone has an intro
+	intro := &narrative.IntroStatement[md.Text]{
+		Principal: p,
+	}
+	death := &narrative.DeathStatement[md.Text]{
+		Principal:               p,
+		ExcludeSurvivingPartner: true,
+	}
+	for _, ev := range p.Timeline {
+		switch tev := ev.(type) {
+		case *model.BaptismEvent:
+			if tev.IsParticipant(p) {
+				intro.Baptisms = append(intro.Baptisms, tev)
+			}
+		case *model.CensusEvent:
+			// if tev.IsParticipant(p) {
+			// 	n.Statements = append(n.Statements, &narrative.CensusStatement[md.Text]{
+			// 		Principal: p,
+			// 		Event:     tev,
+			// 	})
+			// }
+		case *model.IndividualNarrativeEvent:
+			// n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+			// 	Principal: p,
+			// 	Event:     tev,
+			// })
+		case *model.BirthEvent:
+		case *model.DeathEvent:
+		case *model.BurialEvent:
+		case *model.CremationEvent:
+		case *model.PhysicalDescriptionEvent:
+			n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+				Principal: p,
+				Event:     tev,
+			})
+		case *model.PossibleBirthEvent:
+			intro.PossibleBirths = append(intro.PossibleBirths, tev)
+		case *model.PossibleDeathEvent:
+			death.PossibleDeaths = append(death.PossibleDeaths, tev)
+		default:
+			// if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
+			// 	n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+			// 		Principal: p,
+			// 		Event:     tev,
+			// 	})
+			// }
 		}
 	}
+	if len(intro.Baptisms) > 0 {
+		sort.Slice(intro.Baptisms, func(i, j int) bool {
+			return intro.Baptisms[i].GetDate().SortsBefore(intro.Baptisms[j].GetDate())
+		})
+	}
+
+	n.Statements = append(n.Statements, intro)
+	n.Statements = append(n.Statements, death)
+
+	for _, f := range p.Families {
+		if s.IncludeDebugInfo && s.ExperimentFamilies {
+			doc.Para(doc.EncodeModelLink("family", f))
+		}
+		n.Statements = append(n.Statements, &narrative.FamilyStatement[md.Text]{
+			Principal: p,
+			Family:    f,
+		})
+		if !f.BestEndDate.IsUnknown() && f.BestEndEvent != nil && !f.BestEndEvent.IsInferred() {
+			n.Statements = append(n.Statements, &narrative.FamilyEndStatement[md.Text]{
+				Principal: p,
+				Family:    f,
+			})
+		}
+	}
+
+	n.Render(pov, doc, &narrative.DefaultNameChooser{})
+
+	// if len(p.Families) > 0 {
+	// 	if len(p.Families) == 1 {
+	// 		doc.Heading2("Family", "")
+	// 	} else {
+	// 		doc.Heading2("Families", "")
+	// 	}
+	// 	if err := RenderPersonFamilies(p, pov, doc); err != nil {
+	// 		return nil, fmt.Errorf("render person families: %w", err)
+	// 	}
+	// }
 
 	if p.GrampsID != "" {
 		doc.SetFrontMatterField("grampsid", p.GrampsID)

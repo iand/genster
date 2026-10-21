@@ -144,7 +144,7 @@ func (s *IntroStatement[T]) maybeAddBaptismAfterBirth(para *text.Para, enc rende
 	if len(s.Baptisms) != 1 || s.Baptisms[0] == s.Principal.BestBirthlikeEvent {
 		return
 	}
-	bapDetail := AgeWhenWherePov(s.Baptisms[0], enc, nc, intro.POV)
+	bapDetail := AgeWhenWherePov(s.Baptisms[0], enc, nc, intro.POV, 2)
 	if bapDetail == "" {
 		return
 	}
@@ -160,7 +160,7 @@ func (s *IntroStatement[T]) renderMultipleBaptisms(enc render.ContentBuilder[T],
 		if s.Baptisms[i] == s.Principal.BestBirthlikeEvent {
 			continue
 		}
-		aww := AgeWhenWherePov(bev, enc, nc, intro.POV)
+		aww := AgeWhenWherePov(bev, enc, nc, intro.POV, 2)
 		if aww == "" {
 			continue
 		}
