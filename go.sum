@@ -16,10 +16,8 @@ github.com/gosimple/unidecode v1.0.1 h1:hZzFTMMqSswvf0LBJZCZgThIZrpDHFXux9KeGmn6
 github.com/gosimple/unidecode v1.0.1/go.mod h1:CP0Cr1Y1kogOtx0bJblKzsVWrqYaqfNOnHzpgWw4Awc=
 github.com/iand/gdate v0.1.18 h1:ZKE/hQzYaSly2M3E1Ri2/WT5z2qEAoyxvm8EJLH5ji8=
 github.com/iand/gdate v0.1.18/go.mod h1:aARbzdXZAg9KTkB8hzbPQb9HJ2tAmUO460je3ZJnIF4=
-github.com/iand/gedcom v0.2.17 h1:7WUrv1k4trc11DoK9h5CSpvnYxp4jrd0fq/MvpQEuas=
-github.com/iand/gedcom v0.2.17/go.mod h1:5o15vu9U+2DKzyJ/1LwyoIn29MwzyzNtsdQeFoxhDhI=
-github.com/iand/grampsxml v0.0.3 h1:RYMLSvm4v0bx7A17ggEDSPgwojjIRDBFIZw/N+4DVXA=
-github.com/iand/grampsxml v0.0.3/go.mod h1:5beuiRbfL4ocjosmbrqATIBEyTpKwh4R8LvXXoqC39g=
+github.com/iand/gedcom v0.2.20 h1:I75RDRNJw+up0mrsvF91q/TZrO72GhRDI3AlX1U4Lxw=
+github.com/iand/gedcom v0.2.20/go.mod h1:5o15vu9U+2DKzyJ/1LwyoIn29MwzyzNtsdQeFoxhDhI=
 github.com/iand/grampsxml v0.0.7 h1:BifyOKc5lLDAI2CAEscH4Nbz+a52m7ESZ9IiG9cl+pI=
 github.com/iand/grampsxml v0.0.7/go.mod h1:+4kLF40bvDxM8CLBPypqQVjO6C4Ss/eKr+/SU745oqA=
 github.com/iand/gtree v0.0.6 h1:MpjRNCfOHLvAig69McnQhKb9m+biyoLa9LwbStYNR9Y=
