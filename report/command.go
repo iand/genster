@@ -11,5 +11,6 @@ var Command = &cli.Command{
 		descendantCommand,
 		bioCommand,
 		personCommand,
+		familylineCommand,
 	},
 }
