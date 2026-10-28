@@ -55,12 +55,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			s.maybeAppendNickname(&para)
 			birth := enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
 			para.Continue(birth)
-			s.addParentage(&para, enc, nc, intro, seq)
+			s.addParentage(&para, enc, nc, intro, seq, true)
 			s.maybeAddBaptismAfterBirth(&para, enc, nc, intro)
 		} else {
 			para.StartSentence(s.Principal.PreferredGivenName, "was")
 			s.maybeAppendNickname(&para)
-			s.addParentage(&para, enc, nc, intro, seq)
+			s.addParentage(&para, enc, nc, intro, seq, false)
 			para.StartSentence("nothing is known about ", s.Principal.Gender.PossessivePronounSingular(), " date and place of birth")
 			s.maybeAppendNickname(&para)
 			s.maybeAddPossibleBirths(&para, enc, nc, intro)
@@ -115,24 +115,31 @@ func (s *IntroStatement[T]) maybeAddPossibleBirths(para *text.Para, enc render.C
 	para.FinishSentence(text.JoinListOr(list))
 }
 
-func (s *IntroStatement[T]) addParentage(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T], seq int) {
+// addParentage adds the person's parents to the current sentence. When asClause is true the
+// sentence already describes the birth, so the parentage is set off with a comma.
+func (s *IntroStatement[T]) addParentage(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T], seq int, asClause bool) {
 	rel := PositionInFamily(s.Principal)
 	if rel == "" {
 		rel = text.LowerFirst(s.Principal.Gender.RelationToParentNoun())
 	}
 	prefix := "the " + rel + " of "
 
+	add := para.Continue
+	if asClause {
+		add = para.AppendClause
+	}
+
 	switch {
 	case s.Principal.Father.IsUnknown() && s.Principal.Mother.IsUnknown():
 		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "parents are not known")
 	case s.Principal.Father.IsUnknown():
-		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
+		add(prefix + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
 		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "father is not known")
 	case s.Principal.Mother.IsUnknown():
-		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc))
+		add(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc))
 		para.StartSentence(s.Principal.Gender.PossessivePronounSingular(), "mother is not known")
 	default:
-		para.Continue(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
+		add(prefix + intro.IntroducePerson(seq, s.Principal.Father, s.Start(), false, enc, nc) + " and " + intro.IntroducePerson(seq, s.Principal.Mother, s.Start(), false, enc, nc))
 	}
 }
 
@@ -292,18 +299,18 @@ func (s *FamilyStatement[T]) renderMarried(seq int, intro *IntroGenerator[T], en
 		childCardinal := ChildCardinal(s.Family.Children)
 		switch len(s.Family.Children) {
 		case 1:
-			detail.Continue(ChooseFrom(seq,
+			continueOrStartSentence(&detail, ChooseFrom(seq,
 				" and had "+childCardinal+":",
 				". They had just one child together:",
 				". They had "+childCardinal+":",
 			))
 		case 2:
-			detail.Continue(ChooseFrom(seq,
+			continueOrStartSentence(&detail, ChooseFrom(seq,
 				" and had "+childCardinal+":",
 				". They had "+childCardinal+": ",
 			))
 		default:
-			detail.Continue(ChooseFrom(seq,
+			continueOrStartSentence(&detail, ChooseFrom(seq,
 				". They had "+childCardinal+": ",
 				" and went on to have "+childCardinal+" with "+s.Principal.Gender.Opposite().ObjectPronoun()+": ",
 				". They went on to have "+childCardinal+": ",
@@ -439,6 +446,16 @@ func (s *FamilyStatement[T]) renderChildListParagraph(detail *text.Para, enc ren
 	detail.FinishSentenceWithTerminator(":–")
 	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)
+}
+
+// continueOrStartSentence starts a new sentence when s begins with ". ", otherwise it continues
+// the current sentence.
+func continueOrStartSentence(para *text.Para, s string) {
+	if rest, ok := strings.CutPrefix(strings.TrimSpace(s), ". "); ok {
+		para.StartSentence(rest)
+		return
+	}
+	para.Continue(s)
 }
 
 // isFirmBirthdateEvent reports whether ev is a BirthEvent with a firm date.

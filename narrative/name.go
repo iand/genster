@@ -46,7 +46,7 @@ func (c DefaultNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string
 		if suffix != "" {
 			suffix = " in " + suffix
 		}
-		return prefix + " ", vt.Name, suffix
+		return prefix, vt.Name, suffix
 	case *model.Family:
 		return "", vt.PreferredUniqueName, ""
 	default:

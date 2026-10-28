@@ -678,7 +678,7 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 				continue
 			}
 			twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-			para.Continue(text.UpperFirst(p.Gender.SubjectPronoun()), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
+			para.StartSentence(p.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 		}
 	}
 
