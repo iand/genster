@@ -435,16 +435,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 		case model.EventRoleHusband, model.EventRoleWife:
 			spouse := ev.GetOther(t.pov.Person)
 			spouseLink := t.enc.EncodeModelLink(t.enc.EncodeText(t.nc.FirstUse(spouse)), spouse).String()
-			switch ev.(type) {
-			case *model.MarriageEvent:
-				title = text.JoinSentenceParts("married", spouseLink)
-			case *model.MarriageLicenseEvent:
-				title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
-			case *model.MarriageBannsEvent:
-				title = text.JoinSentenceParts(model.What(ev), "to marry", spouseLink)
-			default:
-				panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
-			}
+			title = ev.TransitiveWhat(spouseLink)
 		case model.EventRoleWitness:
 			party1 := ev.GetHusband()
 			party2 := ev.GetWife()

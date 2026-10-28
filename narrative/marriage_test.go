@@ -3,9 +3,54 @@ package narrative
 import (
 	"testing"
 
+	"github.com/iand/genster/logging"
 	"github.com/iand/genster/model"
 	"github.com/iand/genster/render/md"
 )
+
+// A spouse's timeline entry for a union event uses the event's transitive phrasing.
+func TestTimelineUnionEventTitleForSpouse(t *testing.T) {
+	testCases := []struct {
+		name string
+		ev   func(g model.GeneralUnionEvent) model.TimelineEvent
+		want string
+	}{
+		{
+			name: "marriage",
+			ev:   func(g model.GeneralUnionEvent) model.TimelineEvent { return &model.MarriageEvent{GeneralUnionEvent: g} },
+			want: "Married Mary Frost.",
+		},
+		{
+			name: "banns",
+			ev:   func(g model.GeneralUnionEvent) model.TimelineEvent { return &model.MarriageBannsEvent{GeneralUnionEvent: g} },
+			want: "Had banns read to marry Mary Frost.",
+		},
+		{
+			name: "licence",
+			ev:   func(g model.GeneralUnionEvent) model.TimelineEvent { return &model.MarriageLicenseEvent{GeneralUnionEvent: g} },
+			want: "Obtained a licence to marry Mary Frost.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &model.Person{ID: "p", PreferredUniqueName: "James Howes", Gender: model.GenderMale}
+			s := &model.Person{ID: "s", PreferredUniqueName: "Mary Frost", Gender: model.GenderFemale}
+			ev := tc.ev(model.GeneralUnionEvent{
+				Husband: p,
+				Wife:    s,
+				Participants: []*model.EventParticipant{
+					{Person: p, Role: model.EventRoleHusband},
+					{Person: s, Role: model.EventRoleWife},
+				},
+			})
+
+			enc := &md.Content{}
+			fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
+			checkContains(t, fmtr.Title(0, ev), tc.want, "to marry to marry", "Marriage banns read")
+		})
+	}
+}
 
 func TestPersonMarriageSummaryStartEventVerb(t *testing.T) {
 	type fam struct {
