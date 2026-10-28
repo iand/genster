@@ -7,7 +7,7 @@ require (
 	github.com/flopp/go-coordsparser v0.0.0-20250311184423-61a7ff62d17c
 	github.com/google/go-cmp v0.7.0
 	github.com/gosimple/slug v1.15.0
-	github.com/iand/gdate v0.1.18
+	github.com/iand/gdate v0.1.19
 	github.com/iand/gedcom v0.2.20
 	github.com/iand/grampsxml v0.0.7
 	github.com/iand/gtree v0.0.6

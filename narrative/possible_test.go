@@ -22,20 +22,20 @@ func TestIntroStatementPossibleBirths(t *testing.T) {
 	}{
 		{
 			name:    "no parents, uncited",
-			want:    "No record of Henry's birth has been confirmed, but he may have been born on 24 Aug, 1727 in the parish of Everton in Bedfordshire, England.",
+			want:    "No record of Henry's birth has been confirmed, but he may have been born on 24 Aug 1727 in the parish of Everton in Bedfordshire, England.",
 			notWant: []string{"Nothing is known", "It's possible"},
 		},
 		{
 			name:    "no parents, cited",
 			cited:   true,
-			want:    "No record of Henry's birth has been confirmed, but there is some evidence that he was born on 24 Aug, 1727 in the parish of Everton in Bedfordshire, England",
+			want:    "No record of Henry's birth has been confirmed, but there is some evidence that he was born on 24 Aug 1727 in the parish of Everton in Bedfordshire, England",
 			notWant: []string{"Nothing is known", "However"},
 		},
 		{
 			name:    "parents known, cited",
 			father:  &model.Person{ID: "f", PreferredUniqueName: "Charles Whitbread", PreferredFamiliarName: "Charles", Gender: model.GenderMale},
 			cited:   true,
-			want:    "Henry was the son of Charles Whitbread. His mother is not known. No record of his birth has been confirmed, but there is some evidence that he was born on 24 Aug, 1727",
+			want:    "Henry was the son of Charles Whitbread. His mother is not known. No record of his birth has been confirmed, but there is some evidence that he was born on 24 Aug 1727",
 			notWant: []string{"Nothing is known", "However"},
 		},
 		{
@@ -82,13 +82,13 @@ func TestDeathStatementPossibleDeaths(t *testing.T) {
 	}{
 		{
 			name:    "uncited",
-			want:    "No record of Henry's death has been confirmed, but he may have died on 29 Dec, 1793 in the parish of Longstowe in Cambridgeshire, England.",
+			want:    "No record of Henry's death has been confirmed, but he may have died on 29 Dec 1793 in the parish of Longstowe in Cambridgeshire, England.",
 			notWant: []string{"is not known", "It's possible"},
 		},
 		{
 			name:    "cited",
 			cited:   true,
-			want:    "No record of Henry's death has been confirmed, but there is some evidence that he died on 29 Dec, 1793 in the parish of Longstowe in Cambridgeshire, England",
+			want:    "No record of Henry's death has been confirmed, but there is some evidence that he died on 29 Dec 1793 in the parish of Longstowe in Cambridgeshire, England",
 			notWant: []string{"is not known", "However"},
 		},
 		{

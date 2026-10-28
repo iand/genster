@@ -51,21 +51,21 @@ func TestDeathStatementInfantAgeClause(t *testing.T) {
 			birth:   model.PreciseDate(1883, 6, 16),
 			death:   model.PreciseDate(1883, 11, 13),
 			place:   wallsend,
-			want:    "Thomas died on 13 Nov, 1883, less than a year after he was born, at Hedley Street in Wallsend, Northumberland, England.",
+			want:    "Thomas died on 13 Nov 1883, less than a year after he was born, at Hedley Street in Wallsend, Northumberland, England.",
 			notWant: []string{"born on 13 Nov"},
 		},
 		{
 			name:  "infant with no death place",
 			birth: model.PreciseDate(1883, 6, 16),
 			death: model.PreciseDate(1883, 11, 13),
-			want:  "Thomas died on 13 Nov, 1883, less than a year after he was born.",
+			want:  "Thomas died on 13 Nov 1883, less than a year after he was born.",
 		},
 		{
 			name:  "adult keeps the age before the date",
 			birth: model.PreciseDate(1823, 6, 16),
 			death: model.PreciseDate(1883, 11, 13),
 			place: wallsend,
-			want:  "Thomas died at the age of sixty on 13 Nov, 1883 at Hedley Street in Wallsend, Northumberland, England.",
+			want:  "Thomas died at the age of sixty on 13 Nov 1883 at Hedley Street in Wallsend, Northumberland, England.",
 		},
 	}
 
