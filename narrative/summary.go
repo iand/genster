@@ -481,7 +481,11 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 				para.StartSentence(name.String(), fmt.Sprintf(" died age %s, ", text.CardinalNoun(age)))
 			}
 			includeAgeAtDeathIfKnown = false
-			name = empty
+			if activeTense {
+				name = empty
+			} else {
+				name = enc.EncodeText(p.Gender.SubjectPronoun())
+			}
 			para.FinishSentence()
 		}
 
