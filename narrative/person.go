@@ -56,6 +56,20 @@ func (n *IntroGenerator[T]) Pronoun(seq int, dt *model.Date, principal *model.Pe
 	return n.POV.Person.Gender.SubjectPronoun()
 }
 
+// PossessivePronoun is the possessive form of Pronoun: the person's name with a possessive
+// suffix, or the possessive pronoun matching their gender.
+func (n *IntroGenerator[T]) PossessivePronoun(seq int, dt *model.Date, principal *model.Person) string {
+	subj := n.Pronoun(seq, dt, principal)
+	switch {
+	case subj == "they":
+		return "their"
+	case n.POV.Person != nil && subj == n.POV.Person.Gender.SubjectPronoun():
+		return n.POV.Person.Gender.PossessivePronounSingular()
+	default:
+		return text.MaybePossessiveSuffix(subj)
+	}
+}
+
 func (n *IntroGenerator[T]) WasWere(principal *model.Person) string {
 	if n.POV.Person == nil && principal.IsUnknown() {
 		return "were"

@@ -334,6 +334,10 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 	var detail text.Para
 
 	switch {
+	case oneChild && !otherKnown && c.BestBirthlikeEvent == nil:
+		// only the parent-child link is known: state the relationship and leave the child to the list
+		detail.Continue(intro.PossessivePronoun(seq, s.Start(), s.Principal), "only known child was a", c.Gender.RelationToParentNoun())
+
 	case oneChild && isMother && childFirmBirthdate:
 		// mother with firm birthdate: "gave birth to a [gender]..."
 		if c.BestBirthlikeEvent != nil {
@@ -380,6 +384,8 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		if c.BestBirthlikeEvent != nil {
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), childFirmBirthdate))
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		} else {
+			detail.Continue(intro.Pronoun(seq, s.Start(), s.Principal))
 		}
 		detail.Continue(ChooseFrom(seq,
 			"had a child",
@@ -396,6 +402,8 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		// multiple children
 		if c.BestBirthlikeEvent != nil {
 			detail.Continue(intro.Pronoun(seq, c.BestBirthlikeEvent.GetDate(), s.Principal))
+		} else {
+			detail.Continue(intro.Pronoun(seq, s.Start(), s.Principal))
 		}
 		detail.Continue("had", ChildCardinal(s.Family.Children))
 		if otherKnown {
