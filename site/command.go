@@ -101,12 +101,6 @@ var Command = &cli.Command{
 			Value:       false,
 			Destination: &genopts.experimentFamilies,
 		},
-		&cli.BoolFlag{
-			Name:        "experiment-altpersonpage",
-			Usage:       "Enable experimental alternative people pages.",
-			Value:       false,
-			Destination: &genopts.experimentAltPersonPage,
-		},
 		&cli.StringFlag{
 			Name:        "content",
 			Usage:       "Path to the content directory whose diary, stories, and questions sub-folders are walked for person references.",
@@ -129,17 +123,16 @@ var genopts struct {
 	keyIndividual      string
 	includePrivate     bool
 
-	basePath                string
-	inspect                 string
-	treeConfig              string
-	verbose                 bool
-	veryverbose             bool
-	relation                string
-	debug                   bool
-	experimentFamilies      bool
-	experimentAltPersonPage bool
-	contentDir              string
-	includeDrafts           bool
+	basePath           string
+	inspect            string
+	treeConfig         string
+	verbose            bool
+	veryverbose        bool
+	relation           string
+	debug              bool
+	experimentFamilies bool
+	contentDir         string
+	includeDrafts      bool
 }
 
 func gen(ctx context.Context, cc *cli.Command) error {
@@ -193,7 +186,6 @@ func gen(ctx context.Context, cc *cli.Command) error {
 	s.IncludePrivate = genopts.includePrivate
 	s.IncludeDebugInfo = genopts.debug
 	s.ExperimentFamilies = genopts.experimentFamilies
-	s.ExperimentAltPersonPage = genopts.experimentAltPersonPage
 	s.MapTilerAPIKey = os.Getenv("MAPTILER_API_KEY")
 
 	// Look for key individual, assume id is a genster id first

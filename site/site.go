@@ -122,11 +122,10 @@ type Site struct {
 	ChartTreesDir     string
 	GedcomDir         string
 
-	IncludePrivate          bool
-	IncludeDebugInfo        bool
-	ExperimentFamilies      bool
-	ExperimentAltPersonPage bool
-	MapTilerAPIKey          string // API key for MapTiler Cloud (NLS historic maps)
+	IncludePrivate     bool
+	IncludeDebugInfo   bool
+	ExperimentFamilies bool
+	MapTilerAPIKey     string // API key for MapTiler Cloud (NLS historic maps)
 
 	// PublishSet is the set of objects that will have pages written
 	PublishSet *PublishSet
@@ -582,13 +581,7 @@ func (s *Site) WritePages(contentDir string) error {
 		}
 		var d render.Document[md.Text]
 		var err error
-
-		if s.ExperimentAltPersonPage {
-			d, err = RenderAltPersonPage(s, p)
-
-		} else {
-			d, err = RenderPersonPage(s, p)
-		}
+		d, err = RenderPersonPage(s, p)
 		if err != nil {
 			return fmt.Errorf("render person page: %w", err)
 		}
