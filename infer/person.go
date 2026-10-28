@@ -315,20 +315,60 @@ eventloop:
 	return nil
 }
 
+// Margins added to a relative's birth year to give the latest year a person could have been born.
+const (
+	spouseBirthMargin = 40
+	motherBirthMargin = 50
+	fatherBirthMargin = 70
+
+	// a person is taken to be at least this old when they marry or have a child
+	minimumFamilyAge = 12
+)
+
+// latestBirthFromRelatives returns the latest year the person could plausibly have been born,
+// judged from their marriages, their children's births and the birth years of their spouses
+// and parents.
+func latestBirthFromRelatives(p *model.Person) (int, bool) {
+	latest, found := 0, false
+	consider := func(d *model.Date, margin int) {
+		if y, ok := d.LatestYear(); ok && (!found || y+margin < latest) {
+			latest, found = y+margin, true
+		}
+	}
+	for _, f := range p.Families {
+		consider(f.OtherParent(p).BestBirthDate(), spouseBirthMargin)
+		for _, ev := range f.Timeline {
+			if _, ok := ev.(model.UnionTimelineEvent); ok {
+				consider(ev.GetDate(), -minimumFamilyAge)
+			}
+		}
+		for _, c := range f.Children {
+			consider(c.BestBirthDate(), -minimumFamilyAge)
+		}
+	}
+	consider(p.Mother.BestBirthDate(), motherBirthMargin)
+	consider(p.Father.BestBirthDate(), fatherBirthMargin)
+	return latest, found
+}
+
 func InferPersonAliveOrDead(p *model.Person, year int) error {
 	const maximumLifespan = 120
 
 	lastPossibleYearAlive := year
 
 	// deathInferenceReason := ""
-	if byear, ok := p.BestBirthDate().Year(); ok {
+	if byear, ok := p.BestBirthDate().LatestYear(); ok {
 		lastPossibleYearAlive = byear + maximumLifespan
 		// deathInferenceReason = fmt.Sprintf("it is %d years after birth year of %d", maximumLifespan, byear)
 	} else {
 		lastEventYear := 0
 		for _, ev := range p.Timeline {
 			if ev.DirectlyInvolves(p) {
-				if eyear, ok := ev.GetDate().Year(); ok {
+				if eyear, ok := ev.GetDate().LatestYear(); ok {
+					if _, union := ev.(model.UnionTimelineEvent); union {
+						// a person who marries was at least this old, so was born earlier
+						eyear -= minimumFamilyAge
+					}
 					if eyear > lastEventYear {
 						lastEventYear = eyear
 					}
@@ -339,6 +379,8 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 		if lastEventYear > 0 {
 			lastPossibleYearAlive = lastEventYear + maximumLifespan
 			// deathInferenceReason = fmt.Sprintf("it is %d years after the last event involving this person", maximumLifespan)
+		} else if byear, ok := latestBirthFromRelatives(p); ok {
+			lastPossibleYearAlive = byear + maximumLifespan
 		}
 
 	}
@@ -366,7 +408,8 @@ func InferPersonAliveOrDead(p *model.Person, year int) error {
 	}
 
 	if p.BestDeathlikeEvent != nil {
-		if bev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && !bev.GetDate().IsUnknown() {
+		// a dated burial or cremation shows death as surely as a death event does
+		if !p.BestDeathlikeEvent.GetDate().IsUnknown() {
 			logging.Debug("marking person as not alive since they have a deathlike event with a known date", "id", p.ID)
 			p.PossiblyAlive = false
 			return nil

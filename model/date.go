@@ -352,6 +352,27 @@ func (d *Date) SortsBefore(other *Date) bool {
 	return gdate.SortsBefore(d.Date, other.Date)
 }
 
+// LatestYear returns the latest year that d can fall in. It is false when the date is unknown
+// or has no upper bound, such as "after 1805".
+func (d *Date) LatestYear() (int, bool) {
+	if d.IsUnknown() {
+		return 0, false
+	}
+	switch gd := d.Date.(type) {
+	case *gdate.BeforeYear:
+		return gd.Y, true
+	case *gdate.BeforePrecise:
+		return gd.Y, true
+	case *gdate.YearRange:
+		return gd.Upper, true
+	case *gdate.BetweenPrecise:
+		return gd.EndYear, true
+	case *gdate.MonthYearRange:
+		return gd.UpperYear, true
+	}
+	return d.Year()
+}
+
 // DefinitelyBefore reports whether every day included by d is earlier than every day
 // included by other. It is false when either date is unknown or not comparable.
 func (d *Date) DefinitelyBefore(other *Date) bool {
