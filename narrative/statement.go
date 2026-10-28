@@ -740,7 +740,7 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			default:
 				funeralEvDetail += fmt.Sprintf(" %s days later", text.CardinalNoun(days))
 			}
-		} else {
+		} else if !funeralEvent.GetDate().IsUnknown() {
 			funeralEvDetail += " " + funeralEvent.GetDate().When()
 		}
 		if !funeralEvent.GetPlace().IsUnknown() {

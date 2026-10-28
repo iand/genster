@@ -7,6 +7,33 @@ import (
 	"github.com/iand/genster/render/md"
 )
 
+// A burial with an unknown date is described by its place alone.
+func TestDeathStatementBurialUnknownDate(t *testing.T) {
+	cemetery := &model.Place{ID: "bc", Name: "Bedford Cemetery", FullContext: "Foster Hill Road, Bedford, Bedfordshire, England"}
+
+	p := &model.Person{ID: "a", PreferredGivenName: "Anastatia", PreferredFamiliarName: "Anastatia", Gender: model.GenderFemale}
+	p.BestBirthlikeEvent = &model.BirthEvent{
+		GeneralEvent:           model.GeneralEvent{Date: model.PreciseDate(1868, 10, 30)},
+		GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
+	}
+	p.BestDeathlikeEvent = &model.DeathEvent{
+		GeneralEvent:           model.GeneralEvent{Date: model.PreciseDate(1929, 10, 25)},
+		GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
+	}
+	burial := &model.BurialEvent{
+		GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate(), Place: cemetery},
+		GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: p},
+	}
+	p.Timeline = []model.TimelineEvent{p.BestBirthlikeEvent, p.BestDeathlikeEvent, burial}
+
+	s := &DeathStatement[md.Text]{Principal: p}
+	intro := &IntroGenerator[md.Text]{POV: &model.POV{Person: p}}
+	enc := &md.Content{}
+	s.RenderDetail(0, intro, enc, &DefaultNameChooser{})
+
+	checkContains(t, enc.String(), "buried in Bedford Cemetery in Foster Hill Road, Bedford, Bedfordshire, England.", "unknown date")
+}
+
 // An infant's death date follows "died" directly so it cannot be read as the birth date.
 func TestDeathStatementInfantAgeClause(t *testing.T) {
 	wallsend := &model.Place{ID: "hs", Name: "Hedley Street", FullContext: "Wallsend, Northumberland, England", PlaceType: model.PlaceTypeStreet}
