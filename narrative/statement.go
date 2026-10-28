@@ -370,8 +370,10 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		}
 		detail.Continue("had a", c.Gender.RelationToParentNoun())
 		detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFullName), c).String())
-		detail.Continue("who")
-		detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
+		if !c.BestBirthlikeEvent.GetDate().IsUnknown() || !c.BestBirthlikeEvent.GetPlace().IsUnknown() {
+			detail.Continue("who")
+			detail.Continue(enc.EncodeWithCitations(enc.EncodeText(EventWhatWhenWherePov(c.BestBirthlikeEvent, enc, nc, intro.POV)), c.BestBirthlikeEvent.GetCitations()).String())
+		}
 		if detail.CurrentSentenceLength() < 60 {
 			detail.Continue(ChooseFrom(seq,
 				"with an unknown "+s.Principal.Gender.Opposite().RelationToChildrenNoun(),

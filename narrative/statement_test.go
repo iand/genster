@@ -8,6 +8,23 @@ import (
 	"github.com/iand/genster/render/md"
 )
 
+// A person with a known parent but no birth-like event gets a complete opening sentence.
+func TestIntroStatementNoBirthEventHasVerb(t *testing.T) {
+	father := &model.Person{ID: "f", PreferredUniqueName: "Charles Denney", PreferredFamiliarName: "Charles", Gender: model.GenderMale}
+	p := &model.Person{ID: "p", PreferredGivenName: "Sarah", PreferredFamiliarName: "Sarah", Gender: model.GenderFemale, Father: father}
+
+	s := &IntroStatement[md.Text]{Principal: p}
+	intro := &IntroGenerator[md.Text]{POV: &model.POV{Person: p}}
+	enc := &md.Content{}
+	s.RenderDetail(0, intro, enc, &DefaultNameChooser{})
+
+	got := enc.String()
+	want := "Sarah was the daughter of Charles Denney."
+	if !strings.Contains(got, want) {
+		t.Errorf("output does not contain %q\ngot:\n%s", want, got)
+	}
+}
+
 func TestFamilyStatementSingleParentNoChildBirth(t *testing.T) {
 	father := func() *model.Person {
 		return &model.Person{ID: "f", PreferredGivenName: "Francisco", PreferredFamiliarName: "Francisco", Gender: model.GenderMale}
@@ -63,6 +80,47 @@ func TestFamilyStatementSingleParentNoChildBirth(t *testing.T) {
 			},
 			want:    "Francisco had a",
 			notWant: []string{"Had a"},
+		},
+		{
+			name:      "mother, unknown father, redacted daughter",
+			principal: mother(),
+			family: func(p *model.Person) *model.Family {
+				c := &model.Person{ID: "c1", Redacted: true, Gender: model.GenderFemale, PreferredFullName: "(person born in the 1910s)", PreferredFamiliarName: "(person born in the 1910s)"}
+				c.BestBirthlikeEvent = &model.BirthEvent{
+					GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
+					GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: c},
+				}
+				return &model.Family{ID: "fam", Bond: model.FamilyBondUnmarried, Mother: p, Children: []*model.Person{c}}
+			},
+			want:    "Jane had a daughter",
+			notWant: []string{"who was born", "who."},
+		},
+		{
+			name:      "mother, unknown father, son with undated birth and no place",
+			principal: mother(),
+			family: func(p *model.Person) *model.Family {
+				c := child("c1", "Joseph", model.GenderMale)
+				c.BestBirthlikeEvent = &model.BirthEvent{
+					GeneralEvent:           model.GeneralEvent{Date: model.UnknownDate()},
+					GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: c},
+				}
+				return &model.Family{ID: "fam", Bond: model.FamilyBondUnmarried, Mother: p, Children: []*model.Person{c}}
+			},
+			want:    "Jane had a son",
+			notWant: []string{"who was born", "who."},
+		},
+		{
+			name:      "mother, unknown father, son with dated birth keeps the clause",
+			principal: mother(),
+			family: func(p *model.Person) *model.Family {
+				c := child("c1", "Joseph", model.GenderMale)
+				c.BestBirthlikeEvent = &model.BaptismEvent{
+					GeneralEvent:           model.GeneralEvent{Date: model.Year(1840)},
+					GeneralIndividualEvent: model.GeneralIndividualEvent{Principal: c},
+				}
+				return &model.Family{ID: "fam", Bond: model.FamilyBondUnmarried, Mother: p, Children: []*model.Person{c}}
+			},
+			want: "who was baptised in 1840",
 		},
 		{
 			name:      "father, unknown mother, two sons",
