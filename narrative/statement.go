@@ -617,6 +617,7 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	evDetail := DeathWhat(bev, s.Principal.ModeOfDeath)
 
 	if !bev.GetDate().IsUnknown() {
+		afterBirth := ""
 		if age, ok := s.Principal.AgeInYearsAt(bev.GetDate()); ok {
 			ageDetail := ""
 			if age == 0 {
@@ -641,17 +642,27 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 								ageDetail = "less than a year"
 							}
 						}
-						ageDetail += " after " + s.Principal.Gender.SubjectPronoun() + " was born"
+						afterBirth = ageDetail + " after " + s.Principal.Gender.SubjectPronoun() + " was born"
+						ageDetail = ""
 					}
 				}
 			}
 
-			if ageDetail == "" {
+			if ageDetail == "" && afterBirth == "" {
 				ageDetail = AgeQualifier(age)
 			}
-			evDetail += " " + ageDetail
+			if ageDetail != "" {
+				evDetail += " " + ageDetail
+			}
 		}
 		evDetail += " " + bev.GetDate().When()
+		if afterBirth != "" {
+			// set off after the date so the date is not read as the date of birth
+			evDetail += ", " + afterBirth
+			if !bev.GetPlace().IsUnknown() {
+				evDetail += ","
+			}
+		}
 	} else {
 		evDetail += " on an unknown date"
 	}
