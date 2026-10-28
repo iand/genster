@@ -37,6 +37,11 @@ type UnionTimelineEvent interface {
 	GetHusband() *Person
 	GetWife() *Person
 	GetOther(p *Person) *Person // returns the first of party1 or party2 that is not p
+
+	// TransitiveWhat returns an active verb phrase in the past tense that names the other party,
+	// such as "married Mary Frost" or "had banns read to marry Mary Frost". other is inserted
+	// unchanged since it may already be encoded, for example as a link.
+	TransitiveWhat(other string) string
 }
 
 // MultipartyTimelineEvent is a timeline event involving multiple principal parties.
@@ -1189,6 +1194,8 @@ func (e *MarriageEvent) Type() string             { return "marriage" }
 func (e *MarriageEvent) ShortDescription() string { return e.abbrev("m") }
 func (e *MarriageEvent) What() string             { return "married" }
 
+func (e *MarriageEvent) TransitiveWhat(other string) string { return "married " + other }
+
 func (e *MarriageEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent:
@@ -1225,6 +1232,10 @@ func (e *MarriageLicenseEvent) PassiveConditionalWhat(adverb string) string {
 func (e *MarriageLicenseEvent) PresentPerfectWhat() string { return "have obtained a marriage license" }
 func (e *MarriageLicenseEvent) PastPerfectWhat() string    { return "had obtained a marriage license" }
 
+func (e *MarriageLicenseEvent) TransitiveWhat(other string) string {
+	return "obtained a licence to marry " + other
+}
+
 func (e *MarriageLicenseEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
@@ -1260,6 +1271,10 @@ func (e *MarriageBannsEvent) PassiveConditionalWhat(adverb string) string {
 func (e *MarriageBannsEvent) PresentPerfectWhat() string { return "have had marriage banns read" }
 func (e *MarriageBannsEvent) PastPerfectWhat() string    { return "had marriage banns read" }
 
+func (e *MarriageBannsEvent) TransitiveWhat(other string) string {
+	return "had banns read to marry " + other
+}
+
 func (e *MarriageBannsEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent, *MarriageEvent:
@@ -1283,6 +1298,8 @@ var (
 func (e *DivorceEvent) Type() string             { return "divorce" }
 func (e *DivorceEvent) ShortDescription() string { return e.abbrev("div") }
 func (e *DivorceEvent) What() string             { return "divorced" }
+
+func (e *DivorceEvent) TransitiveWhat(other string) string { return "divorced " + other }
 func (e *DivorceEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent:
@@ -1306,6 +1323,8 @@ var (
 func (e *SeparationEvent) Type() string             { return "separation" }
 func (e *SeparationEvent) ShortDescription() string { return e.abbrev("sep") }
 func (e *SeparationEvent) What() string             { return "separated" }
+
+func (e *SeparationEvent) TransitiveWhat(other string) string { return "separated from " + other }
 func (e *SeparationEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent:
@@ -1329,6 +1348,10 @@ var (
 func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
 func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
+
+func (e *AnnulmentEvent) TransitiveWhat(other string) string {
+	return "had the marriage to " + other + " annulled"
+}
 func (e *AnnulmentEvent) SortsBefore(other TimelineEvent) bool {
 	switch other.(type) {
 	case *OccupationEvent, *ResidenceRecordedEvent:

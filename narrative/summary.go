@@ -803,33 +803,33 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		// more detail
 		f := fams[0]
 		other := f.OtherParent(p)
+		what := familyStartWhat(f, enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String())
 		if f.BestStartEvent == nil {
-			what := "married " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
 			marrs = append(marrs, what)
 		} else {
-			what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
 			marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, f.BestStartEvent.GetDate(), f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 		}
 	} else {
+		// each item names its own start event unless it is the same kind as the one before
+		prevKind := ""
 		for i, f := range fams {
 			other := f.OtherParent(p)
+			otherLink := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+			kind := "marriage"
+			if f.BestStartEvent != nil {
+				kind = f.BestStartEvent.Type()
+			}
+			what := otherLink
+			if i == 0 || kind != prevKind {
+				what = familyStartWhat(f, otherLink)
+			}
+			prevKind = kind
+
 			if f.BestStartEvent == nil {
-				what := ""
-				if i == 0 {
-					what = "married "
-				}
-				what += enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
 				marrs = append(marrs, what)
 			} else {
 				y, _ := f.BestStartEvent.GetDate().AsYear()
-
-				if i == 0 {
-					what := f.BestStartEvent.What() + " " + enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
-					marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
-				} else {
-					what := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other)
-					marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what.String(), y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
-				}
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 			}
 		}
 	}
@@ -838,6 +838,15 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 	para.StartSentence(name.String())
 	para.Continue(text.JoinList(marrs))
 	return enc.EncodeText(para.Text())
+}
+
+// familyStartWhat describes the start of a family using its start event, naming the other party
+// with otherLink. A family with no union start event is described as a marriage.
+func familyStartWhat(f *model.Family, otherLink string) string {
+	if uev, ok := f.BestStartEvent.(model.UnionTimelineEvent); ok {
+		return uev.TransitiveWhat(otherLink)
+	}
+	return "married " + otherLink
 }
 
 func GenerateOlb(p *model.Person) string {
