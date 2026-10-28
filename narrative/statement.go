@@ -46,9 +46,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 	var para text.Para
 
 	if s.Principal.BestBirthlikeEvent == nil && s.Principal.Father.IsUnknown() && s.Principal.Mother.IsUnknown() {
-		para.StartSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
-		s.maybeAppendNickname(&para)
-		s.maybeAddPossibleBirths(&para, enc, nc, intro)
+		if len(s.PossibleBirths) > 0 {
+			s.addPossibleBirths(&para, text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), enc, nc, intro)
+		} else {
+			para.StartSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
+			s.maybeAppendNickname(&para)
+		}
 	} else {
 		if s.Principal.BestBirthlikeEvent != nil {
 			para.StartSentence(s.Principal.PreferredGivenName)
@@ -61,9 +64,12 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			para.StartSentence(s.Principal.PreferredGivenName, "was")
 			s.maybeAppendNickname(&para)
 			s.addParentage(&para, enc, nc, intro, seq, false)
-			para.StartSentence("nothing is known about ", s.Principal.Gender.PossessivePronounSingular(), " date and place of birth")
-			s.maybeAppendNickname(&para)
-			s.maybeAddPossibleBirths(&para, enc, nc, intro)
+			if len(s.PossibleBirths) > 0 {
+				s.addPossibleBirths(&para, s.Principal.Gender.PossessivePronounSingular(), enc, nc, intro)
+			} else {
+				para.StartSentence("nothing is known about ", s.Principal.Gender.PossessivePronounSingular(), " date and place of birth")
+				s.maybeAppendNickname(&para)
+			}
 		}
 		s.maybeAddTwinAssociation(&para, enc)
 	}
@@ -94,10 +100,9 @@ func (s *IntroStatement[T]) maybeAppendNickname(para *text.Para) {
 	}
 }
 
-func (s *IntroStatement[T]) maybeAddPossibleBirths(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T]) {
-	if len(s.PossibleBirths) == 0 {
-		return
-	}
+// addPossibleBirths adds a sentence giving the unconfirmed candidates for the person's birth.
+// owner is the possessive used for the birth, such as "Henry's" or "his".
+func (s *IntroStatement[T]) addPossibleBirths(para *text.Para, owner string, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T]) {
 	list := []string{}
 	hasCitation := false
 	for _, ev := range s.PossibleBirths {
@@ -106,12 +111,12 @@ func (s *IntroStatement[T]) maybeAddPossibleBirths(para *text.Para, enc render.C
 			hasCitation = true
 		}
 	}
+	para.StartSentence("no record of", owner, "birth has been confirmed, but")
 	if hasCitation {
-		para.StartSentence("however, there is some evidence that")
+		para.Continue("there is some evidence that", s.Principal.Gender.SubjectPronounWithLink(), "born")
 	} else {
-		para.StartSentence("it's possible that")
+		para.Continue(s.Principal.Gender.SubjectPronoun(), "may have been born")
 	}
-	para.Continue(s.Principal.Gender.SubjectPronounWithLink(), "born")
 	para.FinishSentence(text.JoinListOr(list))
 }
 
@@ -791,7 +796,6 @@ func (s *DeathStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 func (s *DeathStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) error {
 	var para text.Para
-	para.StartSentence("the time and place of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death is not known")
 	if len(s.PossibleDeaths) > 0 {
 		list := []string{}
 		hasCitation := false
@@ -801,14 +805,15 @@ func (s *DeathStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T
 				hasCitation = true
 			}
 		}
+		para.StartSentence("no record of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death has been confirmed, but")
 		if hasCitation {
-			para.StartSentence("however, there is some evidence that")
+			para.Continue("there is some evidence that", s.Principal.Gender.SubjectPronoun(), "died")
 		} else {
-			para.StartSentence("it's possible that")
+			para.Continue(s.Principal.Gender.SubjectPronoun(), "may have died")
 		}
-		para.Continue(s.Principal.Gender.SubjectPronoun(), "died")
 		para.FinishSentence(text.JoinListOr(list))
-
+	} else {
+		para.StartSentence("the time and place of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death is not known")
 	}
 	enc.Para(enc.EncodeText(para.Text()))
 	return nil
