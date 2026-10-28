@@ -838,8 +838,11 @@ func ParseDaterange(dr grampsxml.Daterange, dp gdate.Parser) (*model.Date, error
 		}
 	}
 
-	// Try to collapse to a GRO quarter.
+	// Try to collapse to a single month, then to a GRO quarter.
 	if mystart != nil && mystop != nil && mystart.Y == mystop.Y {
+		if mystart.M == mystop.M {
+			return &model.Date{Date: &gdate.MonthYear{C: mystart.C, M: mystart.M, Y: mystart.Y}, Derivation: deriv}, nil
+		}
 		switch {
 		case mystart.M == 1 && mystop.M == 3:
 			return &model.Date{Date: &gdate.YearQuarter{C: mystart.C, Y: mystart.Y, Q: 1}, Derivation: deriv}, nil

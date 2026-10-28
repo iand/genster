@@ -188,6 +188,58 @@ func TestEventDate(t *testing.T) {
 			},
 		},
 
+		// A range covering exactly one calendar month is that month.
+		{
+			ev: &grampsxml.Event{
+				Daterange: &grampsxml.Daterange{
+					Start: "1992-08-01",
+					Stop:  "1992-08-31",
+				},
+			},
+			want: &model.Date{
+				Date: &gdate.MonthYear{
+					C: gdate.Gregorian,
+					M: 8,
+					Y: 1992,
+				},
+			},
+		},
+		{
+			ev: &grampsxml.Event{
+				Daterange: &grampsxml.Daterange{
+					Start: "1992-08",
+					Stop:  "1992-08",
+				},
+			},
+			want: &model.Date{
+				Date: &gdate.MonthYear{
+					C: gdate.Gregorian,
+					M: 8,
+					Y: 1992,
+				},
+			},
+		},
+		// A range that is not a whole month stays a range.
+		{
+			ev: &grampsxml.Event{
+				Daterange: &grampsxml.Daterange{
+					Start: "1992-08-01",
+					Stop:  "1992-09-30",
+				},
+			},
+			want: &model.Date{
+				Date: &gdate.BetweenPrecise{
+					C:          gdate.Gregorian,
+					StartYear:  1992,
+					StartMonth: 8,
+					StartDay:   1,
+					EndYear:    1992,
+					EndMonth:   9,
+					EndDay:     30,
+				},
+			},
+		},
+
 		// Dual-dated Julian: Gramps stores the New Style year in val.
 		// val="1651-03-10", dualdated=1 → subtract 1 → OS year 1650.
 		// Should display as "10 Mar 1650/51" and Year() should return 1651 (NS year).
