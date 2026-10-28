@@ -352,6 +352,23 @@ func (d *Date) SortsBefore(other *Date) bool {
 	return gdate.SortsBefore(d.Date, other.Date)
 }
 
+// DefinitelyBefore reports whether every day included by d is earlier than every day
+// included by other. It is false when either date is unknown or not comparable.
+func (d *Date) DefinitelyBefore(other *Date) bool {
+	if d.IsUnknown() || other.IsUnknown() {
+		return false
+	}
+	dc, ok := d.Date.(gdate.ComparableDate)
+	if !ok {
+		return false
+	}
+	oc, ok := other.Date.(gdate.ComparableDate)
+	if !ok {
+		return false
+	}
+	return dc.LatestJulianDay() < oc.EarliestJulianDay()
+}
+
 func (d *Date) IntervalUntil(other *Date) *Interval {
 	if d == nil || other == nil {
 		return UnknownInterval()

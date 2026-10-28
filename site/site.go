@@ -525,6 +525,19 @@ func (s *Site) ScanPersonForAnomalies(p *model.Person) {
 			Context:  "Multiple burial events",
 		})
 	}
+	for _, bev := range burialEvents {
+		for _, dev := range deathEvents {
+			if bev.GetDate().DefinitelyBefore(dev.GetDate()) {
+				p.Anomalies = append(p.Anomalies, &model.Anomaly{
+					Category: model.AnomalyCategoryEvent,
+					Text:     "Burial dated " + bev.GetDate().String() + " is before death dated " + dev.GetDate().String(),
+					Context:  "Burial before death",
+				})
+				break
+			}
+		}
+	}
+
 	// TODO: mayeb remove this, people can have multiple baptisms
 	if len(baptismEvents) > 1 {
 		txt := describeEvents("baptism", baptismEvents)
