@@ -12,14 +12,14 @@ import (
 
 func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
 	var items []render.FactEntry[T]
-	nc := narrative.DefaultNameChooser{}
+	// nc := narrative.DefaultNameChooser{}
 
 	notknown := enc.EncodeText("(not known)")
 	eventDetails := func(ev model.TimelineEvent) []T {
 		dets := make([]T, 0, 2)
-		dets = append(dets, enc.EncodeWithCitations(enc.EncodeText(ev.GetDate().String()), ev.GetCitations()))
+		dets = append(dets, enc.EncodeText(ev.GetDate().String()))
 		if !ev.GetPlace().IsUnknown() {
-			dets = append(dets, enc.EncodeModelLink(enc.EncodeText(ev.GetPlace().FullName), ev.GetPlace()))
+			dets = append(dets, enc.EncodeText(ev.GetPlace().FullName))
 		}
 		return dets
 	}
@@ -31,12 +31,12 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 	if birth, ok := model.FindFirstEvent(p.Timeline, model.IsOwnBirthEvent(p)); ok {
 		fe.Details = eventDetails(birth)
 	} else {
-		possible := buildPossibleBirths(p, pov, nc, enc)
-		if possible != "" {
-			fe.Details = append(fe.Details, enc.EncodeText(possible))
-		} else {
-			fe.Details = append(fe.Details, notknown)
-		}
+		// possible := buildPossibleBirths(p, pov, nc, enc)
+		// if possible != "" {
+		// 	fe.Details = append(fe.Details, enc.EncodeText(possible))
+		// } else {
+		fe.Details = append(fe.Details, notknown)
+		// }
 	}
 	items = append(items, fe)
 
@@ -58,12 +58,12 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 	if death, ok := model.FindFirstEvent(p.Timeline, model.IsOwnDeathEvent(p)); ok {
 		fe.Details = eventDetails(death)
 	} else {
-		possible := buildPossibleDeaths(p, pov, nc, enc)
-		if possible != "" {
-			fe.Details = append(fe.Details, enc.EncodeText(possible))
-		} else {
-			fe.Details = append(fe.Details, notknown)
-		}
+		// possible := buildPossibleDeaths(p, pov, nc, enc)
+		// if possible != "" {
+		// 	fe.Details = append(fe.Details, enc.EncodeText(possible))
+		// } else {
+		fe.Details = append(fe.Details, notknown)
+		// }
 	}
 
 	items = append(items, fe)

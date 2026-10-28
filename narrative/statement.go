@@ -50,14 +50,21 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 		s.maybeAppendNickname(&para)
 		s.maybeAddPossibleBirths(&para, enc, nc, intro)
 	} else {
-		para.StartSentence(s.Principal.PreferredGivenName)
-		s.maybeAppendNickname(&para)
 		if s.Principal.BestBirthlikeEvent != nil {
+			para.StartSentence(s.Principal.PreferredGivenName)
+			s.maybeAppendNickname(&para)
 			birth := enc.EncodeWithCitations(enc.EncodeText(text.LowerFirst(EventWhatWhenWherePov(s.Principal.BestBirthlikeEvent, enc, s.NameChooser, intro.POV))), s.Principal.BestBirthlikeEvent.GetCitations()).String()
 			para.Continue(birth)
+			s.addParentage(&para, enc, nc, intro, seq)
+			s.maybeAddBaptismAfterBirth(&para, enc, nc, intro)
+		} else {
+			para.StartSentence(s.Principal.PreferredGivenName, "was")
+			s.maybeAppendNickname(&para)
+			s.addParentage(&para, enc, nc, intro, seq)
+			para.StartSentence("nothing is known about ", s.Principal.Gender.PossessivePronounSingular(), " date and place of birth")
+			s.maybeAppendNickname(&para)
+			s.maybeAddPossibleBirths(&para, enc, nc, intro)
 		}
-		s.addParentage(&para, enc, nc, intro, seq)
-		s.maybeAddBaptismAfterBirth(&para, enc, nc, intro)
 		s.maybeAddTwinAssociation(&para, enc)
 	}
 
