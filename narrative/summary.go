@@ -828,8 +828,12 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 			if f.BestStartEvent == nil {
 				marrs = append(marrs, what)
 			} else {
-				y, _ := f.BestStartEvent.GetDate().AsYear()
-				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, y, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
+				// shorten dates more precise than a year; keep qualified dates such as "before 1884" as they are
+				dt := f.BestStartEvent.GetDate()
+				if y, ok := dt.AsYear(); ok && dt.IsMorePreciseThan(y) {
+					dt = y
+				}
+				marrs = append(marrs, enc.EncodeWithCitations(tense(WhatWhenWhere(what, dt, f.BestStartEvent.GetPlace(), enc, nc)), f.BestStartEvent.GetCitations()).String())
 			}
 		}
 	}

@@ -100,6 +100,11 @@ func TestPersonMarriageSummaryStartEventVerb(t *testing.T) {
 			want: "James had banns read to marry Mary Frost in 1764 and Susannah Furness in 1769.",
 		},
 		{
+			name: "first marriage dated before a year keeps its date",
+			fams: []fam{{"Alfred Mayson", marriage, 0}, {"John Beardsley", marriage, 1912}},
+			want: "James married Alfred Mayson before 1884 and John Beardsley in 1912.",
+		},
+		{
 			name: "two marriages share the verb",
 			fams: []fam{{"Mary Frost", marriage, 1764}, {"Susannah Furness", marriage, 1769}},
 			want: "James married Mary Frost in 1764 and Susannah Furness in 1769.",
@@ -111,7 +116,11 @@ func TestPersonMarriageSummaryStartEventVerb(t *testing.T) {
 			p := &model.Person{ID: "p", PreferredFamiliarName: "James", Gender: model.GenderMale}
 			for i, fm := range tc.fams {
 				spouse := &model.Person{ID: "s" + string(rune('a'+i)), PreferredFamiliarFullName: fm.spouse, Gender: model.GenderFemale}
-				ev := fm.event(model.Year(fm.year))
+				d := model.Year(fm.year)
+				if fm.year == 0 {
+					d = model.BeforeYear(1884)
+				}
+				ev := fm.event(d)
 				f := &model.Family{
 					ID: "f" + string(rune('a'+i)), Bond: model.FamilyBondMarried, Father: p, Mother: spouse,
 					BestStartDate: ev.GetDate(), BestStartEvent: ev,
