@@ -196,12 +196,8 @@ func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model
 		title = text.JoinSentenceParts(title, "as", "a"+text.MaybeAn(string(entry.RelationToHead)))
 	}
 
-	pl := ev.GetPlace()
-	if !pl.IsUnknown() {
-		residing := ChooseFrom(seq, "residing", "", "living")
-		title = text.JoinSentenceParts(title, residing)
-		title = WhatWherePov(title, pl, t.enc, t.nc, t.pov)
-	}
+	// a census records where someone was on census night, so no verb such as "living" is used
+	title = WhatWherePov(title, ev.GetPlace(), t.enc, t.nc, t.pov)
 	return title
 }
 
