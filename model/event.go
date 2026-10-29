@@ -1205,7 +1205,7 @@ func (e *MarriageEvent) SortsBefore(other TimelineEvent) bool {
 	}
 }
 
-// MarriageLicenseEvent represents the event where two people obtain a license to marry
+// MarriageLicenseEvent represents the event where two people obtain a licence to marry
 type MarriageLicenseEvent struct {
 	GeneralEvent
 	GeneralUnionEvent
@@ -1219,18 +1219,18 @@ var (
 
 func (e *MarriageLicenseEvent) Type() string             { return "marriage license" }
 func (e *MarriageLicenseEvent) ShortDescription() string { return e.abbrev("lic.") }
-func (e *MarriageLicenseEvent) What() string             { return "marriage license obtained" }
+func (e *MarriageLicenseEvent) What() string             { return "obtained a marriage licence" }
 
-func (e *MarriageLicenseEvent) PassiveWhat() string { return "marriage license was obtained" }
+func (e *MarriageLicenseEvent) PassiveWhat() string { return "marriage licence was obtained" }
 func (e *MarriageLicenseEvent) ConditionalWhat(adverb string) string {
-	return "marriage license " + adverb + " obtained"
+	return "marriage licence " + adverb + " obtained"
 }
 
 func (e *MarriageLicenseEvent) PassiveConditionalWhat(adverb string) string {
-	return "marriage license was " + adverb + " obtained"
+	return "marriage licence was " + adverb + " obtained"
 }
-func (e *MarriageLicenseEvent) PresentPerfectWhat() string { return "have obtained a marriage license" }
-func (e *MarriageLicenseEvent) PastPerfectWhat() string    { return "had obtained a marriage license" }
+func (e *MarriageLicenseEvent) PresentPerfectWhat() string { return "have obtained a marriage licence" }
+func (e *MarriageLicenseEvent) PastPerfectWhat() string    { return "had obtained a marriage licence" }
 
 func (e *MarriageLicenseEvent) TransitiveWhat(other string) string {
 	return "obtained a licence to marry " + other
@@ -1259,7 +1259,7 @@ var (
 
 func (e *MarriageBannsEvent) Type() string             { return "marriage banns" }
 func (e *MarriageBannsEvent) ShortDescription() string { return e.abbrev("ban") }
-func (e *MarriageBannsEvent) What() string             { return "marriage banns read" }
+func (e *MarriageBannsEvent) What() string             { return "had marriage banns read" }
 func (e *MarriageBannsEvent) PassiveWhat() string      { return "marriage banns were read" }
 func (e *MarriageBannsEvent) ConditionalWhat(adverb string) string {
 	return "marriage banns " + adverb + " read"
@@ -1347,7 +1347,7 @@ var (
 
 func (e *AnnulmentEvent) Type() string             { return "annulment" }
 func (e *AnnulmentEvent) ShortDescription() string { return e.abbrev("anul") }
-func (e *AnnulmentEvent) What() string             { return "had marriage anulled" }
+func (e *AnnulmentEvent) What() string             { return "had the marriage annulled" }
 
 func (e *AnnulmentEvent) TransitiveWhat(other string) string {
 	return "had the marriage to " + other + " annulled"

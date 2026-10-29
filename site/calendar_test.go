@@ -65,6 +65,46 @@ func TestCalendarMarriageWithOneDirectAncestor(t *testing.T) {
 	}
 }
 
+// A marriage to a redacted person names only the other partner.
+func TestCalendarMarriageToRedactedPerson(t *testing.T) {
+	tr := tree.NewTree("test", nil, &tree.SurnameGroups{})
+
+	husband := tr.FindPerson("test", "husband")
+	husband.PreferredUniqueName = "Norman Hall (1909–1985)"
+	husband.Gender = model.GenderMale
+
+	wife := tr.FindPerson("test", "wife")
+	wife.Redacted = true
+	wife.RedactNames("(person born in the 1910s)")
+	wife.Gender = model.GenderFemale
+
+	marriage := &model.MarriageEvent{
+		GeneralEvent:      model.GeneralEvent{Date: model.PreciseDate(1942, 7, 24)},
+		GeneralUnionEvent: model.GeneralUnionEvent{Husband: husband, Wife: wife},
+	}
+
+	s := NewSite("/trees/test/", tr)
+	ps, err := NewPublishSet(tr, func(*model.Person) bool { return true })
+	if err != nil {
+		t.Fatalf("NewPublishSet: %v", err)
+	}
+	s.PublishSet = ps
+
+	c := &Calendar{Events: []model.TimelineEvent{marriage}}
+	doc, err := c.RenderPage(s)
+	if err != nil {
+		t.Fatalf("RenderPage: %v", err)
+	}
+
+	got := doc.String()
+	if strings.Contains(got, "(person born in the 1910s)") {
+		t.Errorf("calendar names the redacted partner:\n%s", got)
+	}
+	if !strings.Contains(got, "Norman Hall (1909–1985)</a> married.") {
+		t.Errorf("calendar does not describe the marriage:\n%s", got)
+	}
+}
+
 // A marriage to a person whose name is not known must not repeat the other
 // partner's name through the description used as the unknown partner's title.
 func TestCalendarMarriageToUnidentifiedPerson(t *testing.T) {

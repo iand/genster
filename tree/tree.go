@@ -730,15 +730,11 @@ func (t *Tree) DescribeUnidentifiedPerson(p *model.Person) error {
 		return nil
 	}
 
-	named := func(o *model.Person) bool {
-		return !o.IsUnknown() && !o.Unidentified && !o.Redacted
-	}
-
 	var spouse *model.Person
 	var spouseStart *model.Date
 	for _, f := range p.Families {
 		other := f.OtherParent(p)
-		if !named(other) {
+		if !other.CanBeNamed() {
 			continue
 		}
 		if spouse == nil || f.BestStartDate.SortsBefore(spouseStart) {
@@ -747,13 +743,13 @@ func (t *Tree) DescribeUnidentifiedPerson(p *model.Person) error {
 		}
 	}
 	if spouse != nil {
-		p.PreferredUniqueName = genderedRelation(p.Gender, "Husband", "Wife", "Spouse") + " of " + spouse.PreferredUniqueName
+		p.PreferredUniqueName = text.UpperFirst(p.Gender.RelationToSpouseNoun()) + " of " + spouse.PreferredUniqueName
 		return nil
 	}
 
 	var child *model.Person
 	for _, c := range p.Children {
-		if !named(c) {
+		if !c.CanBeNamed() {
 			continue
 		}
 		if child == nil || c.BestBirthDate().SortsBefore(child.BestBirthDate()) {
@@ -761,33 +757,22 @@ func (t *Tree) DescribeUnidentifiedPerson(p *model.Person) error {
 		}
 	}
 	if child != nil {
-		p.PreferredUniqueName = genderedRelation(p.Gender, "Father", "Mother", "Parent") + " of " + child.PreferredUniqueName
+		p.PreferredUniqueName = text.UpperFirst(p.Gender.RelationToChildrenNoun()) + " of " + child.PreferredUniqueName
 		return nil
 	}
 
 	var parents []string
-	if named(p.Father) {
+	if p.Father.CanBeNamed() {
 		parents = append(parents, p.Father.PreferredUniqueName)
 	}
-	if named(p.Mother) {
+	if p.Mother.CanBeNamed() {
 		parents = append(parents, p.Mother.PreferredUniqueName)
 	}
 	if len(parents) > 0 {
-		p.PreferredUniqueName = genderedRelation(p.Gender, "Son", "Daughter", "Child") + " of " + strings.Join(parents, " and ")
+		p.PreferredUniqueName = text.UpperFirst(p.Gender.RelationToParentNoun()) + " of " + strings.Join(parents, " and ")
 	}
 
 	return nil
-}
-
-func genderedRelation(g model.Gender, male, female, unknown string) string {
-	switch {
-	case g.IsMale():
-		return male
-	case g.IsFemale():
-		return female
-	default:
-		return unknown
-	}
 }
 
 func (t *Tree) RefinePersonOccupations(p *model.Person) error {

@@ -146,12 +146,18 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 			case *model.BirthEvent, *model.DeathEvent:
 				infs := ev.GetParticipantsByRole(model.EventRoleInformant)
 				if len(infs) == 1 {
-					name := t.enc.EncodeModelLinkNamed(infs[0].Person, t.nc, t.pov).String()
+					// an informant who cannot be named is described only by their relationship
+					var name string
+					if infs[0].Person.CanBeNamed() {
+						name = t.enc.EncodeModelLinkNamed(infs[0].Person, t.nc, t.pov).String()
+					}
 					rel := infs[0].Person.RelationTo(t.pov.Person, ev.GetDate())
 					if rel != "" {
 						rel = t.pov.Person.Gender.PossessivePronounSingular() + " " + rel
 					}
-					trailer = text.JoinSentenceParts("the informant was", rel, name)
+					if rel != "" || name != "" {
+						trailer = text.JoinSentenceParts("the informant was", rel, name)
+					}
 				}
 			}
 
@@ -413,9 +419,9 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 		case *model.MarriageEvent:
 			title = text.JoinSentenceParts(party1Link, "married", party2Link)
 		case *model.MarriageLicenseEvent:
-			title = text.JoinSentenceParts(model.What(ev), "for the marriage of ", party1Link, "and", party2Link)
+			title = text.JoinSentenceParts(model.PassiveWhat(ev), "for the marriage of ", party1Link, "and", party2Link)
 		case *model.MarriageBannsEvent:
-			title = text.JoinSentenceParts(model.What(ev), "for the marriage of ", party1Link, "and", party2Link)
+			title = text.JoinSentenceParts(model.PassiveWhat(ev), "for the marriage of ", party1Link, "and", party2Link)
 		default:
 			panic(fmt.Sprintf("unhandled marriage event type: %T", ev))
 		}
@@ -430,8 +436,12 @@ func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev mode
 		switch ep.Role {
 		case model.EventRoleHusband, model.EventRoleWife:
 			spouse := ev.GetOther(t.pov.Person)
-			spouseLink := t.enc.EncodeModelLink(t.enc.EncodeText(t.nc.FirstUse(spouse)), spouse).String()
-			title = ev.TransitiveWhat(spouseLink)
+			if spouse.Redacted {
+				title = ev.What()
+			} else {
+				spouseLink := t.enc.EncodeModelLink(t.enc.EncodeText(t.nc.FirstUse(spouse)), spouse).String()
+				title = ev.TransitiveWhat(spouseLink)
+			}
 		case model.EventRoleWitness:
 			party1 := ev.GetHusband()
 			party2 := ev.GetWife()

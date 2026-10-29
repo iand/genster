@@ -56,6 +56,43 @@ func TestTimelineUnionEventTitleForSpouse(t *testing.T) {
 	}
 }
 
+// A timeline entry seen from no party, as on a place page, describes a licence or banns
+// passively.
+func TestTimelineUnionEventTitleForObserver(t *testing.T) {
+	testCases := []struct {
+		name string
+		ev   func(g model.GeneralUnionEvent) model.TimelineEvent
+		want string
+	}{
+		{
+			name: "banns",
+			ev: func(g model.GeneralUnionEvent) model.TimelineEvent {
+				return &model.MarriageBannsEvent{GeneralUnionEvent: g}
+			},
+			want: "Marriage banns were read for the marriage of James Howes and Mary Frost.",
+		},
+		{
+			name: "licence",
+			ev: func(g model.GeneralUnionEvent) model.TimelineEvent {
+				return &model.MarriageLicenseEvent{GeneralUnionEvent: g}
+			},
+			want: "Marriage licence was obtained for the marriage of James Howes and Mary Frost.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &model.Person{ID: "p", PreferredUniqueName: "James Howes", Gender: model.GenderMale}
+			s := &model.Person{ID: "s", PreferredUniqueName: "Mary Frost", Gender: model.GenderFemale}
+			ev := tc.ev(model.GeneralUnionEvent{Husband: p, Wife: s})
+
+			enc := &md.Content{}
+			fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{}, enc, logging.Default(), &TimelineNameChooser{}, false)
+			checkContains(t, fmtr.Title(0, ev), tc.want, "Had marriage banns", "Obtained a marriage")
+		})
+	}
+}
+
 func TestPersonMarriageSummaryStartEventVerb(t *testing.T) {
 	type fam struct {
 		spouse string

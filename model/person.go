@@ -99,6 +99,18 @@ func (p *Person) IsUnknown() bool {
 	return p.Unknown
 }
 
+// CanBeNamed reports whether output may refer to the person by name: the person
+// is known, has a known name and has not been redacted.
+func (p *Person) CanBeNamed() bool {
+	return !p.IsUnknown() && !p.Unidentified && !p.Redacted
+}
+
+// UnknownNameDescription describes a person whose forename and surname are both
+// unknown, such as "a woman whose name is not known".
+func (p *Person) UnknownNameDescription() string {
+	return "a " + p.Gender.Noun() + " whose name is not known"
+}
+
 func (p *Person) SameAs(other *Person) bool {
 	if p == nil || other == nil {
 		return false

@@ -155,10 +155,19 @@ func (s *IntroStatement[T]) maybeAddTwinAssociation(para *text.Para, enc render.
 		if as.Kind != model.AssociationKindTwin {
 			continue
 		}
-		twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
-		para.StartSentence(s.Principal.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
+		addTwinSentence(para, s.Principal, as, enc)
 		return
 	}
+}
+
+// addTwinSentence starts a sentence saying p was a twin, naming the twin when they can be named.
+func addTwinSentence[T render.EncodedText](para *text.Para, p *model.Person, as model.Association, enc render.TextEncoder[T]) {
+	if !as.Other.CanBeNamed() {
+		para.StartSentence(p.Gender.SubjectPronoun(), enc.EncodeWithCitations(enc.EncodeText("was a twin"), as.Citations).String())
+		return
+	}
+	twinLink := enc.EncodeModelLink(enc.EncodeText(as.Other.PreferredFamiliarName), as.Other)
+	para.StartSentence(p.Gender.SubjectPronoun(), "was the twin to", enc.EncodeWithCitations(twinLink, as.Citations).String())
 }
 
 func (s *IntroStatement[T]) maybeAddBaptismAfterBirth(para *text.Para, enc render.ContentBuilder[T], nc NameChooser, intro *IntroGenerator[T]) {
@@ -263,7 +272,13 @@ func (s *FamilyStatement[T]) Priority() int {
 
 func (s *FamilyStatement[T]) renderMarried(seq int, intro *IntroGenerator[T], enc render.ContentBuilder[T], nc NameChooser) {
 	other := s.Family.OtherParent(s.Principal)
-	otherName := intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
+
+	// a redacted partner is not named: "He married in 1903." or "She had another partner before 1935."
+	var otherName string
+	if !other.Redacted {
+		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
+	}
+	hasOtherFamilies := len(s.Principal.Families) > 1
 
 	var detail text.Para
 	detail.StartSentence(text.UpperFirst(intro.Default(seq, s.Start())))
@@ -276,15 +291,27 @@ func (s *FamilyStatement[T]) renderMarried(seq int, intro *IntroGenerator[T], en
 		action = ChooseFrom(seq, "likely married", "probably married")
 	default:
 		action = "met"
+		if other.Redacted {
+			action = "had a partner"
+			if hasOtherFamilies {
+				action = "had another partner"
+			}
+		}
 	}
 
 	startDate := s.Family.BestStartDate
 	var event string
 	if !startDate.IsUnknown() {
 		detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
-		event = action + " " + otherName + " " + NamedWhen(startDate)
+		event = text.JoinSentenceParts(action, otherName, NamedWhen(startDate))
 		if age, ok := s.Principal.AgeInYearsAt(startDate); ok && (age < 18 || age > 45) {
 			event += " " + AgeQualifier(age)
+		}
+	} else if other.Redacted {
+		detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+		event = action
+		if hasOtherFamilies && s.Family.Bond == model.FamilyBondMarried {
+			event = "also " + action
 		}
 	} else {
 		event = action + " " + otherName
@@ -334,10 +361,19 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 	}
 
 	other := s.Family.OtherParent(s.Principal)
-	otherKnown := !other.IsUnknown()
+	otherUnknown := other.IsUnknown()
+	otherRedacted := !otherUnknown && other.Redacted
+	otherKnown := !otherUnknown && !otherRedacted
 	var otherName string
 	if otherKnown {
 		otherName = intro.IntroducePerson(seq, other, s.Start(), false, enc, nc)
+	}
+
+	// a redacted partner is not named; the children are said to be by another relationship
+	// when the principal had other families
+	var byOther string
+	if otherRedacted && len(s.Principal.Families) > 1 {
+		byOther = "by another relationship"
 	}
 
 	c := s.Family.Children[0]
@@ -348,11 +384,24 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 	var detail text.Para
 
 	switch {
-	case oneChild && !otherKnown && c.BestBirthlikeEvent == nil:
+	case oneChild && c.Redacted:
+		// a redacted child is not named or dated: "had a daughter with an unknown father"
+		detail.Continue(intro.Pronoun(seq, s.Start(), s.Principal))
+		detail.Continue("had a", c.Gender.RelationToParentNoun())
+		switch {
+		case otherKnown:
+			detail.Continue("with", otherName)
+		case otherUnknown:
+			detail.Continue("with an unknown " + s.Principal.Gender.Opposite().RelationToChildrenNoun())
+		default:
+			detail.Continue(byOther)
+		}
+
+	case oneChild && otherUnknown && c.BestBirthlikeEvent == nil:
 		// only the parent-child link is known: state the relationship and leave the child to the list
 		detail.Continue(intro.PossessivePronoun(seq, s.Start(), s.Principal), "only known child was a", c.Gender.RelationToParentNoun())
 
-	case oneChild && isMother && childFirmBirthdate:
+	case oneChild && isMother && childFirmBirthdate && !otherRedacted:
 		// mother with firm birthdate: "gave birth to a [gender]..."
 		if c.BestBirthlikeEvent != nil {
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), otherKnown))
@@ -376,7 +425,7 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 			}
 		}
 
-	case oneChild && isMother && !otherKnown:
+	case oneChild && isMother && otherUnknown:
 		// unknown partner, non-firm birthdate: "had a [gender] [name] who [what/when/where]"
 		if c.BestBirthlikeEvent != nil {
 			detail.AppendAsAside(intro.RelativeTime(seq, c.BestBirthlikeEvent.GetDate(), false))
@@ -412,6 +461,8 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		}
 		if otherKnown {
 			detail.Continue("with", otherName)
+		} else {
+			detail.Continue(byOther)
 		}
 
 	default:
@@ -424,6 +475,8 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		detail.Continue("had", ChildCardinal(s.Family.Children))
 		if otherKnown {
 			detail.Continue("with", otherName)
+		} else {
+			detail.Continue(byOther)
 		}
 	}
 
@@ -453,6 +506,9 @@ func (s *FamilyStatement[T]) renderChildListParagraph(detail *text.Para, enc ren
 	detail.FinishSentenceWithTerminator(":–")
 	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)
+	if other := OtherChildrenSentence(s.Family); other != "" {
+		enc.Para(enc.EncodeText(other))
+	}
 }
 
 // possessiveName is the possessive used for a person on their own page, such as "Henry's", or a
@@ -523,11 +579,9 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 		return d1.SortsBefore(d2)
 	})
 
-	redactedCount := 0
 	childList := make([]T, 0, len(clist))
 	for _, c := range clist {
 		if c.Redacted {
-			redactedCount++
 			continue
 		}
 		childSummary := PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true)
@@ -535,14 +589,34 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 			childList = append(childList, childSummary)
 		}
 	}
-	if len(childList) == 0 {
-		return childList
-	}
-	if redactedCount > 0 {
-		childList = append(childList, enc.EncodeText(text.CardinalWithUnit(redactedCount, "other child", "other children")+" living or recently died"))
-	}
 
 	return childList
+}
+
+// OtherChildrenSentence counts the children of f that are left out of a child list because they
+// are redacted, such as "They also had two other children." It is empty when there are none.
+func OtherChildrenSentence(f *model.Family) string {
+	n := 0
+	for _, c := range f.Children {
+		if c.Redacted {
+			n++
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+
+	subject := "they"
+	switch {
+	case f.Father.IsUnknown() && !f.Mother.IsUnknown():
+		subject = f.Mother.Gender.SubjectPronoun()
+	case f.Mother.IsUnknown() && !f.Father.IsUnknown():
+		subject = f.Father.Gender.SubjectPronoun()
+	}
+
+	var para text.Para
+	para.AddCompleteSentence(subject, "also had", text.CardinalWithUnit(n, "other child", "other children"))
+	return para.Text()
 }
 
 type FamilyEndStatement[T render.EncodedText] struct {
@@ -1121,6 +1195,9 @@ func (s *ChildrenStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], e
 	detail.FinishSentenceWithTerminator(":–")
 	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)
+	if other := OtherChildrenSentence(s.Family); other != "" {
+		enc.Para(enc.EncodeText(other))
+	}
 }
 
 func (s *ChildrenStatement[T]) Start() *model.Date {

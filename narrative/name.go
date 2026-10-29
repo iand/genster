@@ -239,12 +239,7 @@ func (c UniqueNameChooser) SubsequentSplit(v any, pov *model.POV) (string, strin
 // neither the person's forename nor surname is known.
 func personName(p *model.Person, name string) string {
 	if p.Unidentified {
-		return UnidentifiedName(p)
+		return p.UnknownNameDescription()
 	}
 	return name
-}
-
-// UnidentifiedName describes a person whose forename and surname are both unknown.
-func UnidentifiedName(p *model.Person) string {
-	return "a " + p.Gender.Noun() + " whose name is not known"
 }
