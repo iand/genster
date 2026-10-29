@@ -81,7 +81,7 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 			}
 		} else if tev, ok := ev.(model.UnionTimelineEvent); ok {
 			p1 := tev.GetHusband()
-			p2 := tev.GetHusband()
+			p2 := tev.GetWife()
 			if p1.RelationToKeyPerson.IsDirectAncestor() && p2.RelationToKeyPerson.IsDirectAncestor() {
 				evd.text += " Both are direct ancestors."
 			} else if p1.RelationToKeyPerson.IsDirectAncestor() {
