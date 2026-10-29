@@ -273,6 +273,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 	// since expand timeline will add events to parents timelines
 	for _, f := range t.sortedFamilies() {
 		t.InferFamilyRelationships(f)
+		infer.InferFamilyBond(f)
 	}
 
 	t.BuildRelationsToKeyPerson()
@@ -309,6 +310,7 @@ func (t *Tree) Generate(redactLiving bool) error {
 	// before redaction removes them
 	for _, p := range t.sortedPeople() {
 		infer.CheckChronology(p)
+		infer.CheckDuplicatePartners(p)
 	}
 
 	// Redact any personal information

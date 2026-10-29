@@ -299,9 +299,23 @@ func (s *FamilyStatement[T]) renderMarried(seq int, intro *IntroGenerator[T], en
 		}
 	}
 
+	// a relationship with no start event and no children can only be dated by a death, which
+	// says nothing about when it began: "He had a relationship with Hannah Gibbard."
 	startDate := s.Family.BestStartDate
+	undated := action == "met" && s.Family.BestStartEvent == nil && len(s.Family.Children) == 0
+	if undated {
+		startDate = nil
+		action = "had a relationship with"
+		if hasOtherFamilies {
+			action = "also had a relationship with"
+		}
+	}
+
 	var event string
-	if !startDate.IsUnknown() {
+	if undated {
+		detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
+		event = action + " " + otherName
+	} else if !startDate.IsUnknown() {
 		detail.ReplaceSentence(intro.Pronoun(seq, s.Start(), s.Principal))
 		event = text.JoinSentenceParts(action, otherName, NamedWhen(startDate))
 		if age, ok := s.Principal.AgeInYearsAt(startDate); ok && (age < 18 || age > 45) {
@@ -646,11 +660,7 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 	case model.FamilyEndReasonDivorce:
 		detail.StartSentence(s.Principal.PreferredFamiliarName, "and", other.PreferredFamiliarName, "divorced", endDate.When())
 	case model.FamilyEndReasonDeath:
-		name := s.Principal.Gender.PossessivePronounSingular() + " " + other.Gender.RelationToSpouseNoun()
-		if !other.IsUnknown() && !other.Unidentified {
-			name = other.PreferredFamiliarName + ", " + name + ", "
-		}
-		detail.StartSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(name), true, false, true, true).String())
+		detail.StartSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(s.otherPartyName(other, enc)), true, false, true, true).String())
 		// if (other.BestDeathlikeEvent != nil && !other.BestDeathlikeEvent.IsInferred()) && (s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried) {
 		// 	detail.StartSentence(s.Principal.PreferredFamiliarName, "was left a", s.Principal.Gender.WidowWidower())
 		// }
@@ -664,6 +674,43 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 	}
 
 	enc.Para(enc.EncodeText(detail.Text()))
+}
+
+// otherPartyName names the other party of the family for a sentence about their death: "Frances,
+// his wife," for a married or likely married couple, otherwise by the children they had, as in
+// "Annie Louisa Tew, the mother of his son Bertie,", or by name alone when they had none.
+func (s *FamilyEndStatement[T]) otherPartyName(other *model.Person, enc render.ContentBuilder[T]) string {
+	if s.Family.Bond == model.FamilyBondMarried || s.Family.Bond == model.FamilyBondLikelyMarried {
+		label := s.Principal.Gender.PossessivePronounSingular() + " " + other.Gender.RelationToSpouseNoun()
+		if other.Unidentified {
+			return label
+		}
+		return other.PreferredFamiliarName + ", " + label + ", "
+	}
+
+	var label string
+	switch len(s.Family.Children) {
+	case 0:
+	case 1:
+		c := s.Family.Children[0]
+		label = "the " + other.Gender.RelationToChildrenNoun() + " of " + s.Principal.Gender.PossessivePronounSingular() + " " + c.Gender.RelationToParentNoun()
+		if c.CanBeNamed() {
+			label += " " + enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String()
+		}
+	default:
+		label = "the " + other.Gender.RelationToChildrenNoun() + " of " + s.Principal.Gender.PossessivePronounSingular() + " children"
+	}
+
+	switch {
+	case other.Unidentified && label == "":
+		return other.UnknownNameDescription()
+	case other.Unidentified:
+		return label
+	case label == "":
+		return other.PreferredFullName
+	default:
+		return other.PreferredFullName + ", " + label + ", "
+	}
 }
 
 func (s *FamilyEndStatement[T]) Start() *model.Date {

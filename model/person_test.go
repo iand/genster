@@ -1,6 +1,9 @@
 package model
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestPersonCanBeNamed(t *testing.T) {
 	testCases := []struct {
@@ -21,6 +24,31 @@ func TestPersonCanBeNamed(t *testing.T) {
 				t.Errorf("got %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+// A partner the person was not married to is their partner, whatever children they had.
+func TestPersonRelationToUnmarriedPartner(t *testing.T) {
+	for _, children := range []int{0, 1, 2} {
+		for _, bond := range []string{FamilyBondUnmarried, FamilyBondLikelyUnmarried, FamilyBondUnknown} {
+			t.Run(fmt.Sprintf("%s with %d children", bond, children), func(t *testing.T) {
+				man := &Person{ID: "m", Gender: GenderMale}
+				woman := &Person{ID: "w", Gender: GenderFemale}
+				f := &Family{ID: "f", Bond: bond, Father: man, Mother: woman}
+				for i := range children {
+					f.Children = append(f.Children, &Person{ID: fmt.Sprintf("c%d", i), Gender: GenderMale})
+				}
+				man.Families = []*Family{f}
+				woman.Families = []*Family{f}
+
+				if got := woman.RelationTo(man, Year(1900)); got != "partner" {
+					t.Errorf("woman to man: got %q, want %q", got, "partner")
+				}
+				if got := man.RelationTo(woman, Year(1900)); got != "partner" {
+					t.Errorf("man to woman: got %q, want %q", got, "partner")
+				}
+			})
+		}
 	}
 }
 

@@ -238,26 +238,9 @@ func (p *Person) RelationTo(other *Person, dt *Date) string {
 					return "husband"
 				}
 			}
-		} else {
-			if f.Father.SameAs(other) {
-				switch len(f.Children) {
-				case 0:
-					return "partner"
-				case 1:
-					return f.Children[0].Gender.RelationToParentNoun() + "'s mother"
-				default:
-					return "children's mother"
-				}
-			} else if f.Mother.SameAs(other) {
-				switch len(f.Children) {
-				case 0:
-					return "partner"
-				case 1:
-					return f.Children[0].Gender.RelationToParentNoun() + "'s father"
-				default:
-					return "children's father"
-				}
-			}
+		} else if f.Father.SameAs(other) || f.Mother.SameAs(other) {
+			// a partner the person was not married to, whether or not they had children
+			return "partner"
 		}
 	}
 
