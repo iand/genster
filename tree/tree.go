@@ -308,6 +308,12 @@ func (t *Tree) Generate(redactLiving bool) error {
 	// Redact any personal information
 	t.Redact(redactLiving)
 
+	// Describe people whose name is not known once the names of their
+	// relatives are final
+	for _, p := range t.sortedPeople() {
+		t.DescribeUnidentifiedPerson(p)
+	}
+
 	for _, p := range t.sortedPeople() {
 		t.TrimPersonTimeline(p)
 		t.CrossReferenceCitations(p)
@@ -536,25 +542,34 @@ func (t *Tree) AddSpouses(f *model.Family) error {
 }
 
 func (t *Tree) RefineFamilyNames(f *model.Family) error {
-	if f.Mother.IsUnknown() {
-		if f.Father.IsUnknown() {
+	// A partner whose name is not known is left out of the family's name when
+	// the other partner is named
+	father, mother := f.Father, f.Mother
+	if mother.Unidentified && !father.IsUnknown() && !father.Unidentified {
+		mother = nil
+	} else if father.Unidentified && !mother.IsUnknown() && !mother.Unidentified {
+		father = nil
+	}
+
+	if mother.IsUnknown() {
+		if father.IsUnknown() {
 			f.PreferredUniqueName = "Unknown parents"
 			f.PreferredFullName = "Unknown parents"
 			f.PreferredFamiliarName = "Unknown parents"
 		} else {
-			f.PreferredUniqueName = f.Father.PreferredUniqueName
-			f.PreferredFullName = f.Father.PreferredFullName
-			f.PreferredFamiliarName = f.Father.PreferredFamiliarName
+			f.PreferredUniqueName = father.PreferredUniqueName
+			f.PreferredFullName = father.PreferredFullName
+			f.PreferredFamiliarName = father.PreferredFamiliarName
 		}
 	} else {
-		if f.Father.IsUnknown() {
-			f.PreferredUniqueName = f.Mother.PreferredUniqueName
-			f.PreferredFullName = f.Mother.PreferredFullName
-			f.PreferredFamiliarName = f.Mother.PreferredFamiliarName
+		if father.IsUnknown() {
+			f.PreferredUniqueName = mother.PreferredUniqueName
+			f.PreferredFullName = mother.PreferredFullName
+			f.PreferredFamiliarName = mother.PreferredFamiliarName
 		} else {
-			f.PreferredUniqueName = f.Father.PreferredUniqueName + " and " + f.Mother.PreferredUniqueName
-			f.PreferredFullName = f.Father.PreferredFullName + " and " + f.Mother.PreferredFullName
-			f.PreferredFamiliarName = f.Father.PreferredFamiliarName + " and " + f.Mother.PreferredFamiliarName
+			f.PreferredUniqueName = father.PreferredUniqueName + " and " + mother.PreferredUniqueName
+			f.PreferredFullName = father.PreferredFullName + " and " + mother.PreferredFullName
+			f.PreferredFamiliarName = father.PreferredFamiliarName + " and " + mother.PreferredFamiliarName
 		}
 	}
 
@@ -704,6 +719,75 @@ func (t *Tree) RefinePersonNames(p *model.Person) error {
 	}
 
 	return nil
+}
+
+// DescribeUnidentifiedPerson sets the unique name of a person whose name is not
+// known to a description of their relationship to a named relative, such as
+// "Wife of William Russel (1711–1771)". It prefers the earliest spouse, then
+// the eldest child, then the parents. Redacted relatives are not used.
+func (t *Tree) DescribeUnidentifiedPerson(p *model.Person) error {
+	if !p.Unidentified || p.Redacted {
+		return nil
+	}
+
+	named := func(o *model.Person) bool {
+		return !o.IsUnknown() && !o.Unidentified && !o.Redacted
+	}
+
+	var spouse *model.Person
+	var spouseStart *model.Date
+	for _, f := range p.Families {
+		other := f.OtherParent(p)
+		if !named(other) {
+			continue
+		}
+		if spouse == nil || f.BestStartDate.SortsBefore(spouseStart) {
+			spouse = other
+			spouseStart = f.BestStartDate
+		}
+	}
+	if spouse != nil {
+		p.PreferredUniqueName = genderedRelation(p.Gender, "Husband", "Wife", "Spouse") + " of " + spouse.PreferredUniqueName
+		return nil
+	}
+
+	var child *model.Person
+	for _, c := range p.Children {
+		if !named(c) {
+			continue
+		}
+		if child == nil || c.BestBirthDate().SortsBefore(child.BestBirthDate()) {
+			child = c
+		}
+	}
+	if child != nil {
+		p.PreferredUniqueName = genderedRelation(p.Gender, "Father", "Mother", "Parent") + " of " + child.PreferredUniqueName
+		return nil
+	}
+
+	var parents []string
+	if named(p.Father) {
+		parents = append(parents, p.Father.PreferredUniqueName)
+	}
+	if named(p.Mother) {
+		parents = append(parents, p.Mother.PreferredUniqueName)
+	}
+	if len(parents) > 0 {
+		p.PreferredUniqueName = genderedRelation(p.Gender, "Son", "Daughter", "Child") + " of " + strings.Join(parents, " and ")
+	}
+
+	return nil
+}
+
+func genderedRelation(g model.Gender, male, female, unknown string) string {
+	switch {
+	case g.IsMale():
+		return male
+	case g.IsFemale():
+		return female
+	default:
+		return unknown
+	}
 }
 
 func (t *Tree) RefinePersonOccupations(p *model.Person) error {

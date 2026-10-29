@@ -22,7 +22,7 @@ var _ NameChooser = DefaultNameChooser{}
 func (c DefaultNameChooser) FirstUse(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredUniqueName
+		return personName(vt, vt.PreferredUniqueName)
 	case *model.Place:
 		return vt.ProseName
 	case *model.Family:
@@ -35,7 +35,7 @@ func (c DefaultNameChooser) FirstUse(v any) string {
 func (c DefaultNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredUniqueName, ""
+		return "", personName(vt, vt.PreferredUniqueName), ""
 	case *model.Place:
 		prefix := vt.DescriptivePrefix()
 		if prefix != "" {
@@ -57,7 +57,7 @@ func (c DefaultNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string
 func (c DefaultNameChooser) Subsequent(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredFamiliarName
+		return personName(vt, vt.PreferredFamiliarName)
 	case *model.Place:
 		return vt.NameWithDistrict
 	case *model.Family:
@@ -70,7 +70,7 @@ func (c DefaultNameChooser) Subsequent(v any) string {
 func (c DefaultNameChooser) SubsequentSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredFamiliarName, ""
+		return "", personName(vt, vt.PreferredFamiliarName), ""
 	case *model.Place:
 		return "", vt.NameWithDistrict, ""
 	case *model.Family:
@@ -88,7 +88,7 @@ var _ NameChooser = FullNameChooser{}
 func (c FullNameChooser) FirstUse(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredFullName
+		return personName(vt, vt.PreferredFullName)
 	case *model.Place:
 		return vt.FullName
 	case *model.Family:
@@ -101,7 +101,7 @@ func (c FullNameChooser) FirstUse(v any) string {
 func (c FullNameChooser) Subsequent(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredFullName
+		return personName(vt, vt.PreferredFullName)
 	case *model.Place:
 		return vt.FullName
 	case *model.Family:
@@ -114,7 +114,7 @@ func (c FullNameChooser) Subsequent(v any) string {
 func (c FullNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredFullName, ""
+		return "", personName(vt, vt.PreferredFullName), ""
 	case *model.Place:
 		return "", vt.FullName, ""
 	case *model.Family:
@@ -127,7 +127,7 @@ func (c FullNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, s
 func (c FullNameChooser) SubsequentSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredFullName, ""
+		return "", personName(vt, vt.PreferredFullName), ""
 	case *model.Place:
 		return "", vt.FullName, ""
 	case *model.Family:
@@ -144,7 +144,7 @@ var _ NameChooser = TimelineNameChooser{}
 func (c TimelineNameChooser) FirstUse(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredUniqueName
+		return personName(vt, vt.PreferredUniqueName)
 	case *model.Place:
 		return vt.FullName
 	case *model.Family:
@@ -157,7 +157,7 @@ func (c TimelineNameChooser) FirstUse(v any) string {
 func (c TimelineNameChooser) Subsequent(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredFamiliarName
+		return personName(vt, vt.PreferredFamiliarName)
 	case *model.Place:
 		return vt.NameWithDistrict
 	case *model.Family:
@@ -170,7 +170,7 @@ func (c TimelineNameChooser) Subsequent(v any) string {
 func (c TimelineNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredUniqueName, ""
+		return "", personName(vt, vt.PreferredUniqueName), ""
 	case *model.Place:
 		if pov != nil && vt.SameCountry(pov.Place) {
 			return "", vt.NameWithRegion, ""
@@ -186,7 +186,7 @@ func (c TimelineNameChooser) FirstUseSplit(v any, pov *model.POV) (string, strin
 func (c TimelineNameChooser) SubsequentSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredFamiliarName, ""
+		return "", personName(vt, vt.PreferredFamiliarName), ""
 	case *model.Place:
 		return "", vt.NameWithDistrict, ""
 	case *model.Family:
@@ -204,7 +204,7 @@ var _ NameChooser = UniqueNameChooser{}
 func (c UniqueNameChooser) FirstUse(v any) string {
 	switch vt := v.(type) {
 	case *model.Person:
-		return vt.PreferredUniqueName
+		return personName(vt, vt.PreferredUniqueName)
 	case *model.Place:
 		return vt.FullName
 	case *model.Family:
@@ -221,7 +221,7 @@ func (c UniqueNameChooser) Subsequent(v any) string {
 func (c UniqueNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string, string) {
 	switch vt := v.(type) {
 	case *model.Person:
-		return "", vt.PreferredUniqueName, ""
+		return "", personName(vt, vt.PreferredUniqueName), ""
 	case *model.Place:
 		return "", vt.FullName, ""
 	case *model.Family:
@@ -233,4 +233,18 @@ func (c UniqueNameChooser) FirstUseSplit(v any, pov *model.POV) (string, string,
 
 func (c UniqueNameChooser) SubsequentSplit(v any, pov *model.POV) (string, string, string) {
 	return c.FirstUseSplit(v, pov)
+}
+
+// personName returns name, or a description such as "a woman whose name is not known" when
+// neither the person's forename nor surname is known.
+func personName(p *model.Person, name string) string {
+	if p.Unidentified {
+		return UnidentifiedName(p)
+	}
+	return name
+}
+
+// UnidentifiedName describes a person whose forename and surname are both unknown.
+func UnidentifiedName(p *model.Person) string {
+	return "a " + p.Gender.Noun() + " whose name is not known"
 }

@@ -22,12 +22,16 @@ func TestTimelineUnionEventTitleForSpouse(t *testing.T) {
 		},
 		{
 			name: "banns",
-			ev:   func(g model.GeneralUnionEvent) model.TimelineEvent { return &model.MarriageBannsEvent{GeneralUnionEvent: g} },
+			ev: func(g model.GeneralUnionEvent) model.TimelineEvent {
+				return &model.MarriageBannsEvent{GeneralUnionEvent: g}
+			},
 			want: "Had banns read to marry Mary Frost.",
 		},
 		{
 			name: "licence",
-			ev:   func(g model.GeneralUnionEvent) model.TimelineEvent { return &model.MarriageLicenseEvent{GeneralUnionEvent: g} },
+			ev: func(g model.GeneralUnionEvent) model.TimelineEvent {
+				return &model.MarriageLicenseEvent{GeneralUnionEvent: g}
+			},
 			want: "Obtained a licence to marry Mary Frost.",
 		},
 	}

@@ -47,7 +47,9 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 
 	if s.Principal.BestBirthlikeEvent == nil && s.Principal.Father.IsUnknown() && s.Principal.Mother.IsUnknown() {
 		if len(s.PossibleBirths) > 0 {
-			s.addPossibleBirths(&para, text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), enc, nc, intro)
+			s.addPossibleBirths(&para, possessiveName(s.Principal), enc, nc, intro)
+		} else if s.Principal.Unidentified {
+			para.StartSentence("nothing is known about", s.Principal.Gender.PossessivePronounSingular(), "early life")
 		} else {
 			para.StartSentence("nothing is known about the early life of", s.Principal.PreferredGivenName)
 			s.maybeAppendNickname(&para)
@@ -453,6 +455,15 @@ func (s *FamilyStatement[T]) renderChildListParagraph(detail *text.Para, enc ren
 	enc.UnorderedList(childList)
 }
 
+// possessiveName is the possessive used for a person on their own page, such as "Henry's", or a
+// pronoun such as "her" when neither their forename nor surname is known.
+func possessiveName(p *model.Person) string {
+	if p.Unidentified {
+		return p.Gender.PossessivePronounSingular()
+	}
+	return text.MaybePossessiveSuffix(p.PreferredGivenName)
+}
+
 // continueOrStartSentence starts a new sentence when s begins with ". ", otherwise it continues
 // the current sentence.
 func continueOrStartSentence(para *text.Para, s string) {
@@ -562,7 +573,7 @@ func (s *FamilyEndStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], 
 		detail.StartSentence(s.Principal.PreferredFamiliarName, "and", other.PreferredFamiliarName, "divorced", endDate.When())
 	case model.FamilyEndReasonDeath:
 		name := s.Principal.Gender.PossessivePronounSingular() + " " + other.Gender.RelationToSpouseNoun()
-		if !other.IsUnknown() {
+		if !other.IsUnknown() && !other.Unidentified {
 			name = other.PreferredFamiliarName + ", " + name + ", "
 		}
 		detail.StartSentence(PersonDeathSummary(other, enc, nc, enc.EncodeText(name), true, false, true, true).String())
@@ -805,7 +816,7 @@ func (s *DeathStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T
 				hasCitation = true
 			}
 		}
-		para.StartSentence("no record of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death has been confirmed, but")
+		para.StartSentence("no record of", possessiveName(s.Principal), "death has been confirmed, but")
 		if hasCitation {
 			para.Continue("there is some evidence that", s.Principal.Gender.SubjectPronoun(), "died")
 		} else {
@@ -813,7 +824,7 @@ func (s *DeathStatement[T]) RenderDetailUnknown(seq int, intro *IntroGenerator[T
 		}
 		para.FinishSentence(text.JoinListOr(list))
 	} else {
-		para.StartSentence("the time and place of", text.MaybePossessiveSuffix(s.Principal.PreferredGivenName), "death is not known")
+		para.StartSentence("the time and place of", possessiveName(s.Principal), "death is not known")
 	}
 	enc.Para(enc.EncodeText(para.Text()))
 	return nil

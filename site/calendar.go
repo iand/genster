@@ -62,7 +62,14 @@ func (c *Calendar) RenderPage(s *Site) (render.Document[md.Text], error) {
 		case *model.BurialEvent:
 			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Principal.PreferredUniqueName), tev.Principal).String() + " was buried."
 		case *model.MarriageEvent:
-			evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Husband.PreferredUniqueName), tev.Husband).String() + " and " + doc.EncodeModelLink(doc.EncodeText(tev.Wife.PreferredUniqueName), tev.Wife).String() + " were married."
+			switch {
+			case tev.Wife.Unidentified && !tev.Husband.Unidentified:
+				evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Husband.PreferredUniqueName), tev.Husband).String() + " married " + doc.EncodeModelLink(doc.EncodeText(narrative.UnidentifiedName(tev.Wife)), tev.Wife).String() + "."
+			case tev.Husband.Unidentified && !tev.Wife.Unidentified:
+				evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Wife.PreferredUniqueName), tev.Wife).String() + " married " + doc.EncodeModelLink(doc.EncodeText(narrative.UnidentifiedName(tev.Husband)), tev.Husband).String() + "."
+			default:
+				evd.text = doc.EncodeModelLink(doc.EncodeText(tev.Husband.PreferredUniqueName), tev.Husband).String() + " and " + doc.EncodeModelLink(doc.EncodeText(tev.Wife.PreferredUniqueName), tev.Wife).String() + " were married."
+			}
 		default:
 			evd.text = narrative.EventWhatWhenWhere(tev, doc, narrative.DefaultNameChooser{})
 		}

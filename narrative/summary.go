@@ -807,7 +807,7 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		// more detail
 		f := fams[0]
 		other := f.OtherParent(p)
-		what := familyStartWhat(f, enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String())
+		what := familyStartWhat(f, enc.EncodeModelLink(enc.EncodeText(personName(other, other.PreferredFamiliarFullName)), other).String())
 		if f.BestStartEvent == nil {
 			marrs = append(marrs, what)
 		} else {
@@ -818,7 +818,7 @@ func PersonMarriageSummary[T render.EncodedText](p *model.Person, enc render.Tex
 		prevKind := ""
 		for i, f := range fams {
 			other := f.OtherParent(p)
-			otherLink := enc.EncodeModelLink(enc.EncodeText(other.PreferredFamiliarFullName), other).String()
+			otherLink := enc.EncodeModelLink(enc.EncodeText(personName(other, other.PreferredFamiliarFullName)), other).String()
 			kind := "marriage"
 			if f.BestStartEvent != nil {
 				kind = f.BestStartEvent.Type()
@@ -1335,7 +1335,7 @@ func GenerateOlb(p *model.Person) string {
 		} else if bf.NumberOfMarriages > 0 {
 			if bf.AgeAtFirstMarriage > 0 && bf.AgeAtFirstMarriage < 18 {
 				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
-					clauses = append(clauses, "married "+bf.Spouses[0].PreferredFamiliarFullName+" at "+strconv.Itoa(bf.AgeAtFirstMarriage))
+					clauses = append(clauses, "married "+personName(bf.Spouses[0], bf.Spouses[0].PreferredFamiliarFullName)+" at "+strconv.Itoa(bf.AgeAtFirstMarriage))
 				} else if bf.NumberOfMarriages == 2 {
 					clauses = append(clauses, "married at "+strconv.Itoa(bf.AgeAtFirstMarriage)+" then later remarried")
 				} else {
@@ -1343,7 +1343,7 @@ func GenerateOlb(p *model.Person) string {
 				}
 			} else {
 				if bf.NumberOfMarriages == 1 && len(bf.Spouses) > 0 {
-					clauses = append(clauses, "married "+bf.Spouses[0].PreferredFamiliarFullName)
+					clauses = append(clauses, "married "+personName(bf.Spouses[0], bf.Spouses[0].PreferredFamiliarFullName))
 				} else {
 					clauses = append(clauses, "married "+text.MultiplicativeAdverb(bf.NumberOfMarriages))
 				}

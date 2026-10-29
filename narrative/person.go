@@ -172,6 +172,9 @@ func (n *IntroGenerator[T]) IntroducePerson(seq int, p *model.Person, dt *model.
 	if p.IsUnknown() {
 		return "an unknown person"
 	}
+	if p.Unidentified {
+		return enc.EncodeModelLink(enc.EncodeText(UnidentifiedName(p)), p).String()
+	}
 
 	occ := p.OccupationAt(dt)
 	occDetail := ""
