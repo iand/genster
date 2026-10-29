@@ -30,61 +30,7 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	logger.Debug("populating from place record", "handle", gp.Handle)
 	pl.Name += "@@" + gp.Type + "@@"
 
-	switch strings.ToLower(gp.Type) {
-	case "country":
-		pl.PlaceType = model.PlaceTypeCountry
-	case "building":
-		pl.PlaceType = model.PlaceTypeBuilding
-	case "street":
-		pl.PlaceType = model.PlaceTypeStreet
-	case "ship":
-		pl.PlaceType = model.PlaceTypeShip
-	case "category":
-		pl.PlaceType = model.PlaceTypeCategory
-	case "register office":
-		pl.PlaceType = model.PlaceTypeBuilding
-		pl.BuildingKind = model.BuildingKindRegisterOffice
-		pl.Singular = true
-	case "workhouse":
-		pl.PlaceType = model.PlaceTypeBuilding
-		pl.BuildingKind = model.BuildingKindWorkhouse
-		pl.Singular = true
-	case "church":
-		pl.PlaceType = model.PlaceTypeBuilding
-		pl.BuildingKind = model.BuildingKindChurch
-	case "farm":
-		pl.PlaceType = model.PlaceTypeBuilding
-		pl.BuildingKind = model.BuildingKindFarm
-	case "cemetery":
-		pl.PlaceType = model.PlaceTypeBurialGround
-	case "hospital":
-		pl.PlaceType = model.PlaceTypeBuilding
-		pl.BuildingKind = model.BuildingKindHospital
-	case "parish":
-		pl.PlaceType = model.PlaceTypeParish
-	case "ancient county", "county":
-		pl.PlaceType = model.PlaceTypeCounty
-	case "city":
-		pl.PlaceType = model.PlaceTypeCity
-	case "town":
-		pl.PlaceType = model.PlaceTypeTown
-	case "village":
-		pl.PlaceType = model.PlaceTypeVillage
-	case "hamlet":
-		pl.PlaceType = model.PlaceTypeHamlet
-	case "registration district":
-		pl.PlaceType = model.PlaceTypeRegistrationDistrict
-	case "prestegjeld":
-		// Norwegian parish equivalent to a modern municipality
-		pl.PlaceType = model.PlaceTypeParish
-	case "kirkesokn":
-		// Norwegian sub-parish
-		pl.PlaceType = model.PlaceTypeParish
-	case "probate registry":
-		pl.PlaceType = model.PlaceTypeProbateOffice
-	default:
-		pl.PlaceType = model.PlaceTypeUnknown
-	}
+	applyGrampsPlaceType(pl, gp.Type)
 
 	if len(gp.Pname) == 0 {
 		pl.Name = model.UnknownPlaceName
@@ -93,6 +39,11 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 	} else {
 		// TODO: support multiple place names
 		name := strings.TrimSpace(gp.Pname[0].Value)
+
+		// a number entered as a street, such as "164" in North Street, is a numbered building
+		if pl.PlaceType == model.PlaceTypeStreet && text.StartsWithNumeral(name) {
+			pl.PlaceType = model.PlaceTypeBuilding
+		}
 
 		if pl.PlaceType == model.PlaceTypeBuilding {
 			if text.StartsWithNumeral(name) {
@@ -176,8 +127,9 @@ func (l *Loader) populatePlaceFacts(m ModelFinder, gp *grampsxml.Placeobj) error
 			}
 			parent := m.FindPlace(l.ScopeName, persistentID(paro.ID, paro.Handle))
 
-			// handle buildings or streets
-			if !parent.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding) {
+			// a numbered building is combined with the street, building or hamlet it is in:
+			// "16 Rushden Hill"
+			if !parent.IsUnknown() && pl.Numbered && pl.PlaceType == model.PlaceTypeBuilding && (parent.PlaceType == model.PlaceTypeStreet || parent.PlaceType == model.PlaceTypeBuilding || parent.PlaceType == model.PlaceTypeHamlet) {
 				// combine into a single place
 				if parent.Name != "" {
 					pl.Name += " " + parent.Name
@@ -272,5 +224,65 @@ func reckoningForPlace(pl *model.Place) gdate.ReckoningLocation {
 		return gdate.ReckoningLocationIreland
 	default:
 		return gdate.ReckoningLocationNone
+	}
+}
+
+// applyGrampsPlaceType sets the place type, and the kind of building where it has one, from
+// the type of a Gramps place.
+func applyGrampsPlaceType(pl *model.Place, grampsType string) {
+	switch strings.ToLower(grampsType) {
+	case "country":
+		pl.PlaceType = model.PlaceTypeCountry
+	case "building":
+		pl.PlaceType = model.PlaceTypeBuilding
+	case "street":
+		pl.PlaceType = model.PlaceTypeStreet
+	case "ship", "canal boat":
+		pl.PlaceType = model.PlaceTypeVessel
+	case "category":
+		pl.PlaceType = model.PlaceTypeCategory
+	case "register office":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindRegisterOffice
+		pl.Singular = true
+	case "workhouse":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindWorkhouse
+		pl.Singular = true
+	case "church":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindChurch
+	case "farm":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindFarm
+	case "cemetery":
+		pl.PlaceType = model.PlaceTypeBurialGround
+	case "hospital":
+		pl.PlaceType = model.PlaceTypeBuilding
+		pl.BuildingKind = model.BuildingKindHospital
+	case "parish":
+		pl.PlaceType = model.PlaceTypeParish
+	case "ancient county", "county":
+		pl.PlaceType = model.PlaceTypeCounty
+	case "city":
+		pl.PlaceType = model.PlaceTypeCity
+	case "town":
+		pl.PlaceType = model.PlaceTypeTown
+	case "village":
+		pl.PlaceType = model.PlaceTypeVillage
+	case "hamlet":
+		pl.PlaceType = model.PlaceTypeHamlet
+	case "registration district":
+		pl.PlaceType = model.PlaceTypeRegistrationDistrict
+	case "prestegjeld":
+		// Norwegian parish equivalent to a modern municipality
+		pl.PlaceType = model.PlaceTypeParish
+	case "kirkesokn":
+		// Norwegian sub-parish
+		pl.PlaceType = model.PlaceTypeParish
+	case "probate registry":
+		pl.PlaceType = model.PlaceTypeProbateOffice
+	default:
+		pl.PlaceType = model.PlaceTypeUnknown
 	}
 }

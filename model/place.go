@@ -128,7 +128,7 @@ func (p *Place) InAt() string {
 		return "at"
 	case PlaceTypeStreet:
 		return "at"
-	case PlaceTypeShip:
+	case PlaceTypeVessel:
 		return "aboard the"
 	case PlaceTypeProbateOffice:
 		return "at the"
@@ -209,7 +209,7 @@ const (
 	PlaceTypeBuilding             = "building"
 	PlaceTypeBurialGround         = "burial ground"
 	PlaceTypeStreet               = "street"
-	PlaceTypeShip                 = "ship"
+	PlaceTypeVessel               = "vessel"   // a ship or boat
 	PlaceTypeCategory             = "category" // used ony for grouping related places
 	PlaceTypeCity                 = "city"
 	PlaceTypeTown                 = "town"
