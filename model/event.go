@@ -369,9 +369,10 @@ func (e *GeneralUnionEvent) GetParticipantsByRole(r EventRole) []*EventParticipa
 }
 
 func (e *GeneralUnionEvent) AddParticipant(ep *EventParticipant) {
-	if ep.Role == EventRoleHusband {
+	switch ep.Role {
+	case EventRoleHusband:
 		e.Husband = ep.Person
-	} else if ep.Role == EventRoleWife {
+	case EventRoleWife:
 		e.Wife = ep.Person
 	}
 	e.Participants = append(e.Participants, ep)

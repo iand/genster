@@ -102,7 +102,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) whenWhat(ev model.TimelineEvent) st
 	return model.What(ev)
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.IndividualTimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(_ int, ev model.IndividualTimelineEvent) string {
 	var title string
 	var trailer string
 	what := t.whenWhat(ev)
@@ -188,7 +188,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) vitalEventTitle(seq int, ev model.I
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model.CensusEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(_ int, ev *model.CensusEvent) string {
 	var title string
 	title = text.JoinSentenceParts(title, t.observerContext(ev, false), "recorded in the")
 	year, ok := ev.GetDate().Year()
@@ -207,7 +207,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) censusEventTitle(seq int, ev *model
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) generalEventTitle(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) generalEventTitle(_ int, ev model.TimelineEvent) string {
 	if ev.What() == "" {
 		return ""
 	}
@@ -220,7 +220,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) generalEventTitle(seq int, ev model
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(_ int, ev model.TimelineEvent) string {
 	var title string
 	what := t.whenWhat(ev)
 	pl := ev.GetPlace()
@@ -267,7 +267,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) probateEventTitle(seq int, ev model
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) willEventTitle(seq int, ev model.TimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) willEventTitle(_ int, ev model.TimelineEvent) string {
 	var title string
 	what := t.whenWhat(ev)
 	pl := ev.GetPlace()
@@ -326,7 +326,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) residenceEventTitle(seq int, ev *mo
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model.MusterEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) musterEventTitle(_ int, ev *model.MusterEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev, false), "recorded")
 
 	if regiment, ok := ev.GetAttribute(model.EventAttributeRegiment); ok {
@@ -345,7 +345,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) musterEventTitle(seq int, ev *model
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *model.ArrivalEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) arrivalEventTitle(_ int, ev *model.ArrivalEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev, false), "arrived")
 
 	pl := ev.GetPlace()
@@ -359,7 +359,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) arrivalEventTitle(seq int, ev *mode
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(seq int, ev *model.DepartureEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(_ int, ev *model.DepartureEvent) string {
 	title := text.JoinSentenceParts(t.observerContext(ev, false), "departed")
 
 	pl := ev.GetPlace()
@@ -373,7 +373,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) departureEventTitle(seq int, ev *mo
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int, ev *model.InstitutionEntryEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(_ int, ev *model.InstitutionEntryEvent) string {
 	title := ev.GetDetail()
 	if title == "" {
 		title = text.JoinSentenceParts(t.observerContext(ev, false), "entered")
@@ -389,7 +389,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) institutionEntryEventTitle(seq int,
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(seq int, ev *model.InstitutionDepartureEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(_ int, ev *model.InstitutionDepartureEvent) string {
 	title := ev.GetDetail()
 	if title == "" {
 		title = text.JoinSentenceParts(t.observerContext(ev, false), "left")
@@ -406,7 +406,7 @@ func (t *NarrativeTimelineEntryFormatter[T]) institutionDepartureEventTitle(seq 
 	return title
 }
 
-func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(seq int, ev model.UnionTimelineEvent) string {
+func (t *NarrativeTimelineEntryFormatter[T]) marriageEventTitle(_ int, ev model.UnionTimelineEvent) string {
 	title := ""
 	if t.pov.Person.IsUnknown() {
 		party1 := ev.GetHusband()

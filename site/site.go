@@ -1072,15 +1072,16 @@ func (s *Site) WriteChartAncestors(root string) error {
 		}
 		if ig != g {
 			g = ig
-			if g == 1 {
+			switch g {
+			case 1:
 				doc.Heading3("Generation 2: Parents", "p")
-			} else if g == 2 {
+			case 2:
 				doc.Heading3("Generation 3: Grandparents", "gp")
-			} else if g == 3 {
+			case 3:
 				doc.Heading3("Generation 4: Great-Grandparents", "ggp")
-			} else if g == 4 {
+			case 4:
 				doc.Heading3("Generation 5: Great-Great-Grandparents", "gggp")
-			} else {
+			default:
 				doc.Heading3(md.Text(fmt.Sprintf("Generation %d: %dx Great-Grandparents", g+1, g-2)), "")
 			}
 		}

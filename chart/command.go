@@ -21,7 +21,7 @@ import (
 	"github.com/iand/gtree"
 )
 
-func checkFlags(cc *cli.Command) error {
+func checkFlags(_ *cli.Command) error {
 	switch chartopts.chartType {
 	case "descendant":
 	case "ancestor":

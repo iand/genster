@@ -439,9 +439,10 @@ func (l *Loader) populatePersonFacts(m ModelFinder, gp *grampsxml.Person) error 
 						logging.Debug("skipping census entry note marked as private", "id", p.ID, "handle", gn.Handle)
 						continue
 					}
-					if gn.Type == "Transcript" {
+					switch gn.Type {
+					case "Transcript":
 						transcript = gn.Text
-					} else if gn.Type == "Narrative" {
+					case "Narrative":
 						ce.Narrative = gn.Text
 					}
 				}

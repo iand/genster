@@ -50,7 +50,7 @@ func TestTimelineUnionEventTitleForSpouse(t *testing.T) {
 			})
 
 			enc := &md.Content{}
-			fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
+			fmtr := NewNarrativeTimelineEntryFormatter(&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
 			checkContains(t, fmtr.Title(0, ev), tc.want, "to marry to marry", "Marriage banns read")
 		})
 	}
@@ -87,7 +87,7 @@ func TestTimelineUnionEventTitleForObserver(t *testing.T) {
 			ev := tc.ev(model.GeneralUnionEvent{Husband: p, Wife: s})
 
 			enc := &md.Content{}
-			fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{}, enc, logging.Default(), &TimelineNameChooser{}, false)
+			fmtr := NewNarrativeTimelineEntryFormatter(&model.POV{}, enc, logging.Default(), &TimelineNameChooser{}, false)
 			checkContains(t, fmtr.Title(0, ev), tc.want, "Had marriage banns", "Obtained a marriage")
 		})
 	}

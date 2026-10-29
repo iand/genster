@@ -351,7 +351,7 @@ func (b *Content) writeImage(buf io.StringWriter, link string, alt string) {
 func (e *Content) ParaWithFigure(text Text, link string, alt string, caption Text) {
 	e.maintext.WriteString("<p>")
 	e.maintext.WriteString("<figure class=\"inline-right\">")
-	e.maintext.WriteString(fmt.Sprintf("<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+	fmt.Fprintf(&e.maintext, "<img src=\"%s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt))
 	e.maintext.WriteString("<figcaption>")
 	e.maintext.WriteString("<p>")
 	caption.ToHTML(&e.maintext)
@@ -365,12 +365,12 @@ func (e *Content) ParaWithFigure(text Text, link string, alt string, caption Tex
 func (e *Content) Figure(link string, alt string, caption Text, highlight *model.Region, downloadName string) {
 	e.maintext.WriteString("<figure>")
 	if highlight == nil {
-		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt)))
+		fmt.Fprintf(&e.maintext, "<a href=\"%s\" data-dimbox=\"figures\"><img src=\"%[1]s\" alt=\"%s\"></a>", html.EscapeString(link), html.EscapeString(alt))
 	} else {
 		e.maintext.WriteString("<div class=\"shade\">")
-		e.maintext.WriteString(fmt.Sprintf("<a href=\"%s\" data-dimbox=\"figures\">", html.EscapeString(link)))
-		e.maintext.WriteString(fmt.Sprintf("<span class=\"shade\" style=\"bottom: %d%%;left: %d%%;width: %d%%;height: %d%%;\"></span>", highlight.Bottom, highlight.Left, highlight.Width, highlight.Height))
-		e.maintext.WriteString(fmt.Sprintf("<img src=\"%[1]s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt)))
+		fmt.Fprintf(&e.maintext, "<a href=\"%s\" data-dimbox=\"figures\">", html.EscapeString(link))
+		fmt.Fprintf(&e.maintext, "<span class=\"shade\" style=\"bottom: %d%%;left: %d%%;width: %d%%;height: %d%%;\"></span>", highlight.Bottom, highlight.Left, highlight.Width, highlight.Height)
+		fmt.Fprintf(&e.maintext, "<img src=\"%[1]s\" alt=\"%s\">", html.EscapeString(link), html.EscapeString(alt))
 		e.maintext.WriteString("</a></div>")
 	}
 
@@ -378,7 +378,7 @@ func (e *Content) Figure(link string, alt string, caption Text, highlight *model
 	e.maintext.WriteString("<p>")
 	caption.ToHTML(&e.maintext)
 	if downloadName != "" {
-		e.maintext.WriteString(fmt.Sprintf(" (<a href=\"%s\" download=\"%s\">Download this image</a>)", html.EscapeString(link), html.EscapeString(downloadName)))
+		fmt.Fprintf(&e.maintext, " (<a href=\"%s\" download=\"%s\">Download this image</a>)", html.EscapeString(link), html.EscapeString(downloadName))
 	}
 	e.maintext.WriteString("</p>")
 	e.maintext.WriteString("</figcaption>")

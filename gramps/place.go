@@ -2,6 +2,7 @@ package gramps
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -251,9 +252,9 @@ func reckoningForPlace(pl *model.Place) gdate.ReckoningLocation {
 		// Country is not normally set until after the gramps data has been parsed
 		// We can look for it ourselves, and set it temporarily
 		hierarchy := pl.Hierarchy()
-		for i := len(hierarchy) - 1; i >= 0; i-- {
-			if hierarchy[i].PlaceType == model.PlaceTypeCountry {
-				pl.Country = hierarchy[i]
+		for _, hp := range slices.Backward(hierarchy) {
+			if hp.PlaceType == model.PlaceTypeCountry {
+				pl.Country = hp
 				break
 			}
 		}

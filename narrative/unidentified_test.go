@@ -103,6 +103,6 @@ func TestUnidentifiedSpouseInTimeline(t *testing.T) {
 	}}
 
 	enc := &md.Content{}
-	fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
+	fmtr := NewNarrativeTimelineEntryFormatter(&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
 	checkContains(t, fmtr.Title(0, ev), "Married a woman whose name is not known.", unidentifiedForms...)
 }

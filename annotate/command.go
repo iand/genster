@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -326,9 +327,9 @@ func processFile(fpath string, grampsIDToCitation map[string]*model.GeneralCitat
 	// Process replacements from end to start so indices remain valid.
 	result := cleaned
 	changeCount := 0
-	for i := len(matches) - 1; i >= 0; i-- {
-		start := matches[i][0]
-		end := matches[i][1]
+	for _, match := range slices.Backward(matches) {
+		start := match[0]
+		end := match[1]
 		fullMatch := cleaned[start:end]
 
 		submatch := footnoteRefRe.FindStringSubmatch(fullMatch)

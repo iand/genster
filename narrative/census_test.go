@@ -30,7 +30,7 @@ func TestTimelineCensusEntryHasNoVerb(t *testing.T) {
 	for name, pov := range povs {
 		for seq := range 3 {
 			enc := &md.Content{}
-			fmtr := NewNarrativeTimelineEntryFormatter[md.Text](pov, enc, logging.Default(), &TimelineNameChooser{}, false)
+			fmtr := NewNarrativeTimelineEntryFormatter(pov, enc, logging.Default(), &TimelineNameChooser{}, false)
 			got := fmtr.Title(seq, ev)
 			if !strings.Contains(got, wants[name]) {
 				t.Errorf("%s pov, seq %d: got %q, want it to contain %q", name, seq, got, wants[name])

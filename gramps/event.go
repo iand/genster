@@ -422,7 +422,7 @@ func (l *Loader) findPlaceForEvent(m ModelFinder, grev *grampsxml.Event) *model.
 	return pl
 }
 
-func maybeFixCensusDate(grev *grampsxml.Event) (*model.Date, bool) {
+func maybeFixCensusDate(_ *grampsxml.Event) (*model.Date, bool) {
 	return nil, false
 }
 

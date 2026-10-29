@@ -1,6 +1,7 @@
 package place
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -90,8 +91,8 @@ func ClassifyName(name string, hints ...Hint) *PlaceName {
 		Kind: PlaceKindUnknown,
 	}
 
-	for i := len(parts) - 1; i >= 0; i-- {
-		po, ok := LookupPlaceName(parts[i])
+	for _, part := range slices.Backward(parts) {
+		po, ok := LookupPlaceName(part)
 		if ok {
 			pn.PartOf = append(pn.PartOf, po)
 		}

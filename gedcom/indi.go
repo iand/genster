@@ -669,9 +669,10 @@ func maybeFixCensusDate(er *gedcom.EventRecord) (*model.Date, bool) {
 		for _, c := range er.Citation {
 			if strings.Contains(c.Page, "Class: HO107") || strings.Contains(c.Page, "Class: HO 107") {
 				// 1841 or 1851 census
-				if er.Date == "1841" {
+				switch er.Date {
+				case "1841":
 					return model.PreciseDate(1841, 6, 6), true
-				} else if er.Date == "1851" {
+				case "1851":
 					return model.PreciseDate(1851, 3, 30), true
 				}
 				return nil, false

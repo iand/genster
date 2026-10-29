@@ -91,7 +91,7 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 				if safeString.MatchString(tv) && !numericString.MatchString(tv) {
 					bb.WriteString(tv)
 				} else {
-					bb.WriteString(fmt.Sprintf("%q", tv))
+					fmt.Fprintf(bb, "%q", tv)
 				}
 				bb.WriteString("\n")
 			case []string:
@@ -101,7 +101,7 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 					if safeString.MatchString(v) && !numericString.MatchString(v) {
 						bb.WriteString(v)
 					} else {
-						bb.WriteString(fmt.Sprintf("%q", v))
+						fmt.Fprintf(bb, "%q", v)
 					}
 					bb.WriteString("\n")
 				}
@@ -115,13 +115,13 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 					if safeString.MatchString(subkey) && !numericString.MatchString(subkey) {
 						bb.WriteString(subkey)
 					} else {
-						bb.WriteString(fmt.Sprintf("%q", subkey))
+						fmt.Fprintf(bb, "%q", subkey)
 					}
 					bb.WriteString(": ")
 					if safeString.MatchString(subval) && !numericString.MatchString(subval) {
 						bb.WriteString(subval)
 					} else {
-						bb.WriteString(fmt.Sprintf("%q", subval))
+						fmt.Fprintf(bb, "%q", subval)
 					}
 					bb.WriteString("\n")
 				}
@@ -141,13 +141,13 @@ func (b *Document) WriteTo(w io.Writer) (int64, error) {
 						if safeString.MatchString(subkey) && !numericString.MatchString(subkey) {
 							bb.WriteString(subkey)
 						} else {
-							bb.WriteString(fmt.Sprintf("%q", subkey))
+							fmt.Fprintf(bb, "%q", subkey)
 						}
 						bb.WriteString(": ")
 						if safeString.MatchString(subval) && !numericString.MatchString(subval) {
 							bb.WriteString(subval)
 						} else {
-							bb.WriteString(fmt.Sprintf("%q", subval))
+							fmt.Fprintf(bb, "%q", subval)
 						}
 						bb.WriteString("\n")
 					}

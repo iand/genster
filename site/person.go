@@ -299,7 +299,7 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 
 		doc.ResetSeenLinks()
 
-		fmtr := narrative.NewNarrativeTimelineEntryFormatter[md.Text](pov, doc, logging.With("id", p.ID), &narrative.TimelineNameChooser{}, false)
+		fmtr := narrative.NewNarrativeTimelineEntryFormatter(pov, doc, logging.With("id", p.ID), &narrative.TimelineNameChooser{}, false)
 
 		if err := RenderTimeline(t, pov, doc, fmtr); err != nil {
 			return nil, fmt.Errorf("render timeline narrative: %w", err)

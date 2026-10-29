@@ -56,43 +56,51 @@ func (w *Content) EmptyPara() {
 
 func (w *Content) Heading1(m Text, id string) {
 	w.main.WriteString("\n")
-	w.main.WriteString("# " + string(m))
+	w.main.WriteString("# ")
+	w.main.WriteString(string(m))
 	w.main.WriteString("\n")
 }
 
 func (w *Content) Heading2(m Text, id string) {
 	w.main.WriteString("\n")
-	w.main.WriteString("## " + string(m))
+	w.main.WriteString("## ")
+	w.main.WriteString(string(m))
 	w.main.WriteString("\n")
 }
 
 func (w *Content) Heading3(m Text, id string) {
 	w.main.WriteString("\n")
-	w.main.WriteString("### " + string(m))
+	w.main.WriteString("### ")
+	w.main.WriteString(string(m))
 	w.main.WriteString("\n")
 }
 
 func (w *Content) Heading4(m Text, id string) {
 	w.main.WriteString("\n")
-	w.main.WriteString("#### " + string(m))
+	w.main.WriteString("#### ")
+	w.main.WriteString(string(m))
 	w.main.WriteString("\n")
 }
 
 func (w *Content) UnorderedList(items []Text) {
 	for _, item := range items {
-		w.main.WriteString("\n* " + string(item) + "\n")
+		w.main.WriteString("\n* ")
+		w.main.WriteString(string(item))
+		w.main.WriteString("\n")
 	}
 }
 
 func (w *Content) OrderedList(items []Text) {
 	for _, item := range items {
-		w.main.WriteString("\n1. " + string(item) + "\n")
+		w.main.WriteString("\n1. ")
+		w.main.WriteString(string(item))
+		w.main.WriteString("\n")
 	}
 }
 
 func (w *Content) DefinitionList(items [][2]Text) {
 	for _, item := range items {
-		w.main.WriteString(fmt.Sprintf("%s\n", string(item[0])))
+		fmt.Fprintf(&w.main, "%s\n", string(item[0]))
 		if len(item[1]) > 0 {
 			w.main.WriteString(text.PrefixLines(string(item[1]), ":"))
 			w.main.WriteString("\n")
@@ -204,7 +212,7 @@ func (w *Content) EncodeWithCitations(s Text, citations []*model.GeneralCitation
 	return s + sups
 }
 
-func (w *Content) encodeCitationDetail(c *model.GeneralCitation) Text {
+func (w *Content) encodeCitationDetail(_ *model.GeneralCitation) Text {
 	// var detail string
 
 	// detail = text.FinishSentence(c.String())
@@ -234,7 +242,11 @@ func (w *Content) Timeline([]render.TimelineRow[Text]) {
 }
 
 func (w *Content) Image(link string, alt string) {
-	w.main.WriteString("![" + alt + "](" + link + ")")
+	w.main.WriteString("![")
+	w.main.WriteString(alt)
+	w.main.WriteString("](")
+	w.main.WriteString(link)
+	w.main.WriteString(")")
 }
 
 func (w *Content) FactList([]render.FactEntry[Text]) {
@@ -248,6 +260,10 @@ func (w *Content) GroupedList([]render.Grouping[Text]) {
 // Requires implicit_figures extension
 func (w *Content) Figure(link string, alt string, caption Text, highlight *model.Region, downloadName string) {
 	w.main.WriteString("\n")
-	w.main.WriteString("![" + caption.String() + "](" + link + ")")
+	w.main.WriteString("![")
+	w.main.WriteString(caption.String())
+	w.main.WriteString("](")
+	w.main.WriteString(link)
+	w.main.WriteString(")")
 	w.main.WriteString("\n")
 }

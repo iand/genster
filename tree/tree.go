@@ -1110,26 +1110,26 @@ func (t *Tree) RefinePlaceNames(pl *model.Place) error {
 		par = par.Parent
 	}
 
-	for i := len(hierarchy) - 1; i >= 0; i-- {
-		if hierarchy[i].PlaceType == model.PlaceTypeCountry {
-			pl.Country = hierarchy[i]
+	for _, hp := range slices.Backward(hierarchy) {
+		if hp.PlaceType == model.PlaceTypeCountry {
+			pl.Country = hp
 		}
-		if hierarchy[i].PlaceType == model.PlaceTypeCounty ||
-			hierarchy[i].PlaceType == model.PlaceTypeState ||
-			hierarchy[i].PlaceType == model.PlaceTypeArchipelago ||
-			hierarchy[i].PlaceType == model.PlaceTypeNation {
-			pl.Region = hierarchy[i]
+		if hp.PlaceType == model.PlaceTypeCounty ||
+			hp.PlaceType == model.PlaceTypeState ||
+			hp.PlaceType == model.PlaceTypeArchipelago ||
+			hp.PlaceType == model.PlaceTypeNation {
+			pl.Region = hp
 		}
-		if hierarchy[i].PlaceType == model.PlaceTypeParish ||
-			hierarchy[i].PlaceType == model.PlaceTypeRegistrationDistrict ||
-			hierarchy[i].PlaceType == model.PlaceTypeCity ||
-			hierarchy[i].PlaceType == model.PlaceTypeTown ||
-			hierarchy[i].PlaceType == model.PlaceTypeVillage ||
-			hierarchy[i].PlaceType == model.PlaceTypeHamlet {
-			pl.District = hierarchy[i]
+		if hp.PlaceType == model.PlaceTypeParish ||
+			hp.PlaceType == model.PlaceTypeRegistrationDistrict ||
+			hp.PlaceType == model.PlaceTypeCity ||
+			hp.PlaceType == model.PlaceTypeTown ||
+			hp.PlaceType == model.PlaceTypeVillage ||
+			hp.PlaceType == model.PlaceTypeHamlet {
+			pl.District = hp
 		}
-		if hierarchy[i].PlaceType == model.PlaceTypeUnknown && pl.District == nil {
-			pl.District = hierarchy[i]
+		if hp.PlaceType == model.PlaceTypeUnknown && pl.District == nil {
+			pl.District = hp
 		}
 	}
 

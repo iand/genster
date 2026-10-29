@@ -405,7 +405,6 @@ func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minima
 	if !startPerson.Father.IsUnknown() || !startPerson.Mother.IsUnknown() {
 		var parent *gtree.DescendantPerson
 
-		f := &gtree.DescendantPerson{ID: seq.next()}
 		tf := &gtree.DescendantFamily{}
 		if !startPerson.Father.IsUnknown() {
 			parent = newDescendantPerson(startPerson.Father, seq, personDetailFn, true, false, excludeAllSpouses())
@@ -418,7 +417,7 @@ func BuildFocusChart(t *tree.Tree, startPerson *model.Person, detail int, minima
 			parent = newDescendantPerson(startPerson.Mother, seq, personDetailFn, true, false, excludeAllSpouses())
 			parent.Details = appendDescendantPersonSpouses(parent.Details, startPerson.Mother, false, false, excludeSingleSpouse(startPerson.Father))
 		}
-		parent.Families = append(f.Families, tf)
+		parent.Families = append(parent.Families, tf)
 		ch.Root = parent
 
 		// add siblings of start person

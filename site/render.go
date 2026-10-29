@@ -85,58 +85,6 @@ func RenderVitalFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc
 
 }
 
-func buildPossibleBirths[T render.EncodedText](p *model.Person, pov *model.POV, nc narrative.NameChooser, enc render.ContentBuilder[T]) string {
-	var para text.Para
-	para.StartSentence("not known")
-
-	evs := model.FilterEventList(p.Timeline, model.IsOwnPossibleBirthEvent(p))
-	if len(evs) == 0 {
-		return ""
-	}
-	list := []string{}
-	hasCitation := false
-	for _, ev := range evs {
-		list = append(list, enc.EncodeWithCitations(enc.EncodeText(narrative.EventWhenWherePov(ev, enc, nc, pov)), ev.GetCitations()).String())
-		if len(ev.GetCitations()) > 0 {
-			hasCitation = true
-		}
-	}
-	if hasCitation {
-		para.StartSentence("but there is some evidence that")
-	} else {
-		para.StartSentence("but it's possible that")
-	}
-	para.Continue(p.Gender.SubjectPronounWithLink(), "born")
-	para.FinishSentence(text.JoinListOr(list))
-	return para.Text()
-}
-
-func buildPossibleDeaths[T render.EncodedText](p *model.Person, pov *model.POV, nc narrative.NameChooser, enc render.ContentBuilder[T]) string {
-	var para text.Para
-	para.StartSentence("not known")
-
-	evs := model.FilterEventList(p.Timeline, model.IsOwnPossibleDeathEvent(p))
-	if len(evs) == 0 {
-		return ""
-	}
-	list := []string{}
-	hasCitation := false
-	for _, ev := range evs {
-		list = append(list, enc.EncodeWithCitations(enc.EncodeText(narrative.EventWhenWherePov(ev, enc, nc, pov)), ev.GetCitations()).String())
-		if len(ev.GetCitations()) > 0 {
-			hasCitation = true
-		}
-	}
-	if hasCitation {
-		para.StartSentence("but there is some evidence that")
-	} else {
-		para.StartSentence("but it's possible that")
-	}
-	para.Continue(p.Gender.SubjectPronoun(), "died")
-	para.FinishSentence(text.JoinListOr(list))
-	return para.Text()
-}
-
 func RenderMiscFacts[T render.EncodedText](p *model.Person, pov *model.POV, enc render.ContentBuilder[T]) error {
 	var items []render.FactEntry[T]
 

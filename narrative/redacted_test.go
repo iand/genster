@@ -198,7 +198,7 @@ func TestRedactedDeathInformant(t *testing.T) {
 	death.Participants = []*model.EventParticipant{{Person: p, Role: model.EventRolePrincipal}, {Person: son, Role: model.EventRoleInformant}}
 
 	enc := &md.Content{}
-	fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
+	fmtr := NewNarrativeTimelineEntryFormatter(&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
 	checkContains(t, fmtr.Title(0, death), "The informant was her son.", redactedForms...)
 }
 
@@ -211,6 +211,6 @@ func TestRedactedSpouseInTimeline(t *testing.T) {
 	}}
 
 	enc := &md.Content{}
-	fmtr := NewNarrativeTimelineEntryFormatter[md.Text](&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
+	fmtr := NewNarrativeTimelineEntryFormatter(&model.POV{Person: p}, enc, logging.Default(), &TimelineNameChooser{}, false)
 	checkContains(t, fmtr.Title(0, ev), "Married.", redactedForms...)
 }

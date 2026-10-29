@@ -912,12 +912,10 @@ func GenerateOlb(p *model.Person) string {
 	type BioFacts struct {
 		BirthYear int
 		// BirthYearDesc         string
-		BirthPlace     *model.Place
-		CountryOfBirth *model.Place
-		DeathYear      int
-		DeathYearDesc  string
-		DeathPlace     *model.Place
-		DeathType      string
+		BirthPlace *model.Place
+		DeathYear  int
+		DeathPlace *model.Place
+		DeathType  string
 		// CountryOfDeath        *model.Place
 		AgeAtDeath            int
 		NumberOfMarriages     int
@@ -972,9 +970,6 @@ func GenerateOlb(p *model.Person) string {
 			// if !pl.Region.IsUnknown() {
 			// 	bf.BirthPlace = pl.Region
 			// }
-			if !pl.Country.IsUnknown() {
-				bf.CountryOfBirth = pl.Country
-			}
 		}
 	}
 
@@ -993,11 +988,6 @@ func GenerateOlb(p *model.Person) string {
 			bf.DeathType = "died"
 			if bf.Suicide {
 				bf.DeathType = "killed " + p.Gender.ReflexivePronoun()
-			}
-
-			whenYear, ok := p.BestDeathlikeEvent.GetDate().WhenYear()
-			if ok {
-				bf.DeathYearDesc = whenYear
 			}
 
 			if p.BestDeathlikeEvent.IsInferred() {

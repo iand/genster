@@ -111,10 +111,10 @@ func (cl *CitationList) WriteTo(w io.Writer) (int64, error) {
 	bb.WriteString("<div class=\"footnotes\">\n\n")
 	bb.WriteString("<h2>Citations and Notes</h2>\n")
 	for i := range sources {
-		bb.WriteString(fmt.Sprintf("<div class=\"source\">%s</div>\n", html.EscapeString(sources[i].name)))
+		fmt.Fprintf(bb, "<div class=\"source\">%s</div>\n", html.EscapeString(sources[i].name))
 
 		for ci := range sources[i].citations {
-			bb.WriteString(fmt.Sprintf("<div class=\"citation\"><span class=\"anchor\" id=\"%s\">%s:</span> ", sources[i].citations[ci].anchor, sources[i].citations[ci].anchor))
+			fmt.Fprintf(bb, "<div class=\"citation\"><span class=\"anchor\" id=\"%s\">%s:</span> ", sources[i].citations[ci].anchor, sources[i].citations[ci].anchor)
 			sources[i].citations[ci].markdown.ToHTML(bb)
 			bb.WriteString("</div>\n")
 		}
