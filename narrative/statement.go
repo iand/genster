@@ -63,14 +63,14 @@ func (s *IntroStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], enc 
 			s.addParentage(&para, enc, nc, intro, seq, true)
 			s.maybeAddBaptismAfterBirth(&para, enc, nc, intro)
 		} else {
-			para.StartSentence(s.Principal.PreferredGivenName, "was")
+			para.StartSentence(s.Principal.PreferredGivenName)
 			s.maybeAppendNickname(&para)
+			para.Continue("was")
 			s.addParentage(&para, enc, nc, intro, seq, false)
 			if len(s.PossibleBirths) > 0 {
 				s.addPossibleBirths(&para, s.Principal.Gender.PossessivePronounSingular(), enc, nc, intro)
 			} else {
-				para.StartSentence("nothing is known about ", s.Principal.Gender.PossessivePronounSingular(), " date and place of birth")
-				s.maybeAppendNickname(&para)
+				para.StartSentence("nothing is known about", s.Principal.Gender.PossessivePronounSingular(), "date and place of birth")
 			}
 		}
 		s.maybeAddTwinAssociation(&para, enc)
