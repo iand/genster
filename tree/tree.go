@@ -407,6 +407,21 @@ func (t *Tree) InferFamilyRelationships(f *model.Family) error {
 	return nil
 }
 
+// lateBaptismDays is how long after a birth a baptism or naming must be dated for it to be a
+// late baptism rather than one soon after birth. It allows for a birth year calculated from an
+// age, which can be a year out.
+const lateBaptismDays = 2 * 365
+
+// isLateAfterBirth reports whether a baptism or naming dated dt is dated so long after a birth
+// dated birth that it does not stand for the birth. An estimated birth date is a guess from
+// typical ages, so it is never evidence of a late baptism.
+func isLateAfterBirth(birth, dt *model.Date) bool {
+	if birth.IsUnknown() || birth.Derivation == model.DateDerivationEstimated {
+		return false
+	}
+	return birth.DefinitelyBeforeBy(dt, lateBaptismDays)
+}
+
 func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 	for _, ev := range p.Timeline {
 		if iev, ok := ev.(model.IndividualTimelineEvent); ok && p.SameAs(iev.GetPrincipal()) {
@@ -419,7 +434,11 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 						p.BestBirthlikeEvent = tev
 					}
 				} else {
-					if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) {
+					// a birth replaces a baptism or naming that is no more precise, unless it is
+					// dated the same day and so copied from it, or one dated so long after the
+					// birth that it was a late baptism
+					best := p.BestBirthlikeEvent.GetDate()
+					if (!best.IsMorePreciseThan(tev.GetDate()) && !best.SameDate(tev.GetDate())) || isLateAfterBirth(tev.GetDate(), best) {
 						p.BestBirthlikeEvent = tev
 					}
 				}
@@ -432,7 +451,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
-				} else if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) {
+				} else if (tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) || tev.GetDate().SameDate(p.BestBirthlikeEvent.GetDate())) && !isLateAfterBirth(p.BestBirthlikeEvent.GetDate(), tev.GetDate()) {
 					p.BestBirthlikeEvent = tev
 				}
 
@@ -448,7 +467,7 @@ func (t *Tree) SelectPersonBestBirthDeathEvents(p *model.Person) error {
 					if tev.Date.SortsBefore(bev.Date) {
 						p.BestBirthlikeEvent = tev
 					}
-				} else if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) {
+				} else if tev.GetDate().IsMorePreciseThan(p.BestBirthlikeEvent.GetDate()) && !isLateAfterBirth(p.BestBirthlikeEvent.GetDate(), tev.GetDate()) {
 					p.BestBirthlikeEvent = tev
 				}
 
