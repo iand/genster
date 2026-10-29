@@ -93,6 +93,45 @@ func TestTimelineUnionEventTitleForObserver(t *testing.T) {
 	}
 }
 
+// A licence or banns summarised with the couple as subject uses the active verb, since the
+// passive phrase is a noun phrase that would need a possessive.
+func TestWhoWhatWhenWhereLicenceAndBanns(t *testing.T) {
+	testCases := []struct {
+		name string
+		ev   func(g model.GeneralUnionEvent, ge model.GeneralEvent) model.TimelineEvent
+		want string
+	}{
+		{
+			name: "banns",
+			ev: func(g model.GeneralUnionEvent, ge model.GeneralEvent) model.TimelineEvent {
+				return &model.MarriageBannsEvent{GeneralEvent: ge, GeneralUnionEvent: g}
+			},
+			want: "James Howes and Mary Frost had marriage banns read on 11 Mar 1796",
+		},
+		{
+			name: "licence",
+			ev: func(g model.GeneralUnionEvent, ge model.GeneralEvent) model.TimelineEvent {
+				return &model.MarriageLicenseEvent{GeneralEvent: ge, GeneralUnionEvent: g}
+			},
+			want: "James Howes and Mary Frost obtained a marriage licence on 11 Mar 1796",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &model.Person{ID: "p", PreferredFullName: "James Howes", PreferredUniqueName: "James Howes", Gender: model.GenderMale}
+			s := &model.Person{ID: "s", PreferredFullName: "Mary Frost", PreferredUniqueName: "Mary Frost", Gender: model.GenderFemale}
+			ev := tc.ev(model.GeneralUnionEvent{Husband: p, Wife: s}, model.GeneralEvent{Date: model.PreciseDate(1796, 3, 11)})
+
+			enc := &md.Content{}
+			got := WhoWhatWhenWhere(ev, enc, FullNameChooser{})
+			checkContains(t, got, tc.want, "was obtained", "were read")
+			got = WhoWhatWhenWherePov(ev, enc, FullNameChooser{}, &model.POV{})
+			checkContains(t, got, tc.want, "was obtained", "were read")
+		})
+	}
+}
+
 func TestPersonMarriageSummaryStartEventVerb(t *testing.T) {
 	type fam struct {
 		spouse string

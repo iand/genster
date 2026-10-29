@@ -40,7 +40,32 @@ func WhoWhatWhenWhere[T render.EncodedText](ev model.TimelineEvent, enc render.T
 		who = text.JoinList(names)
 	}
 
+	if what, ok := coupleWhat(ev); ok {
+		return text.JoinSentenceParts(who, WhatWhenWhere(what, ev.GetDate(), ev.GetPlace(), enc, nc))
+	}
 	return text.JoinSentenceParts(who, EventWhatWhenWhere(ev, enc, nc))
+}
+
+// coupleWhat returns the active verb phrase for a marriage licence or banns, such as "obtained a
+// marriage licence", for use after the couple's names. Their passive phrases, such as "marriage
+// banns were read", name the document and cannot follow the names without a possessive. It is
+// false for other events, and for inferred or derived dates, which keep their own wording.
+func coupleWhat(ev model.TimelineEvent) (string, bool) {
+	switch ev.(type) {
+	case *model.MarriageLicenseEvent, *model.MarriageBannsEvent:
+	default:
+		return "", false
+	}
+	if ev.IsInferred() {
+		return "", false
+	}
+	if !ev.GetDate().IsUnknown() {
+		switch ev.GetDate().Derivation {
+		case model.DateDerivationEstimated, model.DateDerivationCalculated:
+			return "", false
+		}
+	}
+	return model.What(ev), true
 }
 
 func WhoWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc render.TextEncoder[T], nc NameChooser, pov *model.POV) string {
@@ -61,6 +86,9 @@ func WhoWhatWhenWherePov[T render.EncodedText](ev model.TimelineEvent, enc rende
 		who = text.JoinList(names)
 	}
 
+	if what, ok := coupleWhat(ev); ok {
+		return text.JoinSentenceParts(who, WhatWhenWherePov(what, ev.GetDate(), ev.GetPlace(), enc, nc, pov))
+	}
 	return text.JoinSentenceParts(who, EventWhatWhenWherePov(ev, enc, nc, pov))
 }
 
