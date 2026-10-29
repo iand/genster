@@ -182,10 +182,10 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 			// 	})
 			// }
 		case *model.IndividualNarrativeEvent:
-			// n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
-			// 	Principal: p,
-			// 	Event:     tev,
-			// })
+			n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+				Principal: p,
+				Event:     tev,
+			})
 		case *model.BirthEvent:
 		case *model.DeathEvent:
 		case *model.BurialEvent:
@@ -200,12 +200,12 @@ func RenderPersonPage(s *Site, p *model.Person) (render.Document[md.Text], error
 		case *model.PossibleDeathEvent:
 			death.PossibleDeaths = append(death.PossibleDeaths, tev)
 		default:
-			// if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
-			// 	n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
-			// 		Principal: p,
-			// 		Event:     tev,
-			// 	})
-			// }
+			if tev.DirectlyInvolves(p) && tev.GetNarrative().Text != "" {
+				n.Statements = append(n.Statements, &narrative.GeneralEventStatement[md.Text]{
+					Principal: p,
+					Event:     tev,
+				})
+			}
 		}
 	}
 	if len(intro.Baptisms) > 0 {
