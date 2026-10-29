@@ -94,9 +94,17 @@ func (n *IntroGenerator[T]) RelativeTime(seq int, dt *model.Date, includeFullDat
 	if n.LastIntroDate != nil {
 		sincePrev := n.LastIntroDate.IntervalUntil(dt)
 		if years, ok := sincePrev.WholeYears(); ok {
-			dateInYear, ok := dt.DateInYear(true)
-			if ok {
-				dateInYear = "on " + dateInYear
+			// the day of the year is given only when the full date is wanted, since otherwise
+			// the clause that follows gives the date
+			var dateInYear string
+			if diy, ok := dt.DateInYear(true); ok && includeFullDate {
+				dateInYear = "on " + diy
+			}
+			withDate := func(phrase, sep string) string {
+				if dateInYear == "" {
+					return phrase
+				}
+				return phrase + sep + dateInYear
 			}
 
 			if years < 0 && dt.SortsBefore(n.LastIntroDate) {
@@ -104,6 +112,9 @@ func (n *IntroGenerator[T]) RelativeTime(seq int, dt *model.Date, includeFullDat
 			} else if years == 0 {
 				days, isPreciseInterval := sincePrev.ApproxDays()
 				if isPreciseInterval && days < 5 {
+					if dateInYear == "" {
+						return ChooseFrom(seq, "just a few days later", "very shortly after")
+					}
 					return ChooseFrom(seq,
 						dateInYear,
 						dateInYear+", just a few days later",
@@ -112,28 +123,28 @@ func (n *IntroGenerator[T]) RelativeTime(seq int, dt *model.Date, includeFullDat
 					)
 				} else if isPreciseInterval && days < 20 {
 					return ChooseFrom(seq,
-						"shortly after"+dateInYear,
-						"several days later"+dateInYear,
+						withDate("shortly after", " "),
+						withDate("several days later", " "),
 					)
 				} else if n.LastIntroDate.SameYear(dt) {
 					return ChooseFrom(seq,
-						"later that year"+dateInYear,
-						"the same year"+dateInYear,
-						"later that same year"+dateInYear,
-						"that same year"+dateInYear,
+						withDate("later that year", " "),
+						withDate("the same year", " "),
+						withDate("later that same year", " "),
+						withDate("that same year", " "),
 					)
 				} else {
 					return ChooseFrom(seq,
-						"shortly after"+dateInYear,
-						"some time later"+dateInYear,
-						"a short while later"+dateInYear,
+						withDate("shortly after", " "),
+						withDate("some time later", " "),
+						withDate("a short while later", " "),
 					)
 				}
 
 			} else if years == 1 {
 				return ChooseFrom(seq,
-					"the following year, "+dateInYear,
-					"the next year, "+dateInYear,
+					withDate("the following year", ", "),
+					withDate("the next year", ", "),
 					"",
 				)
 				// } else if years < 5 {

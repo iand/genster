@@ -117,6 +117,9 @@ func (e *Content) Heading4(m Text, id string) {
 }
 
 func (b *Content) Para(m Text) {
+	if strings.TrimSpace(string(m)) == "" {
+		return
+	}
 	b.maintext.WriteString("<p>")
 	m.ToHTML(&b.maintext)
 	b.maintext.WriteString("</p>\n")
@@ -128,9 +131,11 @@ func (b *Content) Preface(m Text) {
 	b.maintext.WriteString("</p>\n")
 }
 
+// EmptyPara ends the current line without adding an element: HTML paragraphs are separated by
+// their own markup, but text written without one, such as a research note, must not run into
+// the element that follows.
 func (e *Content) EmptyPara() {
-	e.maintext.WriteString("<p></p>\n")
-	// e.writeEmptyPara(&b.maintext)
+	e.maintext.WriteString("\n")
 }
 
 func (b *Content) BlockQuote(m Text) {

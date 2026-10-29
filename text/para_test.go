@@ -315,3 +315,44 @@ func TestParaCurrent(t *testing.T) {
 		}
 	})
 }
+
+func TestParaTrimCurrentRight(t *testing.T) {
+	testCases := []struct {
+		name  string
+		build func(*Para)
+		want  string
+	}{
+		{
+			name: "trailing colon removed from the open sentence",
+			build: func(p *Para) {
+				p.Continue("They had four children:")
+				p.TrimCurrentRight(":")
+			},
+			want: "They had four children",
+		},
+		{
+			name: "earlier sentences are unchanged",
+			build: func(p *Para) {
+				p.AddCompleteSentence("He married:")
+				p.Continue("They had four children:")
+				p.TrimCurrentRight(":")
+			},
+			want: "He married. They had four children",
+		},
+		{
+			name:  "empty para",
+			build: func(p *Para) { p.TrimCurrentRight(":") },
+			want:  "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var p Para
+			tc.build(&p)
+			if got := p.Current(); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

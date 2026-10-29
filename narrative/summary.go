@@ -474,7 +474,7 @@ func PersonParentage[T render.EncodedText](p *model.Person, enc render.TextEncod
 	}
 }
 
-func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
+func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool, opts ...SummaryOption) T {
 	enc = &PersonLinkingTextEncoder[T]{enc}
 
 	var empty T
@@ -500,8 +500,10 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	}
 
 	includeAgeAtDeathIfKnown := true
+	deathStated := false
 	var para text.Para
 	if age, ok := p.AgeInYearsAtDeath(); ok && age < 14 {
+		onePlace := p.BestBirthlikeEvent != nil && p.BestDeathlikeEvent != nil && p.BestBirthlikeEvent.GetPlace().SameAs(p.BestDeathlikeEvent.GetPlace())
 		if !name.IsZero() {
 			if age < 1 {
 				para.StartSentence(name.String(), " died in infancy")
@@ -514,17 +516,25 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 			} else {
 				name = enc.EncodeText(p.Gender.SubjectPronoun())
 			}
+			// with no birth to state in between, the date and place of a recorded death belong
+			// in this sentence: "Eliza died in infancy, on 17 Oct 1837 in Fressingfield."
+			if dev, ok := p.BestDeathlikeEvent.(*model.DeathEvent); ok && !includeBirth && !onePlace && !dev.IsInferred() {
+				if ww := WhenWhere(dev.GetDate(), dev.GetPlace(), enc, nc); ww != "" {
+					para.AppendClause(enc.EncodeWithCitations(enc.EncodeText(ww), dev.GetCitations()).String())
+					deathStated = true
+				}
+			}
 			para.FinishSentence()
 		}
 
-		if p.BestBirthlikeEvent != nil && p.BestDeathlikeEvent != nil && p.BestBirthlikeEvent.GetPlace().SameAs(p.BestDeathlikeEvent.GetPlace()) {
-			para.StartSentence(YoungPersonOnePlaceSummary(p, enc, nc, name, includeBirth, includeParentage, activeTense, linkname, minimal).String())
+		if onePlace {
+			para.StartSentence(YoungPersonOnePlaceSummary(p, enc, nc, name, includeBirth, includeParentage, activeTense, linkname, minimal, opts...).String())
 			return enc.EncodeText(para.Text())
 		}
 	}
 
 	if includeBirth {
-		birth := PersonBirthSummary(p, enc, nc, name, true, true, includeParentage, activeTense)
+		birth := PersonBirthSummary(p, enc, nc, name, true, true, includeParentage, activeTense, opts...)
 		if !birth.IsZero() {
 			para.StartSentence(birth.String())
 			if activeTense {
@@ -566,9 +576,11 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 		para.StartSentence("emigrated to", text.JoinList(immPhrases))
 	}
 
-	death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal, includeAgeAtDeathIfKnown)
-	if !death.IsZero() {
-		para.StartSentence(death.String())
+	if !deathStated {
+		death := PersonDeathSummary(p, enc, nc, name, false, activeTense, minimal, includeAgeAtDeathIfKnown)
+		if !death.IsZero() {
+			para.StartSentence(death.String())
+		}
 	}
 
 	// TODO: life events
@@ -599,7 +611,8 @@ func PersonSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder
 	return enc.EncodeText(para.Text())
 }
 
-func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool) T {
+func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, includeBirth bool, includeParentage bool, activeTense bool, linkname bool, minimal bool, opts ...SummaryOption) T {
+	o := applySummaryOptions(opts)
 	var para text.Para
 	para.StartSentence(name.String())
 
@@ -616,7 +629,8 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 	} else {
 		birthWhat = model.PassiveWhat(p.BestBirthlikeEvent)
 	}
-	para.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhenWhere(birthWhat, p.BestBirthlikeEvent.GetDate(), p.BestBirthlikeEvent.GetPlace(), enc, nc)), p.BestBirthlikeEvent.GetCitations()).String())
+	birthPlace := o.birthPlace(p.BestBirthlikeEvent)
+	para.Continue(enc.EncodeWithCitations(enc.EncodeText(WhatWhenWhere(birthWhat, p.BestBirthlikeEvent.GetDate(), birthPlace, enc, nc)), p.BestBirthlikeEvent.GetCitations()).String())
 
 	var deathWhat string
 	deathWhat = model.What(p.BestDeathlikeEvent)
@@ -624,7 +638,8 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 	if death != nil {
 		deathWhat = DeathWhat(death, p.ModeOfDeath)
 
-		if !p.BestBirthlikeEvent.GetPlace().IsUnknown() {
+		// "there" refers to a place named in this sentence, not one stated before the list
+		if !birthPlace.IsUnknown() {
 			deathWhat += " there"
 		}
 	}
@@ -642,14 +657,57 @@ func YoungPersonOnePlaceSummary[T render.EncodedText](p *model.Person, enc rende
 	return enc.EncodeText(para.Text())
 }
 
-func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, includeBirthDate bool, includeParentage bool, activeTense bool) T {
-	var empty T
+// SummaryOption changes what a person summary says about things the reader already knows.
+type SummaryOption func(*summaryOptions)
+
+type summaryOptions struct {
+	knownBirthPlace      *model.Place // a place already stated, left out of the birth or baptism
+	knownEstimatedBirths bool         // estimated birth dates are already noted, so are not qualified
+}
+
+// WithKnownBirthPlace leaves pl out of the summary of a birth or baptism that took place there,
+// because it has already been stated, as in "all baptised at X (unless noted)".
+func WithKnownBirthPlace(pl *model.Place) SummaryOption {
+	return func(o *summaryOptions) { o.knownBirthPlace = pl }
+}
+
+// WithKnownEstimatedBirths drops the "probably" from an estimated birth date, because the
+// estimate has already been noted, as in "with birth years estimated (unless noted)".
+func WithKnownEstimatedBirths() SummaryOption {
+	return func(o *summaryOptions) { o.knownEstimatedBirths = true }
+}
+
+func applySummaryOptions(opts []SummaryOption) summaryOptions {
+	var o summaryOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
+}
+
+// birthPlace returns the place to give for ev, or nil when it is the known birth place.
+func (o summaryOptions) birthPlace(ev model.TimelineEvent) *model.Place {
+	pl := ev.GetPlace()
+	if !o.knownBirthPlace.IsUnknown() && pl.SameAs(o.knownBirthPlace) {
+		return nil
+	}
+	return pl
+}
+
+// birthWhat describes a birth or baptism, without a "probably" when estimates are known.
+func (o summaryOptions) birthWhat(ev model.TimelineEvent) string {
+	if o.knownEstimatedBirths && !ev.IsInferred() && ev.GetDate().Derivation == model.DateDerivationEstimated {
+		return model.PassiveWhat(ev)
+	}
+	return InferredWhat(ev, ev)
+}
+
+// SummaryBirthEvent returns the event that a summary of p's birth describes, which is a
+// baptism when that is more precise than the birth, and the birth event when there is one.
+func SummaryBirthEvent(p *model.Person, allowInferred bool) (model.IndividualTimelineEvent, *model.BirthEvent) {
 	var birth *model.BirthEvent
 	var bev model.IndividualTimelineEvent
 
-	if p.BestBirthlikeEvent == nil {
-		return empty
-	}
 	switch tev := p.BestBirthlikeEvent.(type) {
 	case *model.BirthEvent:
 		if allowInferred || !tev.IsInferred() {
@@ -671,6 +729,17 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 	case *model.BaptismEvent:
 		bev = tev
 	}
+	return bev, birth
+}
+
+func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEncoder[T], nc NameChooser, name T, allowInferred bool, includeBirthDate bool, includeParentage bool, activeTense bool, opts ...SummaryOption) T {
+	var empty T
+	o := applySummaryOptions(opts)
+
+	if p.BestBirthlikeEvent == nil {
+		return empty
+	}
+	bev, birth := SummaryBirthEvent(p, allowInferred)
 
 	tense := func(st string) T {
 		if activeTense {
@@ -694,9 +763,9 @@ func PersonBirthSummary[T render.EncodedText](p *model.Person, enc render.TextEn
 				}
 			}
 		}
-		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhenWhere(bev, enc, nc)), bev.GetCitations()).String())
+		para.Continue(enc.EncodeWithCitations(tense(WhatWhenWhere(o.birthWhat(bev), bev.GetDate(), o.birthPlace(bev), enc, nc)), bev.GetCitations()).String())
 	} else {
-		para.Continue(enc.EncodeWithCitations(tense(EventWhatWhere(bev, enc, nc)), bev.GetCitations()).String())
+		para.Continue(enc.EncodeWithCitations(tense(WhatWhere(o.birthWhat(bev), o.birthPlace(bev), enc, nc)), bev.GetCitations()).String())
 	}
 
 	if includeParentage {

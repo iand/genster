@@ -423,9 +423,7 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 		}
 		detail.Continue("gave birth to a", c.Gender.RelationToParentNoun())
 		if otherKnown {
-			if !c.Redacted {
-				detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
-			}
+			// the child is named in the list that follows
 			detail.AppendClause("the child of")
 			detail.Continue(otherName)
 		} else {
@@ -470,9 +468,7 @@ func (s *FamilyStatement[T]) renderSingleParent(seq int, intro *IntroGenerator[T
 			"had a child",
 			"had a "+c.Gender.RelationToParentNoun(),
 		))
-		if !c.Redacted {
-			detail.AppendAsAside(enc.EncodeModelLink(enc.EncodeText(c.PreferredFamiliarName), c).String())
-		}
+		// the child is named in the list that follows
 		if otherKnown {
 			detail.Continue("with", otherName)
 		} else {
@@ -512,11 +508,12 @@ func (s *FamilyStatement[T]) renderSingleChildParagraph(detail *text.Para, c *mo
 }
 
 func (s *FamilyStatement[T]) renderChildListParagraph(detail *text.Para, enc render.ContentBuilder[T], nc NameChooser, children []*model.Person) {
-	childList := ChildList(children, enc, nc)
+	childList, shared := ChildList(children, enc, nc)
 	if len(childList) == 0 {
 		enc.Para(enc.EncodeText(detail.Text()))
 		return
 	}
+	addSharedClause(detail, shared)
 	detail.FinishSentenceWithTerminator(":–")
 	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)
@@ -580,7 +577,10 @@ func ChildCardinal(clist []*model.Person) string {
 	return text.CardinalWithUnit(len(clist), "child", "children")
 }
 
-func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBuilder[T], nc NameChooser) []T {
+// ChildList returns a summary of each child that is not redacted, in order of birth, and a
+// clause for the sentence introducing the list that states what most of them share, such as
+// "all baptised at X (unless noted)". The summaries leave out what the clause states.
+func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBuilder[T], nc NameChooser) ([]T, string) {
 	sort.Slice(clist, func(i, j int) bool {
 		var d1, d2 *model.Date
 		if clist[i].BestBirthlikeEvent != nil {
@@ -593,18 +593,129 @@ func ChildList[T render.EncodedText](clist []*model.Person, enc render.ContentBu
 		return d1.SortsBefore(d2)
 	})
 
-	childList := make([]T, 0, len(clist))
+	var listed []*model.Person
 	for _, c := range clist {
-		if c.Redacted {
-			continue
+		if !c.Redacted {
+			listed = append(listed, c)
 		}
-		childSummary := PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true)
+	}
+
+	shared, opts := sharedBirthDetails(listed, enc, nc)
+
+	childList := make([]T, 0, len(listed))
+	for _, c := range listed {
+		childSummary := PersonSummary(c, enc, nc, enc.EncodeText(c.PreferredGivenName), true, false, true, true, true, opts...)
 		if !childSummary.IsZero() {
 			childList = append(childList, childSummary)
 		}
 	}
 
-	return childList
+	return childList, shared
+}
+
+// minSharedChildren is the fewest children that must share a birth place or estimated birth
+// year, and they must be more than half of the list, for it to be stated once for the list.
+const minSharedChildren = 3
+
+// sharedBirthDetails finds the place of birth or baptism and the estimated birth dates shared by
+// most of the children. It returns a clause stating them, such as "all baptised at X, with
+// birth years estimated (unless noted)", and the options that leave them out of each child's
+// summary.
+func sharedBirthDetails[T render.EncodedText](children []*model.Person, enc render.ContentBuilder[T], nc NameChooser) (string, []SummaryOption) {
+	isShared := func(n int) bool { return n >= minSharedChildren && n*2 > len(children) }
+
+	placeCounts := make(map[string]int)
+	places := make(map[string]*model.Place)
+	estimated := 0
+	for _, c := range children {
+		if c.BestBirthlikeEvent == nil {
+			continue
+		}
+		bev, _ := SummaryBirthEvent(c, true)
+		if bev == nil {
+			continue
+		}
+		if pl := bev.GetPlace(); !pl.IsUnknown() {
+			placeCounts[pl.ID]++
+			places[pl.ID] = pl
+		}
+		if !bev.IsInferred() && bev.GetDate().Derivation == model.DateDerivationEstimated {
+			estimated++
+		}
+	}
+
+	var sharedPlace *model.Place
+	best := 0
+	for id, n := range placeCounts {
+		if n > best || (n == best && id < sharedPlace.ID) {
+			best = n
+			sharedPlace = places[id]
+		}
+	}
+	if !isShared(best) {
+		sharedPlace = nil
+	}
+
+	var clauses []string
+	var opts []SummaryOption
+	sharedByAll := true // whether every child shares what the clauses state
+	if sharedPlace != nil {
+		clauses = append(clauses, WhatWhere("all "+sharedBirthVerb(children, sharedPlace), sharedPlace, enc, nc))
+		opts = append(opts, WithKnownBirthPlace(sharedPlace))
+		sharedByAll = best == len(children)
+	}
+	if isShared(estimated) {
+		clauses = append(clauses, "with birth years estimated")
+		opts = append(opts, WithKnownEstimatedBirths())
+		sharedByAll = sharedByAll && estimated == len(children)
+	}
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	clause := strings.Join(clauses, ", ")
+	if !sharedByAll {
+		clause += " (unless noted)"
+	}
+	return clause, opts
+}
+
+// sharedBirthVerb is "baptised" when every child whose birth is summarised at pl was baptised
+// there, "born" when every one was born there, and "born or baptised" otherwise.
+func sharedBirthVerb(children []*model.Person, pl *model.Place) string {
+	var born, baptised bool
+	for _, c := range children {
+		if c.BestBirthlikeEvent == nil {
+			continue
+		}
+		bev, _ := SummaryBirthEvent(c, true)
+		if bev == nil || !bev.GetPlace().SameAs(pl) {
+			continue
+		}
+		if _, ok := bev.(*model.BaptismEvent); ok {
+			baptised = true
+		} else {
+			born = true
+		}
+	}
+	switch {
+	case baptised && !born:
+		return "baptised"
+	case born && !baptised:
+		return "born"
+	default:
+		return "born or baptised"
+	}
+}
+
+// addSharedClause adds the clause stating what most children in a list share to the sentence
+// introducing the list, before its colon: "They had nine children, all baptised at X (unless
+// noted):".
+func addSharedClause(detail *text.Para, shared string) {
+	if shared == "" {
+		return
+	}
+	detail.TrimCurrentRight(":")
+	detail.AppendClause(shared)
 }
 
 // OtherChildrenSentence counts the children of f that are left out of a child list because they
@@ -1233,12 +1344,13 @@ func (s *ChildrenStatement[T]) RenderDetail(seq int, intro *IntroGenerator[T], e
 		}
 	}
 
-	childList := ChildList(s.Family.Children, enc, nc)
+	childList, shared := ChildList(s.Family.Children, enc, nc)
 	if len(childList) == 0 {
 		enc.Para(enc.EncodeText(detail.Text()))
 		return
 	}
 
+	addSharedClause(&detail, shared)
 	detail.FinishSentenceWithTerminator(":–")
 	enc.Para(enc.EncodeText(detail.Text()))
 	enc.UnorderedList(childList)

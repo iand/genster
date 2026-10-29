@@ -91,6 +91,15 @@ func (p *Para) DropSentence() {
 	p.sentences = p.sentences[:len(p.sentences)-1]
 }
 
+// TrimCurrentRight removes any of the characters in cutset from the end of the current
+// sentence, such as the colon of "They had four children:" before a clause is added to it.
+func (p *Para) TrimCurrentRight(cutset string) {
+	if len(p.sentences) == 0 {
+		return
+	}
+	p.sentences[len(p.sentences)-1] = strings.TrimRight(strings.TrimSpace(p.sentences[len(p.sentences)-1]), cutset)
+}
+
 // ReplaceSentence replaces the current sentence with s
 func (p *Para) ReplaceSentence(s string) {
 	p.DropSentence()
