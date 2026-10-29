@@ -376,6 +376,12 @@ func (d *Date) LatestYear() (int, bool) {
 // DefinitelyBefore reports whether every day included by d is earlier than every day
 // included by other. It is false when either date is unknown or not comparable.
 func (d *Date) DefinitelyBefore(other *Date) bool {
+	return d.DefinitelyBeforeBy(other, 0)
+}
+
+// DefinitelyBeforeBy reports whether every day included by d is more than days earlier than
+// every day included by other. It is false when either date is unknown or not comparable.
+func (d *Date) DefinitelyBeforeBy(other *Date, days int) bool {
 	if d.IsUnknown() || other.IsUnknown() {
 		return false
 	}
@@ -387,7 +393,7 @@ func (d *Date) DefinitelyBefore(other *Date) bool {
 	if !ok {
 		return false
 	}
-	return dc.LatestJulianDay() < oc.EarliestJulianDay()
+	return dc.LatestJulianDay()+days < oc.EarliestJulianDay()
 }
 
 func (d *Date) IntervalUntil(other *Date) *Interval {

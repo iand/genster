@@ -305,6 +305,12 @@ func (t *Tree) Generate(redactLiving bool) error {
 		t.InferFamilyStartEndDates(f)
 	}
 
+	// Check dates are consistent once best events and family start events are known, and
+	// before redaction removes them
+	for _, p := range t.sortedPeople() {
+		infer.CheckChronology(p)
+	}
+
 	// Redact any personal information
 	t.Redact(redactLiving)
 
